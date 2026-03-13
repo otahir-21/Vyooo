@@ -2,11 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Result of an auth operation. No raw Firebase exceptions exposed to UI.
 class AuthResult {
-  const AuthResult({
-    required this.success,
-    this.message,
-    this.user,
-  });
+  const AuthResult({required this.success, this.message, this.user});
 
   final bool success;
   final String? message;
@@ -38,15 +34,9 @@ class AuthService {
       );
       return AuthResult(success: true, user: cred.user);
     } on FirebaseAuthException catch (e) {
-      return AuthResult(
-        success: false,
-        message: _mapAuthException(e.code),
-      );
+      return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
-      return AuthResult(
-        success: false,
-        message: _genericMessage(e),
-      );
+      return AuthResult(success: false, message: _genericMessage(e));
     }
   }
 
@@ -62,15 +52,9 @@ class AuthService {
       );
       return AuthResult(success: true, user: cred.user);
     } on FirebaseAuthException catch (e) {
-      return AuthResult(
-        success: false,
-        message: _mapAuthException(e.code),
-      );
+      return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
-      return AuthResult(
-        success: false,
-        message: _genericMessage(e),
-      );
+      return AuthResult(success: false, message: _genericMessage(e));
     }
   }
 
@@ -84,15 +68,9 @@ class AuthService {
       await user.sendEmailVerification();
       return AuthResult(success: true, user: user);
     } on FirebaseAuthException catch (e) {
-      return AuthResult(
-        success: false,
-        message: _mapAuthException(e.code),
-      );
+      return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
-      return AuthResult(
-        success: false,
-        message: _genericMessage(e),
-      );
+      return AuthResult(success: false, message: _genericMessage(e));
     }
   }
 
@@ -102,15 +80,9 @@ class AuthService {
       await _auth.sendPasswordResetEmail(email: email.trim());
       return const AuthResult(success: true);
     } on FirebaseAuthException catch (e) {
-      return AuthResult(
-        success: false,
-        message: _mapAuthException(e.code),
-      );
+      return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
-      return AuthResult(
-        success: false,
-        message: _genericMessage(e),
-      );
+      return AuthResult(success: false, message: _genericMessage(e));
     }
   }
 
@@ -123,15 +95,9 @@ class AuthService {
       await _auth.confirmPasswordReset(code: oobCode, newPassword: newPassword);
       return const AuthResult(success: true);
     } on FirebaseAuthException catch (e) {
-      return AuthResult(
-        success: false,
-        message: _mapAuthException(e.code),
-      );
+      return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
-      return AuthResult(
-        success: false,
-        message: _genericMessage(e),
-      );
+      return AuthResult(success: false, message: _genericMessage(e));
     }
   }
 

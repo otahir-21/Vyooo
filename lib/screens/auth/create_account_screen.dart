@@ -108,11 +108,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         obscureText: _obscurePassword,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: AppTheme.primary,
                             size: 22,
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           style: IconButton.styleFrom(
@@ -129,11 +133,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         obscureText: _obscureConfirmPassword,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                            _obscureConfirmPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                             color: AppTheme.primary,
                             size: 22,
                           ),
-                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          onPressed: () => setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           style: IconButton.styleFrom(
@@ -173,7 +182,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                             height: 24,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black,
+                              ),
                             ),
                           )
                         : const Text(
@@ -202,7 +213,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                           TextSpan(text: 'Already have an account? '),
                           TextSpan(
                             text: 'Sign in',
-                            style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
@@ -214,12 +228,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 // Divider: — Or sign up with —
                 Row(
                   children: [
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        color: White24.value,
-                      ),
-                    ),
+                    Expanded(child: Container(height: 1, color: White24.value)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
@@ -231,12 +240,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        color: White24.value,
-                      ),
-                    ),
+                    Expanded(child: Container(height: 1, color: White24.value)),
                   ],
                 ),
                 const SizedBox(height: _dividerSpacing),
@@ -303,23 +307,18 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       obscureText: obscureText,
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: Icon(
-          icon,
-          color: AppTheme.primary,
-          size: 22,
-        ),
+        prefixIcon: Icon(icon, color: AppTheme.primary, size: 22),
         suffixIcon: suffixIcon,
-        suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
+        ),
       ),
     );
   }
 
   Widget _buildSocialIcon(IconData icon) {
-    return FaIcon(
-      icon,
-      color: AppTheme.primary,
-      size: _socialIconSize,
-    );
+    return FaIcon(icon, color: AppTheme.primary, size: _socialIconSize);
   }
 
   Future<void> _onRegister() async {
@@ -342,7 +341,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
 
     setState(() => _isLoading = true);
-    final result = await _auth.registerWithEmail(email: email, password: password);
+    final result = await _auth.registerWithEmail(
+      email: email,
+      password: password,
+    );
     if (!mounted) return;
     if (!result.success) {
       setState(() {
@@ -368,18 +370,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
     if (!mounted) return;
     setState(() => _isLoading = false);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const VerifyCodeScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const VerifyCodeScreen()));
   }
 
   void _onSignIn() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SignInScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SignInScreen()));
   }
 }
