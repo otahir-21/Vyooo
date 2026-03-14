@@ -170,11 +170,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     selectedIndex: _selectedIndex,
                     onPressed: () {
                       if (_selectedIndex == 0 && standardPkg != null) {
-                        controller.purchaseStandard(standardPkg!);
+                        controller.purchaseStandard(standardPkg);
                       } else if (_selectedIndex == 1 && subscriberPkg != null) {
-                        controller.purchaseSubscriber(subscriberPkg!);
+                        controller.purchaseSubscriber(subscriberPkg);
                       } else if (_selectedIndex == 2 && creatorPkg != null) {
-                        controller.purchaseCreator(creatorPkg!);
+                        controller.purchaseCreator(creatorPkg);
                       }
                     },
                   ),

@@ -12,7 +12,6 @@ class PexelsFeedService {
   factory PexelsFeedService() => _instance;
 
   static const String _base = 'https://api.pexels.com/videos';
-  static const int _perPage = 20;
 
   String? get _apiKey => AppConfig.pexelsApiKey;
 
@@ -55,9 +54,7 @@ class PexelsFeedService {
     if (!isAvailable) return [];
     try {
       final res = await http.get(
-        Uri.parse(
-          '$_base/search?query=360+vr&per_page=${limit.clamp(1, 80)}',
-        ),
+        Uri.parse('$_base/search?query=360+vr&per_page=${limit.clamp(1, 80)}'),
         headers: {'Authorization': _apiKey!},
       );
       if (res.statusCode != 200) return [];
@@ -126,7 +123,9 @@ class PexelsFeedService {
       if (link == null || link.isEmpty) continue;
       if (type == 'mp4' || link.endsWith('.mp4')) {
         any ??= link;
-        if (quality == 'hd' || quality == '1080p' || (m['width'] as num?) == 1920) {
+        if (quality == 'hd' ||
+            quality == '1080p' ||
+            (m['width'] as num?) == 1920) {
           hd = link;
           break;
         }

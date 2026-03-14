@@ -24,7 +24,6 @@ class FeedActionButtons extends StatelessWidget {
   final VoidCallback? onShare;
   final VoidCallback? onMore;
 
-  static const double _iconSize = 26;
   static const double _spacing = 18;
   static const Color _pinkAccent = Color(0xFFFF2E93);
 
@@ -33,7 +32,10 @@ class FeedActionButtons extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _ActionItem(icon: FontAwesomeIcons.crown, color: const Color(0xFFFFD700)),
+        _ActionItem(
+          icon: FontAwesomeIcons.crown,
+          color: const Color(0xFFFFD700),
+        ),
         const SizedBox(height: _spacing),
         _ActionItem(icon: Icons.visibility_outlined, count: viewCount),
         const SizedBox(height: _spacing),
@@ -59,12 +61,7 @@ class FeedActionButtons extends StatelessWidget {
 }
 
 class _ActionItem extends StatelessWidget {
-  const _ActionItem({
-    required this.icon,
-    this.count,
-    this.color,
-    this.onTap,
-  });
+  const _ActionItem({required this.icon, this.count, this.color, this.onTap});
 
   final IconData icon;
   final String? count;

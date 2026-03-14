@@ -12,9 +12,6 @@ import '../account/account_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  static const Color _appBarBg = Color(0xFF2A1035);
-  static const Color _cardBg = Color(0xFF1E0D28);
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

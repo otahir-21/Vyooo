@@ -640,7 +640,7 @@ class _SearchResultGridCard extends StatelessWidget {
   final _LiveCardItem item;
 
   static String _formatCount(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}';
+    if (n >= 1000) return (n / 1000).toStringAsFixed(0);
     return '$n';
   }
 
@@ -1203,10 +1203,9 @@ final List<_VRSearchItem> _vrSearchResultItems = [
 ];
 
 class _CategoryItem {
-  const _CategoryItem({required this.label, required this.icon, this.imageUrl});
+  const _CategoryItem({required this.label, required this.icon});
   final String label;
   final IconData icon;
-  final String? imageUrl;
 }
 
 final List<_CategoryItem> _categoryItems = [

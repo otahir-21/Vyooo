@@ -26,7 +26,8 @@ class _ManageContentPreferencesSheet extends StatefulWidget {
       _ManageContentPreferencesSheetState();
 }
 
-class _ManageContentPreferencesSheetState extends State<_ManageContentPreferencesSheet> {
+class _ManageContentPreferencesSheetState
+    extends State<_ManageContentPreferencesSheet> {
   bool _limitSensitiveContent = true;
   bool _personaliseContent = true;
   bool _hideSensitiveWords = false;
@@ -34,30 +35,38 @@ class _ManageContentPreferencesSheetState extends State<_ManageContentPreference
 
   @override
   Widget build(BuildContext context) {
-        return Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF49113B), // Deep Magenta
-                Color(0xFF210D1D), 
-                Color(0xFF0F040C),
-              ],
-            ),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF49113B), // Deep Magenta
+            Color(0xFF210D1D),
+            Color(0xFF0F040C),
+          ],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.xl),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.xl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.storyItem, bottom: AppSpacing.sm),
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.storyItem,
+                    bottom: AppSpacing.sm,
+                  ),
                   child: Center(
                     child: Container(
                       width: _Layout.dragHandleWidth,
@@ -138,8 +147,10 @@ class _PreferenceSwitch extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
-            activeTrackColor: const Color(0xFF22C55E), // Accurate WhatsApp Green
+            activeThumbColor: Colors.white,
+            activeTrackColor: const Color(
+              0xFF22C55E,
+            ), // Accurate WhatsApp Green
             inactiveThumbColor: Colors.white54,
             inactiveTrackColor: Colors.white.withOpacity(0.1),
           ),

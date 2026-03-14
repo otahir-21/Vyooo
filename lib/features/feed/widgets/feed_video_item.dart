@@ -24,8 +24,6 @@ class FeedVideoItem extends StatelessWidget {
   final VoidCallback? onMore;
   final VoidCallback? onSeeMore;
 
-  static const Color _pinkAccent = Color(0xFFFF2E93);
-
   static String _formatCount(int n) {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
@@ -43,7 +41,11 @@ class FeedVideoItem extends StatelessWidget {
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(
               color: Colors.grey[900],
-              child: const Icon(Icons.broken_image_outlined, size: 64, color: Colors.white38),
+              child: const Icon(
+                Icons.broken_image_outlined,
+                size: 64,
+                color: Colors.white38,
+              ),
             ),
           ),
         ),
@@ -69,10 +71,7 @@ class FeedVideoItem extends StatelessWidget {
           left: 16,
           bottom: 60,
           right: 80,
-          child: _UserInfo(
-            post: post,
-            onSeeMore: onSeeMore,
-          ),
+          child: _UserInfo(post: post, onSeeMore: onSeeMore),
         ),
         Positioned(
           right: 12,

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -77,7 +76,8 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   Future<void> refreshStatus() async {
-    if ((kDebugMode || AppConfig.enableSubscriptionTierTesting) && _testTierOverride != null) {
+    if ((kDebugMode || AppConfig.enableSubscriptionTierTesting) &&
+        _testTierOverride != null) {
       currentTier = _testTierOverride!;
       notifyListeners();
       return;

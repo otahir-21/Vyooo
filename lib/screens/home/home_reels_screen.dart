@@ -482,7 +482,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           _qualityId = id;
           _qualityLabel = id == 'auto' ? 'Auto (1080p HD)' : label;
         });
-        _showSnackBar('Quality: ${_qualityLabel}');
+        _showSnackBar('Quality: $_qualityLabel');
       },
     );
   }

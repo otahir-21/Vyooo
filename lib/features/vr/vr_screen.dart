@@ -42,7 +42,7 @@ class VrScreen extends StatelessWidget {
 
 /// VR paywall content. Reused in home screen when VR tab is selected.
 class VrLockedView extends StatelessWidget {
-  const VrLockedView();
+  const VrLockedView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -60,11 +60,7 @@ class VrLockedView extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF0A1628),
-                Color(0xFF0D2D4A),
-                Color(0xFF1A0030),
-              ],
+              colors: [Color(0xFF0A1628), Color(0xFF0D2D4A), Color(0xFF1A0030)],
             ),
           ),
         ),
@@ -135,9 +131,15 @@ class VrLockedView extends StatelessWidget {
                   const SizedBox(height: AppSpacing.lg),
                   Row(
                     children: [
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
                         child: Text(
                           'or',
                           style: TextStyle(
@@ -146,7 +148,11 @@ class VrLockedView extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.lg),
@@ -202,7 +208,7 @@ class VrLockedView extends StatelessWidget {
 
 /// VR grid of thumbnails. Reused in home screen when VR tab is selected.
 class VrGridView extends StatelessWidget {
-  const VrGridView();
+  const VrGridView({super.key});
 
   static const _thumbnailUrls = [
     'https://picsum.photos/400/400?random=11',

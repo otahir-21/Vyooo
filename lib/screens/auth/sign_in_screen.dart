@@ -59,9 +59,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _onRegister() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const CreateAccountScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
     );
   }
 
@@ -80,7 +78,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 children: [
                   SizedBox(height: AppSpacing.sm),
                   _buildLogo(),
-                  SizedBox(height: AppSpacing.xl + AppSpacing.xl + AppSpacing.sm),
+                  SizedBox(
+                    height: AppSpacing.xl + AppSpacing.xl + AppSpacing.sm,
+                  ),
                   const Text(
                     'Welcome\nBack',
                     style: TextStyle(
@@ -100,10 +100,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   if (_errorMessage != null) ...[
                     Text(
                       _errorMessage!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.red,
-                      ),
+                      style: const TextStyle(fontSize: 12, color: Colors.red),
                     ),
                     SizedBox(height: AppSpacing.sm),
                   ],
@@ -156,11 +153,7 @@ class _SignInScreenState extends State<SignInScreen> {
       ),
       decoration: const InputDecoration(
         hintText: 'Email',
-        prefixIcon: Icon(
-          Icons.mail_outline,
-          color: AppTheme.primary,
-          size: 22,
-        ),
+        prefixIcon: Icon(Icons.mail_outline, color: AppTheme.primary, size: 22),
         suffixIconConstraints: BoxConstraints(minWidth: 40, minHeight: 40),
       ),
     );
@@ -197,7 +190,10 @@ class _SignInScreenState extends State<SignInScreen> {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 40,
+          minHeight: 40,
+        ),
       ),
     );
   }
@@ -217,7 +213,8 @@ class _SignInScreenState extends State<SignInScreen> {
                 onChanged: (v) => setState(() => _rememberMe = v ?? false),
                 activeColor: AppTheme.primary,
                 fillColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) return AppTheme.primary;
+                  if (states.contains(WidgetState.selected))
+                    return AppTheme.primary;
                   return Colors.transparent;
                 }),
                 side: const BorderSide(color: AppTheme.primary),
@@ -267,9 +264,7 @@ class _SignInScreenState extends State<SignInScreen> {
           foregroundColor: AppTheme.buttonTextColor,
           disabledBackgroundColor: Colors.white.withValues(alpha: 0.4),
           disabledForegroundColor: AppTheme.secondaryTextColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.buttonRadius,
-          ),
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.buttonRadius),
         ),
         child: _isLoading
             ? const SizedBox(
@@ -282,10 +277,7 @@ class _SignInScreenState extends State<SignInScreen> {
               )
             : const Text(
                 'Login',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
       ),
     );
@@ -297,13 +289,13 @@ class _SignInScreenState extends State<SignInScreen> {
         onTap: _onRegister,
         child: const Text.rich(
           TextSpan(
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               color: AppTheme.primary,
               fontWeight: FontWeight.w400,
             ),
             children: [
-              const TextSpan(text: "Don't have an account? "),
+              TextSpan(text: "Don't have an account? "),
               TextSpan(
                 text: 'Register Here',
                 style: TextStyle(
@@ -321,11 +313,12 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(
-          child: Container(height: 1, color: White24.value),
-        ),
+        Expanded(child: Container(height: 1, color: White24.value)),
         Padding(
-          padding: EdgeInsets.only(left: AppSpacing.storyItem, right: AppSpacing.storyItem),
+          padding: EdgeInsets.only(
+            left: AppSpacing.storyItem,
+            right: AppSpacing.storyItem,
+          ),
           child: const Text(
             'Or sign in with',
             style: TextStyle(
@@ -335,9 +328,7 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: Container(height: 1, color: White24.value),
-        ),
+        Expanded(child: Container(height: 1, color: White24.value)),
       ],
     );
   }
