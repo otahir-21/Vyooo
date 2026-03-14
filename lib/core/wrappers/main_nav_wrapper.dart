@@ -26,9 +26,9 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     if (index == 2) {
       final canUpload = context.read<SubscriptionController>().canUploadContent;
       if (canUpload) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const UploadScreen()),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()));
       } else {
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
@@ -50,10 +50,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: AppBottomNavigation(
         currentIndex: _currentIndex,
         onTap: (index) => _onNavTap(context, index),

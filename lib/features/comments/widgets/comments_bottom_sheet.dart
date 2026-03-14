@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../data/mock_comments_data.dart';
 import '../models/comment.dart';
@@ -122,21 +121,29 @@ class _CommentsSheetState extends State<_CommentsSheet> {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.sheetBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF49113B), // Deep Magenta
+                Color(0xFF210D1D), // Darker muted purple
+                Color(0xFF0F040C), // Near black
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _DragHandle(),
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 12),
                 child: Text(
                   'Comments',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

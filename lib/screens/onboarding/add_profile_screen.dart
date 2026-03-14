@@ -73,16 +73,25 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
               TextButton.icon(
                 onPressed: () => Navigator.pop(context, 'camera'),
                 icon: const Icon(Icons.camera_alt, color: Colors.white),
-                label: const Text('Camera', style: TextStyle(color: Colors.white)),
+                label: const Text(
+                  'Camera',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               TextButton.icon(
                 onPressed: () => Navigator.pop(context, 'gallery'),
                 icon: const Icon(Icons.photo_library, color: Colors.white),
-                label: const Text('Gallery', style: TextStyle(color: Colors.white)),
+                label: const Text(
+                  'Gallery',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: White70.value)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: White70.value),
+                ),
               ),
             ],
           ),
@@ -117,11 +126,9 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
       } catch (_) {
         // Upload failed (e.g. Firebase Storage not enabled or rules). Still update Firestore
         // with empty profileImage so the field exists, and try next screen.
-        if (uid != null) {
-          try {
-            await UserService().updateUserProfile(uid: uid, profileImage: '');
-          } catch (_) {}
-        }
+        try {
+          await UserService().updateUserProfile(uid: uid, profileImage: '');
+        } catch (_) {}
         if (mounted) setState(() => _isUploading = false);
         if (!mounted) return;
         Navigator.of(context).push(
@@ -136,9 +143,7 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
     }
     if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SelectInterestsScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const SelectInterestsScreen()),
     );
   }
 
@@ -146,55 +151,65 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          AppGradientBackground(
-            type: GradientType.profile,
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 20),
-                    _buildLogo(),
-                    const SizedBox(height: 16),
-                    _buildProgressBar(),
-                    const SizedBox(height: 40),
-                    _buildAvatar(),
-                    const SizedBox(height: 40),
-                    const Text(
-                      'Add a Profile page',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.defaultTextColor,
+      body: AppGradientBackground(
+        type: GradientType.profile,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                /// TOP SECTION
+                const SizedBox(height: 20),
+                _buildLogo(),
+                const SizedBox(height: 16),
+                _buildProgressBar(),
+
+                /// MIDDLE SECTION (CENTERED)
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildAvatar(),
+                      const SizedBox(height: 40),
+
+                      const Text(
+                        'Add a Profile page',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.defaultTextColor,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Select a photo that matches your vibe',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.secondaryTextColor,
-                        fontWeight: FontWeight.w400,
+
+                      const SizedBox(height: 8),
+
+                      const Text(
+                        'Select a photo that matches your vibe',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.secondaryTextColor,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 40),
-                    const SizedBox(height: 100),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+
+                /// BOTTOM BUTTON
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: _buildNextButton(),
+                  ),
+                ),
+              ],
             ),
           ),
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: _buildNextButton(),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -262,6 +277,7 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
     return Center(
       child: Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
           GestureDetector(
             onTap: _isPicking ? null : _pickImage,
@@ -272,39 +288,47 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
                   : _buildDefaultAvatar(),
             ),
           ),
-          const Positioned(
-            top: 0,
-            left: 0,
+
+          /// sparkle icon
+          Positioned(
+            top: 8,
+            left: 10,
             child: Icon(
               Icons.auto_awesome,
-              size: 22,
+              size: 50,
               color: AppColors.lightGold,
             ),
           ),
+
+          /// camera button
           Positioned(
-            right: 0,
-            bottom: 0,
+            right: -2,
+            bottom: 10,
             child: GestureDetector(
               onTap: _isPicking ? null : _pickImage,
               child: Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.darkPurple,
+                  color: const Color(0xFF14001E),
                   shape: BoxShape.circle,
-                  border: Border.all(color: White10.value, width: 1),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
                 ),
-                alignment: Alignment.center,
                 child: _isPicking
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.add_a_photo, color: Colors.white, size: 22),
+                    : const Icon(
+                        Icons.image_outlined,
+                        size: 22,
+                        color: Colors.white,
+                      ),
               ),
             ),
           ),
@@ -316,19 +340,15 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
   Widget _buildDefaultAvatar() {
     return Container(
       key: const ValueKey('default'),
-      width: 160,
-      height: 160,
+      width: 221,
+      height: 221,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white.withValues(alpha: 0.05),
         border: Border.all(color: White10.value, width: 1),
       ),
       alignment: Alignment.center,
-      child: const Icon(
-        Icons.person_outline,
-        size: 80,
-        color: AppColors.pink,
-      ),
+      child: const Icon(Icons.person_outline, size: 80, color: AppColors.pink),
     );
   }
 
@@ -336,15 +356,12 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
     final path = _profileImagePath!;
     return Container(
       key: ValueKey(path),
-      width: 160,
-      height: 160,
+      width: 221,
+      height: 221,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: White10.value, width: 1),
-        image: DecorationImage(
-          image: FileImage(File(path)),
-          fit: BoxFit.cover,
-        ),
+        image: DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover),
       ),
     );
   }
@@ -353,7 +370,9 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
     return Material(
       elevation: 2,
       shape: const CircleBorder(),
-      color: _isUploading ? Colors.white.withValues(alpha: 0.5) : AppTheme.buttonBackground,
+      color: _isUploading
+          ? Colors.white.withValues(alpha: 0.5)
+          : AppTheme.buttonBackground,
       child: InkWell(
         onTap: _isUploading ? null : _onNext,
         customBorder: const CircleBorder(),

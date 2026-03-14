@@ -9,15 +9,22 @@ import '../../core/widgets/app_gradient_background.dart';
 import 'add_profile_screen.dart';
 
 const List<String> _monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 class SelectDobScreen extends StatefulWidget {
-  const SelectDobScreen({
-    super.key,
-    this.onDobSelected,
-  });
+  const SelectDobScreen({super.key, this.onDobSelected});
 
   /// Called with selected valid date when user taps Next.
   final void Function(DateTime date)? onDobSelected;
@@ -109,18 +116,17 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
     final uid = AuthService().currentUser?.uid;
     if (uid != null && uid.isNotEmpty) {
       try {
-        final dobString = '${_year.toString().padLeft(4, '0')}-${_month.toString().padLeft(2, '0')}-${_day.toString().padLeft(2, '0')}';
+        final dobString =
+            '${_year.toString().padLeft(4, '0')}-${_month.toString().padLeft(2, '0')}-${_day.toString().padLeft(2, '0')}';
         await UserService().updateUserProfile(uid: uid, dob: dobString);
       } catch (_) {
         if (!mounted) return;
       }
     }
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const AddProfileScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const AddProfileScreen()));
   }
 
   @override
@@ -133,7 +139,9 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
             type: GradientType.dob,
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -163,11 +171,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
               ),
             ),
           ),
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: _buildFab(),
-          ),
+          Positioned(right: 24, bottom: 24, child: _buildFab()),
         ],
       ),
     );
@@ -267,79 +271,156 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
       height: _pickerHeight,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.darkPurple.withOpacity(0.25),
         borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withOpacity(0.05),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
       child: Stack(
         children: [
+          /// PICKERS
           Row(
             children: [
               Expanded(
                 child: CupertinoPicker.builder(
                   scrollController: _monthController,
                   itemExtent: _pickerItemExtent,
-                  selectionOverlay: const SizedBox.shrink(),
+                  selectionOverlay: const SizedBox(),
                   onSelectedItemChanged: _onMonthChanged,
-                  itemBuilder: (context, index) => Center(
-                    child: Text(
-                      _monthNames[index],
-                      style: TextStyle(
-                        fontSize: _monthIndex == index ? 18 : 16,
-                        fontWeight: _monthIndex == index ? FontWeight.w600 : FontWeight.w400,
-                        color: _monthIndex == index ? AppTheme.primary : White40.value,
-                      ),
-                    ),
-                  ),
                   childCount: 12,
+                  itemBuilder: (context, index) {
+                    final selected = _monthIndex == index;
+
+                    return Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          fontSize: selected ? 20 : 16,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: selected
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.35),
+                        ),
+                        child: Text(_monthNames[index]),
+                      ),
+                    );
+                  },
                 ),
               ),
+
               Expanded(
                 child: CupertinoPicker.builder(
                   scrollController: _dayController,
                   itemExtent: _pickerItemExtent,
-                  selectionOverlay: const SizedBox.shrink(),
+                  selectionOverlay: const SizedBox(),
                   onSelectedItemChanged: _onDayChanged,
-                  itemBuilder: (context, index) => Center(
-                    child: Text(
-                      '${_days[index]}',
-                      style: TextStyle(
-                        fontSize: _dayIndex == index ? 18 : 16,
-                        fontWeight: _dayIndex == index ? FontWeight.w600 : FontWeight.w400,
-                        color: _dayIndex == index ? AppTheme.primary : White40.value,
-                      ),
-                    ),
-                  ),
                   childCount: _days.length,
+                  itemBuilder: (context, index) {
+                    final selected = _dayIndex == index;
+
+                    return Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          fontSize: selected ? 20 : 16,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: selected
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.35),
+                        ),
+                        child: Text('${_days[index]}'),
+                      ),
+                    );
+                  },
                 ),
               ),
+
               Expanded(
                 child: CupertinoPicker.builder(
                   scrollController: _yearController,
                   itemExtent: _pickerItemExtent,
-                  selectionOverlay: const SizedBox.shrink(),
+                  selectionOverlay: const SizedBox(),
                   onSelectedItemChanged: _onYearChanged,
-                  itemBuilder: (context, index) => Center(
-                    child: Text(
-                      '${_years[index]}',
-                      style: TextStyle(
-                        fontSize: _yearIndex == index ? 18 : 16,
-                        fontWeight: _yearIndex == index ? FontWeight.w600 : FontWeight.w400,
-                        color: _yearIndex == index ? AppTheme.primary : White40.value,
-                      ),
-                    ),
-                  ),
                   childCount: _years.length,
+                  itemBuilder: (context, index) {
+                    final selected = _yearIndex == index;
+
+                    return Center(
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          fontSize: selected ? 20 : 16,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: selected
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.35),
+                        ),
+                        child: Text('${_years[index]}'),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
+
+          /// CENTER SELECTION HIGHLIGHT
           Center(
             child: IgnorePointer(
               child: Container(
                 height: _pickerItemExtent,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withOpacity(0.08),
+                ),
+              ),
+            ),
+          ),
+
+          /// TOP FADE
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.45),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          /// BOTTOM FADE
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.45),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -362,6 +443,11 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
           children: [
             const TextSpan(
               text: 'Please refer to our ',
+              style: TextStyle(
+                fontSize: 12,
+                color: White50.value,
+                fontWeight: FontWeight.w400,
+              ),
             ),
             WidgetSpan(
               child: GestureDetector(
@@ -373,13 +459,19 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     color: White50.value,
-                    decoration: TextDecoration.underline,
-                    fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ),
-            const TextSpan(text: ' for further information on how we process this data.'),
+            const TextSpan(
+              text: ' for further information on how we process this data.',
+              style: TextStyle(
+                fontSize: 12,
+                color: White50.value,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
           ],
         ),
       ),

@@ -174,13 +174,51 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         width: double.infinity,
         height: double.infinity,
         color: Colors.black,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: size.width,
-            height: size.height,
-            child: VideoPlayer(_controller!),
-          ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: VideoPlayer(_controller!),
+                ),
+              ),
+            ),
+            // Top Indicator Bar
+            Positioned(
+              top: 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+            // Progress Bar
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: VideoProgressIndicator(
+                _controller!,
+                allowScrubbing: true,
+                colors: const VideoProgressColors(
+                  playedColor: Color(0xFFEF4444),
+                  bufferedColor: Colors.white24,
+                  backgroundColor: Colors.transparent,
+                ),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
         ),
       ),
     );

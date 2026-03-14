@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 /// Shows the three-dots "more options" bottom sheet: Download, Report, Not Interested,
@@ -72,8 +70,6 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
   final VoidCallback? onManagePreferences;
   final VoidCallback? onWhyThisPost;
 
-  static const Color _sectionBg = Color(0xFF351F35);
-
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -83,15 +79,23 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.sheetBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF49113B), // Deep Magenta
+                Color(0xFF210D1D), 
+                Color(0xFF0F040C),
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _DragHandle(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Row(
                   children: [
                     Expanded(
@@ -104,20 +108,20 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                         },
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _ActionButton(
                         icon: Icons.report_outlined,
                         label: 'Report',
-                        iconColor: AppColors.pink,
-                        labelColor: AppColors.pink,
+                        iconColor: const Color(0xFFEF4444),
+                        labelColor: const Color(0xFFEF4444),
                         onTap: () {
                           Navigator.of(context).pop();
                           onReport?.call();
                         },
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _ActionButton(
                         icon: Icons.favorite_border,
@@ -137,8 +141,8 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                   children: [
                     _Section(
-                      backgroundColor: _sectionBg,
-                      borderRadius: AppRadius.input,
+                      backgroundColor: Colors.white.withOpacity(0.05),
+                      borderRadius: 16,
                       children: [
                         _SettingTile(
                           icon: Icons.closed_caption_outlined,
@@ -158,7 +162,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                           },
                         ),
                         _SettingTile(
-                          icon: Icons.hd_outlined,
+                          icon: Icons.tune_rounded, // Better icon for Quality matching Figma
                           label: 'Quality',
                           trailing: quality,
                           onTap: () {
@@ -170,11 +174,11 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _Section(
-                      backgroundColor: _sectionBg,
-                      borderRadius: AppRadius.input,
+                      backgroundColor: Colors.white.withOpacity(0.05),
+                      borderRadius: 16,
                       children: [
                         _SettingTile(
-                          icon: Icons.tune_rounded,
+                          icon: Icons.shuffle_rounded,
                           label: 'Manage content preferences',
                           onTap: () {
                             Navigator.of(context).pop();
@@ -242,24 +246,28 @@ class _ActionButton extends StatelessWidget {
     final color = iconColor ?? Colors.white;
     final textColor = labelColor ?? Colors.white;
     return Material(
-      color: Colors.white.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(AppRadius.input),
+      color: Colors.white.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: 24, color: color),
-              const SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: 8),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: textColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -313,17 +321,17 @@ class _SettingTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: Colors.white70),
-            const SizedBox(width: AppSpacing.md),
+            Icon(icon, size: 22, color: Colors.white.withOpacity(0.9)),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -332,16 +340,16 @@ class _SettingTile extends StatelessWidget {
               Text(
                 trailing!,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: Colors.white.withOpacity(0.5),
                   fontSize: 14,
                 ),
               ),
-              const SizedBox(width: AppSpacing.xs),
+              const SizedBox(width: 4),
             ],
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withOpacity(0.3),
             ),
           ],
         ),

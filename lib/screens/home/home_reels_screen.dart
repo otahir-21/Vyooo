@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/subscription/subscription_controller.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_interaction_button.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
@@ -14,6 +13,7 @@ import '../../features/reel/widgets/download_subscription_sheet.dart';
 import '../../features/reel/widgets/manage_content_preferences_sheet.dart';
 import '../../features/reel/widgets/not_interested_sheet.dart';
 import '../../features/reel/widgets/playback_speed_sheet.dart';
+import '../../features/reel/widgets/report_sheet.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../../features/reel/widgets/video_quality_sheet.dart';
 import '../../features/reel/widgets/why_seeing_this_sheet.dart';
@@ -26,10 +26,7 @@ enum HomeTab { trending, vr, following, forYou }
 /// Main home screen: vertical reels feed with interactions.
 /// Default tab: For You. Tab switch is internal state only (no new route).
 class HomeReelsScreen extends StatefulWidget {
-  const HomeReelsScreen({
-    super.key,
-    this.isActive = true,
-  });
+  const HomeReelsScreen({super.key, this.isActive = true});
 
   /// Whether the Home tab is the currently visible bottom-nav tab.
   /// When false, reels should pause even if their page is selected.
@@ -87,7 +84,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     },
     {
       'id': 'reel2',
-      'videoUrl': 'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
+      'videoUrl':
+          'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
       'username': 'luxury_rides',
       'handle': '@luxuryrides',
       'caption': 'POV: you finally got the keys 🔑 #carlife #newcar #vyooo',
@@ -100,7 +98,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     },
     {
       'id': 'reel3',
-      'videoUrl': 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+      'videoUrl':
+          'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
       'username': 'street_garage',
       'handle': '@streetgarage',
       'caption': 'Build not bought 💪 #carmods #carreels #vyooo',
@@ -116,7 +115,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       'videoUrl': 'https://assets.mixkit.co/videos/24481/24481-720.mp4',
       'username': 'night_drives',
       'handle': '@nightdrives',
-      'caption': 'City lights & good vibes only 🌃 #nightdrive #carreels #vyooo',
+      'caption':
+          'City lights & good vibes only 🌃 #nightdrive #carreels #vyooo',
       'likes': 33800,
       'comments': 567,
       'saves': 890,
@@ -170,7 +170,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
     if (index < _currentReels.length) {
-      _reelsController.incrementView(reelId: _currentReels[index]['id'] as String);
+      _reelsController.incrementView(
+        reelId: _currentReels[index]['id'] as String,
+      );
     }
   }
 
@@ -191,7 +193,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onShare(String reelId) {
-    final reel = _currentIndex < _currentReels.length ? _currentReels[_currentIndex] : null;
+    final reel = _currentIndex < _currentReels.length
+        ? _currentReels[_currentIndex]
+        : null;
     showShareBottomSheet(
       context,
       reelId: reelId,
@@ -247,44 +251,78 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final isVrTab = currentTab == HomeTab.vr;
+    final isFollowing = currentTab == HomeTab.following;
+
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          if (isVrTab) _buildVrContent() else _buildReelsFeed(),
-          _buildHeader(),
-          if (currentTab == HomeTab.following) _buildStoryRow(),
-          if (!isVrTab) ...[
-            _buildInteractionButtons(),
-            _buildBottomUserInfo(),
-            if (_showControls) _buildControlsOverlay(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: (isFollowing || isVrTab)
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF49113B), // Dark magenta
+                    Color(0xFF000000),
+                  ],
+                )
+              : null,
+        ),
+        child: Stack(
+          children: [
+            if (isVrTab)
+              Positioned.fill(
+                top: 110, // Just below header
+                child: _buildVrContent(),
+              )
+            else
+              Positioned.fill(
+                top: isFollowing ? 220 : 0, // Push video down for stories
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isFollowing ? 8 : 0,
+                    vertical: isFollowing ? 8 : 0,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(isFollowing ? 24 : 0),
+                    child: _buildReelsFeed(),
+                  ),
+                ),
+              ),
+            _buildHeader(),
+            if (isFollowing) _buildStoryRow(),
+            if (!isVrTab) ...[
+              _buildInteractionButtons(),
+              _buildBottomUserInfo(),
+              if (_showControls) _buildControlsOverlay(),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildVrContent() {
-    return Positioned.fill(
-      child: Consumer<SubscriptionController>(
-        builder: (context, subscriptionController, _) {
-          if (!subscriptionController.hasVRAccess) {
-            return const VrLockedView();
-          }
-          return const VrGridView();
-        },
-      ),
+    return Consumer<SubscriptionController>(
+      builder: (context, subscriptionController, _) {
+        if (!subscriptionController.hasVRAccess) {
+          return const VrLockedView();
+        }
+        return const VrGridView();
+      },
     );
   }
 
   Widget _buildStoryRow() {
     final stories = _reelsFollowing
         .take(8)
-        .map((r) => {
-              'id': r['id'],
-              'profileImage': r['avatarUrl'],
-              'avatarUrl': r['avatarUrl'],
-            })
+        .map(
+          (r) => {
+            'id': r['id'],
+            'profileImage': r['avatarUrl'],
+            'avatarUrl': r['avatarUrl'],
+          },
+        )
         .toList();
     return Positioned(
       top: 100,
@@ -341,8 +379,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isSaved = _savedReels[reelId] ?? false;
 
     return Positioned(
-      right: 16,
-      bottom: 12,
+      right: 12,
+      bottom: 24,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -350,33 +388,35 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             icon: Icons.visibility_outlined,
             count: _formatCount(reel['views'] as int),
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 16),
           AppInteractionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
             count: _formatCount(reel['likes'] as int),
             isActive: isLiked,
+            activeColor: const Color(0xFFEF4444), // Accurate red/pink
             onTap: () => _onLike(reelId, isLiked),
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 16),
           AppInteractionButton(
             icon: Icons.chat_bubble_outline,
             count: _formatCount(reel['comments'] as int),
             onTap: () => _onComment(reelId),
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 16),
           AppInteractionButton(
-            icon: isSaved ? Icons.bookmark : Icons.bookmark_border,
+            icon: isSaved ? Icons.star : Icons.star_border,
             count: _formatCount(reel['saves'] as int),
             isActive: isSaved,
+            activeColor: const Color(0xFFFFD700), // Gold
             onTap: () => _onSave(reelId, isSaved),
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 16),
           AppInteractionButton(
-            icon: Icons.send_outlined,
+            icon: Icons.reply, // Share style icon
             count: _formatCount(reel['shares'] as int),
             onTap: () => _onShare(reelId),
           ),
-          SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 16),
           AppInteractionButton(
             icon: Icons.more_horiz,
             count: '',
@@ -388,13 +428,18 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onMoreOptions(String reelId) {
+    final reel = _currentReels.firstWhere((r) => r['id'] == reelId);
     showReelMoreOptionsSheet(
       context,
       reelId: reelId,
       playbackSpeed: _playbackSpeedLabel,
       quality: _qualityLabel,
       onDownload: _onDownloadTapped,
-      onReport: () => _showSnackBar('Report submitted'),
+      onReport: () => showReportSheet(
+        context,
+        username: reel['username'] as String,
+        avatarUrl: reel['avatarUrl'] as String,
+      ),
       onNotInterested: () => showNotInterestedSheet(context),
       onCaptions: () => _showSnackBar('Captions'),
       onPlaybackSpeed: _openPlaybackSpeedSheet,
@@ -406,7 +451,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   void _onDownloadTapped() {
     final subscriptionController = context.read<SubscriptionController>();
-    if (subscriptionController.isSubscriber || subscriptionController.isCreator) {
+    if (subscriptionController.isSubscriber ||
+        subscriptionController.isCreator) {
       _showSnackBar('Download started');
     } else {
       showDownloadSubscriptionSheet(context);
@@ -456,64 +502,118 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return Positioned(
       left: 16,
       right: 80,
-      bottom: 12, // just above nav bar (body ends at top of nav)
+      bottom: 24,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: (reel['avatarUrl'] as String).isNotEmpty
-                    ? NetworkImage(reel['avatarUrl'] as String)
-                    : null,
-                child: (reel['avatarUrl'] as String).isEmpty
-                    ? const Icon(Icons.person, color: Colors.white, size: 24)
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.grey[800],
+                  backgroundImage: (reel['avatarUrl'] as String).isNotEmpty
+                      ? NetworkImage(reel['avatarUrl'] as String)
+                      : null,
+                  child: (reel['avatarUrl'] as String).isEmpty
+                      ? const Icon(Icons.person, color: Colors.white, size: 24)
+                      : null,
+                ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    reel['username'] as String,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          reel['username'] as String,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.all(1),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check,
+                            color: Colors.white,
+                            size: 9,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Text(
-                    reel['handle'] as String,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.7),
+                    Text(
+                      reel['handle'] as String,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.6),
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.1,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 14),
           Text(
             reel['caption'] as String,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: Colors.white,
+              fontWeight: FontWeight.w400,
+              height: 1.3,
             ),
           ),
-          SizedBox(height: AppSpacing.xs),
-          Text(
-            'See More',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white.withValues(alpha: 0.6),
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () {
+              // TODO: Expand caption
+            },
+            child: Text(
+              'See More',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withOpacity(0.8),
+                fontWeight: FontWeight.w700,
+              ),
             ),
+          ),
+          const SizedBox(height: 12),
+          // Page indicators
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(5, (index) {
+              final isTarget = index == 0;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: isTarget ? 10 : 6,
+                height: 6,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: isTarget
+                      ? Colors.white
+                      : Colors.white.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              );
+            }),
           ),
         ],
       ),
@@ -526,46 +626,43 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       child: AnimatedOpacity(
         opacity: _showControls ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildControlCircle(
-              icon: playing ? Icons.pause : Icons.play_arrow,
-              onTap: _onVideoTap,
-            ),
-            const SizedBox(width: 20),
-            _buildControlCircle(
-              icon: Icons.volume_off_rounded,
-              onTap: () {
-                // TODO: Toggle mute; wire to player
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Mute'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-            ),
-          ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(40),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _onVideoTap,
+                child: Icon(
+                  playing ? Icons.pause : Icons.play_arrow,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 24,
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                color: Colors.white.withOpacity(0.3),
+              ),
+              GestureDetector(
+                onTap: () {
+                  // TODO: Toggle mute
+                },
+                child: const Icon(
+                  Icons.volume_off_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildControlCircle({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withValues(alpha: 0.25),
-        ),
-        child: Icon(icon, color: Colors.white, size: 28),
       ),
     );
   }

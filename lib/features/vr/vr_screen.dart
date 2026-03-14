@@ -205,18 +205,23 @@ class VrGridView extends StatelessWidget {
   const VrGridView();
 
   static const _thumbnailUrls = [
-    'https://picsum.photos/400/400?random=1',
-    'https://picsum.photos/400/400?random=2',
-    'https://picsum.photos/400/400?random=3',
-    'https://picsum.photos/400/400?random=4',
-    'https://picsum.photos/400/400?random=5',
-    'https://picsum.photos/400/400?random=6',
-    'https://picsum.photos/400/400?random=7',
-    'https://picsum.photos/400/400?random=8',
-    'https://picsum.photos/400/400?random=9',
+    'https://picsum.photos/400/400?random=11',
+    'https://picsum.photos/400/400?random=12',
+    'https://picsum.photos/400/400?random=13',
+    'https://picsum.photos/400/400?random=14',
+    'https://picsum.photos/400/400?random=15',
+    'https://picsum.photos/400/400?random=16',
+    'https://picsum.photos/400/400?random=17',
+    'https://picsum.photos/400/400?random=18',
+    'https://picsum.photos/400/400?random=19',
+    'https://picsum.photos/400/400?random=20',
+    'https://picsum.photos/400/400?random=21',
+    'https://picsum.photos/400/400?random=22',
+    'https://picsum.photos/400/400?random=23',
+    'https://picsum.photos/400/400?random=24',
+    'https://picsum.photos/400/400?random=25',
   ];
 
-  /// Test video URLs for development. Each grid item uses one by index.
   static final _testVideoUrls = [
     ...VrPlayerScreen.testVideoUrls,
     ...VrPlayerScreen.testVideoUrls,
@@ -225,14 +230,23 @@ class VrGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: GridView.builder(
+        padding: EdgeInsets.zero,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 1,
+          crossAxisSpacing: 1.5,
+          mainAxisSpacing: 1.5,
+          childAspectRatio: 1.0,
         ),
         itemCount: _thumbnailUrls.length,
         itemBuilder: (context, index) {
@@ -253,42 +267,16 @@ class VrGridView extends StatelessWidget {
                 ),
               );
             },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    _thumbnailUrls[index],
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.white12,
-                      child: const Icon(
-                        Icons.videocam_off,
-                        color: Colors.white38,
-                        size: 32,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            child: Image.network(
+              _thumbnailUrls[index],
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: Colors.white12,
+                child: const Icon(
+                  Icons.videocam_off,
+                  color: Colors.white38,
+                  size: 32,
+                ),
               ),
             ),
           );
