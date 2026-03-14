@@ -1,8 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 /// "Why you're seeing this post?" bottom sheet: title, body with Learn More link,
@@ -29,8 +27,16 @@ class _WhySeeingThisSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.sheetBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF49113B), // Deep Magenta
+            Color(0xFF210D1D), 
+            Color(0xFF0F040C),
+          ],
+        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -66,7 +72,7 @@ class _WhySeeingThisSheet extends StatelessWidget {
                 RichText(
                   text: TextSpan(
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.5),
                       fontSize: 15,
                       height: 1.4,
                       fontWeight: FontWeight.w400,
@@ -74,22 +80,19 @@ class _WhySeeingThisSheet extends StatelessWidget {
                     children: [
                       const TextSpan(
                         text:
-                            'Posts are shown in feed based on many things, including your activity in Vyooo. ',
+                            'Posts are shown in feed based on many things, including your activity in VyooO. ',
                       ),
                       TextSpan(
                         text: 'Learn More',
-                        style: TextStyle(
-                          color: AppColors.linkBlue,
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: AppColors.linkBlue,
                         ),
                         recognizer: TapGestureRecognizer()
                           ..onTap = () {
                             // TODO: open learn more URL or in-app page
                           },
                       ),
-                      const TextSpan(text: '.'),
                     ],
                   ),
                 ),
@@ -97,13 +100,12 @@ class _WhySeeingThisSheet extends StatelessWidget {
                 _ReasonRow(
                   icon: Icons.person_outline_rounded,
                   label: "You follow Robert Thank",
-                  avatarUrl: 'https://i.pravatar.cc/80?img=12',
+                  avatarUrl: 'https://i.pravatar.cc/100?img=12', // Slightly larger high-quality avatar
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: 24),
                 _ReasonRow(
-                  icon: Icons.autorenew_rounded,
+                  icon: Icons.access_time_rounded, // Improved clock icon matching mockup
                   label: "You've interacted with content about travel and more.",
-                  avatarUrl: null,
                 ),
                 const SizedBox(height: AppSpacing.sm),
               ],

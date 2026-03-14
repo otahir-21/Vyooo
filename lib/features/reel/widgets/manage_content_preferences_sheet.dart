@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 /// "Manage Content Preferences" bottom sheet with four toggles.
@@ -36,11 +34,19 @@ class _ManageContentPreferencesSheetState extends State<_ManageContentPreference
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.sheetBackground,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
-      ),
+        return Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF49113B), // Deep Magenta
+                Color(0xFF210D1D), 
+                Color(0xFF0F040C),
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -133,9 +139,9 @@ class _PreferenceSwitch extends StatelessWidget {
             value: value,
             onChanged: onChanged,
             activeColor: Colors.white,
-            activeTrackColor: AppColors.whatsappGreen,
+            activeTrackColor: const Color(0xFF22C55E), // Accurate WhatsApp Green
             inactiveThumbColor: Colors.white54,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
+            inactiveTrackColor: Colors.white.withOpacity(0.1),
           ),
         ],
       ),

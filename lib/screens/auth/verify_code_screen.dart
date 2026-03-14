@@ -31,14 +31,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(
-      _otpLength,
-      (_) => TextEditingController(),
-    );
-    _focusNodes = List.generate(
-      _otpLength,
-      (_) => FocusNode(),
-    );
+    _controllers = List.generate(_otpLength, (_) => TextEditingController());
+    _focusNodes = List.generate(_otpLength, (_) => FocusNode());
     for (int i = 0; i < _otpLength; i++) {
       _controllers[i].addListener(() => _onOtpChanged(i));
     }
@@ -69,163 +63,169 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
         type: GradientType.auth,
         child: SafeArea(
           child: Shortcuts(
-          shortcuts: const {
-            SingleActivator(LogicalKeyboardKey.backspace): _BackspaceIntent(),
-          },
-          child: Actions(
-            actions: {
-              _BackspaceIntent: CallbackAction<_BackspaceIntent>(
-                onInvoke: (_) {
-                  for (int i = 0; i < _otpLength; i++) {
-                    if (_focusNodes[i].hasFocus &&
-                        _controllers[i].text.isEmpty &&
-                        i > 0) {
-                      _focusNodes[i - 1].requestFocus();
-                      break;
-                    }
-                  }
-                  return null;
-                },
-              ),
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.backspace): _BackspaceIntent(),
             },
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 20),
-
-                // Logo
-                _buildLogo(),
-                const SizedBox(height: 60),
-
-                // Title
-                const Text(
-                  'Verify Code',
-                  style: TextStyle(
-                    color: AppTheme.defaultTextColor,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  textAlign: TextAlign.center,
+            child: Actions(
+              actions: {
+                _BackspaceIntent: CallbackAction<_BackspaceIntent>(
+                  onInvoke: (_) {
+                    for (int i = 0; i < _otpLength; i++) {
+                      if (_focusNodes[i].hasFocus &&
+                          _controllers[i].text.isEmpty &&
+                          i > 0) {
+                        _focusNodes[i - 1].requestFocus();
+                        break;
+                      }
+                    }
+                    return null;
+                  },
                 ),
-                const SizedBox(height: 16),
-
-                // Subtitle
-                const Text(
-                  "Please enter the code we've just sent to email",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.secondaryTextColor,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-
-                // Masked email
-                Text(
-                  widget.maskedEmail,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFFD10057),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-
-                // OTP boxes
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    _otpLength,
-                    (i) => _buildOtpBox(i),
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                // Resend section
-                Center(
+              },
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      const SizedBox(height: 20),
+
+                      // Logo
+                      _buildLogo(),
+                      const SizedBox(height: 60),
+
+                      // Title
                       const Text(
-                        "Didn't receive OTP?",
+                        'Verify Code',
+                        style: TextStyle(
+                          color: AppTheme.defaultTextColor,
+                          fontSize: 36,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Subtitle
+                      const Text(
+                        "Please enter the code we've just sent to email",
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.secondaryTextColor,
                           fontWeight: FontWeight.w400,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: _onResendCode,
-                        child: const Text(
-                          'Resend Code',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.primary,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppTheme.primary,
+                      const SizedBox(height: 6),
+
+                      // Masked email
+                      Text(
+                        widget.maskedEmail,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFD10057),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+
+                      // OTP boxes
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(
+                          _otpLength,
+                          (i) => _buildOtpBox(i),
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // Resend section
+                      Center(
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Didn't receive OTP?",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.secondaryTextColor,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: _onResendCode,
+                              child: const Text(
+                                'Resend Code',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+
+                      // Verify button
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _isOtpComplete ? _onVerify : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.buttonBackground,
+                              foregroundColor: AppTheme.buttonTextColor,
+                              disabledBackgroundColor: Colors.white.withValues(
+                                alpha: 0.4,
+                              ),
+                              disabledForegroundColor:
+                                  AppTheme.secondaryTextColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              'Verify',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Try Another Way
+                      Center(
+                        child: GestureDetector(
+                          onTap: _onTryAnotherWay,
+                          child: const Text(
+                            'Try Another Way',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.secondaryTextColor,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
                     ],
                   ),
-                ),
-                const SizedBox(height: 40),
-
-                // Verify button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isOtpComplete ? _onVerify : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.buttonBackground,
-                      foregroundColor: AppTheme.buttonTextColor,
-                      disabledBackgroundColor: Colors.white.withValues(alpha: 0.4),
-                      disabledForegroundColor: AppTheme.secondaryTextColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      'Verify',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Try Another Way
-                Center(
-                  child: GestureDetector(
-                    onTap: _onTryAnotherWay,
-                    child: const Text(
-                      'Try Another Way',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.secondaryTextColor,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-                    const SizedBox(height: 30),
-                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
     );
   }
 
@@ -259,53 +259,50 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
 
   Widget _buildOtpBox(int index) {
     return ListenableBuilder(
-        listenable: _focusNodes[index],
-        builder: (_, __) {
-          final hasFocus = _focusNodes[index].hasFocus;
-          return Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: hasFocus
-                  ? Border.all(
-                      color: Colors.white.withOpacity(0.4),
-                      width: 1.5,
-                    )
-                  : null,
+      listenable: _focusNodes[index],
+      builder: (_, __) {
+        final hasFocus = _focusNodes[index].hasFocus;
+        return Container(
+          width: 70,
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: hasFocus
+                ? Border.all(color: Colors.white.withOpacity(0.4), width: 1.5)
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: TextField(
+            controller: _controllers[index],
+            focusNode: _focusNodes[index],
+            maxLength: 1,
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            style: const TextStyle(
+              color: AppTheme.primary,
+              fontSize: 32,
+              fontWeight: FontWeight.w600,
             ),
-            alignment: Alignment.center,
-            child: TextField(
-              controller: _controllers[index],
-              focusNode: _focusNodes[index],
-              maxLength: 1,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: const TextStyle(
-                color: AppTheme.primary,
+            decoration: InputDecoration(
+              hintText: '-',
+              hintStyle: TextStyle(
+                color: AppTheme.primary.withOpacity(0.5),
                 fontSize: 32,
                 fontWeight: FontWeight.w600,
               ),
-              decoration: InputDecoration(
-                hintText: '-',
-                hintStyle: TextStyle(
-                  color: AppTheme.primary.withOpacity(0.5),
-                  fontSize: 32,
-                  fontWeight: FontWeight.w600,
-                ),
-                counterText: '',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
+              counterText: '',
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
             ),
-          );
-        },
+          ),
+        );
+      },
     );
   }
 
@@ -322,9 +319,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       );
     } else {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const CreateUsernameScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const CreateUsernameScreen()),
       );
     }
   }

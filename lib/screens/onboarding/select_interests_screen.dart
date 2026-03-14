@@ -62,7 +62,9 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
     _interests = List.from(widget.interests);
     _searchController = TextEditingController();
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
     _state.addListener(_onStateChanged);
   }
@@ -112,9 +114,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
     }
     if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const OnboardingCompleteScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const OnboardingCompleteScreen()),
     );
   }
 
@@ -127,23 +127,32 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
           AppGradientBackground(
             type: GradientType.profile,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _horizontalPadding,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
-                  _buildLogo(),
-                  const SizedBox(height: 16),
-                  const OnboardingProgressBar(progress: 0.85),
-                  const SizedBox(height: 40),
-                  _buildTitleSection(),
-                  const SizedBox(height: 20),
-                  _buildSearchBar(),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: _buildChipsRows(),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 40.0, right: 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildLogo(),
+                        const SizedBox(height: 16),
+                        const OnboardingProgressBar(progress: 0.85),
+                        const SizedBox(height: 40),
+                        _buildTitleSection(),
+                        const SizedBox(height: 20),
+                        _buildSearchBar(),
+                        const SizedBox(height: 20),
+                      ],
                     ),
+                  ),
+
+                  Expanded(
+                    child: SingleChildScrollView(child: _buildChipsRows()),
                   ),
                   const SizedBox(height: 16),
                   _buildHelperText(),
@@ -152,11 +161,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
               ),
             ),
           ),
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: _buildNextButton(),
-          ),
+          Positioned(right: 24, bottom: 24, child: _buildNextButton()),
         ],
       ),
     );
@@ -190,7 +195,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
         const Text(
           "What's your vibe?",
           style: TextStyle(
-            fontSize: 34,
+            fontSize: 52,
             fontWeight: FontWeight.w700,
             color: AppTheme.defaultTextColor,
           ),
@@ -220,7 +225,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: AppTheme.primary, size: 22),
+          const Icon(Icons.search, color: AppTheme.searchBarColor, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -240,7 +245,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
               ),
             ),
           ),
-          const Icon(Icons.mic_none, color: AppTheme.primary, size: 22),
+          const Icon(Icons.mic_none, color: AppTheme.searchBarColor, size: 22),
         ],
       ),
     );
@@ -252,7 +257,12 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
     final list = _filteredInterests;
     final chunks = <List<String>>[];
     for (var i = 0; i < list.length; i += _chipsPerRow) {
-      chunks.add(list.sublist(i, i + _chipsPerRow > list.length ? list.length : i + _chipsPerRow));
+      chunks.add(
+        list.sublist(
+          i,
+          i + _chipsPerRow > list.length ? list.length : i + _chipsPerRow,
+        ),
+      );
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -271,7 +281,9 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
                     if (i > 0) const SizedBox(width: 10),
                     InterestChip(
                       label: chunks[r][i],
-                      isSelected: _state.selectedInterests.contains(chunks[r][i]),
+                      isSelected: _state.selectedInterests.contains(
+                        chunks[r][i],
+                      ),
                       onTap: () => _toggleInterest(chunks[r][i]),
                     ),
                   ],

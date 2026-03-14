@@ -39,7 +39,6 @@ void showShareBottomSheet(
 abstract final class _ShareLayout {
   static const double dragHandleWidth = 36;
   static const double dragHandleHeight = 4;
-  static const double closeButtonSize = 36;
   static const double previewThumbSize = 48;
   static const double contactChipWidth = 72;
   static const double contactsRowHeight = 96;
@@ -94,8 +93,16 @@ class _ShareSheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.sheetBackgroundShare,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF49113B), // Deep Magenta
+                Color(0xFF210D1D), 
+                Color(0xFF0F040C),
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -241,13 +248,13 @@ class _ContentPreview extends StatelessWidget {
           GestureDetector(
             onTap: onClose,
             child: Container(
-              width: _ShareLayout.closeButtonSize,
-              height: _ShareLayout.closeButtonSize,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
+                color: Colors.white.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.close, color: Colors.white, size: 20),
+              child: const Icon(Icons.close, color: Colors.white, size: 18),
             ),
           ),
         ],

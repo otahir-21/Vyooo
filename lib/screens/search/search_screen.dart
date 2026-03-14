@@ -35,7 +35,7 @@ class _SearchScreenState extends State<SearchScreen>
     'Travel vlogs',
   ].toList();
 
-  static const List<String> _tabs = ['Live', 'VR', 'Camera'];
+  static const List<String> _tabs = ['Live', 'VR', 'Users'];
 
   @override
   void initState() {
@@ -78,13 +78,23 @@ class _SearchScreenState extends State<SearchScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppGradientBackground(
-        type: GradientType.feed,
-        child: SafeArea(
-          child: _isSearchActive
-              ? _buildSearchActiveView()
-              : _searchController.text.trim().isEmpty
+        type: GradientType
+            .feed, // Using existing feed gradient but we can custom craft it if needed
+        child: Column(
+          children: [
+            _buildSearchBar(
+              showBackButton: _isSearchActive,
+              showHashButton: !_isSearchActive,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _isSearchActive
+                  ? _buildSearchActiveView()
+                  : _searchController.text.trim().isEmpty
                   ? _buildSearchIdleView()
                   : _buildSearchResultsView(),
+            ),
+          ],
         ),
       ),
     );
@@ -94,16 +104,14 @@ class _SearchScreenState extends State<SearchScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSearchBar(showBackButton: false, showHashButton: true),
-        const SizedBox(height: AppSpacing.md),
         _buildTabs(),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 24),
         Expanded(
           child: _selectedTabIndex == 0
               ? _buildIdleLiveContent()
               : _selectedTabIndex == 1
-                  ? _buildIdleVRContent()
-                  : _buildIdleUsersContent(),
+              ? _buildIdleVRContent()
+              : _buildIdleUsersContent(),
         ),
       ],
     );
@@ -115,7 +123,11 @@ class _SearchScreenState extends State<SearchScreen>
       children: [
         _buildSection('Ongoing Now', _ongoingLiveItems, showViewAll: true),
         const SizedBox(height: AppSpacing.xl),
-        _buildSection('Recommended For you', _recommendedItems, showViewAll: true),
+        _buildSection(
+          'Recommended For you',
+          _recommendedItems,
+          showViewAll: true,
+        ),
         const SizedBox(height: AppSpacing.xl),
         _buildLiveCategoriesSection(),
         const SizedBox(height: AppSpacing.xl),
@@ -196,16 +208,14 @@ class _SearchScreenState extends State<SearchScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSearchBar(showBackButton: false, showHashButton: true),
-        const SizedBox(height: AppSpacing.md),
         _buildTabs(),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 16),
         Expanded(
           child: _selectedTabIndex == 0
               ? _buildLiveSearchResultsGrid()
               : _selectedTabIndex == 1
-                  ? _buildVRSearchResultsGrid()
-                  : _buildUserSearchResultsList(),
+              ? _buildVRSearchResultsGrid()
+              : _buildUserSearchResultsList(),
         ),
       ],
     );
@@ -213,7 +223,10 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildLiveSearchResultsGrid() {
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: AppSpacing.xs,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.65,
@@ -221,13 +234,17 @@ class _SearchScreenState extends State<SearchScreen>
         mainAxisSpacing: 12,
       ),
       itemCount: _searchResultItems.length,
-      itemBuilder: (context, index) => _SearchResultGridCard(item: _searchResultItems[index]),
+      itemBuilder: (context, index) =>
+          _SearchResultGridCard(item: _searchResultItems[index]),
     );
   }
 
   Widget _buildVRSearchResultsGrid() {
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: AppSpacing.xs,
+      ),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 0.65,
@@ -235,7 +252,8 @@ class _SearchScreenState extends State<SearchScreen>
         mainAxisSpacing: 12,
       ),
       itemCount: _vrSearchResultItems.length,
-      itemBuilder: (context, index) => _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+      itemBuilder: (context, index) =>
+          _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
     );
   }
 
@@ -261,7 +279,10 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildUserSearchResultsList() {
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: AppSpacing.xs,
+      ),
       itemCount: _userSearchResultItems.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
@@ -275,8 +296,7 @@ class _SearchScreenState extends State<SearchScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSearchBar(showBackButton: true, showHashButton: false),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 8),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
@@ -291,7 +311,10 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: AppSpacing.sm),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: AppSpacing.xs,
+            ),
             itemCount: _recentSearches.length,
             separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _RecentSearchTile(
@@ -309,105 +332,130 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildSearchBar({required bool showBackButton, required bool showHashButton}) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, AppSpacing.sm, AppSpacing.sm, 0),
-      child: Row(
-        children: [
-          if (showBackButton) ...[
-            IconButton(
-              onPressed: _exitSearchMode,
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          Expanded(
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(AppRadius.input),
-              ),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: InputDecoration(
-                  hintText: 'Search',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
-                  suffixIcon: Icon(Icons.mic_none_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+  Widget _buildSearchBar({
+    required bool showBackButton,
+    required bool showHashButton,
+  }) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Row(
+          children: [
+            if (showBackButton) ...[
+              IconButton(
+                onPressed: _exitSearchMode,
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 44),
               ),
-            ),
-          ),
-          if (showHashButton) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Material(
-              color: Colors.white.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppRadius.input),
-              child: InkWell(
-                onTap: () {},
-                borderRadius: BorderRadius.circular(AppRadius.input),
-                child: const SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Center(
-                    child: Text(
-                      '#',
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+            ],
+            Expanded(
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 16,
                     ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: Colors.white.withOpacity(0.5),
+                      size: 22,
+                    ),
+                    suffixIcon: Icon(
+                      Icons.mic_none_rounded,
+                      color: Colors.white.withOpacity(0.5),
+                      size: 22,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   ),
                 ),
               ),
             ),
+            if (showHashButton) ...[
+              const SizedBox(width: 12),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Text(
+                    '#',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildTabs() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: List.generate(_tabs.length, (index) {
           final isSelected = index == _selectedTabIndex;
-          return Padding(
-            padding: EdgeInsets.only(right: index < _tabs.length - 1 ? AppSpacing.md : 0),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  if (_selectedTabIndex != index) {
-                    setState(() => _selectedTabIndex = index);
-                  }
-                },
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: isSelected
-                        ? const LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-                          )
-                        : null,
-                    color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                  ),
-                  child: Text(
-                    _tabs[index],
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                if (_selectedTabIndex != index) {
+                  setState(() => _selectedTabIndex = index);
+                }
+              },
+              child: Container(
+                margin: EdgeInsets.only(
+                  right: index < _tabs.length - 1 ? 8 : 0,
+                ),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? const LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+                        )
+                      : null,
+                  color: isSelected ? null : Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _tabs[index],
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.5),
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -418,7 +466,11 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  Widget _buildSection(String title, List<_LiveCardItem> items, {bool showViewAll = true}) {
+  Widget _buildSection(
+    String title,
+    List<_LiveCardItem> items, {
+    bool showViewAll = true,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -431,7 +483,7 @@ class _SearchScreenState extends State<SearchScreen>
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -441,8 +493,8 @@ class _SearchScreenState extends State<SearchScreen>
                   child: Text(
                     'View All',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -488,7 +540,8 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _categoryItems.length,
             separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) => _CategoryCard(item: _categoryItems[index]),
+            itemBuilder: (context, index) =>
+                _CategoryCard(item: _categoryItems[index]),
           ),
         ),
       ],
@@ -518,7 +571,8 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _creatorItems.length,
             separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) => _CreatorCard(item: _creatorItems[index]),
+            itemBuilder: (context, index) =>
+                _CreatorCard(item: _creatorItems[index]),
           ),
         ),
       ],
@@ -546,7 +600,10 @@ class _RecentSearchTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -583,7 +640,7 @@ class _SearchResultGridCard extends StatelessWidget {
   final _LiveCardItem item;
 
   static String _formatCount(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}K';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}';
     return '$n';
   }
 
@@ -617,7 +674,10 @@ class _SearchResultGridCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.deleteRed,
                       borderRadius: BorderRadius.circular(4),
@@ -632,11 +692,18 @@ class _SearchResultGridCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Icon(Icons.visibility_outlined, size: 12, color: Colors.white.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 2),
                   Text(
                     _formatCount(item.viewerCount),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -650,7 +717,8 @@ class _SearchResultGridCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 14,
                     backgroundColor: Colors.grey.shade700,
-                    backgroundImage: Uri.tryParse(item.avatarUrl)?.isAbsolute == true
+                    backgroundImage:
+                        Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
                   ),
@@ -767,7 +835,8 @@ class _VRSearchResultGridCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 14,
                     backgroundColor: Colors.grey.shade700,
-                    backgroundImage: Uri.tryParse(item.avatarUrl)?.isAbsolute == true
+                    backgroundImage:
+                        Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
                   ),
@@ -835,13 +904,17 @@ class _UserSearchResultTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.xs,
+          ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 28,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                backgroundImage:
+                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
                     ? NetworkImage(user.avatarUrl)
                     : null,
               ),
@@ -1137,18 +1210,9 @@ class _CategoryItem {
 }
 
 final List<_CategoryItem> _categoryItems = [
-  _CategoryItem(
-    label: 'Gaming',
-    icon: Icons.sports_esports_rounded,
-  ),
-  _CategoryItem(
-    label: 'Music & Concerts',
-    icon: Icons.music_note_rounded,
-  ),
-  _CategoryItem(
-    label: 'Sports',
-    icon: Icons.sports_soccer_rounded,
-  ),
+  _CategoryItem(label: 'Gaming', icon: Icons.sports_esports_rounded),
+  _CategoryItem(label: 'Music & Concerts', icon: Icons.music_note_rounded),
+  _CategoryItem(label: 'Sports', icon: Icons.sports_soccer_rounded),
 ];
 
 class _CreatorItem {
@@ -1220,10 +1284,7 @@ class _LiveCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                item.thumbnailUrl,
-                fit: BoxFit.cover,
-              ),
+              Image.network(item.thumbnailUrl, fit: BoxFit.cover),
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -1244,29 +1305,44 @@ class _LiveCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.deleteRed,
+                        color: const Color(0xFFEF4444),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
                         'Live',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.xs),
-                    Icon(Icons.visibility_outlined, size: 12, color: Colors.white.withValues(alpha: 0.9)),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${item.viewerCount}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.visibility_outlined,
+                      size: 10,
+                      color: Colors.white,
                     ),
                     const SizedBox(width: 4),
-                    Icon(FontAwesomeIcons.crown, size: 12, color: AppColors.lightGold),
+                    Text(
+                      '${item.viewerCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      FontAwesomeIcons.crown,
+                      size: 12,
+                      color: Color(0xFFFFD700),
+                    ),
                   ],
                 ),
               ),
@@ -1276,14 +1352,21 @@ class _LiveCard extends StatelessWidget {
                 bottom: AppSpacing.sm,
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey.shade700,
-                      backgroundImage: Uri.tryParse(item.avatarUrl)?.isAbsolute == true
-                          ? NetworkImage(item.avatarUrl)
-                          : null,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1),
+                      ),
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.grey.shade900,
+                        backgroundImage:
+                            Uri.tryParse(item.avatarUrl)?.isAbsolute == true
+                            ? NetworkImage(item.avatarUrl)
+                            : null,
+                      ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1296,8 +1379,8 @@ class _LiveCard extends StatelessWidget {
                                   item.name,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1305,13 +1388,17 @@ class _LiveCard extends StatelessWidget {
                               if (item.isVerified) ...[
                                 const SizedBox(width: 4),
                                 Container(
-                                  width: 12,
-                                  height: 12,
+                                  width: 10,
+                                  height: 10,
                                   decoration: const BoxDecoration(
-                                    color: AppColors.pink,
+                                    color: Color(0xFFEF4444),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.check, size: 8, color: Colors.white),
+                                  child: const Icon(
+                                    Icons.check,
+                                    size: 7,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ],
@@ -1319,8 +1406,9 @@ class _LiveCard extends StatelessWidget {
                           Text(
                             item.handle,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 12,
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1365,8 +1453,8 @@ class _CategoryCard extends StatelessWidget {
               color: item.label == 'Gaming'
                   ? const Color(0xFF7C3AED)
                   : item.label == 'Music & Concerts'
-                      ? const Color(0xFFEA580C)
-                      : const Color(0xFF16A34A),
+                  ? const Color(0xFFEA580C)
+                  : const Color(0xFF16A34A),
             ),
             const SizedBox(height: AppSpacing.sm),
             Padding(
@@ -1411,7 +1499,10 @@ class _CreatorCardState extends State<_CreatorCard> {
       onTap: () {},
       child: Container(
         width: cardWidth,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppRadius.input),
@@ -1467,18 +1558,19 @@ class _CreatorCardState extends State<_CreatorCard> {
             ),
             const SizedBox(height: AppSpacing.xs),
             SizedBox(
-              width: double.infinity,
+              width: 100,
+              height: 32,
               child: TextButton(
                 onPressed: () => setState(() => _isFollowing = !_isFollowing),
                 style: TextButton.styleFrom(
                   backgroundColor: _isFollowing
-                      ? Colors.white.withValues(alpha: 0.2)
-                      : AppColors.pink,
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                      ? Colors.white.withOpacity(0.1)
+                      : const Color(0xFFEF4444),
+                  padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.input),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                 ),
                 child: Text(
@@ -1486,7 +1578,7 @@ class _CreatorCardState extends State<_CreatorCard> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

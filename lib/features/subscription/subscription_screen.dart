@@ -1,21 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/mock/mock_subscription_data.dart';
 import '../../core/subscription/subscription_controller.dart';
-import '../../core/theme/app_gradients.dart';
-import '../../core/theme/app_radius.dart';
-import '../../core/theme/app_spacing.dart';
 
-/// Subscription paywall: plan cards, feature comparison, upgrade / restore.
-/// Uses mock plans when [AppConfig.useMockSubscriptions] or when RevenueCat offerings are empty.
 class SubscriptionScreen extends StatefulWidget {
-  const SubscriptionScreen({
-    super.key,
-    this.showRestoreButton = true,
-  });
+  const SubscriptionScreen({super.key, this.showRestoreButton = true});
 
   final bool showRestoreButton;
 
@@ -24,109 +15,196 @@ class SubscriptionScreen extends StatefulWidget {
 }
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  List<SubscriptionUIModel> _plans = mockSubscriptionPlans;
-  Map<String, Package>? _packagesByPlanId;
-  int _selectedIndex = 0;
-  bool _loading = true;
+  int _selectedIndex = 1; // Default to 'Subscriber' (Popular)
+  Offerings? _offerings;
+  bool _fetchingOfferings = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPlans();
+    _loadOfferings();
   }
 
-  Future<void> _loadPlans() async {
-    if (AppConfig.useMockSubscriptions) {
-      setState(() {
-        _plans = mockSubscriptionPlans;
-        _packagesByPlanId = null;
-        _loading = false;
-      });
-      return;
-    }
+  Future<void> _loadOfferings() async {
+    setState(() => _fetchingOfferings = true);
     final controller = context.read<SubscriptionController>();
-    final offerings = await controller.fetchOfferings();
-    if (!mounted) return;
-    if (offerings == null || offerings.current == null) {
+    final results = await controller.fetchOfferings();
+    if (mounted) {
       setState(() {
-        _plans = mockSubscriptionPlans;
-        _packagesByPlanId = null;
-        _loading = false;
+        _offerings = results;
+        _fetchingOfferings = false;
       });
-      return;
     }
-    final current = offerings.current!;
-    final list = <SubscriptionUIModel>[];
-    final map = <String, Package>{};
-    for (final p in current.availablePackages) {
-      final id = p.identifier;
-      map[id] = p;
-      list.add(SubscriptionUIModel(
-        id: id,
-        title: _formatPlanTitle(id),
-        price: p.storeProduct.priceString,
-        isPopular: id.toLowerCase().contains('subscriber'),
-      ));
-    }
-    setState(() {
-      _plans = list.isNotEmpty ? list : mockSubscriptionPlans;
-      _packagesByPlanId = list.isNotEmpty ? map : null;
-      _loading = false;
-    });
   }
-
-  String _formatPlanTitle(String id) {
-    if (id.isEmpty) return id;
-    return id[0].toUpperCase() + id.substring(1).toLowerCase().replaceAll('_', ' ');
-  }
-
-  bool get _isMockMode =>
-      AppConfig.useMockSubscriptions || _packagesByPlanId == null;
 
   @override
   Widget build(BuildContext context) {
+    final controller = context.watch<SubscriptionController>();
+    final isLoading = controller.isLoading || _fetchingOfferings;
+
+    // Map packages if available
+    Package? standardPkg;
+    Package? subscriberPkg;
+    Package? creatorPkg;
+
+    if (_offerings?.current != null) {
+      for (final pkg in _offerings!.current!.availablePackages) {
+        final id = pkg.identifier.toLowerCase();
+        if (id.contains('standard')) {
+          standardPkg = pkg;
+        } else if (id.contains('subscriber')) {
+          subscriberPkg = pkg;
+        } else if (id.contains('creator')) {
+          creatorPkg = pkg;
+        }
+      }
+    }
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.profileGradient,
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: AppSpacing.xl),
-                      _PlanCardsRow(
-                        plans: _plans,
-                        selectedIndex: _selectedIndex,
-                        onSelect: (i) => setState(() => _selectedIndex = i),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-                      const Expanded(
-                        child: _FeatureComparisonTable(),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      _UpgradeButton(
-                        selectedPlan: _plans[_selectedIndex],
-                        package: _packagesByPlanId?[_plans[_selectedIndex].id],
-                        isMockMode: _isMockMode,
-                      ),
-                      if (widget.showRestoreButton) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        _RestoreButton(),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF0D020D),
+                  Color(0xFF2D072D),
+                  Color(0xFF4D0B3D),
+                  Color(0xFF7D124D),
+                ],
+                stops: [0.0, 0.4, 0.7, 1.0],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Restore & Close
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (widget.showRestoreButton)
+                          TextButton(
+                            onPressed: () => controller.restorePurchases(),
+                            child: const Text(
+                              'Restore',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox.shrink(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
                       ],
-                      const SizedBox(height: AppSpacing.xl),
-                    ],
+                    ),
                   ),
+                  // Logo
+                  const SizedBox(height: 24),
+                  const Center(
+                    child: Text(
+                      'VyooO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 48,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                  ),
+
+                  // Title & Subtitle
+                  const SizedBox(height: 48),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Choose your plan',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+
+                  // Plan Cards
+                  const SizedBox(height: 40),
+                  _PlanCardsRow(
+                    selectedIndex: _selectedIndex,
+                    onSelect: (i) => setState(() => _selectedIndex = i),
+                    standardPrice:
+                        standardPkg?.storeProduct.priceString ?? 'FREE',
+                    subscriberPrice:
+                        subscriberPkg?.storeProduct.priceString ?? '\$4.99/M',
+                    creatorPrice:
+                        creatorPkg?.storeProduct.priceString ?? '\$19.99/M',
+                  ),
+
+                  // Comparison Table
+                  const SizedBox(height: 48),
+                  const Expanded(child: _FeatureComparisonTable()),
+
+                  // Bottom Action
+                  const SizedBox(height: 16),
+                  _UpgradeButton(
+                    selectedIndex: _selectedIndex,
+                    onPressed: () {
+                      if (_selectedIndex == 0 && standardPkg != null) {
+                        controller.purchaseStandard(standardPkg!);
+                      } else if (_selectedIndex == 1 && subscriberPkg != null) {
+                        controller.purchaseSubscriber(subscriberPkg!);
+                      } else if (_selectedIndex == 2 && creatorPkg != null) {
+                        controller.purchaseCreator(creatorPkg!);
+                      }
+                    },
+                  ),
+
+                  // Legal text
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'By tapping Continue, you will be charged, your subscription will auto-renew for the same price and package length until you cancel via App Store settings, and you agree to our Terms.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
           ),
-        ),
+          if (isLoading)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: Color(0xFFDE106B)),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -134,105 +212,149 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
 class _PlanCardsRow extends StatelessWidget {
   const _PlanCardsRow({
-    required this.plans,
     required this.selectedIndex,
     required this.onSelect,
+    required this.standardPrice,
+    required this.subscriberPrice,
+    required this.creatorPrice,
   });
 
-  final List<SubscriptionUIModel> plans;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
+  final String standardPrice;
+  final String subscriberPrice;
+  final String creatorPrice;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(plans.length, (i) {
-        final plan = plans[i];
-        final selected = i == selectedIndex;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: i < plans.length - 1 ? AppSpacing.sm : 0,
-            ),
-            child: GestureDetector(
-              onTap: () => onSelect(i),
-              child: AnimatedScale(
-                scale: selected ? 1.05 : 1.0,
-                duration: const Duration(milliseconds: 200),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: AppGradients.subscriptionCardGradient,
-                    boxShadow: selected
-                        ? [
-                            BoxShadow(
-                              color: const Color(0xFFDE106B).withValues(alpha: 0.5),
-                              blurRadius: 12,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : null,
-                    border: selected
-                        ? Border.all(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            width: 2,
-                          )
-                        : null,
-                  ),
-                  child: Stack(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (plan.isPopular) ...[
-                              Text(
-                                'Popular',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                            ],
-                            Text(
-                              plan.title,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              plan.price,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ],
-                        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _PlanCard(
+            title: 'Standard',
+            price: standardPrice,
+            isSelected: selectedIndex == 0,
+            onTap: () => onSelect(0),
+          ),
+          const SizedBox(width: 8),
+          _PlanCard(
+            title: 'Subscriber',
+            price: subscriberPrice,
+            badge: 'Popular',
+            badgeColor: const Color(0xFF22C55E),
+            isSelected: selectedIndex == 1,
+            onTap: () => onSelect(1),
+          ),
+          const SizedBox(width: 8),
+          _PlanCard(
+            title: 'Creator',
+            price: creatorPrice,
+            badge: 'Best value',
+            badgeColor: const Color(0xFFFACC15),
+            isSelected: selectedIndex == 2,
+            onTap: () => onSelect(2),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCard extends StatelessWidget {
+  const _PlanCard({
+    required this.title,
+    required this.price,
+    this.badge,
+    this.badgeColor,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String price;
+  final String? badge;
+  final Color? badgeColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: isSelected
+                ? Border.all(color: const Color(0xFFDE106B), width: 2)
+                : Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFDE106B).withOpacity(0.5),
+                      blurRadius: 10,
+                      spreadRadius: 0,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Stack(
+            children: [
+              if (badge != null)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      badge!,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
                   ),
                 ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (badge != null) const SizedBox(height: 16),
+                    Text(
+                      price,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 }
@@ -240,160 +362,165 @@ class _PlanCardsRow extends StatelessWidget {
 class _FeatureComparisonTable extends StatelessWidget {
   const _FeatureComparisonTable();
 
-  static const _features = [
-    ('Watch live content', true, true, true),
-    ('Create profile', true, true, true),
-    ('Verification', false, true, true),
-    ('Upload content', false, true, true),
-    ('Monetize content', false, false, true),
-    ('Offer subscriptions', false, false, true),
-    ('Video quality', false, false, true),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _tableRow(context, 'Feature', 'Standard', 'Subscriber', 'Creator', isHeader: true),
-          const SizedBox(height: AppSpacing.sm),
-          ..._features.map((f) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _tableRow(
-                context,
-                f.$1,
-                f.$2 ? '✔' : '✖',
-                f.$3 ? '✔' : '✖',
-                f.$4 ? '✔' : '✖',
-              ),
-            );
-          }),
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Row(
+              children: [
+                const Expanded(flex: 3, child: SizedBox()),
+                _headerLabel('Standard'),
+                _headerLabel('Subscriber'),
+                _headerLabel('Creator'),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Colors.white12),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _FeatureRow(
+                  'Watch live content',
+                  'Credit card',
+                  'After 12 hours',
+                  'Watch Instantly',
+                ),
+                _FeatureRow('Create Profile', false, true, true),
+                _FeatureRow('Verification', false, true, true),
+                _FeatureRow('Upload content', false, true, true),
+                _FeatureRow('Monetize content', false, false, true),
+                _FeatureRow('Offer subscriptions', false, false, true),
+                _FeatureRow(
+                  'Video Quality',
+                  'SD (480p)',
+                  'Full HD (1080p)',
+                  'Upto 4K',
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _tableRow(
-    BuildContext context,
-    String feature,
-    String standard,
-    String subscriber,
-    String creator, {
-    bool isHeader = false,
-  }) {
-    final style = TextStyle(
-      fontSize: isHeader ? 12 : 14,
-      fontWeight: isHeader ? FontWeight.w700 : FontWeight.w500,
-      color: isHeader
-          ? Colors.white.withValues(alpha: 0.9)
-          : Colors.white.withValues(alpha: 0.85),
-    );
-    return Row(
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(feature, style: style, maxLines: 2, overflow: TextOverflow.ellipsis),
+  Widget _headerLabel(String label) {
+    return Expanded(
+      flex: 2,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(standard, style: style, textAlign: TextAlign.center),
-        ),
-        Expanded(
-          child: Text(subscriber, style: style, textAlign: TextAlign.center),
-        ),
-        Expanded(
-          child: Text(creator, style: style, textAlign: TextAlign.center),
-        ),
-      ],
-    );
-  }
-}
-
-class _UpgradeButton extends StatelessWidget {
-  const _UpgradeButton({
-    required this.selectedPlan,
-    required this.package,
-    required this.isMockMode,
-  });
-
-  final SubscriptionUIModel selectedPlan;
-  final Package? package;
-  final bool isMockMode;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = context.read<SubscriptionController>();
-
-    return SizedBox(
-      height: 52,
-      child: ElevatedButton(
-        onPressed: controller.isLoading
-            ? null
-            : () async {
-                if (isMockMode) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Mock mode active'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  return;
-                }
-                if (package == null) return;
-                if (selectedPlan.id.toLowerCase().contains('creator')) {
-                  await controller.purchaseCreator(package!);
-                } else if (selectedPlan.id.toLowerCase().contains('subscriber')) {
-                  await controller.purchaseSubscriber(package!);
-                } else {
-                  await controller.purchaseStandard(package!);
-                }
-                if (context.mounted) Navigator.of(context).maybePop();
-              },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.buttonRadius,
-          ),
-        ),
-        child: controller.isLoading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Text(
-                selectedPlan.id.toLowerCase() == 'standard' && !isMockMode
-                    ? 'Continue'
-                    : 'Upgrade',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
       ),
     );
   }
 }
 
-class _RestoreButton extends StatelessWidget {
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow(this.feature, this.standard, this.subscriber, this.creator);
+
+  final String feature;
+  final dynamic standard;
+  final dynamic subscriber;
+  final dynamic creator;
+
   @override
   Widget build(BuildContext context) {
-    final controller = context.read<SubscriptionController>();
-    return TextButton(
-      onPressed: controller.isLoading
-          ? null
-          : () async {
-              await controller.restorePurchases();
-              if (context.mounted) Navigator.of(context).maybePop();
-            },
-      child: Text(
-        'Restore Purchases',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.9),
-          fontSize: 14,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              feature,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          _valueCell(standard),
+          _valueCell(subscriber),
+          _valueCell(creator),
+        ],
+      ),
+    );
+  }
+
+  Widget _valueCell(dynamic value) {
+    Widget content;
+    if (value is bool) {
+      content = value
+          ? const Icon(Icons.check, color: Colors.white, size: 16)
+          : const Icon(Icons.close, color: Colors.white, size: 16);
+    } else {
+      content = Text(
+        value.toString(),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w400,
+        ),
+      );
+    }
+    return Expanded(flex: 2, child: Center(child: content));
+  }
+}
+
+class _UpgradeButton extends StatelessWidget {
+  const _UpgradeButton({required this.selectedIndex, required this.onPressed});
+
+  final int selectedIndex;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const FaIcon(
+                FontAwesomeIcons.crown,
+                color: Color(0xFFDE106B),
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Upgrade',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -6,17 +6,13 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
-import '../../core/wrappers/auth_wrapper.dart';
 import '../../services/mock_username_service.dart';
 import '../../services/username_service.dart';
 import '../../services/username_validation.dart';
 import '../onboarding/select_dob_screen.dart';
 
 class CreateUsernameScreen extends StatefulWidget {
-  const CreateUsernameScreen({
-    super.key,
-    this.usernameService,
-  });
+  const CreateUsernameScreen({super.key, this.usernameService});
 
   final UsernameService? usernameService;
 
@@ -67,7 +63,10 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     _availabilityFromLength(normalized.length);
     if (UsernameValidation.shouldCheckAvailability(normalized)) {
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(_debounceDuration, () => _checkAvailability(normalized));
+      _debounceTimer = Timer(
+        _debounceDuration,
+        () => _checkAvailability(normalized),
+      );
     }
   }
 
@@ -118,14 +117,14 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   bool get _isUsernameValid =>
       UsernameValidation.isValidFormat(_usernameController.text.trim());
 
-  Future<void> _logout(BuildContext context) async {
-    await AuthService().signOut();
-    if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AuthWrapper()),
-      (route) => false,
-    );
-  }
+  // Future<void> _logout(BuildContext context) async {
+  //   await AuthService().signOut();
+  //   if (!context.mounted) return;
+  //   Navigator.of(context).pushAndRemoveUntil(
+  //     MaterialPageRoute(builder: (_) => const AuthWrapper()),
+  //     (route) => false,
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +136,9 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
             type: GradientType.onboarding,
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -152,7 +153,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                       "Let's get you started",
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: AppTheme.defaultTextColor,
                       ),
                       textAlign: TextAlign.center,
@@ -168,24 +169,20 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               ),
             ),
           ),
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: _buildNextButton(),
-          ),
+          Positioned(right: 24, bottom: 24, child: _buildNextButton()),
           // Temporary logout
-          Positioned(
-            top: 16,
-            right: 16,
-            child: TextButton.icon(
-              onPressed: () => _logout(context),
-              icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
-              label: const Text(
-                'Logout',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-            ),
-          ),
+          // Positioned(
+          //   top: 16,
+          //   right: 16,
+          //   child: TextButton.icon(
+          //     onPressed: () => _logout(context),
+          //     icon: const Icon(Icons.logout, color: Colors.white70, size: 20),
+          //     label: const Text(
+          //       'Logout',
+          //       style: TextStyle(color: Colors.white70, fontSize: 14),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -224,11 +221,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
             width: double.infinity,
             child: Stack(
               children: [
-                Container(
-                  width: fullWidth,
-                  height: 3,
-                  color: White24.value,
-                ),
+                Container(width: fullWidth, height: 3, color: White24.value),
                 SizedBox(
                   width: fillWidth,
                   child: Container(
@@ -260,7 +253,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
             height: 150,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: .05),
               border: Border.all(color: White10.value, width: 1),
             ),
             alignment: Alignment.center,
@@ -321,8 +314,8 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     final borderColor = hasError
         ? Colors.red
         : hasSuccess
-            ? Colors.green
-            : Colors.transparent;
+        ? Colors.green
+        : Colors.transparent;
     final borderWidth = (hasError || hasSuccess) ? 1.5 : 0.0;
 
     return AnimatedContainer(
@@ -358,10 +351,12 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                TextInputFormatter.withFunction((_, value) => TextEditingValue(
-                      text: value.text.toLowerCase(),
-                      selection: value.selection,
-                    )),
+                TextInputFormatter.withFunction(
+                  (_, value) => TextEditingValue(
+                    text: value.text.toLowerCase(),
+                    selection: value.selection,
+                  ),
+                ),
               ],
             ),
           ),
@@ -375,7 +370,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               ),
             )
           else if (hasError)
-            const Icon(Icons.close, color: Colors.red, size: 22)
+            const Icon(Icons.close, color: Colors.grey, size: 22)
           else if (hasSuccess)
             const Icon(Icons.check, color: Colors.green, size: 22),
         ],
@@ -411,78 +406,76 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     final username = _usernameController.text.trim();
     if (uid != null && uid.isNotEmpty) {
       try {
-        await UserService().updateUserProfile(
-          uid: uid,
-          username: username,
-        );
+        await UserService().updateUserProfile(uid: uid, username: username);
       } catch (_) {
         // Still navigate so onboarding isn't blocked by network/backend errors
         if (!mounted) return;
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const SelectDobScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const SelectDobScreen()),
         );
         return;
       }
     }
     if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SelectDobScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const SelectDobScreen()));
   }
 
   Widget _buildSuggestions() {
     return Container(
+      margin: const EdgeInsets.only(top: 10),
       decoration: BoxDecoration(
-        color: AppColors.darkPurple.withOpacity(0.25),
+        color: Colors.white.withValues(alpha: .06),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: .08)),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
-        children: [
-          for (var i = 0; i < _suggestions.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                color: White10.value,
-              ),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => _applySuggestion(_suggestions[i]),
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  height: 50,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            _suggestions[i],
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: AppTheme.defaultTextColor,
-                              fontWeight: FontWeight.w400,
-                            ),
+        children: List.generate(_suggestions.length, (index) {
+          final suggestion = _suggestions[index];
+
+          return Column(
+            children: [
+              if (index != 0)
+                Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+              InkWell(
+                onTap: () => _applySuggestion(suggestion),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  height: 60,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          suggestion,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const Icon(
-                          Icons.check,
-                          color: Colors.green,
-                          size: 22,
+                      ),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.green, width: 2),
                         ),
-                      ],
-                    ),
+                        child: const Icon(
+                          Icons.check,
+                          size: 18,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
-        ],
+            ],
+          );
+        }),
       ),
     );
   }

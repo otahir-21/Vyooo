@@ -89,7 +89,10 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
                   children: [
                     _buildActionIcon(Icons.visibility_outlined, null),
                     const SizedBox(height: AppSpacing.lg),
-                    _buildActionIcon(Icons.favorite_rounded, _formatCount(p.likeCount)),
+                    _buildActionIcon(
+                      Icons.favorite_rounded,
+                      _formatCount(p.likeCount),
+                    ),
                     const SizedBox(height: AppSpacing.lg),
                     _buildActionIcon(Icons.chat_bubble_outline_rounded, null),
                     const SizedBox(height: AppSpacing.lg),
@@ -135,12 +138,19 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           const Text(
@@ -165,7 +175,10 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
           const SizedBox(height: 2),
           Text(
             count,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 11),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 11,
+            ),
           ),
         ],
       ],
@@ -174,7 +187,12 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
 
   Widget _buildBottomOverlay(VRDetailPayload p) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

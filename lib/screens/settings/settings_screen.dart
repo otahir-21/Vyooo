@@ -18,7 +18,6 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _appBarBg,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -31,11 +30,19 @@ class SettingsScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [_appBarBg, _cardBg, Color(0xFF14001F)],
+                    colors: [
+                      Color(0xFF0D020D),
+                      Color(0xFF2D072D),
+                      Color(0xFF4D0B3D),
+                      Color(0xFF7D124D),
+                    ],
                   ),
                 ),
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.lg,
+                  ),
                   children: [
                     Container(
                       decoration: BoxDecoration(
@@ -49,7 +56,9 @@ class SettingsScreen extends StatelessWidget {
                             label: 'Account',
                             onTap: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute<void>(builder: (_) => const AccountScreen()),
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const AccountScreen(),
+                                ),
                               );
                             },
                           ),
@@ -120,12 +129,19 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 32),
+            icon: const Icon(
+              Icons.chevron_left_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           ),
@@ -199,7 +215,10 @@ class _SettingsTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 14),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 14,
+          ),
           child: Row(
             children: [
               Icon(
@@ -220,7 +239,10 @@ class _SettingsTile extends StatelessWidget {
               ),
               if (isPremium) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.lightGold,
                     borderRadius: BorderRadius.circular(6),

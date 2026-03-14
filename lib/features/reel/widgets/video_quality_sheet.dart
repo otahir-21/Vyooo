@@ -63,8 +63,16 @@ class _VideoQualitySheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
-            color: AppColors.sheetBackground,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF49113B), // Deep Magenta
+                Color(0xFF210D1D), 
+                Color(0xFF0F040C),
+              ],
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

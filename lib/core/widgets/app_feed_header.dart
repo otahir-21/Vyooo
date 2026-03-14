@@ -49,7 +49,7 @@ class AppFeedHeader extends StatelessWidget {
 
   Widget _buildLogo() {
     return SizedBox(
-      height: 28,
+      height: 34,
       child: Image.asset(
         'assets/BrandLogo/Vyooo logo (2).png',
         fit: BoxFit.contain,
@@ -57,8 +57,9 @@ class AppFeedHeader extends StatelessWidget {
           'VyooO',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
           ),
         ),
       ),
@@ -66,7 +67,7 @@ class AppFeedHeader extends StatelessWidget {
   }
 }
 
-/// Tab selector: selected = white + capsule 15% opacity, radius 20, padding 14; unselected = white 60%.
+/// Tab selector: selected = white pill with black text; unselected = white text with 60% opacity.
 class AppFeedTabSelector extends StatelessWidget {
   const AppFeedTabSelector({
     super.key,
@@ -77,7 +78,7 @@ class AppFeedTabSelector extends StatelessWidget {
 
   final List<String> labels;
   final int selectedIndex;
-  final void Function(int index)? onTabSelected;
+  final void Function(int)? onTabSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -88,15 +89,15 @@ class AppFeedTabSelector extends StatelessWidget {
         children: List.generate(labels.length, (index) {
           final isSelected = selectedIndex == index;
           return Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            padding: const EdgeInsets.only(right: 8),
             child: GestureDetector(
               onTap: () => onTabSelected?.call(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? Colors.white.withValues(alpha: 0.15)
+                      ? Colors.white.withOpacity(0.15)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -107,7 +108,7 @@ class AppFeedTabSelector extends StatelessWidget {
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected
                         ? Colors.white
-                        : Colors.white.withValues(alpha: 0.6),
+                        : Colors.white.withOpacity(0.6),
                   ),
                 ),
               ),

@@ -48,17 +48,46 @@ List<ShareContact> getMockShareContacts() {
 /// Traditional share targets (AirDrop, Messages, Mail, Notes, Reminders).
 List<ShareActionItem> getMockNativeShareTargets() {
   return [
-    ShareActionItem(id: 'airdrop', label: 'AirDrop', icon: Icons.wifi, backgroundColor: const Color(0xFF007AFF)),
-    ShareActionItem(id: 'messages', label: 'Messages', icon: Icons.chat_bubble_outline, backgroundColor: AppColors.whatsappGreen),
-    ShareActionItem(id: 'mail', label: 'Mail', icon: Icons.mail_outline, backgroundColor: const Color(0xFF007AFF)),
-    ShareActionItem(id: 'notes', label: 'Notes', icon: Icons.note_outlined, backgroundColor: const Color(0xFFFFCC00)),
-    ShareActionItem(id: 'reminders', label: 'Reminders', icon: Icons.list_alt, backgroundColor: Colors.white),
+    ShareActionItem(
+      id: 'airdrop',
+      label: 'AirDrop',
+      icon: Icons.wifi,
+      backgroundColor: const Color(0xFF007AFF),
+    ),
+    ShareActionItem(
+      id: 'messages',
+      label: 'Messages',
+      icon: Icons.chat_bubble_outline,
+      backgroundColor: AppColors.whatsappGreen,
+    ),
+    ShareActionItem(
+      id: 'mail',
+      label: 'Mail',
+      icon: Icons.mail_outline,
+      backgroundColor: const Color(0xFF007AFF),
+    ),
+    ShareActionItem(
+      id: 'notes',
+      label: 'Notes',
+      icon: Icons.note_outlined,
+      backgroundColor: const Color(0xFFFFCC00),
+    ),
+    ShareActionItem(
+      id: 'reminders',
+      label: 'Reminders',
+      icon: Icons.list_alt,
+      backgroundColor: Colors.white,
+    ),
   ];
 }
 
 /// System actions: Copy, Add to Reading List, etc. (label + trailing icon).
 class ShareSystemAction {
-  const ShareSystemAction({required this.id, required this.label, required this.icon});
+  const ShareSystemAction({
+    required this.id,
+    required this.label,
+    required this.icon,
+  });
   final String id;
   final String label;
   final IconData icon;
@@ -67,9 +96,21 @@ class ShareSystemAction {
 List<ShareSystemAction> getMockShareSystemActions() {
   return const [
     ShareSystemAction(id: 'copy', label: 'Copy', icon: Icons.copy),
-    ShareSystemAction(id: 'reading_list', label: 'Add to Reading List', icon: Icons.menu_book_outlined),
-    ShareSystemAction(id: 'bookmark', label: 'Add Bookmark', icon: Icons.bookmark_border),
-    ShareSystemAction(id: 'favorites', label: 'Add to Favorites', icon: Icons.star_border),
+    ShareSystemAction(
+      id: 'reading_list',
+      label: 'Add to Reading List',
+      icon: Icons.menu_book_outlined,
+    ),
+    ShareSystemAction(
+      id: 'bookmark',
+      label: 'Add Bookmark',
+      icon: Icons.bookmark_border,
+    ),
+    ShareSystemAction(
+      id: 'favorites',
+      label: 'Add to Favorites',
+      icon: Icons.star_border,
+    ),
   ];
 }
 

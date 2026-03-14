@@ -14,6 +14,7 @@ class CommentTile extends StatelessWidget {
     this.onLike,
     this.onViewReplies,
     this.onDelete,
+    this.isHighlighted = false,
   });
 
   final Comment comment;
@@ -22,6 +23,7 @@ class CommentTile extends StatelessWidget {
   final VoidCallback? onLike;
   final VoidCallback? onViewReplies;
   final VoidCallback? onDelete;
+  final bool isHighlighted;
 
   static const double _avatarSize = 40;
   static const double _avatarSizeReply = 32;
@@ -29,22 +31,31 @@ class CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarSize = isReply ? _avatarSizeReply : _avatarSize;
-    return Padding(
+    return Container(
+      color: isHighlighted ? Colors.white.withOpacity(0.05) : Colors.transparent,
       padding: EdgeInsets.only(
-        left: isReply ? AppSpacing.xl + _avatarSize : 0,
-        right: AppSpacing.md,
-        top: AppSpacing.sm,
-        bottom: AppSpacing.sm,
+        left: isReply ? 72 : 16,
+        right: 16,
+        top: 10,
+        bottom: 10,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: avatarSize / 2,
-            backgroundColor: Colors.grey.shade700,
-            backgroundImage: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
-                ? NetworkImage(comment.avatarUrl)
-                : null,
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: isReply
+                  ? null
+                  : Border.all(color: Colors.white10, width: 0.5),
+            ),
+            child: CircleAvatar(
+              radius: avatarSize / 2,
+              backgroundColor: Colors.grey.shade900,
+              backgroundImage: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
+                  ? NetworkImage(comment.avatarUrl)
+                  : null,
+            ),
           ),
           SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -60,22 +71,22 @@ class CommentTile extends StatelessWidget {
                             comment.username,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (comment.isVerified) ...[
-                            SizedBox(width: AppSpacing.xs),
-                            _VerifiedBadge(),
+                            const SizedBox(width: 4),
+                            const _VerifiedBadge(),
                           ],
-                          SizedBox(width: AppSpacing.xs),
+                          const SizedBox(width: 8),
                           Text(
                             comment.timeAgo,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: Colors.white.withOpacity(0.4),
                               fontSize: 12,
-                              fontWeight: FontWeight.normal,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -100,8 +111,9 @@ class CommentTile extends StatelessWidget {
                       child: Text(
                         'Reply',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: Colors.white.withOpacity(0.5),
                           fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -115,8 +127,9 @@ class CommentTile extends StatelessWidget {
                             Text(
                               'View more replies (${comment.replyCount})',
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
+                                color: Colors.white.withOpacity(0.5),
                                 fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             SizedBox(width: 2),
@@ -177,16 +190,17 @@ class CommentTile extends StatelessWidget {
 }
 
 class _VerifiedBadge extends StatelessWidget {
+  const _VerifiedBadge();
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 14,
       height: 14,
       decoration: const BoxDecoration(
-        color: AppColors.pink,
+        color: Color(0xFFEF4444), // Design accurate Red
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.check, size: 10, color: Colors.white),
+      child: const Icon(Icons.check, size: 9, color: Colors.white),
     );
   }
 }

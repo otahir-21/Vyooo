@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/services/auth_service.dart';
@@ -30,7 +31,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   static const double _horizontalPadding = 28;
   static const double _logoHeight = 50;
   static const double _spacingBelowLogo = 60;
-  static const double _titleFontSize = 38;
+  static const double _titleFontSize = 48;
   static const double _spacingBelowTitle = 40;
   static const double _inputFontSize = 16;
   static const double _spacingBetweenFields = 24;
@@ -64,7 +65,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Top: centered logo
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
                 _buildLogo(),
                 const SizedBox(height: _spacingBelowLogo),
 
@@ -109,8 +110,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                                ? CupertinoIcons.eye_slash
+                                : CupertinoIcons.eye,
                             color: AppTheme.primary,
                             size: 22,
                           ),
@@ -134,8 +135,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
+                                ? CupertinoIcons.eye_slash
+                                : CupertinoIcons.eye,
                             color: AppTheme.primary,
                             size: 22,
                           ),
@@ -164,36 +165,41 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 const SizedBox(height: _spacingAboveButton),
 
                 // Register button (full width, centered in column)
-                SizedBox(
-                  width: double.infinity,
-                  height: _buttonHeight,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _onRegister,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.buttonBackground,
-                      foregroundColor: AppTheme.buttonTextColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(_buttonRadius),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _horizontalPadding,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: _buttonHeight,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _onRegister,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.buttonBackground,
+                        foregroundColor: AppTheme.buttonTextColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(_buttonRadius),
+                        ),
                       ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.black,
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Register',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          )
-                        : const Text(
-                            'Register',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: _spacingAboveSignIn),

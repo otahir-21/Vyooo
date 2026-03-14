@@ -8,6 +8,7 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../content/live_stream_screen.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
+import '../../features/subscription/creator_subscription_screen.dart';
 import 'followers_following_screen.dart';
 
 /// Data for displaying another user's profile (e.g. from search or followers list).
@@ -240,7 +241,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             child: _GradientButton(
               label: _isSubscribed ? 'Subscribed' : 'Subscribe',
               icon: FontAwesomeIcons.crown,
-              onPressed: () => setState(() => _isSubscribed = !_isSubscribed),
+              onPressed: () {
+                if (!_isSubscribed) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CreatorSubscriptionScreen(
+                        name: p.displayName,
+                        handle: '@${p.username}',
+                        avatarUrl: p.avatarUrl,
+                        isVerified: p.isVerified,
+                      ),
+                    ),
+                  );
+                } else {
+                  setState(() => _isSubscribed = false);
+                }
+              },
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
