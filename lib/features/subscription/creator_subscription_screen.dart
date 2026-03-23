@@ -8,12 +8,14 @@ class CreatorSubscriptionScreen extends StatefulWidget {
     required this.handle,
     required this.avatarUrl,
     this.isVerified = false,
+    this.onSubscribe,
   });
 
   final String name;
   final String handle;
   final String avatarUrl;
   final bool isVerified;
+  final VoidCallback? onSubscribe;
 
   @override
   State<CreatorSubscriptionScreen> createState() => _CreatorSubscriptionScreenState();
@@ -159,7 +161,7 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
               ),
 
               // Bottom Area
-              _SubscribeButton(),
+              _SubscribeButton(onPressed: widget.onSubscribe),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -366,23 +368,30 @@ class _BenefitItem extends StatelessWidget {
 }
 
 class _SubscribeButton extends StatelessWidget {
+  const _SubscribeButton({this.onPressed});
+
+  final VoidCallback? onPressed;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: const Text(
-          'Subscribe',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: const Text(
+            'Subscribe',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
