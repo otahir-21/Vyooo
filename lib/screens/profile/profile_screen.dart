@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
+import '../../core/models/live_stream_model.dart';
 import '../content/live_stream_screen.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
@@ -597,11 +599,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => LiveStreamScreen(
-                        payload: LiveStreamPayload(
-                          streamTitle: item.title,
-                          streamDescription: item.subtitle,
-                          thumbnailUrl: item.thumbnailUrl,
+                        stream: LiveStreamModel(
+                          id: item.title,
+                          hostId: '',
+                          hostUsername: 'Host',
+                          title: item.title,
+                          description: item.subtitle,
+                          status: LiveStreamStatus.live,
                           likeCount: item.viewCount,
+                          agoraChannelName: item.title,
+                          createdAt: Timestamp.now(),
                         ),
                       ),
                     ),

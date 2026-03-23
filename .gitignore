@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Functions — env files contain secrets, never commit
+functions/.env.*
+functions/lib/
+functions/node_modules/

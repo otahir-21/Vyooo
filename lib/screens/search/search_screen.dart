@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/models/live_stream_model.dart';
+import '../../core/services/live_stream_service.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../features/vr/vr_player_screen.dart';
+import '../content/live_stream_screen.dart';
 import '../content/vr_detail_screen.dart';
 import '../profile/user_profile_screen.dart';
 
@@ -27,6 +32,11 @@ class _SearchScreenState extends State<SearchScreen>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearchActive = false;
+
+  // ── Live streams from Firestore ───────────────────────────────────────────
+  final _liveService = LiveStreamService();
+  List<LiveStreamModel> _liveStreams = [];
+  StreamSubscription<List<LiveStreamModel>>? _liveStreamsSub;
   List<String> _recentSearches = const [
     'Live concerts happening',
     'Cricket match IND vs AUS',
@@ -42,6 +52,9 @@ class _SearchScreenState extends State<SearchScreen>
     super.initState();
     _searchFocusNode.addListener(_onSearchFocusChange);
     _searchController.addListener(_onSearchTextChange);
+    _liveStreamsSub = _liveService.liveStreams().listen((streams) {
+      if (mounted) setState(() => _liveStreams = streams);
+    });
   }
 
   void _onSearchTextChange() {
@@ -50,6 +63,7 @@ class _SearchScreenState extends State<SearchScreen>
 
   @override
   void dispose() {
+    _liveStreamsSub?.cancel();
     _searchFocusNode.removeListener(_onSearchFocusChange);
     _searchController.removeListener(_onSearchTextChange);
     _searchFocusNode.dispose();
@@ -121,7 +135,7 @@ class _SearchScreenState extends State<SearchScreen>
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
       children: [
-        _buildSection('Ongoing Now', _ongoingLiveItems, showViewAll: true),
+        _buildLiveNowSection(),
         const SizedBox(height: AppSpacing.xl),
         _buildSection(
           'Recommended For you',
@@ -463,6 +477,83 @@ class _SearchScreenState extends State<SearchScreen>
           );
         }),
       ),
+    );
+  }
+
+  Widget _buildLiveNowSection() {
+    if (_liveStreams.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ongoing Now',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No live streams right now. Check back soon!',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Ongoing Now',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 220,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _liveStreams.length,
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            itemBuilder: (context, index) {
+              final stream = _liveStreams[index];
+              final avatar = (stream.hostProfileImage?.isNotEmpty == true)
+                  ? stream.hostProfileImage!
+                  : 'https://i.pravatar.cc/80?u=${stream.hostId}';
+              return _LiveCard(
+                item: _LiveCardItem(
+                  thumbnailUrl: avatar,
+                  name: stream.hostUsername,
+                  handle: '@${stream.hostUsername.toLowerCase().replaceAll(' ', '_')}',
+                  avatarUrl: avatar,
+                  viewerCount: stream.viewerCount,
+                ),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LiveStreamScreen(stream: stream),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -1254,9 +1345,10 @@ final List<_CreatorItem> _creatorItems = [
 ];
 
 class _LiveCard extends StatelessWidget {
-  const _LiveCard({required this.item});
+  const _LiveCard({required this.item, this.onTap});
 
   final _LiveCardItem item;
+  final VoidCallback? onTap;
 
   static const double cardWidth = 160;
   static const double cardHeight = 220;
@@ -1264,7 +1356,7 @@ class _LiveCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         width: cardWidth,
         height: cardHeight,
@@ -1283,7 +1375,14 @@ class _LiveCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(item.thumbnailUrl, fit: BoxFit.cover),
+              Uri.tryParse(item.thumbnailUrl)?.isAbsolute == true
+                  ? Image.network(
+                      item.thumbnailUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, e, s) =>
+                          Container(color: const Color(0xFF1A0020)),
+                    )
+                  : Container(color: const Color(0xFF1A0020)),
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

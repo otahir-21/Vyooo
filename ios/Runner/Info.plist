@@ -55,6 +55,8 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to upload profile pictures</string>
 	<key>NSCameraUsageDescription</key>
-	<string>We need access to your camera to take profile pictures</string>
+	<string>Camera is used for profile pictures and live streaming</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone is used for live streaming audio</string>
 </dict>
 </plist>

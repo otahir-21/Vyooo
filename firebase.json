@@ -1,1 +1,47 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"vyooov1","appId":"1:177333950751:android:3ab0a9e0e049269a72f82a","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"vyooov1","appId":"1:177333950751:ios:9b20ca802bcf0c8b72f82a","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"vyooov1","configurations":{"android":"1:177333950751:android:3ab0a9e0e049269a72f82a","ios":"1:177333950751:ios:9b20ca802bcf0c8b72f82a"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "vyooov1",
+          "appId": "1:177333950751:android:3ab0a9e0e049269a72f82a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "vyooov1",
+          "appId": "1:177333950751:ios:9b20ca802bcf0c8b72f82a",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "vyooov1",
+          "configurations": {
+            "android": "1:177333950751:android:3ab0a9e0e049269a72f82a",
+            "ios": "1:177333950751:ios:9b20ca802bcf0c8b72f82a"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

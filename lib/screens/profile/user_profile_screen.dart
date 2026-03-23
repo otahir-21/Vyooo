@@ -5,6 +5,8 @@ import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/models/live_stream_model.dart';
 import '../content/live_stream_screen.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
@@ -535,11 +537,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => LiveStreamScreen(
-                        payload: LiveStreamPayload(
-                          streamTitle: item.title,
-                          streamDescription: item.subtitle,
-                          thumbnailUrl: item.thumbnailUrl,
+                        stream: LiveStreamModel(
+                          id: item.title,
+                          hostId: '',
+                          hostUsername: 'Host',
+                          title: item.title,
+                          description: item.subtitle,
+                          status: LiveStreamStatus.live,
                           likeCount: item.viewCount,
+                          agoraChannelName: item.title,
+                          createdAt: Timestamp.now(),
                         ),
                       ),
                     ),
