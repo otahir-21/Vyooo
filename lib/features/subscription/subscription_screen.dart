@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../core/subscription/subscription_controller.dart';
+import 'creator_subscription_screen.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key, this.showRestoreButton = true});
@@ -204,13 +205,27 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   _UpgradeButton(
                     selectedIndex: _selectedIndex,
                     isLoading: isLoading,
-                    onPressed: () => _handlePurchase(
-                      controller,
-                      selectedIndex: _selectedIndex,
-                      standardPkg: standardPkg,
-                      subscriberPkg: subscriberPkg,
-                      creatorPkg: creatorPkg,
-                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CreatorSubscriptionScreen(
+                            name: 'Matt Rife',
+                            handle: '@mattrife_x',
+                            avatarUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=1287&auto=format&fit=crop',
+                            isVerified: true,
+                            onSubscribe: () {
+                              _handlePurchase(
+                                controller,
+                                selectedIndex: _selectedIndex,
+                                standardPkg: standardPkg,
+                                subscriberPkg: subscriberPkg,
+                                creatorPkg: creatorPkg,
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   ),
 
                   // Legal text

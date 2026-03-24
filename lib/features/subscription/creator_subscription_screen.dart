@@ -11,12 +11,14 @@ class CreatorSubscriptionScreen extends StatefulWidget {
     required this.avatarUrl,
     this.isVerified = false,
     this.monthlyPrice = 14.99,
+    this.onSubscribe,
   });
 
   final String name;
   final String handle;
   final String avatarUrl;
   final bool isVerified;
+  final VoidCallback? onSubscribe;
 
   /// Monthly base price. 3-month and yearly are derived from this.
   final double monthlyPrice;
@@ -196,11 +198,20 @@ class _CreatorSubscriptionScreenState
                 ),
               ),
 
-              // Subscribe button + legal
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
                 child: GestureDetector(
-                  onTap: _loading ? null : _onSubscribe,
+                  onTap: _loading
+                      ? null
+                      : () async {
+                          if (widget.onSubscribe != null) {
+                            widget.onSubscribe!.call();
+                            if (!mounted) return;
+                            Navigator.of(context).pop();
+                            return;
+                          }
+                          await _onSubscribe();
+                        },
                   child: Container(
                     height: 52,
                     decoration: BoxDecoration(
