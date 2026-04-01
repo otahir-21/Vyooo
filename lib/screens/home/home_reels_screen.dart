@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../core/controllers/reels_controller.dart';
+import '../../core/models/story_model.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/reels_service.dart';
+import '../../core/services/story_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_interaction_button.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
 import '../../features/home/widgets/following_header_stories.dart';
+import '../../features/story/story_upload_screen.dart';
+import '../../features/story/story_viewer_screen.dart';
 import '../../features/reel/widgets/download_subscription_sheet.dart';
 import '../../features/reel/widgets/manage_content_preferences_sheet.dart';
 import '../../features/reel/widgets/not_interested_sheet.dart';
@@ -26,11 +33,14 @@ enum HomeTab { trending, vr, following, forYou }
 /// Main home screen: vertical reels feed with interactions.
 /// Default tab: For You. Tab switch is internal state only (no new route).
 class HomeReelsScreen extends StatefulWidget {
-  const HomeReelsScreen({super.key, this.isActive = true});
+  const HomeReelsScreen({super.key, this.isActive = true, this.refreshToken = 0});
 
   /// Whether the Home tab is the currently visible bottom-nav tab.
   /// When false, reels should pause even if their page is selected.
   final bool isActive;
+
+  /// Increment this from outside to trigger a feed reload (e.g. after upload).
+  final int refreshToken;
 
   @override
   State<HomeReelsScreen> createState() => _HomeReelsScreenState();
@@ -53,6 +63,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   List<Map<String, dynamic>> _reelsVR = [];
   String? _selectedStoryId;
 
+  // Stories
+  List<StoryGroup> _storyGroups = [];
+  List<StoryModel> _myStories = [];
+  String _myAvatarUrl = '';
+
   /// Reels for current tab. Rebuilt when currentTab changes; PageView uses this.
   List<Map<String, dynamic>> get _currentReels {
     switch (currentTab) {
@@ -67,64 +82,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
   }
 
-  // Mock data - HQ car reels style. Used as fallback until Firestore has reels.
-  static List<Map<String, dynamic>> get _mockReels => [
-    {
-      'id': 'reel1',
-      'videoUrl': 'https://assets.mixkit.co/videos/24481/24481-720.mp4',
-      'username': 'supercar_daily',
-      'handle': '@supercardaily',
-      'caption': 'Sunday drive hits different 🏎️ #carreels #luxury #vyooo',
-      'likes': 28400,
-      'comments': 892,
-      'saves': 1203,
-      'views': 412000,
-      'shares': 456,
-      'avatarUrl': '',
-    },
-    {
-      'id': 'reel2',
-      'videoUrl':
-          'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-      'username': 'luxury_rides',
-      'handle': '@luxuryrides',
-      'caption': 'POV: you finally got the keys 🔑 #carlife #newcar #vyooo',
-      'likes': 15600,
-      'comments': 234,
-      'saves': 567,
-      'views': 198000,
-      'shares': 189,
-      'avatarUrl': '',
-    },
-    {
-      'id': 'reel3',
-      'videoUrl':
-          'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
-      'username': 'street_garage',
-      'handle': '@streetgarage',
-      'caption': 'Build not bought 💪 #carmods #carreels #vyooo',
-      'likes': 42100,
-      'comments': 1204,
-      'saves': 2100,
-      'views': 890000,
-      'shares': 678,
-      'avatarUrl': '',
-    },
-    {
-      'id': 'reel4',
-      'videoUrl': 'https://assets.mixkit.co/videos/24481/24481-720.mp4',
-      'username': 'night_drives',
-      'handle': '@nightdrives',
-      'caption':
-          'City lights & good vibes only 🌃 #nightdrive #carreels #vyooo',
-      'likes': 33800,
-      'comments': 567,
-      'saves': 890,
-      'views': 521000,
-      'shares': 312,
-      'avatarUrl': '',
-    },
-  ];
 
   // State for likes/saves (optimistic UI)
   final Map<String, bool> _likedReels = {};
@@ -139,11 +96,25 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   @override
   void initState() {
     super.initState();
-    _reelsForYou = _mockReels;
-    _reelsFollowing = _mockReels;
-    _reelsTrending = _mockReels;
-    _reelsVR = _mockReels;
     _loadReels();
+  }
+
+  @override
+  void didUpdateWidget(HomeReelsScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.refreshToken != old.refreshToken) {
+      // Switch to For You tab and scroll to top so the new video is visible.
+      setState(() {
+        currentTab = HomeTab.forYou;
+        _currentIndex = 0;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _pageController.hasClients) {
+          _pageController.jumpToPage(0);
+        }
+      });
+      _loadReels();
+    }
   }
 
   Future<void> _loadReels() async {
@@ -151,12 +122,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final following = await _reelsService.getReelsFollowing();
     final trending = await _reelsService.getReelsTrending();
     final vr = await _reelsService.getReelsVR();
+    final storyGroups = await StoryService().getActiveStoryGroups();
+    final myStories = await StoryService().getMyStories();
+    final uid = AuthService().currentUser?.uid ?? '';
+    String avatarUrl = '';
+    if (uid.isNotEmpty) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .get();
+        avatarUrl = userDoc.data()?['profileImage'] as String? ?? '';
+      } catch (_) {}
+    }
     if (mounted) {
       setState(() {
         if (forYou.isNotEmpty) _reelsForYou = forYou;
         if (following.isNotEmpty) _reelsFollowing = following;
         if (trending.isNotEmpty) _reelsTrending = trending;
         if (vr.isNotEmpty) _reelsVR = vr;
+        _storyGroups = storyGroups;
+        _myStories = myStories;
+        _myAvatarUrl = avatarUrl;
       });
     }
   }
@@ -313,17 +300,45 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
+  void _openStoryViewer(int groupIndex) {
+    if (_storyGroups.isEmpty) return;
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) => StoryViewerScreen(
+          groups: _storyGroups,
+          initialGroupIndex: groupIndex,
+        ),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+
+  Future<void> _openStoryUpload() async {
+    final posted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const StoryUploadScreen(),
+      ),
+    );
+    if (posted == true) _loadReels();
+  }
+
   Widget _buildStoryRow() {
-    final stories = _reelsFollowing
-        .take(8)
-        .map(
-          (r) => {
-            'id': r['id'],
-            'profileImage': r['avatarUrl'],
-            'avatarUrl': r['avatarUrl'],
-          },
-        )
+    final uid = AuthService().currentUser?.uid ?? '';
+    final otherGroups = _storyGroups
+        .where((g) => g.userId != uid)
         .toList();
+
+    final stories = otherGroups
+        .map((g) => {
+              'id': g.userId,
+              'profileImage': g.avatarUrl,
+              'avatarUrl': g.avatarUrl,
+              'username': g.username,
+            })
+        .toList();
+
     return Positioned(
       top: 100,
       left: 0,
@@ -331,7 +346,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       child: FollowingHeaderStories(
         stories: stories,
         selectedId: _selectedStoryId,
-        onStoryTap: (id) => setState(() => _selectedStoryId = id),
+        onStoryTap: (userId) {
+          setState(() => _selectedStoryId = userId);
+          final idx = _storyGroups.indexWhere((g) => g.userId == userId);
+          if (idx != -1) _openStoryViewer(idx);
+        },
+        myAvatarUrl: _myAvatarUrl,
+        myHasStory: _myStories.isNotEmpty,
+        onAddStory: _openStoryUpload,
       ),
     );
   }

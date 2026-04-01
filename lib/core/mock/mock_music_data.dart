@@ -6,6 +6,7 @@ class MusicTrack {
     required this.artist,
     required this.duration,
     required this.albumArtUrl,
+    this.audioUrl = '',
     this.isSaved = false,
   });
 
@@ -14,6 +15,9 @@ class MusicTrack {
   final String artist;
   final String duration;
   final String albumArtUrl;
+
+  /// Direct MP3 stream URL. Empty for mock tracks.
+  final String audioUrl;
   final bool isSaved;
 
   /// Display string for profile (e.g. "Zulfein • Mehul Mahesh, DJ A...").

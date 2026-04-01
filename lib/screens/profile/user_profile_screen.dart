@@ -7,7 +7,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/live_stream_model.dart';
-import '../content/live_stream_screen.dart';
+import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
 import '../../features/subscription/creator_subscription_screen.dart';
@@ -534,21 +534,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 height: 200,
                 child: _UserProfileStreamCard(
                   item: item,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => LiveStreamScreen(
-                        stream: LiveStreamModel(
-                          id: item.title,
-                          hostId: '',
-                          hostUsername: 'Host',
-                          title: item.title,
-                          description: item.subtitle,
-                          status: LiveStreamStatus.live,
-                          likeCount: item.viewCount,
-                          agoraChannelName: item.title,
-                          createdAt: Timestamp.now(),
-                        ),
-                      ),
+                  onTap: () => openLiveStreamScreen(
+                    context,
+                    LiveStreamModel(
+                      id: item.title,
+                      hostId: '',
+                      hostUsername: 'Host',
+                      title: item.title,
+                      description: item.subtitle,
+                      status: LiveStreamStatus.live,
+                      likeCount: item.viewCount,
+                      agoraChannelName: item.title,
+                      createdAt: Timestamp.now(),
                     ),
                   ),
                 ),

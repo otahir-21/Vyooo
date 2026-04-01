@@ -19,7 +19,7 @@ const mockSubscriptionPlans = [
   SubscriptionUIModel(
     id: 'standard',
     title: 'Standard',
-    price: '\$0/M',
+    price: 'FREE',
   ),
   SubscriptionUIModel(
     id: 'subscriber',

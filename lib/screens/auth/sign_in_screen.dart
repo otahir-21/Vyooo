@@ -22,6 +22,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _isAppleLoading = false;
   String? _errorMessage;
 
   final AuthService _auth = AuthService();
@@ -54,6 +55,22 @@ class _SignInScreenState extends State<SignInScreen> {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
       setState(() => _errorMessage = result.message ?? 'Login failed');
+    }
+  }
+
+  Future<void> _onAppleSignIn() async {
+    if (_isAppleLoading || _isLoading) return;
+    setState(() {
+      _isAppleLoading = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.signInWithApple();
+    if (!mounted) return;
+    setState(() => _isAppleLoading = false);
+    if (result.success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else if (result.message != null && result.message!.isNotEmpty) {
+      setState(() => _errorMessage = result.message);
     }
   }
 
@@ -339,7 +356,23 @@ class _SignInScreenState extends State<SignInScreen> {
       children: [
         FaIcon(FontAwesomeIcons.google, color: AppTheme.primary, size: 28),
         const SizedBox(width: 40),
-        FaIcon(FontAwesomeIcons.apple, color: AppTheme.primary, size: 28),
+        GestureDetector(
+          onTap: _onAppleSignIn,
+          child: _isAppleLoading
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.primary,
+                  ),
+                )
+              : const FaIcon(
+                  FontAwesomeIcons.apple,
+                  color: AppTheme.primary,
+                  size: 28,
+                ),
+        ),
         const SizedBox(width: 40),
         FaIcon(FontAwesomeIcons.facebook, color: AppTheme.primary, size: 28),
       ],

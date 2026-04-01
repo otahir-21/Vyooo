@@ -6,7 +6,7 @@ import 'package:photo_manager/photo_manager.dart';
 import '../../core/theme/app_gradients.dart';
 import '../../core/theme/app_spacing.dart';
 import 'all_albums_screen.dart';
-import 'creator_live_screen.dart';
+import 'creator_live_route.dart';
 import 'upload_video_preview_screen.dart';
 
 /// Upload screen for subscribers: media grid from gallery, album dropdown, Story / Gallery / Live actions.
@@ -308,9 +308,7 @@ class _UploadScreenState extends State<UploadScreen> {
             selected: _bottomSegment == 2,
             onTap: () {
               setState(() => _bottomSegment = 2);
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const CreatorLiveScreen()),
-              );
+              openCreatorLiveScreen(context);
             },
           ),
         ],

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_config.dart';
+import '../../widgets/reel_item_widget.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
@@ -14,8 +16,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
 import '../../core/models/live_stream_model.dart';
-import '../content/live_stream_screen.dart';
-import '../content/post_feed_screen.dart';
+import '../content/live_stream_route.dart';
 import '../content/vr_detail_screen.dart';
 import '../music/music_library_screen.dart';
 import 'edit_profile_screen.dart';
@@ -453,12 +454,12 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
         ),
-        ..._buildProfileContentSlivers(context, canUploadContent),
+        ..._buildProfileContentSlivers(context, canUploadContent, uid: AuthService().currentUser?.uid ?? ''),
       ],
     );
   }
 
-  List<Widget> _buildProfileContentSlivers(BuildContext context, bool canUploadContent) {
+  List<Widget> _buildProfileContentSlivers(BuildContext context, bool canUploadContent, {required String uid}) {
     if (!canUploadContent) {
       if (_selectedTabIndex == 0) {
         return [SliverFillRemaining(hasScrollBody: false, child: _buildBecomeMemberPrompt(context))];
@@ -473,7 +474,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     switch (_selectedTabIndex) {
       case 0:
-        return _buildPostsGridSlivers();
+        return _buildPostsGridSlivers(uid: uid);
       case 1:
         return _buildVRGridSlivers();
       case 2:
@@ -506,42 +507,114 @@ class _ProfileScreenState extends State<ProfileScreen>
     ];
   }
 
-  List<Widget> _buildPostsGridSlivers() {
+  List<Widget> _buildPostsGridSlivers({required String uid}) {
+    if (uid.isEmpty) {
+      return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyPostsPrompt())];
+    }
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 1,
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => PostFeedScreen(
-                    payload: PostFeedPayload(
-                      initialIndex: index,
-                      creatorName: 'Matt Rife',
-                      creatorHandle: '@mattrife_x',
-                      avatarUrl: AuthService().currentUser?.photoURL ?? 'https://i.pravatar.cc/80?img=33',
-                      isVerified: true,
-                    ),
-                  ),
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance
+              .collection('reels')
+              .where('userId', isEqualTo: uid)
+              .get()
+              .then((q) {
+                final docs = q.docs.map((d) {
+                  final data = d.data();
+                  return {
+                    'id': d.id,
+                    'videoUrl': data['videoUrl'] as String? ?? '',
+                    'caption': data['caption'] as String? ?? '',
+                    'createdAt': data['createdAt'],
+                  };
+                }).toList();
+                docs.sort((a, b) {
+                  final aTs = a['createdAt'] as Timestamp?;
+                  final bTs = b['createdAt'] as Timestamp?;
+                  if (aTs == null && bTs == null) return 0;
+                  if (aTs == null) return 1;
+                  if (bTs == null) return -1;
+                  return bTs.compareTo(aTs);
+                });
+                return docs;
+              }),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 200,
+                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+              );
+            }
+            if (snapshot.hasError) {
+              debugPrint('Profile posts error: ${snapshot.error}');
+            }
+            final posts = snapshot.data ?? [];
+            if (posts.isEmpty) return _buildEmptyPostsPrompt();
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  childAspectRatio: 1,
                 ),
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final videoUrl = posts[index]['videoUrl'] as String;
+                  final thumbnailUrl = _thumbnailFromVideoUrl(videoUrl);
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => _ProfileReelFeedScreen(
+                          reels: posts,
+                          initialIndex: index,
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(color: Colors.grey[900]),
+                          if (thumbnailUrl.isNotEmpty)
+                            Image.network(
+                              thumbnailUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                            ),
+                          const Align(
+                            alignment: Alignment.bottomRight,
+                            child: Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 18),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(_profileMockPostUrls[index], fit: BoxFit.cover),
-              ),
-            ),
-            childCount: _profileMockPostUrls.length,
-          ),
+            );
+          },
         ),
       ),
     ];
+  }
+
+  static String _thumbnailFromVideoUrl(String videoUrl) {
+    try {
+      final uri = Uri.parse(videoUrl);
+      final videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
+      if (videoId.isEmpty) return '';
+      return 'https://${AppConfig.cloudflareStreamSubdomain}/$videoId/thumbnails/thumbnail.jpg';
+    } catch (_) {
+      return '';
+    }
   }
 
   List<Widget> _buildVRGridSlivers() {
@@ -596,21 +669,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                 height: 200,
                 child: _ProfileStreamCard(
                   item: item,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => LiveStreamScreen(
-                        stream: LiveStreamModel(
-                          id: item.title,
-                          hostId: '',
-                          hostUsername: 'Host',
-                          title: item.title,
-                          description: item.subtitle,
-                          status: LiveStreamStatus.live,
-                          likeCount: item.viewCount,
-                          agoraChannelName: item.title,
-                          createdAt: Timestamp.now(),
-                        ),
-                      ),
+                  onTap: () => openLiveStreamScreen(
+                    context,
+                    LiveStreamModel(
+                      id: item.title,
+                      hostId: '',
+                      hostUsername: 'Host',
+                      title: item.title,
+                      description: item.subtitle,
+                      status: LiveStreamStatus.live,
+                      likeCount: item.viewCount,
+                      agoraChannelName: item.title,
+                      createdAt: Timestamp.now(),
                     ),
                   ),
                 ),
@@ -833,19 +903,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 }
-
-// Mock data for profile Posts/VR/Streams (design only; Cloudflare integration later).
-const List<String> _profileMockPostUrls = [
-  'https://picsum.photos/400/400?random=p1',
-  'https://picsum.photos/400/400?random=p2',
-  'https://picsum.photos/400/400?random=p3',
-  'https://picsum.photos/400/400?random=p4',
-  'https://picsum.photos/400/400?random=p5',
-  'https://picsum.photos/400/400?random=p6',
-  'https://picsum.photos/400/400?random=p7',
-  'https://picsum.photos/400/400?random=p8',
-  'https://picsum.photos/400/400?random=p9',
-];
 
 // Mock saved items (same grid design as Posts).
 const List<String> _profileMockSavedUrls = [
@@ -1259,6 +1316,65 @@ class _OutlineButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Full-screen vertical PageView of the user's own reels, opened from the profile Posts grid.
+class _ProfileReelFeedScreen extends StatefulWidget {
+  const _ProfileReelFeedScreen({required this.reels, required this.initialIndex});
+
+  final List<Map<String, dynamic>> reels;
+  final int initialIndex;
+
+  @override
+  State<_ProfileReelFeedScreen> createState() => _ProfileReelFeedScreenState();
+}
+
+class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            onPageChanged: (i) => setState(() => _currentIndex = i),
+            itemCount: widget.reels.length,
+            itemBuilder: (context, index) {
+              final videoUrl = widget.reels[index]['videoUrl'] as String;
+              return ReelItemWidget(
+                videoUrl: videoUrl,
+                isVisible: index == _currentIndex,
+              );
+            },
+          ),
+          SafeArea(
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
       ),
     );
   }
