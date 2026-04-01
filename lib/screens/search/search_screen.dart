@@ -10,7 +10,7 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../features/vr/vr_player_screen.dart';
-import '../content/live_stream_screen.dart';
+import '../content/live_stream_route.dart';
 import '../content/vr_detail_screen.dart';
 import '../profile/user_profile_screen.dart';
 
@@ -543,12 +543,7 @@ class _SearchScreenState extends State<SearchScreen>
                   avatarUrl: avatar,
                   viewerCount: stream.viewerCount,
                 ),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => LiveStreamScreen(stream: stream),
-                  ),
-                ),
+                onTap: () => openLiveStreamScreen(context, stream),
               );
             },
           ),

@@ -3,6 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/controllers/reels_controller.dart';
 import '../../../../core/mock/mock_feed_data.dart';
+import '../../../../core/models/story_model.dart';
+import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/reels_service.dart';
+import '../../../../core/services/story_service.dart';
+import '../../story/story_upload_screen.dart';
+import '../../story/story_viewer_screen.dart';
 import '../../../../core/subscription/subscription_controller.dart';
 import '../../../../core/widgets/app_bottom_navigation.dart';
 import '../../../../core/widgets/app_feed_header.dart';
@@ -42,13 +48,53 @@ class FeedScreen extends StatefulWidget {
 class _FeedScreenState extends State<FeedScreen> {
   final PageController _pageController = PageController();
   final Set<String> _likedPostIds = {};
-  static const _items = mockFeedItems;
   static const _stories = mockStoryAvatars;
+
+  List<FeedPost> _items = mockFeedItems;
+  bool _loading = true;
+  int _activePage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFeed();
+    _pageController.addListener(() {
+      final page = _pageController.page?.round() ?? 0;
+      if (page != _activePage) setState(() => _activePage = page);
+    });
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadFeed() async {
+    try {
+      final reels = await ReelsService().getReelsForYou(limit: 30);
+      if (!mounted || reels.isEmpty) {
+        setState(() => _loading = false);
+        return;
+      }
+      setState(() {
+        _items = reels.map((r) => FeedPost(
+          id: r['id'] as String? ?? '',
+          userAvatarUrl: r['avatarUrl'] as String? ?? '',
+          username: r['username'] as String? ?? '',
+          userHandle: r['handle'] as String? ?? '',
+          caption: r['caption'] as String? ?? '',
+          likeCount: r['likes'] as int? ?? 0,
+          viewCount: r['views'] as int? ?? 0,
+          commentCount: r['comments'] as int? ?? 0,
+          thumbnailUrl: '',
+          videoUrl: r['videoUrl'] as String? ?? '',
+        )).toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _showSnackBar(BuildContext context, String message) {
@@ -126,35 +172,38 @@ class _FeedScreenState extends State<FeedScreen> {
               onAvatarTap: (_) {},
             ),
             Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                scrollDirection: Axis.vertical,
-                physics: const BouncingScrollPhysics(
-                  parent: AlwaysScrollableScrollPhysics(),
-                ),
-                itemCount: _items.length,
-                itemBuilder: (context, index) {
-                  final post = _items[index];
-                  final isLiked = _likedPostIds.contains(post.id);
-                  return FeedVideoItem(
-                    post: post,
-                    isLiked: isLiked,
-                    onLike: () {
-                      setState(() {
-                        if (isLiked) {
-                          _likedPostIds.remove(post.id);
-                        } else {
-                          _likedPostIds.add(post.id);
-                        }
-                      });
-                    },
-                    onComment: () => _openComments(context, post.id),
-                    onShare: () => _openShare(context, post.id),
-                    onMore: () => _openMoreOptions(context, post.id),
-                    onSeeMore: () => _showSnackBar(context, 'See more'),
-                  );
-                },
-              ),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white54))
+                  : PageView.builder(
+                      controller: _pageController,
+                      scrollDirection: Axis.vertical,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final post = _items[index];
+                        final isLiked = _likedPostIds.contains(post.id);
+                        return FeedVideoItem(
+                          post: post,
+                          isActive: index == _activePage,
+                          isLiked: isLiked,
+                          onLike: () {
+                            setState(() {
+                              if (isLiked) {
+                                _likedPostIds.remove(post.id);
+                              } else {
+                                _likedPostIds.add(post.id);
+                              }
+                            });
+                          },
+                          onComment: () => _openComments(context, post.id),
+                          onShare: () => _openShare(context, post.id),
+                          onMore: () => _openMoreOptions(context, post.id),
+                          onSeeMore: () => _showSnackBar(context, 'See more'),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

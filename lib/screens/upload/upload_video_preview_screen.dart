@@ -4,6 +4,7 @@ import 'package:video_player/video_player.dart';
 
 import '../../core/theme/app_spacing.dart';
 import 'edit_video_screen.dart';
+import 'upload_details_screen.dart';
 
 /// Preview selected video before upload: play/pause, seek bar, duration, mute, Edit Video, Next.
 class UploadVideoPreviewScreen extends StatefulWidget {
@@ -135,11 +136,12 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
                 label: 'Edit Video',
                 icon: Icons.edit_rounded,
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => EditVideoScreen(asset: widget.asset),
-                    ),
-                  );
+                  _controller?.pause();
+                  Navigator.of(context)
+                      .push(MaterialPageRoute<void>(
+                        builder: (_) => EditVideoScreen(asset: widget.asset),
+                      ))
+                      .then((_) => _controller?.play());
                 },
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -147,10 +149,11 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
                 label: 'Next >',
                 icon: null,
                 onPressed: () {
-                  // TODO: go to caption/post step
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Next step'), behavior: SnackBarBehavior.floating),
+                  _controller?.pause();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UploadDetailsScreen(asset: widget.asset),
+                    ),
                   );
                 },
                 isPrimary: true,

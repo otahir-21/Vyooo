@@ -21,14 +21,21 @@ class MainNavWrapper extends StatefulWidget {
 
 class _MainNavWrapperState extends State<MainNavWrapper> {
   int _currentIndex = 0;
+  int _feedRefreshToken = 0;
 
   void _onNavTap(BuildContext context, int index) {
     if (index == 2) {
       final canUpload = context.read<SubscriptionController>().canUploadContent;
       if (canUpload) {
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()));
+        Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
+            .then((_) {
+          // Refresh feed after returning from upload (whether posted or cancelled).
+          setState(() {
+            _currentIndex = 0;
+            _feedRefreshToken++;
+          });
+        });
       } else {
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
@@ -42,7 +49,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   @override
   Widget build(BuildContext context) {
     final screens = <Widget>[
-      HomeReelsScreen(isActive: _currentIndex == 0),
+      HomeReelsScreen(isActive: _currentIndex == 0, refreshToken: _feedRefreshToken),
       const SearchScreen(),
       const Placeholder(), // Plus opens Upload or Membership via push; no tab content.
       const NotificationScreen(),

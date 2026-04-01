@@ -10,6 +10,7 @@ class FeedPost {
     required this.viewCount,
     required this.commentCount,
     required this.thumbnailUrl,
+    this.videoUrl = '',
   });
 
   final String id;
@@ -21,6 +22,7 @@ class FeedPost {
   final int viewCount;
   final int commentCount;
   final String thumbnailUrl;
+  final String videoUrl;
 }
 
 /// Dummy feed data for UI. Replace with real data/controller later.

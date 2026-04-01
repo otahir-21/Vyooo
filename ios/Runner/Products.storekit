@@ -1,0 +1,84 @@
+{
+  "identifier" : "A2B3C4D5E6F7A8B9C0D1E2F3",
+  "nonConsumableProducts" : [
+
+  ],
+  "consumableProducts" : [
+
+  ],
+  "subscriptionGroups" : [
+    {
+      "id" : "21911771",
+      "localizations" : [
+        {
+          "description" : "Platform Membership Plans",
+          "displayName" : "VyooO Subscription Plans",
+          "locale" : "en_GB"
+        }
+      ],
+      "subscriptions" : [
+        {
+          "adHocOfferCodesEnabled" : true,
+          "displayPrice" : "0.00",
+          "familySharable" : false,
+          "groupNumber" : 3,
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Standard tier - free base plan",
+              "displayName" : "Standard",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "vyooo_standard_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Standard Monthly",
+          "subscriptionGroupID" : "21911771",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOfferCodesEnabled" : true,
+          "displayPrice" : "4.99",
+          "familySharable" : false,
+          "groupNumber" : 2,
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Subscriber tier monthly subscription",
+              "displayName" : "Subscriber",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "subscriber_plan_month",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Subscriber Monthly Plan",
+          "subscriptionGroupID" : "21911771",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOfferCodesEnabled" : true,
+          "displayPrice" : "19.99",
+          "familySharable" : false,
+          "groupNumber" : 1,
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Creator tier monthly subscription",
+              "displayName" : "Creator",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "creator_plan_month",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Creator Monthly Plan",
+          "subscriptionGroupID" : "21911771",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

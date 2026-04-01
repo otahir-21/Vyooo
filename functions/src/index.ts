@@ -11,6 +11,10 @@ const TOKEN_TTL_SECONDS = 3600; // 1 hour
 // App Certificate is injected at deploy time via .env.vyooov1
 const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE ?? '';
 
+// Cloudflare Stream credentials — set in .env.vyooov1
+const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
+const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? '';
+
 // ── generateAgoraTokenOnRequest ────────────────────────────────────────────────
 /**
  * Firestore-triggered token generator.
@@ -77,6 +81,76 @@ export const generateAgoraTokenOnRequest = onDocumentCreated(
       );
 
       await snap.ref.update({ status: 'done', token, expiresAt: privilegeExpireTime });
+    } catch (e) {
+      await snap.ref.update({ status: 'error', error: String(e) });
+    }
+  },
+);
+
+// ── getCloudflareUploadUrl ─────────────────────────────────────────────────────
+/**
+ * Firestore-triggered function — same pattern as generateAgoraTokenOnRequest
+ * to avoid the org-policy IAM allUsers restriction.
+ *
+ * Flutter creates:  cloudflare_upload_requests/{requestId}  { userId }
+ * Function writes back: { status: 'done', videoId, uploadUrl }
+ *                    or { status: 'error', error }
+ */
+export const getCloudflareUploadUrl = onDocumentCreated(
+  {
+    document: 'cloudflare_upload_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '128MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const data = snap.data() as { userId?: unknown };
+
+    if (typeof data.userId !== 'string' || !data.userId) {
+      await snap.ref.update({ status: 'error', error: 'Missing userId.' });
+      return;
+    }
+
+    if (!CF_ACCOUNT_ID || !CF_API_TOKEN) {
+      await snap.ref.update({ status: 'error', error: 'Cloudflare credentials not configured.' });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/stream/direct_upload`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${CF_API_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ maxDurationSeconds: 600, requireSignedURLs: false }),
+        },
+      );
+
+      if (!response.ok) {
+        await snap.ref.update({ status: 'error', error: `Cloudflare API error: ${response.status}` });
+        return;
+      }
+
+      const result = await response.json() as {
+        result: { uid: string; uploadURL: string };
+        success: boolean;
+      };
+
+      if (!result.success) {
+        await snap.ref.update({ status: 'error', error: 'Cloudflare returned failure.' });
+        return;
+      }
+
+      await snap.ref.update({
+        status: 'done',
+        videoId: result.result.uid,
+        uploadUrl: result.result.uploadURL,
+      });
     } catch (e) {
       await snap.ref.update({ status: 'error', error: String(e) });
     }

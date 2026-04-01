@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/mock/mock_music_data.dart';
 import '../../core/theme/app_spacing.dart';
 import '../music/add_audio_screen.dart';
+import 'upload_details_screen.dart';
 
 /// Edit video screen: title, close, Next >, video preview, tool row, timeline with scrubber.
 class EditVideoScreen extends StatefulWidget {
@@ -21,6 +24,9 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
   bool _hasError = false;
   bool _muted = true;
 
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  MusicTrack? _selectedTrack;
+
   static const Color _pink = Color(0xFFDE106B);
   static const Color _darkGrey = Color(0xFF2A2A2E);
   static const double _topRadius = 20;
@@ -33,6 +39,7 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
 
   @override
   void dispose() {
+    _audioPlayer.dispose();
     _controller?.removeListener(_listener);
     _controller?.dispose();
     super.dispose();
@@ -47,7 +54,7 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
       final file = await widget.asset.file;
       if (file == null || !mounted) return;
       _controller = VideoPlayerController.file(file);
-      _controller!.setLooping(false);
+      _controller!.setLooping(true);
       _controller!.setVolume(_muted ? 0 : 1);
       _controller!.addListener(_listener);
       await _controller!.initialize();
@@ -112,6 +119,7 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
                     children: [
                       _buildHeader(context),
                       Expanded(child: _buildVideoArea()),
+                      if (_selectedTrack != null) _buildMusicBar(),
                       _buildToolRow(),
                       _buildTimeline(),
                     ],
@@ -144,9 +152,10 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
             borderRadius: BorderRadius.circular(20),
             child: InkWell(
               onTap: () {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Next step'), behavior: SnackBarBehavior.floating),
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => UploadDetailsScreen(asset: widget.asset),
+                  ),
                 );
               },
               borderRadius: BorderRadius.circular(20),
@@ -203,11 +212,25 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
           _toolButton(
             icon: Icons.music_note_rounded,
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => AddAudioScreen(videoAsset: widget.asset),
-                ),
-              );
+              _controller?.pause();
+              Navigator.of(context)
+                  .push<MusicTrack?>(MaterialPageRoute(
+                    builder: (_) => AddAudioScreen(videoAsset: widget.asset),
+                  ))
+                  .then((track) async {
+                if (!mounted) return;
+                if (track != null) {
+                  setState(() => _selectedTrack = track);
+                  // Mute video, play selected music
+                  _controller?.setVolume(0);
+                  setState(() => _muted = true);
+                  try {
+                    await _audioPlayer.setUrl(track.audioUrl);
+                    await _audioPlayer.play();
+                  } catch (_) {}
+                }
+                _controller?.play();
+              });
             },
           ),
           _toolButton(icon: Icons.filter_rounded, onTap: () {}),
@@ -233,6 +256,40 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
           alignment: Alignment.center,
           child: Icon(icon, color: Colors.white, size: 24),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMusicBar() {
+    final t = _selectedTrack!;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 8),
+      decoration: BoxDecoration(
+        color: _pink.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _pink.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.music_note_rounded, color: _pink, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${t.title} • ${t.artist}',
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              _audioPlayer.stop();
+              setState(() => _selectedTrack = null);
+              _controller?.setVolume(_muted ? 0 : 1);
+            },
+            child: const Icon(Icons.close, color: Colors.white70, size: 18),
+          ),
+        ],
       ),
     );
   }

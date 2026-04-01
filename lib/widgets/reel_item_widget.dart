@@ -25,6 +25,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     with AutomaticKeepAliveClientMixin {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 8; // 8 × 5s = 40s max wait for Cloudflare processing
 
   @override
   bool get wantKeepAlive => true;
@@ -55,7 +57,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   Future<void> _initializePlayer() async {
     try {
-      _controller = VideoPlayerController.networkUrl(
+      final ctrl = VideoPlayerController.networkUrl(
         Uri.parse(widget.videoUrl),
         videoPlayerOptions: VideoPlayerOptions(
           mixWithOthers: true,
@@ -63,22 +65,33 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         ),
       );
 
-      _controller!.setLooping(true);
-      _controller!.setVolume(1.0);
-      
-      await _controller!.initialize();
-      
-      if (mounted) {
-        setState(() => _isInitialized = true);
-        if (widget.isVisible) {
-          await _controller!.play();
-        }
+      ctrl.setLooping(true);
+      ctrl.setVolume(1.0);
+
+      await ctrl.initialize();
+
+      if (!mounted) {
+        ctrl.dispose();
+        return;
       }
+      setState(() {
+        _controller = ctrl;
+        _isInitialized = true;
+        _retryCount = 0;
+      });
+      if (widget.isVisible) await ctrl.play();
     } catch (e) {
       debugPrint('Error initializing video: $e');
-      // Show error state instead of infinite loading
-      if (mounted) {
-        setState(() => _isInitialized = false);
+      _controller?.dispose();
+      _controller = null;
+      // Auto-retry for Cloudflare Stream videos still processing (404 while transcoding).
+      if (mounted && _retryCount < _maxRetries) {
+        setState(() => _retryCount++);
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) _initializePlayer();
+        });
+      } else if (mounted) {
+        setState(() {}); // trigger error UI
       }
     }
   }

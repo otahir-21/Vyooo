@@ -10,7 +10,7 @@ abstract final class AppConfig {
 
   /// When true, the tier picker dialog is shown at app start (even in release APK) so you can
   /// test Standard / Subscriber / Creator without real purchases. Set to false for production.
-  static const bool enableSubscriptionTierTesting = false;
+  static const bool enableSubscriptionTierTesting = true;
 
   /// When true and [pexelsApiKey] is set, reels feed falls back to Pexels when Firestore is empty.
   /// Get a free API key at https://www.pexels.com/api/
@@ -22,4 +22,7 @@ abstract final class AppConfig {
   /// Cloudflare Stream customer subdomain (from Stream dashboard). Used to build playback URLs.
   static const String cloudflareStreamSubdomain =
       'customer-gk6ay4ir3ijd6sux.cloudflarestream.com';
+
+  /// Jamendo API client ID. Get a free key at https://devportal.jamendo.com
+  static const String jamendoClientId = '78456e30';
 }

@@ -24,6 +24,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _isAppleLoading = false;
   String? _errorMessage;
 
   final AuthService _auth = AuthService();
@@ -324,7 +325,36 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Widget _buildSocialIcon(IconData icon) {
-    return FaIcon(icon, color: AppTheme.primary, size: _socialIconSize);
+    final isApple = icon == FontAwesomeIcons.apple;
+    return GestureDetector(
+      onTap: isApple ? _onAppleSignIn : null,
+      child: isApple && _isAppleLoading
+          ? SizedBox(
+              width: _socialIconSize,
+              height: _socialIconSize,
+              child: const CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.primary,
+              ),
+            )
+          : FaIcon(icon, color: AppTheme.primary, size: _socialIconSize),
+    );
+  }
+
+  Future<void> _onAppleSignIn() async {
+    if (_isAppleLoading || _isLoading) return;
+    setState(() {
+      _isAppleLoading = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.signInWithApple();
+    if (!mounted) return;
+    setState(() => _isAppleLoading = false);
+    if (result.success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else if (result.message != null && result.message!.isNotEmpty) {
+      setState(() => _errorMessage = result.message);
+    }
   }
 
   Future<void> _onRegister() async {
