@@ -4,9 +4,7 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/mock/mock_music_data.dart';
 import '../../core/services/jamendo_service.dart';
-import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/widgets/app_gradient_background.dart';
 import 'add_audio_trim_screen.dart';
 
 /// Add audio screen for video edit: search, For you/Trending/Saved tabs,
@@ -120,47 +118,54 @@ class _AddAudioScreenState extends State<AddAudioScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: AppGradientBackground(
-        type: GradientType.profile,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildTopBar(),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _search,
-                  style:
-                      const TextStyle(color: Colors.white, fontSize: 16),
-                  decoration: InputDecoration(
-                    hintText: 'Search Music',
-                    hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 16),
-                    prefixIcon: Icon(Icons.search_rounded,
-                        color: Colors.white.withValues(alpha: 0.6),
-                        size: 22),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.12),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.input),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md, vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildTabs(),
-              const SizedBox(height: AppSpacing.sm),
-              Expanded(child: _buildTrackList()),
-              if (_playingTrack != null) _buildMiniPlayer(),
-            ],
+      body: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E0A1E).withValues(alpha: 0.98),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildTopBar(),
+            const SizedBox(height: 8),
+            _buildSearchBar(),
+            const SizedBox(height: 16),
+            _buildTabs(),
+            const SizedBox(height: 8),
+            Expanded(child: _buildTrackList()),
+            if (_playingTrack != null) _buildMiniPlayer(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: TextField(
+          controller: _searchController,
+          onChanged: _search,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Search Music',
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.35),
+              fontSize: 13,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: 20,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
       ),
@@ -168,85 +173,40 @@ class _AddAudioScreenState extends State<AddAudioScreen> {
   }
 
   Widget _buildTopBar() {
-    return Padding(
-      padding: const EdgeInsets.only(
-          left: AppSpacing.md,
-          top: AppSpacing.sm,
-          bottom: AppSpacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          Text(
-            'add audio',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
-              fontSize: 15,
-            ),
-          ),
-        ],
+    return Center(
+      child: Container(
+        width: 40,
+        height: 4,
+        margin: const EdgeInsets.only(top: 12, bottom: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(2),
+        ),
       ),
     );
   }
 
   Widget _buildTabs() {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: List.generate(_tabs.length, (index) {
           final isSelected = index == _selectedTabIndex;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                  right: index < _tabs.length - 1
-                      ? AppSpacing.xs
-                      : 0),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () =>
-                      setState(() => _selectedTabIndex = index),
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.pill),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [
-                                Color(0xFFDE106B),
-                                Color(0xFFF81945)
-                              ],
-                            )
-                          : null,
-                      color: isSelected
-                          ? null
-                          : Colors.white.withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _tabs[index],
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
+          return GestureDetector(
+            onTap: () => setState(() => _selectedTabIndex = index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSelected ? _pink : Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _tabs[index],
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ),
@@ -328,87 +288,47 @@ class _AddAudioScreenState extends State<AddAudioScreen> {
   Widget _buildMiniPlayer() {
     final t = _playingTrack!;
     return Container(
-      margin: const EdgeInsets.all(AppSpacing.md),
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: _pink,
-        borderRadius: BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: t.albumArtUrl.isNotEmpty
-                ? Image.network(t.albumArtUrl,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        _placeholderArt())
+                ? Image.network(t.albumArtUrl, width: 44, height: 44, fit: BoxFit.cover)
                 : _placeholderArt(),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis),
-                Text(t.artist,
-                    style: TextStyle(
-                        color:
-                            Colors.white.withValues(alpha: 0.9),
-                        fontSize: 12),
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  t.title,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  t.artist,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
-          Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: () => _isPlaying
-                  ? _player.pause()
-                  : _player.play(),
-              customBorder: const CircleBorder(),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Icon(
-                  _isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  color: _pink,
-                  size: 24,
-                ),
-              ),
-            ),
+          GestureDetector(
+            onTap: () => _isPlaying ? _player.pause() : _player.play(),
+            child: Icon(_isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded, color: Colors.white, size: 36),
           ),
-          const SizedBox(width: AppSpacing.xs),
-          Material(
-            color: Colors.white,
-            shape: const CircleBorder(),
-            child: InkWell(
-              onTap: () async {
-                final idx = _currentTracks
-                    .indexWhere((t) => t.id == _playingTrack?.id);
-                final next = _currentTracks
-                    .skip(idx + 1)
-                    .firstOrNull;
-                if (next != null) await _playTrack(next);
-              },
-              customBorder: const CircleBorder(),
-              child: const Padding(
-                padding: EdgeInsets.all(10),
-                child: Icon(Icons.skip_next_rounded,
-                    color: _pink, size: 24),
-              ),
-            ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(t),
+            child: const Icon(Icons.arrow_circle_right_rounded, color: Colors.white, size: 36),
           ),
         ],
       ),
@@ -446,111 +366,87 @@ class _AddAudioListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected
-          ? _pink.withValues(alpha: 0.35)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              vertical: AppSpacing.sm, horizontal: AppSpacing.sm),
-          child: Row(
-            children: [
-              if (isSelected) _buildEqualizerBars(isPlaying),
-              if (isSelected) const SizedBox(width: AppSpacing.sm),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: track.albumArtUrl.isNotEmpty
-                    ? Image.network(
-                        track.albumArtUrl,
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            _placeholderArt(),
-                      )
-                    : _placeholderArt(),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: track.albumArtUrl.isNotEmpty
+                  ? Image.network(track.albumArtUrl, width: 52, height: 52, fit: BoxFit.cover)
+                  : _placeholderArt(),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.title,
+                    style: TextStyle(
+                      color: isSelected ? _pink : Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Icon(Icons.arrow_upward_rounded,
-                            size: 12,
-                            color:
-                                Colors.white.withValues(alpha: 0.7)),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            '${track.artist} • ${track.duration}',
-                            style: TextStyle(
-                                color: Colors.white
-                                    .withValues(alpha: 0.75),
-                                fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (isSelected) ...[
+                        _buildEqualizerBars(isPlaying),
+                        const SizedBox(width: 6),
                       ],
-                    ),
-                  ],
-                ),
+                      Icon(Icons.north_east_rounded, size: 12, color: Colors.white.withValues(alpha: 0.45)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${track.artist} • ${track.duration}',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              IconButton(
-                onPressed: onBookmarkTap,
-                icon: Icon(
-                  isSaved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: isSaved
-                      ? _pink
-                      : Colors.white.withValues(alpha: 0.7),
-                  size: 24,
-                ),
+            ),
+            IconButton(
+              onPressed: onBookmarkTap,
+              icon: Icon(
+                isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                color: Colors.white.withValues(alpha: 0.8),
+                size: 20,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildEqualizerBars(bool playing) {
-    return SizedBox(
-      width: 20,
-      height: 24,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _bar(playing ? 12.0 : 8.0),
-          _bar(playing ? 18.0 : 14.0),
-          _bar(playing ? 8.0 : 6.0),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _bar(playing ? 10.0 : 6.0),
+        const SizedBox(width: 1.5),
+        _bar(playing ? 14.0 : 9.0),
+        const SizedBox(width: 1.5),
+        _bar(playing ? 7.0 : 5.0),
+      ],
     );
   }
 
   Widget _bar(double h) => Container(
-        width: 4,
+        width: 1.8,
         height: h,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(2),
+          color: _pink,
+          borderRadius: BorderRadius.circular(1),
         ),
       );
 

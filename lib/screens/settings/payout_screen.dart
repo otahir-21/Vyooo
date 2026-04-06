@@ -17,9 +17,7 @@ class _PayoutScreenState extends State<PayoutScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -45,7 +43,8 @@ class _PayoutScreenState extends State<PayoutScreen> {
                         ),
                         _PeriodDropdown(
                           value: _selectedPeriod,
-                          onChanged: (v) => setState(() => _selectedPeriod = v!),
+                          onChanged: (v) =>
+                              setState(() => _selectedPeriod = v!),
                         ),
                       ],
                     ),
@@ -53,7 +52,10 @@ class _PayoutScreenState extends State<PayoutScreen> {
                     // Big earnings pill
                     Container(
                       alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 18,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(16),
@@ -74,21 +76,33 @@ class _PayoutScreenState extends State<PayoutScreen> {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          width: 1,
+                        ),
                       ),
                       child: Column(
                         children: [
                           _NavRow(
                             label: 'Live stream Revenue',
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(builder: (_) => const LiveStreamRevenueScreen()),
+                              MaterialPageRoute<void>(
+                                builder: (_) => const LiveStreamRevenueScreen(),
+                              ),
                             ),
                           ),
-                          Divider(height: 1, thickness: 1, color: Colors.white.withValues(alpha: 0.15)),
+                          Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
                           _NavRow(
                             label: 'Subscription Revenue',
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(builder: (_) => const SubscriptionRevenueScreen()),
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const SubscriptionRevenueScreen(),
+                              ),
                             ),
                           ),
                         ],
@@ -97,7 +111,10 @@ class _PayoutScreenState extends State<PayoutScreen> {
                     const SizedBox(height: 36),
                     // Payout Summary section
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -114,19 +131,47 @@ class _PayoutScreenState extends State<PayoutScreen> {
                     ),
                     const SizedBox(height: 24),
                     // Summary rows
-                    const _SummaryRow(label: 'Content Earnings', value: '€ 460325', isHeader: true),
+                    const _SummaryRow(
+                      label: 'Content Earnings',
+                      value: '€ 460325',
+                      isHeader: true,
+                    ),
                     const SizedBox(height: 20),
-                    const _SummaryRow(label: 'Additional earnings', value: '€ 3100.40', isHeader: true),
+                    const _SummaryRow(
+                      label: 'Additional earnings',
+                      value: '€ 3100.40',
+                      isHeader: true,
+                    ),
                     const SizedBox(height: 12),
-                    const _SummaryRow(label: 'Sponsers', value: '€ 2900.40', isSubRow: true),
+                    const _SummaryRow(
+                      label: 'Sponsers',
+                      value: '€ 2900.40',
+                      isSubRow: true,
+                    ),
                     const SizedBox(height: 28),
-                    const _SummaryRow(label: 'Platform & Processing', value: '€ 3100.40', isHeader: true),
+                    const _SummaryRow(
+                      label: 'Platform & Processing',
+                      value: '€ 3100.40',
+                      isHeader: true,
+                    ),
                     const SizedBox(height: 12),
-                    const _SummaryRow(label: 'Commission', value: '€ 900.40', isSubRow: true),
+                    const _SummaryRow(
+                      label: 'Commission',
+                      value: '€ 900.40',
+                      isSubRow: true,
+                    ),
                     const SizedBox(height: 8),
-                    const _SummaryRow(label: 'Estimated tax', value: '€ 1002.40', isSubRow: true),
+                    const _SummaryRow(
+                      label: 'Estimated tax',
+                      value: '€ 1002.40',
+                      isSubRow: true,
+                    ),
                     const SizedBox(height: 8),
-                    const _SummaryRow(label: 'Payment processing', value: '€ 579.66', isSubRow: true),
+                    const _SummaryRow(
+                      label: 'Payment processing',
+                      value: '€ 579.66',
+                      isSubRow: true,
+                    ),
                     const SizedBox(height: 24),
                     const Divider(color: Colors.white24, thickness: 1),
                     const SizedBox(height: 24),
@@ -144,12 +189,18 @@ class _PayoutScreenState extends State<PayoutScreen> {
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
                         minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Withdraw',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -174,7 +225,11 @@ class _PayoutScreenState extends State<PayoutScreen> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 SizedBox(width: 16),
                 Text(
                   'VyooO Payouts',
@@ -225,7 +280,11 @@ class _PeriodDropdown extends StatelessWidget {
           dropdownColor: const Color(0xFF2D072D),
           icon: const Padding(
             padding: EdgeInsets.only(left: 4),
-            child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 20),
+            child: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           isDense: true,
           style: const TextStyle(
@@ -275,7 +334,11 @@ class _NavRow extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 24),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ],
           ),
         ),
@@ -305,7 +368,9 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final double fontSize = isHeader ? 17 : 14;
     final FontWeight fontWeight = isHeader ? FontWeight.w700 : FontWeight.w400;
-    final Color textColor = isSubRow ? Colors.white.withValues(alpha: 0.5) : Colors.white;
+    final Color textColor = isSubRow
+        ? Colors.white.withValues(alpha: 0.5)
+        : Colors.white;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -330,4 +395,3 @@ class _SummaryRow extends StatelessWidget {
     );
   }
 }
-

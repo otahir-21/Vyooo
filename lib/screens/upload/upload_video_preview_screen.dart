@@ -23,7 +23,6 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
   bool _muted = true;
 
   static const Color _pink = Color(0xFFDE106B);
-  static const Color _darkGrey = Color(0xFF2A2A2E);
 
   @override
   void initState() {
@@ -85,138 +84,157 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _darkGrey,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (_isInitialized && _controller != null)
-                    _buildVideo()
-                  else if (_hasError)
-                    _buildError()
-                  else
-                    const Center(child: CircularProgressIndicator(color: Colors.white54)),
-                ],
-              ),
-            ),
-            if (_isInitialized && _controller != null) _buildControls(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Text(
-            'Upload video',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 15,
-            ),
+          // 1. Full screen video
+          _buildVideo(),
+          
+          // 2. Gradients for visibility
+          _buildGradients(),
+
+          // 3. Header
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 16,
+            right: 16,
+            child: _buildHeader(context),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              _circleButton(
-                icon: Icons.close,
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              const Spacer(),
-              _pillButton(
-                label: 'Edit Video',
-                icon: Icons.edit_rounded,
-                onPressed: () {
-                  _controller?.pause();
-                  Navigator.of(context)
-                      .push(MaterialPageRoute<void>(
-                        builder: (_) => EditVideoScreen(asset: widget.asset),
-                      ))
-                      .then((_) => _controller?.play());
-                },
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              _pillButton(
-                label: 'Next >',
-                icon: null,
-                onPressed: () {
-                  _controller?.pause();
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => UploadDetailsScreen(asset: widget.asset),
-                    ),
-                  );
-                },
-                isPrimary: true,
-              ),
-            ],
+
+          // 4. Bottom controls
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: MediaQuery.of(context).padding.bottom + 20,
+            child: _isInitialized && _controller != null ? _buildControls() : const SizedBox(),
           ),
         ],
       ),
     );
   }
 
-  Widget _circleButton({required IconData icon, required VoidCallback onPressed}) {
-    return Material(
-      color: _darkGrey,
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Icon(icon, color: Colors.white, size: 22),
+  Widget _buildGradients() {
+    return IgnorePointer(
+      child: Column(
+        children: [
+          Container(
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.5), Colors.transparent],
+              ),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            height: 180,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: const Icon(Icons.close, color: Colors.white, size: 28),
+        ),
+        const Spacer(),
+        _headerActionPill(
+          label: 'Edit Video',
+          icon: Icons.edit_rounded,
+          onTap: () {
+            _controller?.pause();
+            Navigator.of(context)
+                .push(MaterialPageRoute<void>(
+              builder: (_) => EditVideoScreen(asset: widget.asset),
+            ))
+                .then((_) => _controller?.play());
+          },
+          isPink: false,
+        ),
+        const SizedBox(width: 8),
+        _headerActionPill(
+          label: 'Next',
+          icon: Icons.arrow_forward_ios_rounded,
+          onTap: () {
+            _controller?.pause();
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => UploadDetailsScreen(asset: widget.asset),
+              ),
+            );
+          },
+          isPink: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _headerActionPill({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+    required bool isPink,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isPink ? _pink : Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+            const SizedBox(width: 6),
+            Icon(icon, color: Colors.white, size: 14),
+          ],
         ),
       ),
     );
   }
 
-  Widget _pillButton({
-    required String label,
-    required VoidCallback onPressed,
-    IconData? icon,
-    bool isPrimary = false,
-  }) {
-    return Material(
-      color: isPrimary ? _pink : _darkGrey,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: Colors.white, size: 18),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                label,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildVideo() {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: _controller!.value.aspectRatio,
-        child: VideoPlayer(_controller!),
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (_isInitialized && _controller != null)
+            SizedBox.expand(
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: _controller!.value.size.width,
+                  height: _controller!.value.size.height,
+                  child: VideoPlayer(_controller!),
+                ),
+              ),
+            )
+          else if (_hasError)
+            _buildError()
+          else
+            const Center(child: CircularProgressIndicator(color: Colors.white54)),
+        ],
       ),
     );
   }
@@ -243,47 +261,43 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
     final totalSec = dur.inMilliseconds > 0 ? dur.inMilliseconds / 1000 : 1.0;
     final progress = totalSec > 0 ? (pos.inMilliseconds / 1000 / totalSec).clamp(0.0, 1.0) : 0.0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
-      color: Colors.black.withValues(alpha: 0.3),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: SliderTheme(
-                  data: SliderThemeData(
-                    overlayColor: Colors.transparent,
-                    thumbColor: _pink,
-                    activeTrackColor: _pink,
-                    inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
-                    trackHeight: 2,
-                  ),
-                  child: Slider(
-                    value: progress,
-                    onChanged: (v) {
-                      final sec = v * dur.inMilliseconds / 1000;
-                      _controller?.seekTo(Duration(milliseconds: (sec * 1000).round()));
-                    },
-                  ),
-                ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderThemeData(
+                overlayColor: Colors.transparent,
+                thumbColor: _pink,
+                activeTrackColor: _pink,
+                inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                _formatDuration(dur),
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+              child: Slider(
+                value: progress,
+                onChanged: (v) {
+                  final sec = v * dur.inMilliseconds / 1000;
+                  _controller?.seekTo(Duration(milliseconds: (sec * 1000).round()));
+                },
               ),
-              const SizedBox(width: AppSpacing.sm),
-              IconButton(
-                onPressed: _toggleMute,
-                icon: Icon(
-                  _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-            ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            _formatDuration(dur),
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _toggleMute,
+            child: Icon(
+              _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
         ],
       ),

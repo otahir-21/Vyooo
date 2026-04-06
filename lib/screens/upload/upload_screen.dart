@@ -7,6 +7,7 @@ import '../../core/theme/app_gradients.dart';
 import '../../core/theme/app_spacing.dart';
 import 'all_albums_screen.dart';
 import 'creator_live_route.dart';
+import 'story_capture_screen.dart';
 import 'upload_video_preview_screen.dart';
 
 /// Upload screen for subscribers: media grid from gallery, album dropdown, Story / Gallery / Live actions.
@@ -142,11 +143,11 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
           const SizedBox(width: AppSpacing.sm),
           const Text(
-            'Upload',
+            'Gallery',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -197,7 +198,7 @@ class _UploadScreenState extends State<UploadScreen> {
                 );
               }
             },
-            child: const Text('Next', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: const Text('Next', style: TextStyle(color: Color(0xFFDE106B), fontWeight: FontWeight.w700, fontSize: 16)),
           ),
         ],
       ),
@@ -274,17 +275,8 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black.withValues(alpha: 0.3),
-          ],
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      color: Colors.black.withValues(alpha: 0.1),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -292,16 +284,21 @@ class _UploadScreenState extends State<UploadScreen> {
             label: 'Story',
             icon: Icons.auto_stories_rounded,
             selected: _bottomSegment == 0,
-            onTap: () => setState(() => _bottomSegment = 0),
+            onTap: () {
+              setState(() => _bottomSegment = 0);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const StoryCaptureScreen()),
+              );
+            },
           ),
-          const SizedBox(width: AppSpacing.xl),
+          const SizedBox(width: 8),
           _BottomSegmentButton(
             label: 'Gallery',
             icon: Icons.photo_library_rounded,
             selected: _bottomSegment == 1,
             onTap: () => setState(() => _bottomSegment = 1),
           ),
-          const SizedBox(width: AppSpacing.xl),
+          const SizedBox(width: 8),
           _BottomSegmentButton(
             label: 'Live',
             icon: Icons.videocam_rounded,
@@ -406,16 +403,20 @@ class _AlbumDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       offset: const Offset(0, 40),
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: const Color(0xFF1E0A1E).withValues(alpha: 0.95),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+      ),
       itemBuilder: (context) => [
         PopupMenuItem<String>(
           value: 'Recents',
           child: Row(
             children: [
-              Icon(Icons.photo_camera_rounded, size: 20, color: Colors.grey.shade700),
+              Icon(Icons.photo_library_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
               const SizedBox(width: 12),
-              const Text('Recents', style: TextStyle(color: Colors.black87)),
+              Text('Recents', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
             ],
           ),
         ),
@@ -423,9 +424,9 @@ class _AlbumDropdown extends StatelessWidget {
           value: 'Favourites',
           child: Row(
             children: [
-              Icon(Icons.favorite_rounded, size: 20, color: Colors.grey.shade700),
+              Icon(Icons.favorite_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
               const SizedBox(width: 12),
-              const Text('Favourites', style: TextStyle(color: Colors.black87)),
+              Text('Favourites', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
             ],
           ),
         ),
@@ -433,9 +434,9 @@ class _AlbumDropdown extends StatelessWidget {
           value: 'All Albums',
           child: Row(
             children: [
-              Icon(Icons.photo_library_rounded, size: 20, color: Colors.grey.shade700),
+              Icon(Icons.grid_view_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
               const SizedBox(width: 12),
-              const Text('All Albums', style: TextStyle(color: Colors.black87)),
+              Text('All Albums', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
             ],
           ),
         ),
@@ -446,10 +447,10 @@ class _AlbumDropdown extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.9), size: 24),
+          Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.9), size: 28),
         ],
       ),
     );
@@ -469,31 +470,34 @@ class _BottomSegmentButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const Color _primaryPink = Color(0xFFDE106B);
 
   @override
   Widget build(BuildContext context) {
+    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.65);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 26,
-            color: selected ? _primaryPink : Colors.white.withValues(alpha: 0.7),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: selected ? _primaryPink : Colors.white.withValues(alpha: 0.7),
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFDE106B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
