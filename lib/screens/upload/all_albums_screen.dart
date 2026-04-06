@@ -70,23 +70,29 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: Colors.white, size: 26),
+            icon: const Icon(Icons.close, color: Colors.white, size: 28),
           ),
-          const SizedBox(width: AppSpacing.sm),
           const Expanded(
             child: Text(
               'All Albums',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
               textAlign: TextAlign.center,
             ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Next', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Next',
+              style: TextStyle(
+                color: Color(0xFFDE106B),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
           ),
         ],
       ),
@@ -105,27 +111,20 @@ class _AlbumTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: FutureBuilder<Uint8List?>(
               future: _thumbnailFuture(),
               builder: (context, snapshot) {
                 if (snapshot.hasData && snapshot.data != null) {
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.memory(
-                      snapshot.data!,
-                      fit: BoxFit.cover,
-                    ),
+                  return Image.memory(
+                    snapshot.data!,
+                    fit: BoxFit.cover,
                   );
                 }
                 return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  color: Colors.white.withValues(alpha: 0.1),
                   child: const Center(
                     child: Icon(Icons.photo_library_rounded, color: Colors.white38, size: 40),
                   ),
@@ -133,13 +132,13 @@ class _AlbumTile extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: 8),
           Text(
             path.name,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -151,8 +150,8 @@ class _AlbumTile extends StatelessWidget {
               return Text(
                 _formatCount(count),
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.45),
+                  fontSize: 12,
                 ),
               );
             },
