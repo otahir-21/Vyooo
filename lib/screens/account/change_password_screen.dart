@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-
-
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -13,17 +11,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF14001F),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, 0.4),
-            radius: 1.0,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF8B0D3B), // Deep intense pink/red
-              Colors.black,
+              Color(0xFF0D020D),
+              Color(0xFF2D072D),
+              Color(0xFF4D0B3D),
+              Color(0xFF7D124D),
             ],
-            stops: [0.0, 1.0],
+            stops: [0.0, 0.4, 0.7, 1.0],
           ),
         ),
         child: SafeArea(
@@ -33,23 +33,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 24,
+                  ),
                   children: [
                     const Text(
                       'Change\npassword',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 36,
+                        fontSize: 40,
                         fontWeight: FontWeight.w800,
                         height: 1.1,
+                        letterSpacing: -1,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     Text(
-                      'Your new password should be 8 characters long and must contain one special character.',
+                      'Your new password should be 8 characters long and\nmust contain one special character.',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 14,
+                        fontSize: 13,
                         height: 1.4,
                       ),
                     ),
@@ -73,7 +77,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           'Forgot Password?',
                           style: TextStyle(
                             color: Color(0xFFF81945),
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -85,13 +89,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Change Password',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -106,26 +115,41 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Row(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
-                SizedBox(width: 4),
-                Text(
+                const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                const Text(
                   'Login & Security',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ],
             ),
           ),
           const Text(
             'VyooO',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
           ),
         ],
       ),
@@ -135,20 +159,52 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget _buildPasswordField(String hint) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF81945).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF81945).withValues(alpha: 0.5)),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFDE106B).withValues(alpha: 0.5),
+          width: 1.0,
+        ),
       ),
       child: TextField(
         obscureText: true,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+          hintStyle: TextStyle(
+            color: Colors.white.withValues(alpha: 0.5),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFFF81945), size: 20),
-          suffixIcon: const Icon(Icons.visibility_off_outlined, color: Colors.white54, size: 20),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 18,
+          ),
+          prefixIcon: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(
+              Icons.lock_outline_rounded,
+              color: Color(0xFFDE106B),
+              size: 20,
+            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
+          suffixIcon: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Icon(
+              Icons.visibility_outlined,
+              color: Colors.white.withValues(alpha: 0.5),
+              size: 20,
+            ),
+          ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
         ),
       ),
     );

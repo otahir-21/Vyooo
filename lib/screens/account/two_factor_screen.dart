@@ -8,17 +8,19 @@ class TwoFactorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF14001F),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(0, 0.5),
-            radius: 1.0,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF8B0D3B), // Deep intense pink/red
-              Colors.black,
+              Color(0xFF0D020D),
+              Color(0xFF2D072D),
+              Color(0xFF4D0B3D),
+              Color(0xFF7D124D),
             ],
-            stops: [0.0, 1.0],
+            stops: [0.0, 0.4, 0.7, 1.0],
           ),
         ),
         child: SafeArea(
@@ -28,7 +30,10 @@ class TwoFactorScreen extends StatelessWidget {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 24,
+                  ),
                   children: [
                     const Text(
                       'Help us protect your account',
@@ -36,11 +41,12 @@ class TwoFactorScreen extends StatelessWidget {
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Set up two factor authentication and we'll send you a notification to check if it's you if someone logs in from another device that we don't recognise.",
+                      "Set up two factor authentication and we'll send you a\nnotification to check if it's you if someone logs in from\nanother device that we don't recognise.",
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 13,
@@ -52,13 +58,14 @@ class TwoFactorScreen extends StatelessWidget {
                       'Add Phone number',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
-                      'This phone number is required to send you authentication codes to ensure complete protection to your account.',
+                      'This phone number is required to send you authentication\ncodes to ensure complete protection to your account.',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 13,
@@ -71,19 +78,26 @@ class TwoFactorScreen extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute<void>(builder: (_) => const VerifyCodeScreen()),
+                          MaterialPageRoute<void>(
+                            builder: (_) => const VerifyCodeScreen(),
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(26),
+                        ),
                         elevation: 0,
                       ),
                       child: const Text(
                         'Send Code',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -93,7 +107,7 @@ class TwoFactorScreen extends StatelessWidget {
                         'Cancel',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -110,26 +124,41 @@ class TwoFactorScreen extends StatelessWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Row(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
-                SizedBox(width: 4),
-                Text(
+                const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                const Text(
                   'Login & Security',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ],
             ),
           ),
           const Text(
             'VyooO',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
+            ),
           ),
         ],
       ),
@@ -139,34 +168,54 @@ class TwoFactorScreen extends StatelessWidget {
   Widget _buildPhoneInput() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFDE106B).withValues(alpha: 0.5),
+          width: 1.0,
+        ),
       ),
       child: Row(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
             child: Row(
               children: [
                 const Text('🇬🇧', style: TextStyle(fontSize: 20)),
                 const SizedBox(width: 8),
-                Text('+44', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15)),
+                Text(
+                  '+44',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.5), size: 20),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  size: 18,
+                ),
               ],
             ),
           ),
-          Container(width: 1, height: 24, color: Colors.white.withValues(alpha: 0.2)),
           Expanded(
             child: TextField(
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white, fontSize: 15),
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
                 hintText: 'Enter phone number',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 15),
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 18,
+                ),
               ),
             ),
           ),

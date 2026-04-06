@@ -9,17 +9,19 @@ class BlockedUsersScreen extends StatelessWidget {
     final blockedList = List.generate(8, (_) => 'Dennis_Nedry');
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF14001F),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment(-1.0, -1.0),
-            radius: 2.5,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF8B0D3B), // Deep intense pink/red
-              Colors.black,
+              Color(0xFF0D020D),
+              Color(0xFF2D072D),
+              Color(0xFF4D0B3D),
+              Color(0xFF7D124D),
             ],
-            stops: [0.0, 1.0],
+            stops: [0.0, 0.4, 0.7, 1.0],
           ),
         ),
         child: SafeArea(
@@ -51,8 +53,9 @@ class BlockedUsersScreen extends StatelessWidget {
                               blockedList[index],
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 15,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
                               ),
                             ),
                           ),
@@ -89,22 +92,28 @@ class BlockedUsersScreen extends StatelessWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           GestureDetector(
             onTap: () => Navigator.pop(context),
-            child: const Row(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
-                SizedBox(width: 4),
-                Text(
+                const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                const Text(
                   'Blocked Users',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
@@ -116,6 +125,7 @@ class BlockedUsersScreen extends StatelessWidget {
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w600,
+              letterSpacing: -0.2,
             ),
           ),
         ],

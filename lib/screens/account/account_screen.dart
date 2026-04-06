@@ -23,11 +23,12 @@ class AccountScreen extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF3B0026),
-              Color(0xFF14001F),
-              Color(0xFF000000),
+              Color(0xFF0D020D),
+              Color(0xFF2D072D),
+              Color(0xFF4D0B3D),
+              Color(0xFF7D124D),
             ],
-            stops: [0.0, 0.4, 1.0],
+            stops: [0.0, 0.4, 0.7, 1.0],
           ),
         ),
         child: SafeArea(
@@ -37,23 +38,33 @@ class AccountScreen extends StatelessWidget {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 24,
+                  ),
                   children: [
                     _buildSectionHeader('Current Plan'),
                     const SizedBox(height: 4),
-                    _buildSectionSubheader('Your plan determines access and features'),
+                    _buildSectionSubheader(
+                      'Your plan determines access and features',
+                    ),
                     const SizedBox(height: 16),
                     _buildCurrentPlanCard(context),
                     const SizedBox(height: 32),
                     _buildSectionHeader('Login & Security'),
                     const SizedBox(height: 4),
-                    _buildSectionSubheader('Manage your passwords and security methods.'),
+                    _buildSectionSubheader(
+                      'Manage your passwords and security methods.',
+                    ),
                     const SizedBox(height: 16),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        color: Colors.white.withValues(alpha: 0.02),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          width: 0.5,
+                        ),
                       ),
                       child: Column(
                         children: [
@@ -106,25 +117,31 @@ class AccountScreen extends StatelessWidget {
 
   Widget _buildAppBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 16, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(
-              Icons.chevron_left_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
-          ),
-          const Text(
-            'Account',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Account',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
           ),
           const Text(
@@ -146,9 +163,9 @@ class AccountScreen extends StatelessWidget {
       title,
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 20,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.4,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
       ),
     );
   }
@@ -158,7 +175,7 @@ class AccountScreen extends StatelessWidget {
       text,
       style: TextStyle(
         color: Colors.white.withValues(alpha: 0.5),
-        fontSize: 14,
+        fontSize: 13,
         letterSpacing: -0.2,
       ),
     );
@@ -168,9 +185,9 @@ class AccountScreen extends StatelessWidget {
     return Divider(
       height: 1,
       thickness: 1,
-      color: Colors.white.withValues(alpha: 0.08),
-      indent: 20,
-      endIndent: 20,
+      color: Colors.white.withValues(alpha: 0.1),
+      indent: 0,
+      endIndent: 0,
     );
   }
 
@@ -179,11 +196,14 @@ class AccountScreen extends StatelessWidget {
     final tier = controller.currentTier;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        color: Colors.white.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 0.5,
+        ),
       ),
       child: Row(
         children: [
@@ -195,8 +215,8 @@ class AccountScreen extends StatelessWidget {
                   _planSubtitle(tier),
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -216,23 +236,27 @@ class AccountScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const SubscriptionScreen(),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFF81945),
               foregroundColor: Colors.white,
-              minimumSize: const Size(100, 36),
+              minimumSize: const Size(100, 32),
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
             child: const Text(
               'Upgrade Plan',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
-                letterSpacing: -0.1,
+                letterSpacing: 0,
               ),
             ),
           ),
@@ -257,13 +281,13 @@ class AccountScreen extends StatelessWidget {
   String _planPriceLine(MembershipTier tier) {
     switch (tier) {
       case MembershipTier.none:
-        return 'Free · Upgrade to unlock features';
+        return 'Free - Upgrade to unlock features';
       case MembershipTier.standard:
-        return '\$4.99 · Renews on 04 Jan 2026';
+        return '\$4.99 - Renews on 04 Jan 2026';
       case MembershipTier.subscriber:
-        return '\$4.99/M · Premium features active';
+        return '\$4.99/M - Premium features active';
       case MembershipTier.creator:
-        return '\$19.99/M · Creator features active';
+        return '\$19.99/M - Creator features active';
     }
   }
 
@@ -286,21 +310,23 @@ class AccountScreen extends StatelessWidget {
                 'Delete Account',
                 style: TextStyle(
                   color: Color(0xFFF81945),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: Colors.white.withValues(alpha: 0.3),
-                size: 28,
+                color: Colors.white.withValues(alpha: 0.5),
+                size: 20,
               ),
             ],
           ),
         ),
-        const SizedBox(height: 4),
-        _buildSectionSubheader("This will permanently delete your account and all it's data"),
+        const SizedBox(height: 8),
+        _buildSectionSubheader(
+          "This will permanently delete your account and all it's data",
+        ),
       ],
     );
   }
@@ -318,18 +344,26 @@ class _AccountRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 16),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.6), size: 24),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: 0.5),
+                size: 18,
+              ),
             ],
           ),
         ),

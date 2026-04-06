@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/theme/app_gradients.dart';
 
 class CreatorSubscriptionScreen extends StatefulWidget {
   const CreatorSubscriptionScreen({
@@ -60,17 +61,7 @@ class _CreatorSubscriptionScreenState
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0D020D),
-              Color(0xFF2D072D),
-              Color(0xFF4D0B3D),
-              Color(0xFF7D124D),
-            ],
-            stops: [0.0, 0.4, 0.7, 1.0],
-          ),
+          gradient: AppGradients.authGradient,
         ),
         child: SafeArea(
           child: Column(
