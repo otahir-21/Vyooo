@@ -42,6 +42,7 @@ class UserService {
         'createdAt': FieldValue.serverTimestamp(),
         'following': <String>[],
         'blockedUsers': <String>[],
+        'followersCount': 0,
       };
 
   /// Creates the initial user document. Call after AuthService.registerWithEmail success.
@@ -416,7 +417,6 @@ class UserService {
           ? u.username!.trim()
           : (u.email.contains('@') ? u.email.split('@').first : uid);
       final displayName = username;
-      final followerCount = await getFollowerCount(uid);
       out.add(
         UserDiscoveryItem(
           uid: uid,
@@ -424,7 +424,7 @@ class UserService {
           displayName: displayName,
           avatarUrl: (u.profileImage ?? '').trim(),
           isFollowing: following.contains(uid),
-          followerCount: followerCount,
+          followerCount: u.followersCount,
         ),
       );
     }

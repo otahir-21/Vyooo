@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:photo_manager/photo_manager.dart';
 
@@ -84,7 +85,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       final caption = tags.isNotEmpty ? '$title\n$tags' : title;
 
       // 5 — save reel doc to Firestore
-      await FirebaseFirestore.instance.collection('reels').add({
+      final reelRef = await FirebaseFirestore.instance.collection('reels').add({
         'videoUrl': videoUrl,
         'username': username,
         'handle': handle,
@@ -101,7 +102,18 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         'userId': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'isVR': _isVR,
+        'moderation': {
+          'provider': 'hive',
+          'status': 'pending',
+          'score': 0.0,
+          'reasons': <String>[],
+        },
       });
+      if (kDebugMode) {
+        debugPrint(
+          'Reel saved: id=${reelRef.id}, project=${FirebaseFirestore.instance.app.options.projectId}',
+        );
+      }
 
       if (!mounted) return;
       // 6 — navigate to success

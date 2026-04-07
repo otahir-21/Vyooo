@@ -28,11 +28,16 @@ void main() async {
 
   final subscriptionController = SubscriptionController();
   try {
-    // Use iOS key on iOS, Android key on Android (RevenueCat gives one per platform).
-    final revenueCatKey = Platform.isIOS
-        ? 'appl_vPZwqxiBnbyvgMUEvKURLKzCRpj' // iOS public API key
-        : 'goog_XXXXXXXXXXXX'; // Replace with your Android public API key when needed
-    await subscriptionController.init(revenueCatKey);
+    // In mock/tier-testing mode, skip RevenueCat network initialization
+    // to avoid "offerings empty" configuration noise in debug/dev builds.
+    if (!AppConfig.useMockSubscriptions &&
+        !AppConfig.enableSubscriptionTierTesting) {
+      // Use iOS key on iOS, Android key on Android (RevenueCat gives one per platform).
+      final revenueCatKey = Platform.isIOS
+          ? 'appl_vPZwqxiBnbyvgMUEvKURLKzCRpj' // iOS public API key
+          : 'goog_XXXXXXXXXXXX'; // Replace with your Android public API key when needed
+      await subscriptionController.init(revenueCatKey);
+    }
     if (kDebugMode || AppConfig.enableSubscriptionTierTesting) {
       await subscriptionController.loadTestTierOverride();
     }

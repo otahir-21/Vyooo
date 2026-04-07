@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/config/app_config.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
@@ -658,7 +657,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       final uri = Uri.parse(videoUrl);
       final videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
       if (videoId.isEmpty) return '';
-      return 'https://${AppConfig.cloudflareStreamSubdomain}/$videoId/thumbnails/thumbnail.jpg';
+      return 'https://videodelivery.net/$videoId/thumbnails/thumbnail.jpg';
     } catch (_) {
       return '';
     }
