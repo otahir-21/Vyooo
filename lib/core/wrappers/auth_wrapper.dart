@@ -1,6 +1,9 @@
+import 'dart:async' show unawaited;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../config/app_config.dart';
 import '../models/app_user_model.dart';
@@ -8,12 +11,20 @@ import '../services/user_service.dart';
 import '../../screens/auth/create_account_screen.dart';
 import '../../screens/auth/create_username_screen.dart';
 import '../../screens/debug/tier_picker_screen.dart';
+import '../subscription/subscription_controller.dart';
 import 'main_nav_wrapper.dart';
 
 /// Flow guard: routes to Register, Onboarding, or Home based on Firebase Auth + Firestore user doc.
 /// When not logged in, show Register first. Do NOT allow access to onboarding if onboardingCompleted is true.
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  String? _purchasesBoundUid;
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +32,14 @@ class AuthWrapper extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, authSnapshot) {
         final user = authSnapshot.data;
+        final uid = user?.uid;
+        if (_purchasesBoundUid != uid) {
+          _purchasesBoundUid = uid;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            unawaited(context.read<SubscriptionController>().syncPurchasesIdentity(uid));
+          });
+        }
         if (!authSnapshot.hasData || user == null) {
           return const CreateAccountScreen();
         }
