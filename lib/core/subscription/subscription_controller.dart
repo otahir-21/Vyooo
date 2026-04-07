@@ -94,6 +94,12 @@ class SubscriptionController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// After Firebase Auth sign-in / sign-out, keep RevenueCat `appUserID` aligned.
+  Future<void> syncPurchasesIdentity(String? firebaseUid) async {
+    await _service.syncFirebaseUser(firebaseUid);
+    await refreshStatus();
+  }
+
   /// Returns true if purchase succeeded, false if user cancelled, throws on real error.
   Future<bool> purchase(Package package) async {
     purchaseError = null;
