@@ -8,9 +8,14 @@ abstract final class AppConfig {
   /// Set to false before production so VR is gated by Subscriber/Creator.
   static const bool devBypassVRAccess = false;
 
-  /// When true, the tier picker dialog is shown at app start (even in release APK) so you can
-  /// test Standard / Subscriber / Creator without real purchases. Set to false for production.
-  static const bool enableSubscriptionTierTesting = true;
+  /// Local tier override screen for development only.
+  /// Keep false for production and store sandbox testing.
+  static const bool enableSubscriptionTierTesting = false;
+
+  /// RevenueCat public SDK keys (from RevenueCat dashboard).
+  /// Keep these non-empty for real billing tests in TestFlight / Play internal testing.
+  static const String revenueCatApplePublicKey = 'appl_vPZwqxiBnbyvgMUEvKURLKzCRpj';
+  static const String revenueCatGooglePublicKey = '';
 
   /// When true and [pexelsApiKey] is set, reels feed falls back to Pexels when Firestore is empty.
   /// Get a free API key at https://www.pexels.com/api/

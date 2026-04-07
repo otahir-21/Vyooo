@@ -86,7 +86,7 @@ class _UserDocGateState extends State<_UserDocGate> {
           return const CreateUsernameScreen();
         }
         if (appUser.onboardingCompleted) {
-          if (kDebugMode || AppConfig.enableSubscriptionTierTesting) {
+          if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
             return TierPickerScreen(
               onContinue: () {
                 Navigator.of(context).pushAndRemoveUntil(
