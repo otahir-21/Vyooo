@@ -13,6 +13,7 @@ class AppUserModel {
     required this.createdAt,
     this.following = const [],
     this.blockedUsers = const [],
+    this.followersCount = 0,
   });
 
   final String uid;
@@ -26,6 +27,7 @@ class AppUserModel {
   /// UIDs this user follows (stored on their Firestore user doc).
   final List<String> following;
   final List<String> blockedUsers;
+  final int followersCount;
 
   Map<String, dynamic> toJson() {
     return {
@@ -39,6 +41,7 @@ class AppUserModel {
       'createdAt': createdAt,
       'following': following,
       'blockedUsers': blockedUsers,
+      'followersCount': followersCount,
     };
   }
 
@@ -67,6 +70,7 @@ class AppUserModel {
           : Timestamp.now(),
       following: listField('following'),
       blockedUsers: listField('blockedUsers'),
+      followersCount: (json['followersCount'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -81,6 +85,7 @@ class AppUserModel {
     Timestamp? createdAt,
     List<String>? following,
     List<String>? blockedUsers,
+    int? followersCount,
   }) {
     return AppUserModel(
       uid: uid ?? this.uid,
@@ -93,6 +98,7 @@ class AppUserModel {
       createdAt: createdAt ?? this.createdAt,
       following: following ?? this.following,
       blockedUsers: blockedUsers ?? this.blockedUsers,
+      followersCount: followersCount ?? this.followersCount,
     );
   }
 }

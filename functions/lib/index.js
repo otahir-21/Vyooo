@@ -1,7 +1,7 @@
 "use strict";
-var _a, _b, _c;
+var _a, _b, _c, _d;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
+exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
 const admin = require("firebase-admin");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const agora_access_token_1 = require("agora-access-token");
@@ -14,6 +14,10 @@ const APP_CERTIFICATE = (_a = process.env.AGORA_APP_CERTIFICATE) !== null && _a 
 // Cloudflare Stream credentials — set in .env.vyooov1
 const CF_ACCOUNT_ID = (_b = process.env.CLOUDFLARE_ACCOUNT_ID) !== null && _b !== void 0 ? _b : '';
 const CF_API_TOKEN = (_c = process.env.CLOUDFLARE_API_TOKEN) !== null && _c !== void 0 ? _c : '';
+const HIVE_API_KEY = (_d = process.env.HIVE_API_KEY) !== null && _d !== void 0 ? _d : '';
+const HIVE_SYNC_URL = 'https://api.thehive.ai/api/v2/task/sync';
+const HIVE_BLOCK_THRESHOLD = 0.95;
+const HIVE_REVIEW_THRESHOLD = 0.90;
 // ── generateAgoraTokenOnRequest ────────────────────────────────────────────────
 /**
  * Firestore-triggered token generator.
@@ -115,6 +119,176 @@ exports.getCloudflareUploadUrl = (0, firestore_1.onDocumentCreated)({
     }
     catch (e) {
         await snap.ref.update({ status: 'error', error: String(e) });
+    }
+});
+// ── syncFollowersCountOnFollowingChange ───────────────────────────────────────
+/**
+ * Keeps users/{uid}.followersCount in sync based on changes to users/{uid}.following.
+ *
+ * We diff `following` before/after and increment/decrement each affected target
+ * user's followersCount atomically. This avoids expensive count queries in app UI.
+ */
+exports.syncFollowersCountOnFollowingChange = (0, firestore_1.onDocumentWritten)({
+    document: 'users/{userId}',
+    timeoutSeconds: 20,
+    memory: '256MiB',
+}, async (event) => {
+    var _a, _b;
+    const beforeData = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
+    const afterData = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
+    const before = Array.isArray(beforeData === null || beforeData === void 0 ? void 0 : beforeData.following)
+        ? beforeData.following.map((v) => String(v))
+        : [];
+    const after = Array.isArray(afterData === null || afterData === void 0 ? void 0 : afterData.following)
+        ? afterData.following.map((v) => String(v))
+        : [];
+    const beforeSet = new Set(before);
+    const afterSet = new Set(after);
+    const added = [];
+    const removed = [];
+    for (const id of afterSet) {
+        if (!beforeSet.has(id))
+            added.push(id);
+    }
+    for (const id of beforeSet) {
+        if (!afterSet.has(id))
+            removed.push(id);
+    }
+    if (!added.length && !removed.length)
+        return;
+    const db = admin.firestore();
+    const writes = [];
+    for (const targetUid of added) {
+        if (!targetUid)
+            continue;
+        writes.push(db.collection('users').doc(targetUid).set({ followersCount: admin.firestore.FieldValue.increment(1) }, { merge: true }));
+    }
+    for (const targetUid of removed) {
+        if (!targetUid)
+            continue;
+        writes.push(db.collection('users').doc(targetUid).set({ followersCount: admin.firestore.FieldValue.increment(-1) }, { merge: true }));
+    }
+    await Promise.all(writes);
+});
+function toHiveImageUrl(videoUrl) {
+    // Cloudflare Stream HLS URL:
+    // https://<subdomain>/<videoId>/manifest/video.m3u8
+    // Convert to thumbnail image supported by Hive image moderation:
+    // https://<subdomain>/<videoId>/thumbnails/thumbnail.jpg
+    const m = videoUrl.match(/^(https?:\/\/[^/]+)\/([^/]+)\/manifest\/video\.m3u8$/i);
+    if (!m)
+        return videoUrl;
+    return `${m[1]}/${m[2]}/thumbnails/thumbnail.jpg`;
+}
+function evaluateHive(classes) {
+    const denySignals = [
+        'general_nsfw',
+        'yes_sexual_activity',
+        'yes_realistic_nsfw',
+        'yes_female_nudity',
+        'yes_male_nudity',
+        'yes_genitals',
+        'yes_blood',
+        'very_bloody',
+        'yes_self_harm',
+        'yes_animal_abuse',
+        'gun_in_hand',
+        'knife_in_hand',
+        'yes_terrorist',
+        'yes_nazi',
+        'yes_kkk',
+    ];
+    let max = 0;
+    const reasons = [];
+    for (const c of classes) {
+        if (!denySignals.some((s) => c.class === s))
+            continue;
+        if (c.score > max)
+            max = c.score;
+        if (c.score >= HIVE_REVIEW_THRESHOLD)
+            reasons.push(c.class);
+    }
+    if (max >= HIVE_BLOCK_THRESHOLD) {
+        return { status: 'blocked', score: max, reasons };
+    }
+    if (max >= HIVE_REVIEW_THRESHOLD) {
+        return { status: 'review', score: max, reasons };
+    }
+    return { status: 'clear', score: max, reasons };
+}
+exports.moderateReelOnCreate = (0, firestore_1.onDocumentCreated)({
+    document: 'reels/{reelId}',
+    timeoutSeconds: 25,
+    memory: '256MiB',
+}, async (event) => {
+    var _a, _b, _c;
+    const snap = event.data;
+    if (!snap)
+        return;
+    const data = snap.data();
+    if (!HIVE_API_KEY) {
+        await snap.ref.set({
+            moderation: {
+                provider: 'hive',
+                status: 'skipped',
+                score: 0,
+                reasons: ['missing_hive_api_key'],
+                checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+        }, { merge: true });
+        return;
+    }
+    const videoUrl = typeof data.videoUrl === 'string' ? data.videoUrl.trim() : '';
+    if (!videoUrl)
+        return;
+    const mediaUrl = toHiveImageUrl(videoUrl);
+    try {
+        const form = new FormData();
+        form.append('url', mediaUrl);
+        const res = await fetch(HIVE_SYNC_URL, {
+            method: 'POST',
+            headers: {
+                authorization: `Token ${HIVE_API_KEY}`,
+                accept: 'application/json',
+            },
+            body: form,
+        });
+        if (!res.ok) {
+            await snap.ref.set({
+                moderation: {
+                    provider: 'hive',
+                    status: 'error',
+                    score: 0,
+                    reasons: [`http_${res.status}`],
+                    checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+            }, { merge: true });
+            return;
+        }
+        const payload = (await res.json());
+        const classes = (_c = (_b = (_a = payload.output) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.classes) !== null && _c !== void 0 ? _c : [];
+        const result = evaluateHive(classes);
+        await snap.ref.set({
+            moderation: {
+                provider: 'hive',
+                status: result.status,
+                score: result.score,
+                reasons: result.reasons,
+                mediaUrl,
+                checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+        }, { merge: true });
+    }
+    catch (e) {
+        await snap.ref.set({
+            moderation: {
+                provider: 'hive',
+                status: 'error',
+                score: 0,
+                reasons: [String(e)],
+                checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+        }, { merge: true });
     }
 });
 //# sourceMappingURL=index.js.map

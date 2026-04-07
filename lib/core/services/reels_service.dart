@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../config/app_config.dart';
 import 'auth_service.dart';
 import 'pexels_feed_service.dart';
 import 'user_service.dart';
@@ -24,7 +23,10 @@ class ReelsService {
           .orderBy('createdAt', descending: true)
           .limit(limit)
           .get();
-      final list = q.docs.map((d) => _docToReelMap(d)).toList();
+      final list = q.docs
+          .map((d) => _docToReelMap(d))
+          .where((r) => !_isReelBlocked(r))
+          .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
       return [];
@@ -53,7 +55,10 @@ class ReelsService {
           .orderBy('createdAt', descending: true)
           .limit(limit)
           .get();
-      final list = q.docs.map((d) => _docToReelMap(d)).toList();
+      final list = q.docs
+          .map((d) => _docToReelMap(d))
+          .where((r) => !_isReelBlocked(r))
+          .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
       return [];
@@ -71,7 +76,10 @@ class ReelsService {
           .orderBy('viewsCount', descending: true)
           .limit(limit)
           .get();
-      final list = q.docs.map((d) => _docToReelMap(d)).toList();
+      final list = q.docs
+          .map((d) => _docToReelMap(d))
+          .where((r) => !_isReelBlocked(r))
+          .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
       return [];
@@ -89,7 +97,10 @@ class ReelsService {
           .where('isVR', isEqualTo: true)
           .limit(limit)
           .get();
-      final list = q.docs.map((d) => _docToReelMap(d)).toList();
+      final list = q.docs
+          .map((d) => _docToReelMap(d))
+          .where((r) => !_isReelBlocked(r))
+          .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
       return [];
@@ -101,7 +112,9 @@ class ReelsService {
 
   /// Builds Cloudflare Stream HLS playback URL from a video ID.
   static String streamPlaybackUrl(String videoId) {
-    return 'https://${AppConfig.cloudflareStreamSubdomain}/$videoId/manifest/video.m3u8';
+    // Use Cloudflare's stable global delivery domain so playback does not depend
+    // on a potentially mismatched customer subdomain configuration.
+    return 'https://videodelivery.net/$videoId/manifest/video.m3u8';
   }
 
   /// Seeds Firestore reels from Cloudflare Stream video IDs. Call from the "Upload Stream videos" helper.
@@ -135,10 +148,30 @@ class ReelsService {
         'userId': uid,
         'createdAt': FieldValue.serverTimestamp(),
         'isVR': markAsVR,
+        'moderation': {
+          'provider': 'hive',
+          'status': 'pending',
+          'score': 0.0,
+          'reasons': <String>[],
+        },
       });
       added++;
     }
     return added;
+  }
+
+  static bool _isReelBlocked(Map<String, dynamic> data) {
+    final m = data['moderation'];
+    if (m is Map<String, dynamic>) {
+      final s = (m['status'] as String?)?.toLowerCase() ?? '';
+      return s == 'blocked';
+    }
+    if (m is Map) {
+      final raw = m['status'];
+      final s = raw == null ? '' : raw.toString().toLowerCase();
+      return s == 'blocked';
+    }
+    return false;
   }
 
   Map<String, dynamic> _docToReelMap(QueryDocumentSnapshot<Map<String, dynamic>> d) {
@@ -156,6 +189,7 @@ class ReelsService {
       'shares': (data['shares'] as num?)?.toInt() ?? 0,
       'avatarUrl': data['profileImage'] ?? data['avatarUrl'] ?? '',
       'userId': data['userId'] ?? '',
+      'moderation': data['moderation'],
     };
   }
 }

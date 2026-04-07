@@ -20,7 +20,8 @@ service cloud.firestore {
         'onboardingCompleted',
         'createdAt',
         'following',
-        'blockedUsers'
+        'blockedUsers',
+        'followersCount'
       ]) &&
       request.resource.data.uid == userId &&
       request.resource.data.email is string &&
@@ -31,7 +32,8 @@ service cloud.firestore {
       request.resource.data.onboardingCompleted is bool &&
       request.resource.data.createdAt is timestamp &&
       request.resource.data.following is list &&
-      request.resource.data.blockedUsers is list;
+      request.resource.data.blockedUsers is list &&
+      request.resource.data.followersCount is int;
     }
 
     // ── Token requests (Firestore-based Agora token generation) ───────────────
@@ -48,8 +50,12 @@ service cloud.firestore {
     // following / blockedUsers live here; only the owner may write the doc.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isOwner(userId) && validUserDoc(userId);
-      allow update: if isOwner(userId) && validUserDoc(userId);
+      allow create: if isOwner(userId)
+                    && validUserDoc(userId)
+                    && request.resource.data.followersCount == 0;
+      allow update: if isOwner(userId)
+                    && validUserDoc(userId)
+                    && request.resource.data.followersCount == resource.data.followersCount;
       allow delete: if isOwner(userId);
     }
 

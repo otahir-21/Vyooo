@@ -25,8 +25,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     with AutomaticKeepAliveClientMixin {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
+  bool _showError = false;
   int _retryCount = 0;
-  static const int _maxRetries = 8; // 8 × 5s = 40s max wait for Cloudflare processing
+  int _urlIndex = 0;
+  static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
   @override
   bool get wantKeepAlive => true;
@@ -56,9 +58,12 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   Future<void> _initializePlayer() async {
+    final urls = _candidateUrls(widget.videoUrl);
+    if (urls.isEmpty) return;
+    final url = urls[_urlIndex.clamp(0, urls.length - 1)];
     try {
       final ctrl = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
+        Uri.parse(url),
         videoPlayerOptions: VideoPlayerOptions(
           mixWithOthers: true,
           allowBackgroundPlayback: false,
@@ -77,21 +82,34 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       setState(() {
         _controller = ctrl;
         _isInitialized = true;
+        _showError = false;
         _retryCount = 0;
       });
       if (widget.isVisible) await ctrl.play();
     } catch (e) {
       debugPrint('Error initializing video: $e');
-      _controller?.dispose();
-      _controller = null;
-      // Auto-retry for Cloudflare Stream videos still processing (404 while transcoding).
+      _disposePlayer();
+
+      // Try fallback URL first (e.g. HLS -> MP4 progressive) before timed retry.
+      if (mounted && _urlIndex < urls.length - 1) {
+        setState(() => _urlIndex++);
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) _initializePlayer();
+        });
+        return;
+      }
+
+      // Timed retries for transient Cloudflare processing / HTTP 500.
       if (mounted && _retryCount < _maxRetries) {
-        setState(() => _retryCount++);
+        setState(() {
+          _retryCount++;
+          _showError = false;
+        });
         Future.delayed(const Duration(seconds: 5), () {
           if (mounted) _initializePlayer();
         });
       } else if (mounted) {
-        setState(() {}); // trigger error UI
+        setState(() => _showError = true);
       }
     }
   }
@@ -100,6 +118,25 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     _controller?.dispose();
     _controller = null;
     _isInitialized = false;
+  }
+
+  List<String> _candidateUrls(String raw) {
+    final url = raw.trim();
+    if (url.isEmpty) return const [];
+    final out = <String>[url];
+    final m = RegExp(
+      r'^(https?:\/\/[^/]+)\/([^/]+)\/manifest\/video\.m3u8$',
+      caseSensitive: false,
+    ).firstMatch(url);
+    if (m != null) {
+      final hostBase = m.group(1)!;
+      final videoId = m.group(2)!;
+      out.add('$hostBase/$videoId/downloads/default.mp4');
+      // Backward compatibility: if saved host is wrong, still try Cloudflare global domain.
+      out.add('https://videodelivery.net/$videoId/manifest/video.m3u8');
+      out.add('https://videodelivery.net/$videoId/downloads/default.mp4');
+    }
+    return out.toSet().toList();
   }
 
   void _handleVisibility() {
@@ -124,20 +161,32 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Widget build(BuildContext context) {
     super.build(context);
     
-    // Show loading state
-    if (_controller == null) {
+    // Show loading/retrying state
+    if (_controller == null && !_showError) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+              if (_retryCount > 0) ...[
+                SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Preparing video... (${_retryCount}/$_maxRetries)',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ],
           ),
         ),
       );
     }
 
-    // Show error state if failed to initialize
-    if (!_isInitialized && _controller!.value.hasError) {
+    // Show error state after all retries exhausted.
+    if (_showError) {
       return Container(
         color: Colors.black,
         child: Center(
@@ -147,13 +196,16 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
               const Icon(Icons.error_outline, color: Colors.white, size: 48),
               SizedBox(height: AppSpacing.md),
               const Text(
-                'Failed to load video',
+                'Failed to load video (server unavailable)',
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               SizedBox(height: AppSpacing.sm),
               TextButton(
                 onPressed: () {
                   _disposePlayer();
+                  _urlIndex = 0;
+                  _retryCount = 0;
+                  _showError = false;
                   _initializePlayer();
                 },
                 child: const Text(

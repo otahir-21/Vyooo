@@ -14,7 +14,7 @@ abstract final class AppConfig {
 
   /// When true and [pexelsApiKey] is set, reels feed falls back to Pexels when Firestore is empty.
   /// Get a free API key at https://www.pexels.com/api/
-  static const bool usePexelsFeed = true;
+  static const bool usePexelsFeed = false;
 
   /// Pexels API key (free at https://www.pexels.com/api/). If null, Pexels feed is disabled.
   static const String? pexelsApiKey = null; // Set your key here or via env
