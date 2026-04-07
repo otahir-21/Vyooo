@@ -22,6 +22,8 @@ class UserService {
         'interests': [],
         'onboardingCompleted': false,
         'createdAt': FieldValue.serverTimestamp(),
+        'following': <String>[],
+        'blockedUsers': <String>[],
       };
 
   /// Creates the initial user document. Call after AuthService.registerWithEmail success.
@@ -107,7 +109,7 @@ class UserService {
     });
   }
 
-  /// List of user IDs the current user is following. Source: users/{uid}/following (array).
+  /// List of user IDs the current user is following. Source: users/{uid}.following (array).
   Future<List<String>> getFollowing(String uid) async {
     try {
       final doc = await _firestore.collection(_usersCollection).doc(uid).get();
@@ -121,5 +123,181 @@ class UserService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// How many users include [targetUid] in their `following` array.
+  Future<int> getFollowerCount(String targetUid) async {
+    if (targetUid.isEmpty) return 0;
+    try {
+      final agg = await _firestore
+          .collection(_usersCollection)
+          .where('following', arrayContains: targetUid)
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      try {
+        final q = await _firestore
+            .collection(_usersCollection)
+            .where('following', arrayContains: targetUid)
+            .get();
+        return q.docs.length;
+      } catch (_) {
+        return 0;
+      }
+    }
+  }
+
+  /// User documents for accounts that follow [targetUid].
+  Future<List<AppUserModel>> getFollowerProfilesForUser(
+    String targetUid, {
+    int limit = 200,
+  }) async {
+    if (targetUid.isEmpty) return [];
+    try {
+      final q = await _firestore
+          .collection(_usersCollection)
+          .where('following', arrayContains: targetUid)
+          .limit(limit)
+          .get();
+      final out = <AppUserModel>[];
+      for (final doc in q.docs) {
+        try {
+          out.add(AppUserModel.fromJson(doc.data()));
+        } catch (_) {}
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// User documents for each uid in users/{uid}.following (order preserved).
+  Future<List<AppUserModel>> getFollowingProfilesForUser(String uid) async {
+    final ids = await getFollowing(uid);
+    if (ids.isEmpty) return [];
+    final results = await Future.wait(ids.map(getUser));
+    return results.whereType<AppUserModel>().toList();
+  }
+
+  /// Published reels count for profile stats.
+  Future<int> getReelCountForUser(String uid) async {
+    if (uid.isEmpty) return 0;
+    try {
+      final agg = await _firestore
+          .collection('reels')
+          .where('userId', isEqualTo: uid)
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      try {
+        final q = await _firestore
+            .collection('reels')
+            .where('userId', isEqualTo: uid)
+            .get();
+        return q.docs.length;
+      } catch (_) {
+        return 0;
+      }
+    }
+  }
+
+  static List<String> _stringListField(Map<String, dynamic>? data, String key) {
+    if (data == null) return [];
+    final v = data[key];
+    if (v is List) return v.map((e) => e.toString()).toList();
+    return [];
+  }
+
+  /// Blocked user IDs for [uid] (users/{uid}.blockedUsers).
+  Future<List<String>> getBlockedUserIds(String uid) async {
+    try {
+      final doc = await _firestore.collection(_usersCollection).doc(uid).get();
+      return _stringListField(doc.data(), 'blockedUsers');
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<bool> isFollowingUser({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    final list = await getFollowing(currentUid);
+    return list.contains(targetUid);
+  }
+
+  Future<bool> isUserBlocked({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    final blocked = await getBlockedUserIds(currentUid);
+    return blocked.contains(targetUid);
+  }
+
+  /// Adds [targetUid] to users/{currentUid}.following. Only mutates the signed-in user's document
+  /// (works with tight Firestore rules: no writes to other users' docs).
+  Future<void> followUser({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    if (currentUid.isEmpty || targetUid.isEmpty || currentUid == targetUid) {
+      throw ArgumentError('Invalid follow');
+    }
+    final meRef = _firestore.collection(_usersCollection).doc(currentUid);
+    await meRef.set(
+      {
+        'following': FieldValue.arrayUnion([targetUid]),
+        'blockedUsers': FieldValue.arrayRemove([targetUid]),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> unfollowUser({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    if (currentUid.isEmpty || targetUid.isEmpty || currentUid == targetUid) {
+      throw ArgumentError('Invalid unfollow');
+    }
+    final meRef = _firestore.collection(_usersCollection).doc(currentUid);
+    await meRef.set(
+      {'following': FieldValue.arrayRemove([targetUid])},
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Blocks [targetUid]: adds to blockedUsers and removes from following (local doc only).
+  Future<void> blockUser({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    if (currentUid.isEmpty || targetUid.isEmpty || currentUid == targetUid) {
+      throw ArgumentError('Invalid block');
+    }
+    final meRef = _firestore.collection(_usersCollection).doc(currentUid);
+    await meRef.set(
+      {
+        'blockedUsers': FieldValue.arrayUnion([targetUid]),
+        'following': FieldValue.arrayRemove([targetUid]),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  Future<void> unblockUser({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    if (currentUid.isEmpty || targetUid.isEmpty) {
+      throw ArgumentError('Invalid unblock');
+    }
+    final meRef = _firestore.collection(_usersCollection).doc(currentUid);
+    await meRef.set(
+      {'blockedUsers': FieldValue.arrayRemove([targetUid])},
+      SetOptions(merge: true),
+    );
   }
 }

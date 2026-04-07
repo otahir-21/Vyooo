@@ -12,6 +12,7 @@ class Comment {
     this.replyCount = 0,
     this.replies = const [],
     this.isOwnComment = false,
+    this.authorUserId = '',
   });
 
   final String id;
@@ -27,6 +28,9 @@ class Comment {
   /// When true, show delete (trash) icon instead of like count.
   final bool isOwnComment;
 
+  /// Firestore [users] uid of the author — used for reports / moderation.
+  final String authorUserId;
+
   Comment copyWith({
     String? id,
     String? username,
@@ -39,6 +43,7 @@ class Comment {
     int? replyCount,
     List<Comment>? replies,
     bool? isOwnComment,
+    String? authorUserId,
   }) {
     return Comment(
       id: id ?? this.id,
@@ -52,6 +57,7 @@ class Comment {
       replyCount: replyCount ?? this.replyCount,
       replies: replies ?? this.replies,
       isOwnComment: isOwnComment ?? this.isOwnComment,
+      authorUserId: authorUserId ?? this.authorUserId,
     );
   }
 }

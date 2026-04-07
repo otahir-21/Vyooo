@@ -10,8 +10,15 @@ if [[ ! -f "$REG" ]]; then
 fi
 perl -i -ne 'print unless /\[AgoraRtcNgPlugin registerWithRegistrar/;' "$REG"
 perl -i -ne 'print unless /\[IrisMethodChannelPlugin registerWithRegistrar/;' "$REG"
+# Drop header/import blocks so this translation unit does not pull modules at compile time.
+perl -0777 -i -pe 's/#if __has_include\(<agora_rtc_engine\/AgoraRtcNgPlugin.h>\).*?#endif\n//sg' "$REG"
+perl -0777 -i -pe 's/#if __has_include\(<iris_method_channel\/IrisMethodChannelPlugin.h>\).*?#endif\n//sg' "$REG"
 if grep -q '\[AgoraRtcNgPlugin registerWithRegistrar' "$REG" \
   || grep -q '\[IrisMethodChannelPlugin registerWithRegistrar' "$REG"; then
   echo "error: strip_agora_at_launch: Agora/Iris registration lines still present in $REG"
+  exit 1
+fi
+if grep -qE 'AgoraRtcNgPlugin|IrisMethodChannelPlugin' "$REG"; then
+  echo "error: strip_agora_at_launch: stray Agora/Iris references in $REG"
   exit 1
 fi

@@ -58,8 +58,11 @@ dependencies:
   sign_in_with_apple: ^6.0.0
   crypto: ^3.0.3
 
-# Pub solver only: agora_rtc_engine wants ffi ^1.x, share_plus wants ^2.x. iOS cold-start Iris crash is
-# addressed by deferring native plugin registration (see ios/scripts/strip_agora_at_launch.sh).
+# Pub solver only: agora_rtc_engine wants ffi ^1.x, share_plus wants ^2.x.
+# iOS: defer Agora/Iris Flutter plugin registration (ios/scripts/strip_agora_at_launch.sh). Native Iris/RTC
+# frameworks are still linked (Pods) and can crash Debug JIT on a physical iPhone (DartWorker EXC_BAD_ACCESS).
+# Use `flutter run --profile` / VS Code launch "Vyooo (profile — physical iPhone / Agora)" / Xcode scheme
+# Runner-Device-Profile. See .cursor/rules/ios-device-debug.mdc.
 dependency_overrides:
   ffi: ^2.1.2
 

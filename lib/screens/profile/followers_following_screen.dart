@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -12,17 +15,17 @@ import '../../features/subscription/subscription_screen.dart';
 import 'user_profile_screen.dart';
 
 /// Initial tab when opening the screen: 0 = Followers, 1 = Following, 2 = Subscriptions.
+/// [profileUserId]: whose lists to load; omit to use the signed-in user (own profile).
 class FollowersFollowingScreen extends StatefulWidget {
   const FollowersFollowingScreen({
     super.key,
     this.initialTab = 0,
-    this.followerCount = 1,
-    this.followingCount = 10,
+    this.profileUserId,
   });
 
   final int initialTab;
-  final int followerCount;
-  final int followingCount;
+  /// Firestore uid for the profile whose followers/following are listed.
+  final String? profileUserId;
 
   @override
   State<FollowersFollowingScreen> createState() => _FollowersFollowingScreenState();
@@ -32,11 +35,103 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   late int _selectedTabIndex;
   final TextEditingController _searchController = TextEditingController();
 
+  bool _loadingLists = true;
+  int _followerCount = 0;
+  int _followingCount = 0;
+  List<_ConnectionUser> _followers = [];
+  List<_ConnectionUser> _following = [];
+  List<_ConnectionUser> _discoverUsers = [];
+
   @override
   void initState() {
     super.initState();
     _selectedTabIndex = widget.initialTab.clamp(0, 2);
     _searchController.addListener(() => setState(() {}));
+    _loadConnections();
+  }
+
+  @override
+  void didUpdateWidget(FollowersFollowingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.profileUserId != widget.profileUserId) {
+      _loadConnections();
+    }
+  }
+
+  Future<void> _loadConnections() async {
+    final subject = widget.profileUserId ?? AuthService().currentUser?.uid;
+    if (subject == null || subject.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _loadingLists = false;
+          _followers = [];
+          _following = [];
+          _followerCount = 0;
+          _followingCount = 0;
+        });
+      }
+      return;
+    }
+
+    if (mounted) setState(() => _loadingLists = true);
+
+    final svc = UserService();
+    final me = AuthService().currentUser?.uid;
+    var myFollowing = <String>[];
+    if (me != null && me.isNotEmpty) {
+      myFollowing = await svc.getFollowing(me);
+    }
+
+    final followerModels = await svc.getFollowerProfilesForUser(subject);
+    final followingModels = await svc.getFollowingProfilesForUser(subject);
+    final fc = await svc.getFollowerCount(subject);
+    final discoverSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .limit(300)
+        .get();
+    final discover = <_ConnectionUser>[];
+    for (final d in discoverSnap.docs) {
+      final data = d.data();
+      final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
+          ? (data['uid'] as String).trim()
+          : d.id;
+      final username = (data['username'] as String?)?.trim() ?? '';
+      if (username.isEmpty) continue;
+      if (uid == me) continue;
+      discover.add(
+        _ConnectionUser(
+          targetUserId: uid,
+          name: username,
+          username: username,
+          avatarUrl: (data['profileImage'] as String?)?.trim() ?? '',
+          isFollowing: myFollowing.contains(uid),
+        ),
+      );
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _loadingLists = false;
+      _followerCount = fc;
+      _followingCount = followingModels.length;
+      _followers = followerModels.map((m) => _connectionFromAppUser(m, myFollowing)).toList();
+      _following = followingModels.map((m) => _connectionFromAppUser(m, myFollowing)).toList();
+      _discoverUsers = discover;
+    });
+  }
+
+  static _ConnectionUser _connectionFromAppUser(AppUserModel m, List<String> myFollowing) {
+    final handle = (m.username != null && m.username!.trim().isNotEmpty)
+        ? m.username!.trim()
+        : (m.email.contains('@') ? m.email.split('@').first : (m.uid.length > 8 ? m.uid.substring(0, 8) : m.uid));
+    return _ConnectionUser(
+      targetUserId: m.uid,
+      name: handle,
+      username: handle,
+      avatarUrl: m.profileImage ?? '',
+      isVerified: false,
+      isFollowing: myFollowing.contains(m.uid),
+    );
   }
 
   @override
@@ -75,10 +170,14 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     ),
                   ),
                   _RemoveModalButton(
-                    label: 'Remove',
+                    label: 'OK',
                     onPressed: () {
                       Navigator.pop(ctx);
-                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Removing followers isn’t supported yet. You can block an account from their profile.'),
+                        ),
+                      );
                     },
                   ),
                 ],
@@ -149,10 +248,24 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     ),
                   ),
                   _RemoveModalButton(
-                    label: 'Remove',
-                    onPressed: () {
+                    label: 'Unfollow',
+                    onPressed: () async {
                       Navigator.pop(ctx);
-                      setState(() {});
+                      final id = user.targetUserId;
+                      final me = AuthService().currentUser?.uid;
+                      if (id == null || id.isEmpty || me == null || me.isEmpty) return;
+                      try {
+                        await UserService().unfollowUser(currentUid: me, targetUid: id);
+                        if (context.mounted) {
+                          await _loadConnections();
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(messageForFirestore(e))),
+                          );
+                        }
+                      }
                     },
                   ),
                 ],
@@ -353,8 +466,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   }
 
   Widget _buildTabs() {
-    final followerLabel = widget.followerCount == 1 ? '1 Follower' : '${_formatCount(widget.followerCount)} Followers';
-    final followingLabel = '${_formatCount(widget.followingCount)} Following';
+    final followerLabel = _followerCount == 1 ? '1 Follower' : '${_formatCount(_followerCount)} Followers';
+    final followingLabel = '${_formatCount(_followingCount)} Following';
     final labels = [followerLabel, followingLabel, 'Subscriptions'];
 
     return Padding(
@@ -515,7 +628,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: _recommendedUsers.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final u = _recommendedUsers[index];
               return GestureDetector(
@@ -583,51 +696,82 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   }
 
   Widget _buildUserList(BuildContext context) {
-    final list = _selectedTabIndex == 0 ? _mockFollowers : _mockFollowing;
+    if (_loadingLists) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white54),
+      );
+    }
+
     final query = _searchController.text.trim().toLowerCase();
+    final baseList = query.isEmpty
+        ? (_selectedTabIndex == 0 ? _followers : _following)
+        : _discoverUsers;
     final filtered = query.isEmpty
-        ? list
-        : list.where((u) =>
+        ? baseList
+        : baseList.where((u) =>
             u.name.toLowerCase().contains(query) ||
             u.username.toLowerCase().contains(query)).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Text(
+            query.isNotEmpty
+                ? 'No users found.'
+                : (_selectedTabIndex == 0 ? 'No followers yet.' : 'Not following anyone yet.'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    final me = AuthService().currentUser?.uid;
 
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       itemCount: filtered.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final user = filtered[index];
+        final id = user.targetUserId;
         return _ConnectionRow(
           user: user,
-          isFollowing: _selectedTabIndex == 0 ? false : true,
-          onRemove: () {
-            if (_selectedTabIndex == 0) {
-              _showRemoveFollowerModal(context, user);
-            } else {
-              _showRemoveFollowingModal(context, user);
-            }
-          },
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => UserProfileScreen(
-                  payload: UserProfilePayload(
-                    username: user.username,
-                    displayName: user.name,
-                    avatarUrl: user.avatarUrl,
-                    isVerified: user.isVerified,
-                    postCount: user.postCount,
-                    followerCount: user.followerCount,
-                    followingCount: user.followingCount,
-                    bio: user.bio,
-                    isCreator: user.isCreator,
-                    isFollowing: _selectedTabIndex != 0,
-                    isSubscribed: user.isSubscribed,
-                  ),
-                ),
-              ),
-            );
-          },
+          isFollowing: user.isFollowing,
+          onUnfollowSheet: (query.isNotEmpty || _selectedTabIndex == 1)
+              ? () => _showRemoveFollowingModal(context, user)
+              : () => _showRemoveFollowerModal(context, user),
+          onFollow: (me != null && id != null && id.isNotEmpty && me != id)
+              ? () async {
+                  await UserService().followUser(currentUid: me, targetUid: id);
+                  await _loadConnections();
+                }
+              : null,
+          onTap: id == null || id.isEmpty
+              ? null
+              : () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UserProfileScreen(
+                        payload: UserProfilePayload(
+                          username: user.username,
+                          displayName: user.name,
+                          avatarUrl: user.avatarUrl,
+                          isVerified: user.isVerified,
+                          postCount: user.postCount,
+                          followerCount: user.followerCount,
+                          followingCount: user.followingCount,
+                          bio: user.bio,
+                          isCreator: user.isCreator,
+                          isFollowing: user.isFollowing,
+                          isSubscribed: user.isSubscribed,
+                          targetUserId: id,
+                        ),
+                      ),
+                    ),
+                  );
+                },
         );
       },
     );
@@ -636,17 +780,20 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
 class _ConnectionUser {
   const _ConnectionUser({
+    this.targetUserId,
     required this.name,
     required this.username,
     required this.avatarUrl,
     this.isVerified = false,
     this.postCount = 0,
-    this.followerCount = 1,
+    this.followerCount = 0,
     this.followingCount = 0,
     this.bio = '',
     this.isCreator = true,
     this.isSubscribed = false,
+    this.isFollowing = false,
   });
+  final String? targetUserId;
   final String name;
   final String username;
   final String avatarUrl;
@@ -657,26 +804,9 @@ class _ConnectionUser {
   final String bio;
   final bool isCreator;
   final bool isSubscribed;
+  /// Whether the signed-in user follows this row (for button state).
+  final bool isFollowing;
 }
-
-final List<_ConnectionUser> _mockFollowers = [
-  _ConnectionUser(name: 'Sofia Wells', username: 'sofwells3', avatarUrl: 'https://i.pravatar.cc/80?img=1'),
-];
-
-final List<_ConnectionUser> _mockFollowing = [
-  _ConnectionUser(name: 'Josh Beauchamp', username: 'joshbeauchamp', avatarUrl: 'https://i.pravatar.cc/80?img=11', isVerified: true, postCount: 164, followerCount: 4400000, followingCount: 1224, bio: 'I just need a chance to prove', isCreator: true, isSubscribed: true),
-  _ConnectionUser(name: 'Lexilongbottom', username: 'Lexilongbottom', avatarUrl: 'https://i.pravatar.cc/80?img=28', postCount: 0, followerCount: 1, followingCount: 10, isCreator: false),
-  _ConnectionUser(name: 'Sofia Wells', username: 'sofwells3', avatarUrl: 'https://i.pravatar.cc/80?img=1'),
-  _ConnectionUser(name: 'Liam Smith', username: 'liamsmith01', avatarUrl: 'https://i.pravatar.cc/80?img=2'),
-  _ConnectionUser(name: 'Emma Johnson', username: 'emmaj', avatarUrl: 'https://i.pravatar.cc/80?img=3'),
-  _ConnectionUser(name: 'Noah brown', username: 'noahb', avatarUrl: 'https://i.pravatar.cc/80?img=4'),
-  _ConnectionUser(name: 'Olivia Davis', username: 'oliviad', avatarUrl: 'https://i.pravatar.cc/80?img=5'),
-  _ConnectionUser(name: 'William Miller', username: 'willm', avatarUrl: 'https://i.pravatar.cc/80?img=6'),
-  _ConnectionUser(name: 'Sophia Wilson', username: 'sophiaw', avatarUrl: 'https://i.pravatar.cc/80?img=7'),
-  _ConnectionUser(name: 'James Anderson', username: 'jamesa', avatarUrl: 'https://i.pravatar.cc/80?img=8'),
-  _ConnectionUser(name: 'Amelia Clark', username: 'ameliac', avatarUrl: 'https://i.pravatar.cc/80?img=9'),
-  _ConnectionUser(name: 'Oliver lewis', username: 'oliverl', avatarUrl: 'https://i.pravatar.cc/80?img=10'),
-];
 
 /// Recommended users for Subscriptions tab (horizontal list).
 class _RecommendedUser {
@@ -695,28 +825,120 @@ const List<_RecommendedUser> _recommendedUsers = [
 ];
 
 final List<_ConnectionUser> _mockSubscriptions = [
-  _ConnectionUser(name: 'Sofia Wells', username: 'sofwells3', avatarUrl: 'https://i.pravatar.cc/80?img=1'),
-  _ConnectionUser(name: 'Liam Smith', username: 'liamsmith01', avatarUrl: 'https://i.pravatar.cc/80?img=2'),
-  _ConnectionUser(name: 'Emma Johnson', username: 'emmaj', avatarUrl: 'https://i.pravatar.cc/80?img=3'),
-  _ConnectionUser(name: 'Noah brown', username: 'noahb', avatarUrl: 'https://i.pravatar.cc/80?img=4'),
-  _ConnectionUser(name: 'Olivia Davis', username: 'oliviad', avatarUrl: 'https://i.pravatar.cc/80?img=5'),
-  _ConnectionUser(name: 'William Miller', username: 'willm', avatarUrl: 'https://i.pravatar.cc/80?img=6'),
-  _ConnectionUser(name: 'Sophia Wilson', username: 'sophiaw', avatarUrl: 'https://i.pravatar.cc/80?img=7'),
-  _ConnectionUser(name: 'James Anderson', username: 'jamesa', avatarUrl: 'https://i.pravatar.cc/80?img=8'),
-  _ConnectionUser(name: 'Issabell Thomas', username: 'issabellt', avatarUrl: 'https://i.pravatar.cc/80?img=9'),
+  _ConnectionUser(
+    name: 'Sofia Wells',
+    username: 'sofwells3',
+    avatarUrl: 'https://i.pravatar.cc/80?img=1',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Liam Smith',
+    username: 'liamsmith01',
+    avatarUrl: 'https://i.pravatar.cc/80?img=2',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Emma Johnson',
+    username: 'emmaj',
+    avatarUrl: 'https://i.pravatar.cc/80?img=3',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Noah brown',
+    username: 'noahb',
+    avatarUrl: 'https://i.pravatar.cc/80?img=4',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Olivia Davis',
+    username: 'oliviad',
+    avatarUrl: 'https://i.pravatar.cc/80?img=5',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'William Miller',
+    username: 'willm',
+    avatarUrl: 'https://i.pravatar.cc/80?img=6',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Sophia Wilson',
+    username: 'sophiaw',
+    avatarUrl: 'https://i.pravatar.cc/80?img=7',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'James Anderson',
+    username: 'jamesa',
+    avatarUrl: 'https://i.pravatar.cc/80?img=8',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
+  _ConnectionUser(
+    name: 'Issabell Thomas',
+    username: 'issabellt',
+    avatarUrl: 'https://i.pravatar.cc/80?img=9',
+    postCount: 0,
+    followerCount: 0,
+    followingCount: 0,
+    bio: '',
+    isCreator: true,
+    isSubscribed: true,
+  ),
 ];
 
 class _ConnectionRow extends StatefulWidget {
   const _ConnectionRow({
     required this.user,
     required this.isFollowing,
-    required this.onRemove,
+    required this.onUnfollowSheet,
+    this.onFollow,
     this.onTap,
   });
 
   final _ConnectionUser user;
   final bool isFollowing;
-  final VoidCallback onRemove;
+  final VoidCallback onUnfollowSheet;
+  final Future<void> Function()? onFollow;
   final VoidCallback? onTap;
 
   @override
@@ -725,6 +947,7 @@ class _ConnectionRow extends StatefulWidget {
 
 class _ConnectionRowState extends State<_ConnectionRow> {
   late bool _isFollowing;
+  bool _followBusy = false;
 
   @override
   void initState() {
@@ -736,6 +959,29 @@ class _ConnectionRowState extends State<_ConnectionRow> {
   void didUpdateWidget(_ConnectionRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isFollowing != widget.isFollowing) _isFollowing = widget.isFollowing;
+  }
+
+  Future<void> _onFollowTap() async {
+    if (_followBusy) return;
+    if (_isFollowing) {
+      widget.onUnfollowSheet();
+      return;
+    }
+    final fn = widget.onFollow;
+    if (fn == null) return;
+    setState(() => _followBusy = true);
+    try {
+      await fn();
+      if (mounted) setState(() => _isFollowing = true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(messageForFirestore(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
+    }
   }
 
   @override
@@ -788,13 +1034,8 @@ class _ConnectionRowState extends State<_ConnectionRow> {
               ),
               _FollowingButton(
                 isFollowing: _isFollowing,
-                onTap: () {
-                  if (_isFollowing) {
-                    widget.onRemove();
-                  } else {
-                    setState(() => _isFollowing = true);
-                  }
-                },
+                busy: _followBusy,
+                onTap: _onFollowTap,
               ),
             ],
           ),
@@ -939,9 +1180,10 @@ class _RemoveModalButton extends StatelessWidget {
 }
 
 class _FollowingButton extends StatelessWidget {
-  const _FollowingButton({required this.isFollowing, required this.onTap});
+  const _FollowingButton({required this.isFollowing, required this.busy, required this.onTap});
 
   final bool isFollowing;
+  final bool busy;
   final VoidCallback onTap;
 
   @override
@@ -951,7 +1193,7 @@ class _FollowingButton extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: InkWell(
-          onTap: onTap,
+          onTap: busy ? () {} : onTap,
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -974,14 +1216,20 @@ class _FollowingButton extends StatelessWidget {
       color: AppColors.pink,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: InkWell(
-        onTap: onTap,
+        onTap: busy ? () {} : onTap,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            'Follow',
-            style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text(
+                  'Follow',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
         ),
       ),
     );

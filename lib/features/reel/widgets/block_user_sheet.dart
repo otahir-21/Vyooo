@@ -1,21 +1,79 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/user_service.dart';
+import '../../../core/utils/user_facing_errors.dart';
+
 /// "Block User" confirmation sheet.
 /// Matches Figma: magenta gradient, user info card, consequence list, pink Block button.
-void showBlockUserSheet(BuildContext context, {required String username, required String avatarUrl}) {
+void showBlockUserSheet(
+  BuildContext context, {
+  required String username,
+  required String avatarUrl,
+  String? targetUserId,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => _BlockUserSheet(username: username, avatarUrl: avatarUrl),
+    builder: (context) => _BlockUserSheet(
+      username: username,
+      avatarUrl: avatarUrl,
+      targetUserId: targetUserId,
+    ),
   );
 }
 
-class _BlockUserSheet extends StatelessWidget {
-  const _BlockUserSheet({required this.username, required this.avatarUrl});
+class _BlockUserSheet extends StatefulWidget {
+  const _BlockUserSheet({
+    required this.username,
+    required this.avatarUrl,
+    this.targetUserId,
+  });
 
   final String username;
   final String avatarUrl;
+  final String? targetUserId;
+
+  @override
+  State<_BlockUserSheet> createState() => _BlockUserSheetState();
+}
+
+class _BlockUserSheetState extends State<_BlockUserSheet> {
+  bool _busy = false;
+
+  Future<void> _onBlock() async {
+    final target = widget.targetUserId;
+    final me = AuthService().currentUser?.uid;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (me == null || me.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Sign in to block accounts.')),
+      );
+      return;
+    }
+    if (target == null || target.isEmpty) {
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Blocking isn’t available for this profile.')),
+      );
+      return;
+    }
+    if (me == target) return;
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await UserService().blockUser(currentUid: me, targetUid: target);
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('You blocked this account.')),
+      );
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(messageForFirestore(e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,13 +109,13 @@ class _BlockUserSheet extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                   IconButton(
+                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                   ),
@@ -78,9 +136,9 @@ class _BlockUserSheet extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // User Card
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -94,9 +152,9 @@ class _BlockUserSheet extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 32,
-                    backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                    backgroundImage: widget.avatarUrl.isNotEmpty ? NetworkImage(widget.avatarUrl) : null,
                     backgroundColor: Colors.grey[800],
-                    child: avatarUrl.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+                    child: widget.avatarUrl.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -104,7 +162,7 @@ class _BlockUserSheet extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Block $username ?',
+                          'Block ${widget.username} ?',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -126,45 +184,43 @@ class _BlockUserSheet extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Consequence List
-            _ConsequenceItem(
+            const _ConsequenceItem(
               icon: Icons.block_flipped,
               text: 'They won\'t be able to message you, find your profile, or your content on VyooO',
             ),
-            _ConsequenceItem(
+            const _ConsequenceItem(
               icon: Icons.notifications_off_outlined,
               text: 'They won\'t be notified that you blocked them.',
             ),
-            _ConsequenceItem(
+            const _ConsequenceItem(
               icon: Icons.settings_outlined,
               text: 'You can unblock them at anytime from settings.',
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Action Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: SizedBox(
                 width: double.infinity,
                 child: TextButton(
-                  onPressed: () {
-                    // TODO: Implement block logic
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: _busy ? null : _onBlock,
                   style: TextButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
+                    disabledBackgroundColor: const Color(0xFFEF4444).withOpacity(0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  child: const Text(
-                    'Block',
-                    style: TextStyle(
+                  child: Text(
+                    _busy ? 'Blocking…' : 'Block',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

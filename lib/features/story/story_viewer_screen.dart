@@ -146,15 +146,22 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ── Media ──────────────────────────────────────────────────────
-            story.mediaUrl.isNotEmpty
-                ? Image.network(
-                    story.mediaUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
-                        Container(color: Colors.grey[900]),
-                  )
-                : Container(color: Colors.grey[900]),
+            // ── Media (letterbox landscape like Figma screen 8) ─────────────
+            ColoredBox(
+              color: Colors.black,
+              child: Center(
+                child: story.mediaUrl.isNotEmpty
+                    ? Image.network(
+                        story.mediaUrl,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, _, _) =>
+                            Container(color: Colors.grey[900]),
+                      )
+                    : Container(color: Colors.grey[900]),
+              ),
+            ),
 
             // ── Top gradient ───────────────────────────────────────────────
             Positioned(

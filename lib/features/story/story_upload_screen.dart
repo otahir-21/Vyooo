@@ -4,17 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/services/story_service.dart';
 import '../../screens/upload/creator_live_route.dart';
 
 enum _Tab { story, gallery, live }
 
-/// Story upload screen matching the Figma design:
-///  1. Camera view  – live CameraPreview, shutter + flip + gallery, Story/Gallery/Live tabs
-///  2. Gallery view – photo grid (photo_manager) with multi-select up to 10
-///  3. Preview      – full-screen image, caption bar, thumbnail strip, Post button
+/// Story upload (Figma): camera + Story/Gallery/Live tabs, caption + Post,
+/// multi-image strip. Gallery uses the **system photo picker** (`pickMultiImage`)
+/// only — no in-app grid (avoids “full gallery / video list” UX).
 class StoryUploadScreen extends StatefulWidget {
   const StoryUploadScreen({super.key});
 
@@ -24,22 +22,15 @@ class StoryUploadScreen extends StatefulWidget {
 
 class _StoryUploadScreenState extends State<StoryUploadScreen>
     with WidgetsBindingObserver {
-  // ── Camera ─────────────────────────────────────────────────────────────────
   List<CameraDescription> _cameras = [];
   CameraController? _camCtrl;
   bool _camReady = false;
   bool _isFront = false;
-  bool _camPermDenied = false; // true when camera permission denied
-  String? _camError;           // non-null when init failed for other reason
+  bool _camPermDenied = false;
+  String? _camError;
 
-  // ── Tabs / gallery ─────────────────────────────────────────────────────────
   _Tab _tab = _Tab.story;
-  List<AssetEntity> _assets = [];
-  final List<String> _selectedIds = []; // ordered for badge numbers
-  bool _galleryLoading = false;
-  String? _galleryError;
 
-  // ── Preview ────────────────────────────────────────────────────────────────
   List<File> _images = [];
   int _previewIdx = 0;
   final _captionCtrl = TextEditingController();
@@ -47,7 +38,27 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
 
   final _picker = ImagePicker();
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
+  static const List<String> _videoExtensions = [
+    '.mp4',
+    '.mov',
+    '.m4v',
+    '.webm',
+    '.avi',
+    '.mkv',
+  ];
+
+  bool _isImagePath(String path) {
+    final p = path.toLowerCase();
+    if (_videoExtensions.any(p.endsWith)) return false;
+    return p.endsWith('.jpg') ||
+        p.endsWith('.jpeg') ||
+        p.endsWith('.png') ||
+        p.endsWith('.heic') ||
+        p.endsWith('.heif') ||
+        p.endsWith('.webp') ||
+        p.endsWith('.gif') ||
+        p.endsWith('.bmp');
+  }
 
   @override
   void initState() {
@@ -68,32 +79,74 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_camCtrl == null || !_camCtrl!.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive) {
-      _camCtrl?.dispose();
-      setState(() => _camReady = false);
-    } else if (state == AppLifecycleState.resumed) {
-      _initCamera();
+    if (!mounted) return;
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        _disposeCameraSilently();
+        break;
+      case AppLifecycleState.resumed:
+        if (_tab == _Tab.story && _images.isEmpty && !_camPermDenied) {
+          _initCamera();
+        }
+        break;
+      default:
+        break;
     }
   }
 
-  // ── Camera helpers ─────────────────────────────────────────────────────────
+  /// True when [CameraController] exists and is safe to show in [CameraPreview].
+  bool _cameraHealthy() {
+    final c = _camCtrl;
+    if (c == null) return false;
+    try {
+      return c.value.isInitialized;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _disposeCameraSilently() {
+    final c = _camCtrl;
+    _camCtrl = null;
+    if (c == null) return;
+    try {
+      c.dispose();
+    } catch (_) {}
+    if (mounted) {
+      setState(() => _camReady = false);
+    }
+  }
+
+  int _defaultCameraIndex() {
+    if (_cameras.isEmpty) return 0;
+    if (_isFront) {
+      final i = _cameras.indexWhere((d) => d.lensDirection == CameraLensDirection.front);
+      if (i >= 0) return i;
+    } else {
+      final i = _cameras.indexWhere((d) => d.lensDirection == CameraLensDirection.back);
+      if (i >= 0) return i;
+    }
+    return 0;
+  }
 
   Future<void> _initCamera() async {
-    // Request camera permission explicitly before touching the camera API.
     final status = await Permission.camera.request();
     if (!mounted) return;
     if (!status.isGranted) {
       setState(() => _camPermDenied = true);
       return;
     }
+    setState(() => _camPermDenied = false);
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        if (mounted) setState(() => _camError = 'No cameras found on this device.');
+        if (mounted) {
+          setState(() => _camError = 'No cameras found on this device.');
+        }
         return;
       }
-      await _setupCamera(_isFront && _cameras.length > 1 ? 1 : 0);
+      await _setupCamera(_defaultCameraIndex());
     } catch (e) {
       if (mounted) setState(() => _camError = e.toString());
     }
@@ -102,8 +155,17 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   Future<void> _setupCamera(int index) async {
     final prev = _camCtrl;
     _camCtrl = null;
-    if (mounted) setState(() { _camReady = false; _camError = null; });
-    await prev?.dispose();
+    if (mounted) {
+      setState(() {
+        _camReady = false;
+        _camError = null;
+      });
+    }
+    if (prev != null) {
+      try {
+        await prev.dispose();
+      } catch (_) {}
+    }
 
     final cam = _cameras[index.clamp(0, _cameras.length - 1)];
     final ctrl = CameraController(
@@ -124,7 +186,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   Future<void> _flipCamera() async {
     if (_cameras.length < 2) return;
     _isFront = !_isFront;
-    await _setupCamera(_isFront ? 1 : 0);
+    await _setupCamera(_defaultCameraIndex());
   }
 
   Future<void> _capturePhoto() async {
@@ -133,8 +195,8 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       final xFile = await _camCtrl!.takePicture();
       if (mounted) {
         setState(() {
-          _images.add(File(xFile.path));
-          _previewIdx = _images.length - 1;
+          _images = [File(xFile.path)];
+          _previewIdx = 0;
         });
       }
     } catch (e) {
@@ -142,58 +204,43 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     }
   }
 
-  // ── Gallery helpers ────────────────────────────────────────────────────────
+  /// System picker: **images only** (OS gallery in photo mode — not a video grid in-app).
+  Future<void> _pickFromLibrary({required bool append}) async {
+    final list = await _picker.pickMultiImage(imageQuality: 85);
+    if (!mounted || list.isEmpty) return;
 
-  Future<void> _loadGallery() async {
-    setState(() {
-      _galleryLoading = true;
-      _galleryError = null;
-    });
-    try {
-      final perm = await PhotoManager.requestPermissionExtend();
-      if (!perm.isAuth) {
-        if (mounted) setState(() { _galleryLoading = false; _galleryError = 'Photo library access is required.'; });
-        return;
-      }
-      final paths = await PhotoManager.getAssetPathList(type: RequestType.image, hasAll: true);
-      if (paths.isEmpty) { if (mounted) setState(() => _galleryLoading = false); return; }
-      final assets = await paths.first.getAssetListPaged(page: 0, size: 80);
-      if (mounted) setState(() { _assets = assets; _galleryLoading = false; });
-    } catch (e) {
-      if (mounted) setState(() { _galleryLoading = false; _galleryError = e.toString(); });
+    final maxAdd = append ? (10 - _images.length).clamp(0, 10) : 10;
+    if (maxAdd <= 0) {
+      _showSnack('You can add up to 10 photos.');
+      return;
     }
-  }
 
-  Future<void> _pickFromGallery() async {
-    final xf = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (xf != null && mounted) {
+    final files = <File>[];
+    for (final x in list) {
+      if (files.length >= maxAdd) break;
+      if (!_isImagePath(x.path)) continue;
+      files.add(File(x.path));
+    }
+
+    if (files.isEmpty) {
+      if (mounted) {
+        _showSnack('Only photos can be used in stories.');
+      }
+      return;
+    }
+
+    if (mounted) {
       setState(() {
-        _images.add(File(xf.path));
-        _previewIdx = _images.length - 1;
+        if (append) {
+          _images = [..._images, ...files];
+          _previewIdx = _images.length - 1;
+        } else {
+          _images = files;
+          _previewIdx = 0;
+        }
       });
     }
   }
-
-  Future<void> _confirmGallery() async {
-    if (_selectedIds.isEmpty) return;
-    final ordered = _selectedIds.map((id) => _assets.firstWhere((a) => a.id == id)).toList();
-    final files = await Future.wait(ordered.map((a) => a.originFile));
-    final nonNull = files.whereType<File>().toList();
-    if (nonNull.isEmpty) return;
-    if (mounted) setState(() { _images = nonNull; _previewIdx = 0; _selectedIds.clear(); });
-  }
-
-  void _toggleAsset(String id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else if (_selectedIds.length < 10) {
-        _selectedIds.add(id);
-      }
-    });
-  }
-
-  // ── Upload ─────────────────────────────────────────────────────────────────
 
   Future<void> _post() async {
     if (_images.isEmpty || _uploading) return;
@@ -205,14 +252,32 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) { _showSnack('Upload failed: $e'); setState(() => _uploading = false); }
+      if (mounted) {
+        _showSnack('Upload failed: $e');
+        setState(() => _uploading = false);
+      }
     }
   }
 
   void _onTabChanged(_Tab tab) {
-    if (tab == _Tab.live) { openCreatorLiveScreen(context); return; }
+    if (tab == _Tab.live) {
+      openCreatorLiveScreen(context);
+      return;
+    }
     setState(() => _tab = tab);
-    if (tab == _Tab.gallery && _assets.isEmpty) _loadGallery();
+    if (tab == _Tab.gallery) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _tab == _Tab.gallery && _images.isEmpty) {
+          _pickFromLibrary(append: false);
+        }
+      });
+    } else if (tab == _Tab.story && _images.isEmpty && !_camPermDenied) {
+      // Picker / app switch disposes the camera; resume + tab switch must reopen preview.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _tab != _Tab.story || _images.isNotEmpty) return;
+        if (!_cameraHealthy()) _initCamera();
+      });
+    }
   }
 
   void _showSnack(String msg) {
@@ -221,18 +286,105 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     );
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     if (_images.isNotEmpty) return _buildPreview();
-    if (_tab == _Tab.gallery) return _buildGalleryView();
+    if (_tab == _Tab.gallery) return _buildGalleryPickerChrome();
     return _buildCameraView();
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 1. CAMERA VIEW
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Gallery = story chrome + system picker (no grid) ────────────────────
+
+  Widget _buildGalleryPickerChrome() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                    onPressed: () => setState(() => _tab = _Tab.story),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Photos',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.photo_library_outlined, size: 72, color: Colors.white.withValues(alpha: 0.35)),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Choose photos for your story',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Opens your photo library — still images only, up to 10. No video strip.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFDE106B),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        onPressed: () => _pickFromLibrary(append: false),
+                        child: const Text(
+                          'Open photo library',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(56, 8, 56, 20),
+              child: _buildTabBar(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Camera ────────────────────────────────────────────────────────────────
 
   Widget _buildCameraView() {
     return Scaffold(
@@ -240,7 +392,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Live camera preview / permission denied / error / loading
           if (_camPermDenied)
             Container(
               color: Colors.black,
@@ -268,8 +419,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                             ),
                             borderRadius: BorderRadius.circular(24),
                           ),
-                          child: const Text('Open Settings',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          child: const Text(
+                            'Open Settings',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                     ],
@@ -288,14 +441,14 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     children: [
                       const Icon(Icons.error_outline_rounded, color: Colors.white38, size: 56),
                       const SizedBox(height: 14),
-                      Text(
+                      const Text(
                         'Could not start camera.',
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
                       GestureDetector(
-                        onTap: _pickFromGallery,
+                        onTap: () => _pickFromLibrary(append: false),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                           decoration: BoxDecoration(
@@ -304,8 +457,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                             ),
                             borderRadius: BorderRadius.circular(24),
                           ),
-                          child: const Text('Pick from Gallery',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          child: const Text(
+                            'Choose from library',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                     ],
@@ -313,7 +468,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                 ),
               ),
             )
-          else if (_camReady && _camCtrl != null)
+          else if (_cameraHealthy())
             CameraPreview(_camCtrl!)
           else
             Container(
@@ -322,10 +477,11 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                 child: CircularProgressIndicator(color: Colors.white38, strokeWidth: 2),
               ),
             ),
-
-          // Top gradient scrim (for readability of back button)
           Positioned(
-            top: 0, left: 0, right: 0, height: 120,
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 120,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -336,10 +492,11 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
               ),
             ),
           ),
-
-          // Bottom gradient scrim (for readability of controls)
           Positioned(
-            bottom: 0, left: 0, right: 0, height: 200,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 200,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -350,11 +507,9 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               children: [
-                // Back button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   child: Row(
@@ -366,10 +521,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     ],
                   ),
                 ),
-
                 const Spacer(),
-
-                // Capture row: gallery | shutter | flip
                 Padding(
                   padding: const EdgeInsets.fromLTRB(40, 0, 40, 14),
                   child: Row(
@@ -377,9 +529,8 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     children: [
                       _SmallCircleBtn(
                         icon: Icons.photo_library_rounded,
-                        onTap: _pickFromGallery,
+                        onTap: () => _pickFromLibrary(append: false),
                       ),
-                      // Shutter button
                       GestureDetector(
                         onTap: _capturePhoto,
                         child: Container(
@@ -405,8 +556,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     ],
                   ),
                 ),
-
-                // Story / Gallery / Live tab bar
                 Padding(
                   padding: const EdgeInsets.fromLTRB(56, 0, 56, 20),
                   child: _buildTabBar(),
@@ -419,92 +568,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // 2. GALLERY VIEW
-  // ──────────────────────────────────────────────────────────────────────────
-
-  Widget _buildGalleryView() {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Select Photos',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _selectedIds.isEmpty ? null : _confirmGallery,
-                    child: Text(
-                      _selectedIds.isEmpty ? 'Next' : 'Next (${_selectedIds.length})',
-                      style: TextStyle(
-                        color: _selectedIds.isEmpty ? Colors.white38 : const Color(0xFFDE106B),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: _buildGalleryGrid()),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(56, 8, 56, 20),
-              child: _buildTabBar(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGalleryGrid() {
-    if (_galleryLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFFDE106B), strokeWidth: 2));
-    }
-    if (_galleryError != null) {
-      return Center(child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(_galleryError!, textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54, fontSize: 14)),
-      ));
-    }
-    if (_assets.isEmpty) {
-      return const Center(child: Text('No photos found', style: TextStyle(color: Colors.white38, fontSize: 14)));
-    }
-    return GridView.builder(
-      padding: const EdgeInsets.all(2),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, crossAxisSpacing: 2, mainAxisSpacing: 2,
-      ),
-      itemCount: _assets.length,
-      itemBuilder: (_, i) {
-        final asset = _assets[i];
-        final selIdx = _selectedIds.indexOf(asset.id);
-        return _GalleryTile(
-          asset: asset,
-          isSelected: selIdx != -1,
-          selectionNumber: selIdx != -1 ? selIdx + 1 : null,
-          onTap: () => _toggleAsset(asset.id),
-        );
-      },
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // 3. PREVIEW VIEW
-  // ──────────────────────────────────────────────────────────────────────────
+  // ── Preview (caption + strip + Post) ───────────────────────────────────────
 
   Widget _buildPreview() {
     return Scaffold(
@@ -513,12 +577,22 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Full-screen image
-          Image.file(_images[_previewIdx], fit: BoxFit.cover),
-
-          // Bottom gradient scrim
+          ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: Image.file(
+                _images[_previewIdx],
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
           Positioned(
-            bottom: 0, left: 0, right: 0, height: 320,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 320,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -529,24 +603,23 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
               ),
             ),
           ),
-
           SafeArea(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Back button
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-                      onPressed: () => setState(() { _images.clear(); _previewIdx = 0; }),
+                      onPressed: () => setState(() {
+                        _images.clear();
+                        _previewIdx = 0;
+                        _captionCtrl.clear();
+                      }),
                     ),
                   ],
                 ),
-
                 const Spacer(),
-
-                // Thumbnail strip when multiple images
                 if (_images.length > 1)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -559,9 +632,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                         itemBuilder: (_, i) {
                           if (i == _images.length) {
                             return GestureDetector(
-                              onTap: _pickFromGallery,
+                              onTap: () => _pickFromLibrary(append: true),
                               child: Container(
-                                width: 64, height: 64,
+                                width: 64,
+                                height: 64,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(10),
                                   color: Colors.white.withValues(alpha: 0.12),
@@ -574,7 +648,8 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                           return GestureDetector(
                             onTap: () => setState(() => _previewIdx = i),
                             child: Container(
-                              width: 64, height: 64,
+                              width: 64,
+                              height: 64,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
@@ -590,8 +665,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                       ),
                     ),
                   ),
-
-                // Caption + icons + Post
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Row(
@@ -608,29 +681,41 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                             controller: _captionCtrl,
                             style: const TextStyle(color: Colors.white, fontSize: 14),
                             decoration: const InputDecoration(
-                              hintText: 'Add a caption +',
+                              hintText: 'Add a caption…',
                               hintStyle: TextStyle(color: Colors.white54, fontSize: 14),
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
                               border: InputBorder.none,
                             ),
-                            maxLines: 1,
+                            minLines: 1,
+                            maxLines: 3,
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _iconBtn(icon: Icons.photo_library_rounded, onTap: _pickFromGallery),
+                      _iconBtn(icon: Icons.photo_library_rounded, onTap: () => _pickFromLibrary(append: true)),
                       const SizedBox(width: 8),
                       _iconBtn(
                         icon: Icons.camera_alt_rounded,
-                        onTap: () => setState(() { _images.clear(); _previewIdx = 0; }),
+                        onTap: () => setState(() {
+                          _images.clear();
+                          _previewIdx = 0;
+                          _captionCtrl.clear();
+                          _tab = _Tab.story;
+                        }),
                       ),
                       const SizedBox(width: 8),
                       _uploading
                           ? const SizedBox(
-                              width: 56, height: 36,
-                              child: Center(child: SizedBox(width: 22, height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))),
+                              width: 56,
+                              height: 36,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                ),
+                              ),
                             )
                           : GestureDetector(
                               onTap: _post,
@@ -644,8 +729,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                                   ),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: const Text('Post',
-                                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                                child: const Text(
+                                  'Post',
+                                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ),
                     ],
@@ -658,8 +745,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       ),
     );
   }
-
-  // ── Shared ─────────────────────────────────────────────────────────────────
 
   Widget _buildTabBar() {
     return Container(
@@ -709,7 +794,8 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40, height: 40,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.black45,
@@ -721,8 +807,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   }
 }
 
-// ── Small circle button (capture row) ─────────────────────────────────────
-
 class _SmallCircleBtn extends StatelessWidget {
   const _SmallCircleBtn({required this.icon, required this.onTap});
   final IconData icon;
@@ -733,65 +817,14 @@ class _SmallCircleBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 50, height: 50,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.black.withValues(alpha: 0.35),
           border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
         ),
         child: Icon(icon, color: Colors.white, size: 24),
-      ),
-    );
-  }
-}
-
-// ── Gallery tile ────────────────────────────────────────────────────────────
-
-class _GalleryTile extends StatelessWidget {
-  const _GalleryTile({
-    required this.asset,
-    required this.isSelected,
-    required this.selectionNumber,
-    required this.onTap,
-  });
-  final AssetEntity asset;
-  final bool isSelected;
-  final int? selectionNumber;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          FutureBuilder<Uint8List?>(
-            future: asset.thumbnailDataWithSize(const ThumbnailSize.square(200)),
-            builder: (_, snap) {
-              if (snap.data == null) return Container(color: const Color(0xFF1A0015));
-              return Image.memory(snap.data!, fit: BoxFit.cover);
-            },
-          ),
-          if (isSelected)
-            Container(color: const Color(0xFFDE106B).withValues(alpha: 0.30)),
-          Positioned(
-            top: 6, right: 6,
-            child: Container(
-              width: 24, height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? const Color(0xFFDE106B) : Colors.black.withValues(alpha: 0.50),
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              alignment: Alignment.center,
-              child: isSelected && selectionNumber != null
-                  ? Text('$selectionNumber',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))
-                  : null,
-            ),
-          ),
-        ],
       ),
     );
   }

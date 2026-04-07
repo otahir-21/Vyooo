@@ -11,6 +11,8 @@ class AppUserModel {
     this.interests = const [],
     this.onboardingCompleted = false,
     required this.createdAt,
+    this.following = const [],
+    this.blockedUsers = const [],
   });
 
   final String uid;
@@ -21,6 +23,9 @@ class AppUserModel {
   final List<String> interests;
   final bool onboardingCompleted;
   final Timestamp createdAt;
+  /// UIDs this user follows (stored on their Firestore user doc).
+  final List<String> following;
+  final List<String> blockedUsers;
 
   Map<String, dynamic> toJson() {
     return {
@@ -32,6 +37,8 @@ class AppUserModel {
       'interests': interests,
       'onboardingCompleted': onboardingCompleted,
       'createdAt': createdAt,
+      'following': following,
+      'blockedUsers': blockedUsers,
     };
   }
 
@@ -40,6 +47,12 @@ class AppUserModel {
     final interestsList = interestsRaw is List
         ? (interestsRaw).map((e) => e.toString()).toList()
         : <String>[];
+
+    List<String> listField(String key) {
+      final raw = json[key];
+      if (raw is List) return raw.map((e) => e.toString()).toList();
+      return [];
+    }
 
     return AppUserModel(
       uid: json['uid'] as String? ?? '',
@@ -52,6 +65,8 @@ class AppUserModel {
       createdAt: json['createdAt'] is Timestamp
           ? json['createdAt'] as Timestamp
           : Timestamp.now(),
+      following: listField('following'),
+      blockedUsers: listField('blockedUsers'),
     );
   }
 
@@ -64,6 +79,8 @@ class AppUserModel {
     List<String>? interests,
     bool? onboardingCompleted,
     Timestamp? createdAt,
+    List<String>? following,
+    List<String>? blockedUsers,
   }) {
     return AppUserModel(
       uid: uid ?? this.uid,
@@ -74,6 +91,8 @@ class AppUserModel {
       interests: interests ?? this.interests,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       createdAt: createdAt ?? this.createdAt,
+      following: following ?? this.following,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
     );
   }
 }

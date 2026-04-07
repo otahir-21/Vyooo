@@ -7,6 +7,9 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/live_stream_model.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/user_service.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
@@ -27,8 +30,11 @@ class UserProfilePayload {
     this.isCreator = true,
     this.isFollowing = false,
     this.isSubscribed = false,
+    this.targetUserId,
   });
 
+  /// When set, Follow/Following updates Firestore (users/{currentUser}.following).
+  final String? targetUserId;
   final String username;
   final String displayName;
   final String avatarUrl;
@@ -60,20 +66,95 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int _selectedTabIndex = 0;
   late bool _isFollowing;
   late bool _isSubscribed;
+  bool _followActionBusy = false;
+  int? _liveFollowerCount;
+  int? _liveFollowingCount;
+  int? _livePostCount;
 
   @override
   void initState() {
     super.initState();
     _isFollowing = widget.payload.isFollowing;
     _isSubscribed = widget.payload.isSubscribed;
+    _refreshFollowFromFirestore();
+    _loadPublicCounts();
   }
 
   @override
   void didUpdateWidget(UserProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.payload.username != widget.payload.username) {
+    if (oldWidget.payload.username != widget.payload.username ||
+        oldWidget.payload.targetUserId != widget.payload.targetUserId) {
       _isFollowing = widget.payload.isFollowing;
       _isSubscribed = widget.payload.isSubscribed;
+      _liveFollowerCount = null;
+      _liveFollowingCount = null;
+      _livePostCount = null;
+      _refreshFollowFromFirestore();
+      _loadPublicCounts();
+    }
+  }
+
+  Future<void> _loadPublicCounts() async {
+    final id = widget.payload.targetUserId;
+    if (id == null || id.isEmpty) return;
+    final svc = UserService();
+    final fc = await svc.getFollowerCount(id);
+    final pc = await svc.getReelCountForUser(id);
+    final u = await svc.getUser(id);
+    if (!mounted) return;
+    setState(() {
+      _liveFollowerCount = fc;
+      _liveFollowingCount = u?.following.length ?? 0;
+      _livePostCount = pc;
+    });
+  }
+
+  Future<void> _refreshFollowFromFirestore() async {
+    final target = widget.payload.targetUserId;
+    final me = AuthService().currentUser?.uid;
+    if (target == null || target.isEmpty || me == null || me.isEmpty || me == target) {
+      return;
+    }
+    final v = await UserService().isFollowingUser(currentUid: me, targetUid: target);
+    if (mounted) setState(() => _isFollowing = v);
+  }
+
+  Future<void> _onFollowTap() async {
+    final target = widget.payload.targetUserId;
+    final me = AuthService().currentUser?.uid;
+    if (target == null || target.isEmpty) {
+      setState(() => _isFollowing = !_isFollowing);
+      return;
+    }
+    if (me == null || me.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to follow people.')),
+      );
+      return;
+    }
+    if (me == target) return;
+    if (_followActionBusy) return;
+    setState(() => _followActionBusy = true);
+    final svc = UserService();
+    try {
+      if (_isFollowing) {
+        await svc.unfollowUser(currentUid: me, targetUid: target);
+        if (mounted) setState(() => _isFollowing = false);
+      } else {
+        await svc.followUser(currentUid: me, targetUid: target);
+        if (mounted) setState(() => _isFollowing = true);
+      }
+      if (mounted) await _loadPublicCounts();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(messageForFirestore(e))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followActionBusy = false);
     }
   }
 
@@ -144,34 +225,50 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _UserStatChip(label: 'Posts', value: _formatCount(p.postCount)),
+                        _UserStatChip(label: 'Posts', value: _formatCount(_livePostCount ?? p.postCount)),
                         const SizedBox(width: AppSpacing.sm),
                         _UserStatChip(
                           label: 'Following',
-                          value: _formatCount(p.followingCount),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => FollowersFollowingScreen(
-                                initialTab: 1,
-                                followerCount: p.followerCount,
-                                followingCount: p.followingCount,
+                          value: _formatCount(_liveFollowingCount ?? p.followingCount),
+                          onTap: () {
+                            final id = p.targetUserId;
+                            if (id == null || id.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Connect this profile to an account to view lists.')),
+                              );
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowersFollowingScreen(
+                                  initialTab: 1,
+                                  profileUserId: id,
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         _UserStatChip(
                           label: 'Followers',
-                          value: _formatCount(p.followerCount),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => FollowersFollowingScreen(
-                                initialTab: 0,
-                                followerCount: p.followerCount,
-                                followingCount: p.followingCount,
+                          value: _formatCount(_liveFollowerCount ?? p.followerCount),
+                          onTap: () {
+                            final id = p.targetUserId;
+                            if (id == null || id.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Connect this profile to an account to view lists.')),
+                              );
+                              return;
+                            }
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => FollowersFollowingScreen(
+                                  initialTab: 0,
+                                  profileUserId: id,
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -233,8 +330,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       children: [
         Expanded(
           child: _PinkButton(
-            label: _isFollowing ? 'Following' : 'Follow',
-            onPressed: () => setState(() => _isFollowing = !_isFollowing),
+            label: _followActionBusy
+                ? '…'
+                : (_isFollowing ? 'Following' : 'Follow'),
+            onPressed: _followActionBusy ? () {} : _onFollowTap,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),

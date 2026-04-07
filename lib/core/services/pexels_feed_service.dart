@@ -100,6 +100,7 @@ class PexelsFeedService {
           'views': (v['width'] as num?)?.toInt() ?? 0,
           'shares': 0,
           'avatarUrl': user?['url'] as String? ?? '',
+          'userId': '',
         });
       }
       return list;

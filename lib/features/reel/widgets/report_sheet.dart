@@ -1,21 +1,43 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/services/auth_service.dart';
+import '../../../core/services/user_service.dart';
+import '../../../core/utils/user_facing_errors.dart';
 import 'block_user_sheet.dart';
 
 /// Shows the Report flow: starts with reasons, then thank you screen with block/unfollow options.
-void showReportSheet(BuildContext context, {required String username, required String avatarUrl}) {
+void showReportSheet(
+  BuildContext context, {
+  required String username,
+  required String avatarUrl,
+  String? targetUserId,
+  bool isFollowing = false,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) => _ReportSheetFlow(username: username, avatarUrl: avatarUrl),
+    builder: (context) => _ReportSheetFlow(
+      username: username,
+      avatarUrl: avatarUrl,
+      targetUserId: targetUserId,
+      isFollowing: isFollowing,
+    ),
   );
 }
 
 class _ReportSheetFlow extends StatefulWidget {
-  const _ReportSheetFlow({required this.username, required this.avatarUrl});
+  const _ReportSheetFlow({
+    required this.username,
+    required this.avatarUrl,
+    this.targetUserId,
+    this.isFollowing = false,
+  });
 
   final String username;
   final String avatarUrl;
+  final String? targetUserId;
+  final bool isFollowing;
 
   @override
   State<_ReportSheetFlow> createState() => _ReportSheetFlowState();
@@ -24,6 +46,13 @@ class _ReportSheetFlow extends StatefulWidget {
 class _ReportSheetFlowState extends State<_ReportSheetFlow> {
   bool _showThanks = false;
   bool _isOtherActionsExpanded = false;
+  late bool _isFollowing;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFollowing = widget.isFollowing;
+  }
 
   final List<String> _reasons = [
     "I just don't like it",
@@ -182,16 +211,14 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
                       context,
                       username: widget.username,
                       avatarUrl: widget.avatarUrl,
+                      targetUserId: widget.targetUserId,
                     );
                   },
                 ),
                 _ActionItem(
                   icon: Icons.person_remove_outlined,
                   label: 'Unfollow User',
-                  onTap: () {
-                    // TODO: Implement unfollow
-                    Navigator.of(context).pop();
-                  },
+                  onTap: _onUnfollowFromReport,
                 ),
               ],
             ],
@@ -199,6 +226,39 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
         ),
       ],
     );
+  }
+
+  Future<void> _onUnfollowFromReport() async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final target = widget.targetUserId;
+    final me = AuthService().currentUser?.uid;
+    if (me == null || me.isEmpty) {
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Sign in to manage who you follow.')),
+      );
+      return;
+    }
+    if (target == null || target.isEmpty) {
+      Navigator.of(context).pop();
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Unfollow isn’t available for this content.')),
+      );
+      return;
+    }
+    if (!_isFollowing) {
+      Navigator.of(context).pop();
+      return;
+    }
+    try {
+      await UserService().unfollowUser(currentUid: me, targetUid: target);
+      if (!mounted) return;
+      setState(() => _isFollowing = false);
+      messenger?.showSnackBar(const SnackBar(content: Text('You unfollowed this account.')));
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(messageForFirestore(e))));
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 }
 

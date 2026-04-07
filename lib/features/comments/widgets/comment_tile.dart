@@ -12,6 +12,7 @@ class CommentTile extends StatelessWidget {
     this.onReply,
     this.onLike,
     this.onViewReplies,
+    this.onReport,
     this.onDelete,
     this.isHighlighted = false,
   });
@@ -21,6 +22,7 @@ class CommentTile extends StatelessWidget {
   final VoidCallback? onReply;
   final VoidCallback? onLike;
   final VoidCallback? onViewReplies;
+  final VoidCallback? onReport;
   final VoidCallback? onDelete;
   final bool isHighlighted;
 
@@ -31,7 +33,7 @@ class CommentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatarSize = isReply ? _avatarSizeReply : _avatarSize;
     return Container(
-      color: isHighlighted ? Colors.white.withOpacity(0.05) : Colors.transparent,
+      color: isHighlighted ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
       padding: EdgeInsets.only(
         left: isReply ? 72 : 16,
         right: 16,
@@ -116,7 +118,7 @@ class CommentTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (comment.replyCount > 0) ...[
+                    if (comment.replyCount > 0 && onViewReplies != null) ...[
                       const SizedBox(width: 24),
                       GestureDetector(
                         onTap: onViewReplies,
@@ -147,38 +149,68 @@ class CommentTile extends StatelessWidget {
             ),
           ),
           SizedBox(width: AppSpacing.sm),
-          if (comment.isOwnComment)
-            GestureDetector(
-              onTap: onDelete,
-              child: const Icon(
-                Icons.delete, // Use solid delete icon
-                size: 20,
-                color: Color(0xFFEF4444), // Design matching red
+          if (comment.isOwnComment && onDelete != null)
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onDelete,
+                borderRadius: BorderRadius.circular(22),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 22,
+                    color: Color(0xFFEF4444),
+                  ),
+                ),
               ),
             )
           else
-            GestureDetector(
-              onTap: onLike,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                    size: 18,
-                    color: comment.isLiked
-                        ? const Color(0xFFEF4444)
-                        : Colors.white.withValues(alpha: 0.6),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: onLike,
+                  behavior: HitTestBehavior.opaque,
+                  child: Opacity(
+                    opacity: onLike != null ? 1 : 0.35,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          comment.isLiked ? Icons.favorite : Icons.favorite_border,
+                          size: 18,
+                          color: comment.isLiked
+                              ? const Color(0xFFEF4444)
+                              : Colors.white.withValues(alpha: 0.6),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${comment.likeCount}',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${comment.likeCount}',
-                    style: TextStyle(
+                ),
+                if (onReport != null) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    onPressed: onReport,
+                    icon: Icon(
+                      Icons.flag_outlined,
+                      size: 18,
                       color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 11,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
         ],
       ),

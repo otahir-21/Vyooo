@@ -10,6 +10,7 @@ import '../../core/models/story_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/story_service.dart';
+import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_interaction_button.dart';
@@ -96,6 +97,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   final Map<String, bool> _likedReels = {};
   final Map<String, bool> _savedReels = {};
 
+  /// Cached for report / unfollow sheet (refreshed in [_loadReels]).
+  List<String> _followingIds = [];
+
   // Playback and quality (from three-dots menu)
   String _playbackSpeedId = '1';
   String _playbackSpeedLabel = '1x (Normal)';
@@ -136,6 +140,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final myStories = await StoryService().getMyStories();
     final uid = AuthService().currentUser?.uid ?? '';
     String avatarUrl = '';
+    var followingIds = <String>[];
     if (uid.isNotEmpty) {
       try {
         final userDoc = await FirebaseFirestore.instance
@@ -144,6 +149,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             .get();
         avatarUrl = userDoc.data()?['profileImage'] as String? ?? '';
       } catch (_) {}
+      followingIds = await UserService().getFollowing(uid);
     }
     if (mounted) {
       setState(() {
@@ -155,6 +161,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _storyGroups = storyGroups;
         _myStories = myStories;
         _myAvatarUrl = avatarUrl;
+        _followingIds = followingIds;
       });
     }
   }
@@ -217,10 +224,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     showCommentsBottomSheet(
       context,
       reelId: reelId,
-      onReply: (_) => _showSnackBar('Reply'),
-      onLike: (_) => _showSnackBar('Liked'),
-      onViewReplies: (_) => _showSnackBar('View replies'),
+      onCommentCountChanged: (delta) => _bumpReelCommentCount(reelId, delta),
     );
+  }
+
+  void _bumpReelCommentCount(String reelId, int delta) {
+    if (delta == 0 || !mounted) return;
+    void bump(List<Map<String, dynamic>> list) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i]['id'] != reelId) continue;
+        final cur = (list[i]['comments'] as num?)?.toInt() ?? 0;
+        final next = (cur + delta).clamp(0, 999999999);
+        list[i] = Map<String, dynamic>.from(list[i])..['comments'] = next;
+        break;
+      }
+    }
+
+    setState(() {
+      bump(_reelsForYou);
+      bump(_reelsFollowing);
+      bump(_reelsTrending);
+      bump(_reelsVR);
+    });
   }
 
   /// While the *previous* tab's [PageView] is still mounted, force page 0 so the
@@ -640,6 +665,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   void _onMoreOptions(String reelId) {
     final reel = _currentReels.firstWhere((r) => r['id'] == reelId);
+    final authorId = reel['userId'] as String? ?? '';
     showReelMoreOptionsSheet(
       context,
       reelId: reelId,
@@ -650,6 +676,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         context,
         username: reel['username'] as String,
         avatarUrl: reel['avatarUrl'] as String,
+        targetUserId: authorId.isEmpty ? null : authorId,
+        isFollowing: authorId.isNotEmpty && _followingIds.contains(authorId),
       ),
       onNotInterested: () => showNotInterestedSheet(context),
       onCaptions: () => _showSnackBar('Captions'),

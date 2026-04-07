@@ -54,8 +54,8 @@ class SubscriptionController extends ChangeNotifier {
     } else {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyDebugTier);
-      final info = await _service.getCustomerInfo();
-      currentTier = _service.getTier(info);
+      final info = await _service.getCustomerInfoSafe();
+      currentTier = info != null ? _service.getTier(info) : MembershipTier.none;
     }
     notifyListeners();
   }
@@ -68,7 +68,12 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   Future<void> init(String publicKey) async {
-    await _service.init(publicKey);
+    final ok = await _service.init(publicKey);
+    if (!ok) {
+      currentTier = MembershipTier.none;
+      notifyListeners();
+      return;
+    }
     await refreshStatus();
   }
 
@@ -84,8 +89,8 @@ class SubscriptionController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final info = await _service.getCustomerInfo();
-    currentTier = _service.getTier(info);
+    final info = await _service.getCustomerInfoSafe();
+    currentTier = info != null ? _service.getTier(info) : MembershipTier.none;
     notifyListeners();
   }
 
@@ -122,8 +127,12 @@ class SubscriptionController extends ChangeNotifier {
   Future<void> purchaseCreator(Package package) async => purchase(package);
 
   Future<void> restorePurchases() async {
-    await _service.restore();
-    await refreshStatus();
+    try {
+      await _service.restore();
+      await refreshStatus();
+    } catch (e) {
+      if (kDebugMode) debugPrint('RevenueCat restore failed: $e');
+    }
   }
 
   bool get hasAccess => currentTier != MembershipTier.none;

@@ -53,9 +53,9 @@
 		<true/>
 	</dict>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need access to your photo library to upload profile pictures</string>
+	<string>Vyooo needs photo library access to add images to your story and profile.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Camera is used for profile pictures and live streaming</string>
+	<string>Vyooo needs the camera to record stories, profile photos, and live streams.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone is used for live streaming audio</string>
 </dict>

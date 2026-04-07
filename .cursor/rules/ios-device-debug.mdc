@@ -1,0 +1,27 @@
+---
+description: Physical iPhone runs — Debug JIT crashes with Agora; use Profile/Release on device.
+---
+
+# iOS physical device: Debug JIT + Agora (Iris)
+
+## Symptom
+
+- App stops on device with `DartWorker` + `EXC_BAD_ACCESS`, often right after Iris logger lines (`iris_logger.cc`, `reset logger`).
+
+## Cause
+
+- **Debug** builds on a **physical iPhone** use the Dart **JIT**. Agora’s native Iris/RTC stack is still **linked** in the app (`AgoraIrisRTC_iOS2`, etc.), so it can interact badly with the VM on some iOS versions — even though `GeneratedPluginRegistrant.m` defers Flutter **registration** (`strip_agora_at_launch.sh`).
+
+## Fix (pick one)
+
+1. **Cursor / VS Code** — Run with configuration **“Vyooo (profile — physical iPhone / Agora)”** (`flutterMode: profile`), or CLI:  
+   `flutter run --profile`  
+   For max stability: `flutter run --release`.
+
+2. **Xcode** — Select scheme **`Runner-Device-Profile`** (Run uses **Profile** / AOT), not **`Runner`** with Debug on device.
+
+3. **Simulator** — Debug is usually fine; the problem is **device + Debug**.
+
+## Do not “fix” by changing bundle id
+
+- Keep `com.vyooo` per `ios-bundle-id.mdc`.

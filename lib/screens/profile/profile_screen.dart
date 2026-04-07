@@ -40,6 +40,21 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const int _savedTabIndex = 3;
   int _selectedTabIndex = 0;
 
+  Future<(int followers, int posts)>? _profileCountsFuture;
+
+  Future<(int, int)> _fetchProfileCounts(String uid) async {
+    final svc = UserService();
+    final fc = await svc.getFollowerCount(uid);
+    final pc = await svc.getReelCountForUser(uid);
+    return (fc, pc);
+  }
+
+  static String _formatStatCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
+  }
+
   Future<void> _logout(BuildContext context) async {
     await AuthService().signOut();
     if (!context.mounted) return;
@@ -195,6 +210,15 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      _profileCountsFuture = _fetchProfileCounts(uid);
+    }
+  }
+
   void _showProfileMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -298,11 +322,34 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: SafeArea(
           child: uid == null
               ? _buildFallbackProfile(context)
-              : FutureBuilder<AppUserModel?>(
-                  future: UserService().getUser(uid),
-                  builder: (context, snapshot) {
-                    final user = snapshot.data;
-                    return _buildProfileBody(context, user: user, canUploadContent: canUploadContent);
+              : StreamBuilder<AppUserModel?>(
+                  stream: UserService().userStream(uid),
+                  builder: (context, userSnap) {
+                    final user = userSnap.data;
+                    if (userSnap.connectionState == ConnectionState.waiting && user == null) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                        ),
+                      );
+                    }
+                    return FutureBuilder<(int followers, int posts)>(
+                      future: _profileCountsFuture,
+                      builder: (context, countSnap) {
+                        final fc = countSnap.data?.$1 ?? 0;
+                        final pc = countSnap.data?.$2 ?? 0;
+                        final following = user?.following.length ?? 0;
+                        return _buildProfileBody(
+                          context,
+                          user: user,
+                          profileUid: uid,
+                          canUploadContent: canUploadContent,
+                          followerCount: fc,
+                          followingCount: following,
+                          postCount: pc,
+                        );
+                      },
+                    );
                   },
                 ),
         ),
@@ -314,11 +361,23 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _buildProfileBody(
       context,
       user: null,
+      profileUid: '',
       canUploadContent: context.watch<SubscriptionController>().canUploadContent,
+      followerCount: 0,
+      followingCount: 0,
+      postCount: 0,
     );
   }
 
-  Widget _buildProfileBody(BuildContext context, {AppUserModel? user, required bool canUploadContent}) {
+  Widget _buildProfileBody(
+    BuildContext context, {
+    AppUserModel? user,
+    required String profileUid,
+    required bool canUploadContent,
+    required int followerCount,
+    required int followingCount,
+    required int postCount,
+  }) {
     final username = user?.username?.isNotEmpty == true
         ? '@${user!.username}'
         : (AuthService().currentUser?.email ?? 'Profile');
@@ -386,48 +445,40 @@ class _ProfileScreenState extends State<ProfileScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _StatChip(label: 'Posts', value: '1,630'),
+                    _StatChip(label: 'Posts', value: _formatStatCount(postCount)),
                     const SizedBox(width: AppSpacing.xl),
                     _StatChip(
                       label: 'Following',
-                      value: '10.9M',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const FollowersFollowingScreen(
-                            initialTab: 1,
-                            followerCount: 2437,
-                            followingCount: 10906,
+                      value: _formatStatCount(followingCount),
+                      onTap: () {
+                        if (profileUid.isEmpty) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => FollowersFollowingScreen(
+                              initialTab: 1,
+                              profileUserId: profileUid,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                     const SizedBox(width: AppSpacing.xl),
                     _StatChip(
                       label: 'Followers',
-                      value: '2,437',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const FollowersFollowingScreen(
-                            initialTab: 0,
-                            followerCount: 2437,
-                            followingCount: 10906,
+                      value: _formatStatCount(followerCount),
+                      onTap: () {
+                        if (profileUid.isEmpty) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => FollowersFollowingScreen(
+                              initialTab: 0,
+                              profileUserId: profileUid,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
                   ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: Text(
-                    'In the right place, at the right time',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 13,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Row(
@@ -439,9 +490,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => EditProfileScreen(
-                                initialName: 'Matt Rife',
-                                initialUsername: user?.username ?? 'mattrife_x',
-                                initialBio: 'In the right place, at the right time',
+                                initialName: user?.username ?? '',
+                                initialUsername: user?.username ?? '',
+                                initialBio: '',
                                 initialMusic: 'Zulfein • Mehul Mahesh, DJ A...',
                                 avatarUrl: user?.profileImage,
                               ),
@@ -463,7 +514,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
         ),
-        ..._buildProfileContentSlivers(context, canUploadContent, uid: AuthService().currentUser?.uid ?? ''),
+        ..._buildProfileContentSlivers(context, canUploadContent, uid: profileUid),
       ],
     );
   }

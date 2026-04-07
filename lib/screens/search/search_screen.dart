@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
+import '../../core/services/user_service.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -37,6 +40,12 @@ class _SearchScreenState extends State<SearchScreen>
   final _liveService = LiveStreamService();
   List<LiveStreamModel> _liveStreams = [];
   StreamSubscription<List<LiveStreamModel>>? _liveStreamsSub;
+  final UserService _userService = UserService();
+  final List<_UserSearchItem> _allUsers = [];
+  bool _usersLoading = false;
+  String? _usersError;
+  Set<String> _myFollowingIds = <String>{};
+  bool _usersLoadAttempted = false;
   List<String> _recentSearches = const [
     'Live concerts happening',
     'Cricket match IND vs AUS',
@@ -55,6 +64,120 @@ class _SearchScreenState extends State<SearchScreen>
     _liveStreamsSub = _liveService.liveStreams().listen((streams) {
       if (mounted) setState(() => _liveStreams = streams);
     });
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || me.isEmpty) return;
+    _usersLoadAttempted = true;
+    if (mounted) {
+      setState(() {
+        _usersLoading = true;
+        _usersError = null;
+      });
+    }
+    try {
+      final following = await _userService.getFollowing(me);
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(200)
+          .get();
+      final users = <_UserSearchItem>[];
+      for (final d in snap.docs) {
+        final data = d.data();
+        final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
+            ? (data['uid'] as String).trim()
+            : d.id;
+        if (uid == me) continue;
+        final rawUsername = (data['username'] as String?)?.trim() ?? '';
+        final email = (data['email'] as String?)?.trim() ?? '';
+        final fallbackFromEmail =
+            email.contains('@') ? email.split('@').first : '';
+        final username = rawUsername.isNotEmpty
+            ? rawUsername
+            : (fallbackFromEmail.isNotEmpty
+                ? fallbackFromEmail
+                : (uid.length > 8 ? uid.substring(0, 8) : uid));
+        final fullName = (data['displayName'] as String?)?.trim().isNotEmpty ==
+                true
+            ? (data['displayName'] as String).trim()
+            : username;
+        final avatar = (data['profileImage'] as String?)?.trim() ?? '';
+        users.add(
+          _UserSearchItem(
+            uid: uid,
+            username: username,
+            fullName: fullName,
+            followerCount: 0,
+            avatarUrl: avatar,
+            isVerified: false,
+            isFollowing: following.contains(uid),
+          ),
+        );
+      }
+      users.sort(
+        (a, b) => a.username.toLowerCase().compareTo(b.username.toLowerCase()),
+      );
+      if (!mounted) return;
+      setState(() {
+        _allUsers
+          ..clear()
+          ..addAll(users);
+        _myFollowingIds = following.toSet();
+        _usersLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _usersLoading = false;
+        _usersError = e.toString();
+      });
+    }
+  }
+
+  void _ensureUsersLoaded() {
+    if (_usersLoading || _allUsers.isNotEmpty) return;
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || me.isEmpty) return;
+    if (_usersLoadAttempted && _usersError != null) return;
+    _loadUsers();
+  }
+
+  List<_UserSearchItem> get _filteredUsers {
+    final q = _searchController.text.trim().toLowerCase();
+    if (q.isEmpty) return _allUsers;
+    return _allUsers
+        .where(
+          (u) =>
+              u.username.toLowerCase().contains(q) ||
+              u.fullName.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  Future<void> _toggleFollow(_UserSearchItem user) async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || me.isEmpty || me == user.uid) return;
+    final currently = _myFollowingIds.contains(user.uid);
+    try {
+      if (currently) {
+        await _userService.unfollowUser(currentUid: me, targetUid: user.uid);
+        _myFollowingIds.remove(user.uid);
+      } else {
+        await _userService.followUser(currentUid: me, targetUid: user.uid);
+        _myFollowingIds.add(user.uid);
+      }
+      if (!mounted) return;
+      setState(() {
+        final idx = _allUsers.indexWhere((u) => u.uid == user.uid);
+        if (idx >= 0) {
+          _allUsers[idx] = _allUsers[idx].copyWith(
+            isFollowing: _myFollowingIds.contains(user.uid),
+          );
+        }
+      });
+    } catch (_) {}
   }
 
   void _onSearchTextChange() {
@@ -187,6 +310,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildIdleUsersContent() {
+    _ensureUsersLoaded();
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
       children: [
@@ -202,17 +326,32 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _userSearchResultItems.length,
-          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-          itemBuilder: (context, index) => _UserSearchResultTile(
-            user: _userSearchResultItems[index],
-            onTap: () => _openUserProfile(_userSearchResultItems[index]),
+        if (_usersLoading)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+          )
+        else if (_usersError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Text(
+              'Could not load users right now.',
+              style: TextStyle(color: Colors.white70),
+            ),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _filteredUsers.length,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            itemBuilder: (context, index) => _UserSearchResultTile(
+              user: _filteredUsers[index],
+              onTap: () => _openUserProfile(_filteredUsers[index]),
+              onFollowTap: () => _toggleFollow(_filteredUsers[index]),
+            ),
           ),
-        ),
         const SizedBox(height: AppSpacing.xl),
       ],
     );
@@ -285,6 +424,8 @@ class _SearchScreenState extends State<SearchScreen>
             followingCount: 0,
             bio: '',
             isCreator: true,
+            targetUserId: user.uid,
+            isFollowing: user.isFollowing,
           ),
         ),
       ),
@@ -292,16 +433,51 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildUserSearchResultsList() {
+    _ensureUsersLoaded();
+    if (_usersLoading) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white54));
+    }
+    if (_usersError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Could not load users right now.',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loadUsers,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final users = _filteredUsers;
+    if (users.isEmpty) {
+      return const Center(
+        child: Text(
+          'No users found.',
+          style: TextStyle(color: Colors.white70),
+        ),
+      );
+    }
     return ListView.separated(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: AppSpacing.xs,
       ),
-      itemCount: _userSearchResultItems.length,
+      itemCount: users.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
-        user: _userSearchResultItems[index],
-        onTap: () => _openUserProfile(_userSearchResultItems[index]),
+        user: users[index],
+        onTap: () => _openUserProfile(users[index]),
+        onFollowTap: () => _toggleFollow(users[index]),
       ),
     );
   }
@@ -977,10 +1153,15 @@ class _VRSearchResultGridCard extends StatelessWidget {
 }
 
 class _UserSearchResultTile extends StatelessWidget {
-  const _UserSearchResultTile({required this.user, this.onTap});
+  const _UserSearchResultTile({
+    required this.user,
+    this.onTap,
+    this.onFollowTap,
+  });
 
   final _UserSearchItem user;
   final VoidCallback? onTap;
+  final VoidCallback? onFollowTap;
 
   static String _formatFollowers(int n) {
     if (n >= 1000000) {
@@ -1065,6 +1246,31 @@ class _UserSearchResultTile extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Material(
+                color: user.isFollowing
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : AppColors.pink,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: InkWell(
+                  onTap: onFollowTap,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Text(
+                      user.isFollowing ? 'Following' : 'Follow',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1175,54 +1381,42 @@ final List<_LiveCardItem> _searchResultItems = [
 
 class _UserSearchItem {
   const _UserSearchItem({
+    required this.uid,
     required this.username,
     required this.fullName,
     required this.followerCount,
     required this.avatarUrl,
     this.isVerified = false,
+    this.isFollowing = false,
   });
+  final String uid;
   final String username;
   final String fullName;
   final int followerCount;
   final String avatarUrl;
   final bool isVerified;
-}
+  final bool isFollowing;
 
-/// Mock user results (e.g. for query "John").
-final List<_UserSearchItem> _userSearchResultItems = [
-  _UserSearchItem(
-    username: 'John_xx',
-    fullName: 'John Bailey',
-    followerCount: 113000,
-    avatarUrl: 'https://i.pravatar.cc/80?img=11',
-  ),
-  _UserSearchItem(
-    username: 'thejohnabraham',
-    fullName: 'John Abraham',
-    followerCount: 11500000,
-    avatarUrl: 'https://i.pravatar.cc/80?img=12',
-    isVerified: true,
-  ),
-  _UserSearchItem(
-    username: 'Jbayleaf',
-    fullName: 'Jonathan Bailey',
-    followerCount: 6200000,
-    avatarUrl: 'https://i.pravatar.cc/80?img=13',
-    isVerified: true,
-  ),
-  _UserSearchItem(
-    username: 'John_n01',
-    fullName: 'John Noel',
-    followerCount: 39,
-    avatarUrl: 'https://i.pravatar.cc/80?img=14',
-  ),
-  _UserSearchItem(
-    username: 'Johnz._',
-    fullName: 'Johnn cole',
-    followerCount: 11,
-    avatarUrl: 'https://i.pravatar.cc/80?img=15',
-  ),
-];
+  _UserSearchItem copyWith({
+    String? uid,
+    String? username,
+    String? fullName,
+    int? followerCount,
+    String? avatarUrl,
+    bool? isVerified,
+    bool? isFollowing,
+  }) {
+    return _UserSearchItem(
+      uid: uid ?? this.uid,
+      username: username ?? this.username,
+      fullName: fullName ?? this.fullName,
+      followerCount: followerCount ?? this.followerCount,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      isVerified: isVerified ?? this.isVerified,
+      isFollowing: isFollowing ?? this.isFollowing,
+    );
+  }
+}
 
 class _VRSearchItem {
   const _VRSearchItem({
