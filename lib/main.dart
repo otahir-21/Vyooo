@@ -28,17 +28,22 @@ void main() async {
 
   final subscriptionController = SubscriptionController();
   try {
-    // In mock/tier-testing mode, skip RevenueCat network initialization
-    // to avoid "offerings empty" configuration noise in debug/dev builds.
+    // Configure RevenueCat only when real billing is enabled and key exists.
     if (!AppConfig.useMockSubscriptions &&
         !AppConfig.enableSubscriptionTierTesting) {
-      // Use iOS key on iOS, Android key on Android (RevenueCat gives one per platform).
       final revenueCatKey = Platform.isIOS
-          ? 'appl_vPZwqxiBnbyvgMUEvKURLKzCRpj' // iOS public API key
-          : 'goog_XXXXXXXXXXXX'; // Replace with your Android public API key when needed
-      await subscriptionController.init(revenueCatKey);
+          ? AppConfig.revenueCatApplePublicKey
+          : AppConfig.revenueCatGooglePublicKey;
+      if (revenueCatKey.trim().isNotEmpty &&
+          !revenueCatKey.contains('XXXX')) {
+        await subscriptionController.init(revenueCatKey);
+      } else {
+        debugPrint(
+          'RevenueCat disabled: missing public SDK key for current platform.',
+        );
+      }
     }
-    if (kDebugMode || AppConfig.enableSubscriptionTierTesting) {
+    if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
       await subscriptionController.loadTestTierOverride();
     }
   } catch (e, st) {
