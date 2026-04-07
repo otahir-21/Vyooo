@@ -175,9 +175,7 @@ class UserService {
   /// User documents for each uid in users/{uid}.following (order preserved).
   Future<List<AppUserModel>> getFollowingProfilesForUser(String uid) async {
     final ids = await getFollowing(uid);
-    if (ids.isEmpty) return [];
-    final results = await Future.wait(ids.map(getUser));
-    return results.whereType<AppUserModel>().toList();
+    return getUsersByIds(ids);
   }
 
   /// Published reels count for profile stats.
@@ -299,5 +297,80 @@ class UserService {
       {'blockedUsers': FieldValue.arrayRemove([targetUid])},
       SetOptions(merge: true),
     );
+  }
+
+  /// Reactive follower count stream based on users who include [uid] in following.
+  Stream<int> followerCountStream(String uid) {
+    if (uid.isEmpty) return const Stream<int>.empty();
+    return _firestore
+        .collection(_usersCollection)
+        .where('following', arrayContains: uid)
+        .snapshots()
+        .map((q) => q.docs.length);
+  }
+
+  /// Reactive reels count stream for a profile.
+  Stream<int> reelCountStream(String uid) {
+    if (uid.isEmpty) return const Stream<int>.empty();
+    return _firestore
+        .collection('reels')
+        .where('userId', isEqualTo: uid)
+        .snapshots()
+        .map((q) => q.docs.length);
+  }
+
+  /// Fetches many user documents in batched whereIn queries (max 10 each), preserving [userIds] order.
+  Future<List<AppUserModel>> getUsersByIds(List<String> userIds) async {
+    final ids = userIds.where((e) => e.trim().isNotEmpty).toList();
+    if (ids.isEmpty) return [];
+    final byId = <String, AppUserModel>{};
+    for (var i = 0; i < ids.length; i += 10) {
+      final chunk = ids.sublist(i, (i + 10 > ids.length) ? ids.length : i + 10);
+      try {
+        final q = await _firestore
+            .collection(_usersCollection)
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final d in q.docs) {
+          final model = AppUserModel.fromJson(d.data());
+          byId[model.uid.isNotEmpty ? model.uid : d.id] = model;
+        }
+      } catch (_) {}
+    }
+    final ordered = <AppUserModel>[];
+    for (final id in ids) {
+      final v = byId[id];
+      if (v != null) ordered.add(v);
+    }
+    return ordered;
+  }
+
+  /// Search/discover users (excluding [currentUid] and any IDs in [excludeIds]).
+  Future<List<AppUserModel>> discoverUsers({
+    required String currentUid,
+    String query = '',
+    Set<String> excludeIds = const {},
+    int limit = 200,
+  }) async {
+    if (currentUid.isEmpty) return [];
+    try {
+      final snap = await _firestore.collection(_usersCollection).limit(limit).get();
+      final q = query.trim().toLowerCase();
+      final out = <AppUserModel>[];
+      for (final d in snap.docs) {
+        final data = d.data();
+        final model = AppUserModel.fromJson(data);
+        final uid = model.uid.isNotEmpty ? model.uid : d.id;
+        if (uid == currentUid || excludeIds.contains(uid)) continue;
+        final name = (model.username ?? '').trim().toLowerCase();
+        final emailName = model.email.split('@').first.toLowerCase();
+        final searchable = '$name $emailName';
+        if (q.isNotEmpty && !searchable.contains(q)) continue;
+        out.add(model.copyWith(uid: uid));
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
   }
 }

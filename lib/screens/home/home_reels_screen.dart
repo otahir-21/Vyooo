@@ -141,6 +141,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final uid = AuthService().currentUser?.uid ?? '';
     String avatarUrl = '';
     var followingIds = <String>[];
+    var blockedIds = <String>[];
     if (uid.isNotEmpty) {
       try {
         final userDoc = await FirebaseFirestore.instance
@@ -150,15 +151,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         avatarUrl = userDoc.data()?['profileImage'] as String? ?? '';
       } catch (_) {}
       followingIds = await UserService().getFollowing(uid);
+      blockedIds = await UserService().getBlockedUserIds(uid);
     }
+    bool allowedByBlock(Map<String, dynamic> r) {
+      final id = (r['userId'] as String?) ?? '';
+      if (id.isEmpty) return true;
+      return !blockedIds.contains(id);
+    }
+    final filteredForYou = forYou.where(allowedByBlock).toList();
+    final filteredFollowing = following.where(allowedByBlock).toList();
+    final filteredTrending = trending.where(allowedByBlock).toList();
+    final filteredVr = vr.where(allowedByBlock).toList();
+    final filteredStories = storyGroups
+        .where((g) => !blockedIds.contains(g.userId))
+        .toList();
     if (mounted) {
       setState(() {
         // Always assign so empty API results clear lists (avoids stale / black feed).
-        _reelsForYou = forYou;
-        _reelsFollowing = following;
-        if (trending.isNotEmpty) _reelsTrending = trending;
-        if (vr.isNotEmpty) _reelsVR = vr;
-        _storyGroups = storyGroups;
+        _reelsForYou = filteredForYou;
+        _reelsFollowing = filteredFollowing;
+        if (filteredTrending.isNotEmpty) _reelsTrending = filteredTrending;
+        if (filteredVr.isNotEmpty) _reelsVR = filteredVr;
+        _storyGroups = filteredStories;
         _myStories = myStories;
         _myAvatarUrl = avatarUrl;
         _followingIds = followingIds;

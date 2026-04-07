@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:async';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
@@ -70,6 +72,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int? _liveFollowerCount;
   int? _liveFollowingCount;
   int? _livePostCount;
+  StreamSubscription<int>? _followerCountSub;
+  StreamSubscription<int>? _postCountSub;
+  StreamSubscription<AppUserModel?>? _targetUserSub;
 
   @override
   void initState() {
@@ -78,6 +83,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _isSubscribed = widget.payload.isSubscribed;
     _refreshFollowFromFirestore();
     _loadPublicCounts();
+    _bindLiveCountStreams();
   }
 
   @override
@@ -92,7 +98,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _livePostCount = null;
       _refreshFollowFromFirestore();
       _loadPublicCounts();
+      _bindLiveCountStreams();
     }
+  }
+
+  @override
+  void dispose() {
+    _followerCountSub?.cancel();
+    _postCountSub?.cancel();
+    _targetUserSub?.cancel();
+    super.dispose();
+  }
+
+  void _bindLiveCountStreams() {
+    _followerCountSub?.cancel();
+    _postCountSub?.cancel();
+    _targetUserSub?.cancel();
+    final id = widget.payload.targetUserId;
+    if (id == null || id.isEmpty) return;
+    final svc = UserService();
+    _followerCountSub = svc.followerCountStream(id).listen((v) {
+      if (!mounted) return;
+      setState(() => _liveFollowerCount = v);
+    });
+    _postCountSub = svc.reelCountStream(id).listen((v) {
+      if (!mounted) return;
+      setState(() => _livePostCount = v);
+    });
+    _targetUserSub = svc.userStream(id).listen((u) {
+      if (!mounted) return;
+      setState(() => _liveFollowingCount = u?.following.length ?? 0);
+    });
   }
 
   Future<void> _loadPublicCounts() async {

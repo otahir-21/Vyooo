@@ -40,15 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const int _savedTabIndex = 3;
   int _selectedTabIndex = 0;
 
-  Future<(int followers, int posts)>? _profileCountsFuture;
-
-  Future<(int, int)> _fetchProfileCounts(String uid) async {
-    final svc = UserService();
-    final fc = await svc.getFollowerCount(uid);
-    final pc = await svc.getReelCountForUser(uid);
-    return (fc, pc);
-  }
-
   static String _formatStatCount(int n) {
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
@@ -210,15 +201,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    final uid = AuthService().currentUser?.uid;
-    if (uid != null && uid.isNotEmpty) {
-      _profileCountsFuture = _fetchProfileCounts(uid);
-    }
-  }
-
   void _showProfileMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -333,20 +315,25 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ),
                       );
                     }
-                    return FutureBuilder<(int followers, int posts)>(
-                      future: _profileCountsFuture,
-                      builder: (context, countSnap) {
-                        final fc = countSnap.data?.$1 ?? 0;
-                        final pc = countSnap.data?.$2 ?? 0;
-                        final following = user?.following.length ?? 0;
-                        return _buildProfileBody(
-                          context,
-                          user: user,
-                          profileUid: uid,
-                          canUploadContent: canUploadContent,
-                          followerCount: fc,
-                          followingCount: following,
-                          postCount: pc,
+                    return StreamBuilder<int>(
+                      stream: UserService().followerCountStream(uid),
+                      builder: (context, followerSnap) {
+                        final fc = followerSnap.data ?? 0;
+                        return StreamBuilder<int>(
+                          stream: UserService().reelCountStream(uid),
+                          builder: (context, postSnap) {
+                            final pc = postSnap.data ?? 0;
+                            final following = user?.following.length ?? 0;
+                            return _buildProfileBody(
+                              context,
+                              user: user,
+                              profileUid: uid,
+                              canUploadContent: canUploadContent,
+                              followerCount: fc,
+                              followingCount: following,
+                              postCount: pc,
+                            );
+                          },
                         );
                       },
                     );

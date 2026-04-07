@@ -79,6 +79,8 @@ class _SearchScreenState extends State<SearchScreen>
     }
     try {
       final following = await _userService.getFollowing(me);
+      final blocked = await _userService.getBlockedUserIds(me);
+      final blockedSet = blocked.toSet();
       final snap = await FirebaseFirestore.instance
           .collection('users')
           .limit(200)
@@ -89,7 +91,7 @@ class _SearchScreenState extends State<SearchScreen>
         final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
             ? (data['uid'] as String).trim()
             : d.id;
-        if (uid == me) continue;
+        if (uid == me || blockedSet.contains(uid)) continue;
         final rawUsername = (data['username'] as String?)?.trim() ?? '';
         final email = (data['email'] as String?)?.trim() ?? '';
         final fallbackFromEmail =
