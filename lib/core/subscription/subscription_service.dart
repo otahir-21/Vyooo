@@ -60,6 +60,23 @@ class SubscriptionService {
     await Purchases.restorePurchases();
   }
 
+  /// Binds RevenueCat customer to Firebase [uid] (restore purchases across devices, webhooks).
+  /// Call with `null` after sign-out.
+  Future<void> syncFirebaseUser(String? firebaseUid) async {
+    if (!await Purchases.isConfigured) return;
+    try {
+      if (firebaseUid == null || firebaseUid.isEmpty) {
+        await Purchases.logOut();
+      } else {
+        await Purchases.logIn(firebaseUid);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('RevenueCat syncFirebaseUser failed: $e');
+      }
+    }
+  }
+
   MembershipTier getTier(CustomerInfo info) {
     if (info.entitlements.active.containsKey('creator_access')) {
       return MembershipTier.creator;

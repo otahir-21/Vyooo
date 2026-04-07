@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import '../../core/subscription/subscription_controller.dart';
+import '../../core/subscription/subscription_package_mapper.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key, this.showRestoreButton = true});
@@ -83,16 +84,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     Package? creatorPkg;
 
     if (_offerings?.current != null) {
-      for (final pkg in _offerings!.current!.availablePackages) {
-        final id = pkg.identifier.toLowerCase();
-        if (id.contains('standard')) {
-          standardPkg = pkg;
-        } else if (id.contains('subscriber')) {
-          subscriberPkg = pkg;
-        } else if (id.contains('creator')) {
-          creatorPkg = pkg;
-        }
-      }
+      final mapped = SubscriptionPackageMapper.fromOffering(_offerings!.current);
+      standardPkg = mapped.standard;
+      subscriberPkg = mapped.subscriber;
+      creatorPkg = mapped.creator;
     }
 
     return Scaffold(
