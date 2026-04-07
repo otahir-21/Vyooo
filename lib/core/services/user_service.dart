@@ -2,6 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/app_user_model.dart';
 
+class UserDiscoveryItem {
+  const UserDiscoveryItem({
+    required this.uid,
+    required this.username,
+    required this.displayName,
+    required this.avatarUrl,
+    required this.isFollowing,
+    required this.followerCount,
+  });
+
+  final String uid;
+  final String username;
+  final String displayName;
+  final String avatarUrl;
+  final bool isFollowing;
+  final int followerCount;
+}
+
 /// Firestore user document operations. No UI, no BuildContext.
 /// Call createUserDocument AFTER successful registration.
 class UserService {
@@ -372,5 +390,45 @@ class UserService {
     } catch (_) {
       return [];
     }
+  }
+
+  /// Centralized discover/search list used by profile + global search.
+  /// Filters out self + blocked users and marks follow state from current user's following.
+  Future<List<UserDiscoveryItem>> discoverUserItems({
+    required String currentUid,
+    String query = '',
+    int limit = 120,
+  }) async {
+    if (currentUid.isEmpty) return [];
+    final following = await getFollowing(currentUid);
+    final blocked = await getBlockedUserIds(currentUid);
+    final users = await discoverUsers(
+      currentUid: currentUid,
+      query: query,
+      excludeIds: blocked.toSet(),
+      limit: limit,
+    );
+    final out = <UserDiscoveryItem>[];
+    for (final u in users) {
+      final uid = u.uid;
+      if (uid.isEmpty) continue;
+      final username = (u.username ?? '').trim().isNotEmpty
+          ? u.username!.trim()
+          : (u.email.contains('@') ? u.email.split('@').first : uid);
+      final displayName = username;
+      final followerCount = await getFollowerCount(uid);
+      out.add(
+        UserDiscoveryItem(
+          uid: uid,
+          username: username,
+          displayName: displayName,
+          avatarUrl: (u.profileImage ?? '').trim(),
+          isFollowing: following.contains(uid),
+          followerCount: followerCount,
+        ),
+      );
+    }
+    out.sort((a, b) => a.username.toLowerCase().compareTo(b.username.toLowerCase()));
+    return out;
   }
 }

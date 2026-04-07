@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
@@ -88,29 +87,20 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     final followerModels = await svc.getFollowerProfilesForUser(subject);
     final followingModels = await svc.getFollowingProfilesForUser(subject);
     final fc = await svc.getFollowerCount(subject);
-    final discoverSnap = await FirebaseFirestore.instance
-        .collection('users')
-        .limit(300)
-        .get();
-    final discover = <_ConnectionUser>[];
-    for (final d in discoverSnap.docs) {
-      final data = d.data();
-      final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
-          ? (data['uid'] as String).trim()
-          : d.id;
-      final username = (data['username'] as String?)?.trim() ?? '';
-      if (username.isEmpty) continue;
-      if (uid == me || blockedSet.contains(uid)) continue;
-      discover.add(
-        _ConnectionUser(
-          targetUserId: uid,
-          name: username,
-          username: username,
-          avatarUrl: (data['profileImage'] as String?)?.trim() ?? '',
-          isFollowing: myFollowing.contains(uid),
-        ),
-      );
-    }
+    final discoverItems = me == null || me.isEmpty
+        ? <UserDiscoveryItem>[]
+        : await svc.discoverUserItems(currentUid: me, limit: 160);
+    final discover = discoverItems
+        .map(
+          (i) => _ConnectionUser(
+            targetUserId: i.uid,
+            name: i.displayName,
+            username: i.username,
+            avatarUrl: i.avatarUrl,
+            isFollowing: i.isFollowing,
+          ),
+        )
+        .toList();
 
     if (!mounted) return;
     setState(() {

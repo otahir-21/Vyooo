@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -78,55 +77,26 @@ class _SearchScreenState extends State<SearchScreen>
       });
     }
     try {
-      final following = await _userService.getFollowing(me);
-      final blocked = await _userService.getBlockedUserIds(me);
-      final blockedSet = blocked.toSet();
-      final snap = await FirebaseFirestore.instance
-          .collection('users')
-          .limit(200)
-          .get();
-      final users = <_UserSearchItem>[];
-      for (final d in snap.docs) {
-        final data = d.data();
-        final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
-            ? (data['uid'] as String).trim()
-            : d.id;
-        if (uid == me || blockedSet.contains(uid)) continue;
-        final rawUsername = (data['username'] as String?)?.trim() ?? '';
-        final email = (data['email'] as String?)?.trim() ?? '';
-        final fallbackFromEmail =
-            email.contains('@') ? email.split('@').first : '';
-        final username = rawUsername.isNotEmpty
-            ? rawUsername
-            : (fallbackFromEmail.isNotEmpty
-                ? fallbackFromEmail
-                : (uid.length > 8 ? uid.substring(0, 8) : uid));
-        final fullName = (data['displayName'] as String?)?.trim().isNotEmpty ==
-                true
-            ? (data['displayName'] as String).trim()
-            : username;
-        final avatar = (data['profileImage'] as String?)?.trim() ?? '';
-        users.add(
-          _UserSearchItem(
-            uid: uid,
-            username: username,
-            fullName: fullName,
-            followerCount: 0,
-            avatarUrl: avatar,
-            isVerified: false,
-            isFollowing: following.contains(uid),
-          ),
-        );
-      }
-      users.sort(
-        (a, b) => a.username.toLowerCase().compareTo(b.username.toLowerCase()),
-      );
+      final items = await _userService.discoverUserItems(currentUid: me, limit: 120);
+      final users = items
+          .map(
+            (i) => _UserSearchItem(
+              uid: i.uid,
+              username: i.username,
+              fullName: i.displayName,
+              followerCount: i.followerCount,
+              avatarUrl: i.avatarUrl,
+              isVerified: false,
+              isFollowing: i.isFollowing,
+            ),
+          )
+          .toList();
       if (!mounted) return;
       setState(() {
         _allUsers
           ..clear()
           ..addAll(users);
-        _myFollowingIds = following.toSet();
+        _myFollowingIds = users.where((u) => u.isFollowing).map((u) => u.uid).toSet();
         _usersLoading = false;
       });
     } catch (e) {
@@ -299,7 +269,7 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _vrSearchResultItems.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) => SizedBox(
               width: 160,
               child: _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
@@ -347,7 +317,7 @@ class _SearchScreenState extends State<SearchScreen>
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _filteredUsers.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _UserSearchResultTile(
               user: _filteredUsers[index],
               onTap: () => _openUserProfile(_filteredUsers[index]),
@@ -475,7 +445,7 @@ class _SearchScreenState extends State<SearchScreen>
         vertical: AppSpacing.xs,
       ),
       itemCount: users.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
         user: users[index],
         onTap: () => _openUserProfile(users[index]),
@@ -508,7 +478,7 @@ class _SearchScreenState extends State<SearchScreen>
               vertical: AppSpacing.xs,
             ),
             itemCount: _recentSearches.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _RecentSearchTile(
               query: _recentSearches[index],
               onTap: () {
@@ -721,7 +691,7 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _liveStreams.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final stream = _liveStreams[index];
               final avatar = (stream.hostProfileImage?.isNotEmpty == true)
@@ -771,7 +741,7 @@ class _SearchScreenState extends State<SearchScreen>
                   child: Text(
                     'View All',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -787,7 +757,7 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) => _LiveCard(item: items[index]),
           ),
         ),
@@ -817,7 +787,7 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _categoryItems.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) =>
                 _CategoryCard(item: _categoryItems[index]),
           ),
@@ -848,7 +818,7 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _creatorItems.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) =>
                 _CreatorCard(item: _creatorItems[index]),
           ),
@@ -1531,6 +1501,7 @@ class _LiveCard extends StatelessWidget {
   static const double cardWidth = 160;
   static const double cardHeight = 220;
 
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
@@ -1680,7 +1651,7 @@ class _LiveCard extends StatelessWidget {
                           Text(
                             item.handle,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 11,
                               fontWeight: FontWeight.w400,
                             ),
@@ -1705,6 +1676,7 @@ class _CategoryCard extends StatelessWidget {
 
   final _CategoryItem item;
 
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {},
@@ -1853,7 +1825,7 @@ class _CreatorCardState extends State<_CreatorCard> {
                 onPressed: () => setState(() => _isFollowing = !_isFollowing),
                 style: TextButton.styleFrom(
                   backgroundColor: _isFollowing
-                      ? Colors.white.withOpacity(0.12)
+                      ? Colors.white.withValues(alpha: 0.12)
                       : const Color(0xFFEF4444),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

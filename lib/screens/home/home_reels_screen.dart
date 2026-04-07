@@ -813,7 +813,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                       reel['handle'] as String,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w400,
                       ),
                     ),
@@ -843,7 +843,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               'See More',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -861,7 +861,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 decoration: BoxDecoration(
                   color: isTarget
                       ? Colors.white
-                      : Colors.white.withOpacity(0.3),
+                      : Colors.white.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(10),
                 ),
               );
@@ -881,9 +881,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
+            color: Colors.black.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.15), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -900,7 +900,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 width: 1.5,
                 height: 20,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withValues(alpha: 0.4),
               ),
               GestureDetector(
                 onTap: () {

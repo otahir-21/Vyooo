@@ -1,13 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function validUserDoc(userId) {
+      return request.resource.data.keys().hasOnly([
+        'uid',
+        'email',
+        'username',
+        'dob',
+        'profileImage',
+        'interests',
+        'onboardingCompleted',
+        'createdAt',
+        'following',
+        'blockedUsers'
+      ]) &&
+      request.resource.data.uid == userId &&
+      request.resource.data.email is string &&
+      request.resource.data.username is string &&
+      request.resource.data.dob is string &&
+      request.resource.data.profileImage is string &&
+      request.resource.data.interests is list &&
+      request.resource.data.onboardingCompleted is bool &&
+      request.resource.data.createdAt is timestamp &&
+      request.resource.data.following is list &&
+      request.resource.data.blockedUsers is list;
+    }
 
     // ── Token requests (Firestore-based Agora token generation) ───────────────
     // Users write their own requests; Cloud Function (Admin SDK) writes back.
     match /token_requests/{requestId} {
-      allow create: if request.auth != null
+      allow create: if isSignedIn()
                     && request.resource.data.userId == request.auth.uid;
-      allow read, delete: if request.auth != null
+      allow read, delete: if isSignedIn()
                           && resource.data.userId == request.auth.uid;
       allow update: if false; // only Cloud Function (Admin SDK) may update
     }
@@ -15,36 +47,56 @@ service cloud.firestore {
     // ── User profile doc only: users/{uid} (one segment after users/) ─────────
     // following / blockedUsers live here; only the owner may write the doc.
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == userId;
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && validUserDoc(userId);
+      allow update: if isOwner(userId) && validUserDoc(userId);
+      allow delete: if isOwner(userId);
     }
 
     // ── App collections (explicit so list/get never rely on a fragile catch‑all) ──
     match /stories/{storyId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
 
     match /reels/{reelId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
     match /reels/{reelId}/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
 
     match /streams/{streamId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
     match /streams/{streamId}/{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if isSignedIn();
     }
 
-    // userLikes, userSaves, comment_reports, cloudflare_upload_requests, etc.
-    // IMPORTANT: exclude only the *top-level* profile path users/{uid}, not users/** .
-    // Using users/.* wrongly removed access to all paths under users/... and broke OR matching.
+    match /userLikes/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /userSaves/{id} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /comment_reports/{id} {
+      allow create: if isSignedIn();
+      allow read: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    match /cloudflare_upload_requests/{id} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // Deny everything not explicitly allowed above.
     match /{document=**} {
-      allow read, write: if request.auth != null
-          && !document.matches('users/[^/]+$');
+      allow read, write: if false;
     }
   }
 }
