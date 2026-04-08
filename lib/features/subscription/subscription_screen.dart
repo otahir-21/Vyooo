@@ -20,7 +20,8 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   int _selectedIndex = 1; // Default to 'Subscriber' (Popular)
   Offerings? _offerings;
-  bool _fetchingOfferings = false;
+  /// Start true so the first frame doesn’t flash “couldn’t reach store” before [ _loadOfferings] runs.
+  bool _fetchingOfferings = true;
 
   @override
   void initState() {
@@ -88,19 +89,24 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<SubscriptionController>();
-    final isLoading = controller.isLoading || _fetchingOfferings;
+    // Only block the screen during purchase — not while fetching offerings (that hid all plans).
+    final isPurchasing = controller.isLoading;
 
-    // Map packages if available
+    final offering = SubscriptionPackageMapper.resolveCurrentOffering(_offerings);
     Package? standardPkg;
     Package? subscriberPkg;
     Package? creatorPkg;
 
-    if (_offerings?.current != null) {
-      final mapped = SubscriptionPackageMapper.fromOffering(_offerings!.current);
+    if (offering != null) {
+      final mapped = SubscriptionPackageMapper.fromOffering(offering);
       standardPkg = mapped.standard;
       subscriberPkg = mapped.subscriber;
       creatorPkg = mapped.creator;
     }
+
+    final plansLoaded = offering != null && offering.availablePackages.isNotEmpty;
+    final plansLoadFailed = !_fetchingOfferings && _offerings != null && !plansLoaded;
+    final offeringsUnreachable = !_fetchingOfferings && _offerings == null;
 
     final selectedForDisclosure = _selectedIndex == 0
         ? standardPkg
@@ -208,6 +214,62 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
 
+                  if (_fetchingOfferings) ...[
+                    SizedBox(height: isCompact ? 12 : 16),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      child: LinearProgressIndicator(
+                        minHeight: 3,
+                        color: Color(0xFFDE106B),
+                        backgroundColor: Colors.white12,
+                      ),
+                    ),
+                  ],
+
+                  if (plansLoadFailed || offeringsUnreachable) ...[
+                    SizedBox(height: isCompact ? 12 : 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                offeringsUnreachable
+                                    ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
+                                    : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: isCompact ? 12.0 : 13.0,
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextButton.icon(
+                                onPressed: _fetchingOfferings ? null : _loadOfferings,
+                                icon: const Icon(Icons.refresh, color: Color(0xFFDE106B), size: 20),
+                                label: const Text(
+                                  'Retry loading plans',
+                                  style: TextStyle(
+                                    color: Color(0xFFDE106B),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+
                   // Plan Cards
                       SizedBox(height: sectionGap),
                   _PlanCardsRow(
@@ -228,7 +290,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   _UpgradeButton(
                         compact: isCompact,
                     selectedIndex: _selectedIndex,
-                    isLoading: isLoading,
+                    isLoading: isPurchasing,
                     onPressed: () => _handlePurchase(
                       controller,
                       selectedIndex: _selectedIndex,
@@ -295,7 +357,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ),
           ),
-          if (isLoading)
+          if (isPurchasing)
             Container(
               color: Colors.black54,
               child: const Center(
