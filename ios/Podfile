@@ -52,4 +52,48 @@ post_install do |installer|
       ]
     end
   end
+
+  # ── Debug-device Iris/Agora crash fix ───────────────────────────────────────
+  # Root cause: Agora xcframeworks are DYNAMIC libraries embedded in the app
+  # bundle and loaded by dyld at startup. Their C++ static initializers run
+  # (we see "iris version: 4.6.2-build.1" in the log) before any Dart code,
+  # and corrupt state that Flutter JIT DartWorker later trips on →
+  # EXC_BAD_ACCESS (code=50 / KERN_NOT_IN_MAP) in thread DartWorker.
+  #
+  # Fix: remove the `if [[ "$CONFIGURATION" == "Debug" ]]` embed block from
+  # the generated Pods-Runner-frameworks.sh so Agora dynamic frameworks are
+  # never copied into the Debug .app bundle. All Agora frameworks are already
+  # -weak_framework linked, so dyld silently skips absent frameworks at launch.
+  # The strip_agora_at_launch.sh build phase already removes plugin registration,
+  # completing the two-part defence.
+  #
+  # Profile / Release blocks in frameworks.sh are left intact; Agora works
+  # normally in those configurations.
+  #
+  # Idempotent: re-runs every `pod install` to survive CocoaPods regeneration.
+
+  support = installer.sandbox.root.join('Target Support Files', 'Pods-Runner')
+
+  # 1. Patch Pods-Runner-frameworks.sh: delete the Debug configuration block.
+  sh_file = support.join('Pods-Runner-frameworks.sh')
+  if sh_file.exist?
+    content = sh_file.read
+    # Match: if [[ "$CONFIGURATION" == "Debug" ]]; then ... fi\n
+    # Uses [\s\S]*? (lazy, matches newlines) so we stop at the FIRST `fi`.
+    patched = content.gsub(
+      /if \[\[ "\$CONFIGURATION" == "Debug" \]\]; then\n[\s\S]*?fi\n/,
+      ""
+    )
+    sh_file.write(patched) if patched != content
+  end
+
+  # 2. Clear Agora entries from the Debug embed xcfilelists so Xcode's
+  #    incremental-build dependency tracking stays consistent.
+  %w[input output].each do |direction|
+    list_path = support.join("Pods-Runner-frameworks-Debug-#{direction}-files.xcfilelist").to_s
+    next unless File.exist?(list_path)
+    lines = File.readlines(list_path, chomp: true)
+    filtered = lines.reject { |l| l =~ /AgoraIrisRTC|AgoraVideo_Special|\/Agora|\/aosl\.framework|\/video_dec\.framework|\/video_enc\.framework/ }
+    File.open(list_path, 'w') { |f| filtered.each { |l| f.puts l } }
+  end
 end

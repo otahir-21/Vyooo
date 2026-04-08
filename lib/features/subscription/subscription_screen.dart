@@ -108,9 +108,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ),
             child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isCompact =
+                      constraints.maxWidth < 390 || constraints.maxHeight < 780;
+                  final logoSize = isCompact ? 40.0 : 48.0;
+                  final titleSize = isCompact ? 28.0 : 32.0;
+                  final subtitleSize = isCompact ? 13.0 : 14.0;
+                  final sectionGap = isCompact ? 28.0 : 40.0;
+                  final tableGap = isCompact ? 28.0 : 48.0;
+                  final legalSize = isCompact ? 9.0 : 10.0;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                   // Restore & Close
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -138,48 +149,49 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
                   // Logo
-                  const SizedBox(height: 24),
-                  const Center(
-                    child: Text(
+                      SizedBox(height: isCompact ? 16 : 24),
+                      Center(
+                        child: Text(
                       'VyooO',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -1,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: logoSize,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -1,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
 
                   // Title & Subtitle
-                  const SizedBox(height: 48),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
+                      SizedBox(height: isCompact ? 30 : 48),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
                       'Choose your plan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: titleSize,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                      SizedBox(height: isCompact ? 8 : 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
                       'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: subtitleSize,
                         height: 1.4,
                       ),
                     ),
                   ),
 
                   // Plan Cards
-                  const SizedBox(height: 40),
+                      SizedBox(height: sectionGap),
                   _PlanCardsRow(
+                        compact: isCompact,
                     selectedIndex: _selectedIndex,
                     onSelect: (i) => setState(() => _selectedIndex = i),
                     standardPrice:
@@ -191,12 +203,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
 
                   // Comparison Table
-                  const SizedBox(height: 48),
-                  const Expanded(child: _FeatureComparisonTable()),
+                      SizedBox(height: tableGap),
+                      Expanded(child: _FeatureComparisonTable(compact: isCompact)),
 
                   // Bottom Action
-                  const SizedBox(height: 16),
+                      SizedBox(height: isCompact ? 12 : 16),
                   _UpgradeButton(
+                        compact: isCompact,
                     selectedIndex: _selectedIndex,
                     isLoading: isLoading,
                     onPressed: () => _handlePurchase(
@@ -209,20 +222,22 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
 
                   // Legal text
-                  const SizedBox(height: 16),
+                      SizedBox(height: isCompact ? 10 : 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Text(
                       'By tapping Continue, you will be charged, your subscription will auto-renew for the same price and package length until you cancel via App Store settings, and you agree to our Terms.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
-                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: legalSize,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ],
+                      SizedBox(height: isCompact ? 14 : 24),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -241,6 +256,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
 class _PlanCardsRow extends StatelessWidget {
   const _PlanCardsRow({
+    required this.compact,
     required this.selectedIndex,
     required this.onSelect,
     required this.standardPrice,
@@ -248,6 +264,7 @@ class _PlanCardsRow extends StatelessWidget {
     required this.creatorPrice,
   });
 
+  final bool compact;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
   final String standardPrice;
@@ -261,13 +278,15 @@ class _PlanCardsRow extends StatelessWidget {
       child: Row(
         children: [
           _PlanCard(
+            compact: compact,
             title: 'Standard',
             price: standardPrice,
             isSelected: selectedIndex == 0,
             onTap: () => onSelect(0),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: compact ? 6 : 8),
           _PlanCard(
+            compact: compact,
             title: 'Subscriber',
             price: subscriberPrice,
             badge: 'Popular',
@@ -275,8 +294,9 @@ class _PlanCardsRow extends StatelessWidget {
             isSelected: selectedIndex == 1,
             onTap: () => onSelect(1),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: compact ? 6 : 8),
           _PlanCard(
+            compact: compact,
             title: 'Creator',
             price: creatorPrice,
             badge: 'Best value',
@@ -292,6 +312,7 @@ class _PlanCardsRow extends StatelessWidget {
 
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
+    required this.compact,
     required this.title,
     required this.price,
     this.badge,
@@ -300,6 +321,7 @@ class _PlanCard extends StatelessWidget {
     required this.onTap,
   });
 
+  final bool compact;
   final String title;
   final String price;
   final String? badge;
@@ -313,17 +335,17 @@ class _PlanCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 100,
+          height: compact ? 92 : 100,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
             border: isSelected
                 ? Border.all(color: const Color(0xFFDE106B), width: 2)
-                : Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+                : Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFDE106B).withOpacity(0.5),
+                      color: const Color(0xFFDE106B).withValues(alpha: 0.5),
                       blurRadius: 10,
                       spreadRadius: 0,
                     ),
@@ -347,9 +369,9 @@ class _PlanCard extends StatelessWidget {
                     ),
                     child: Text(
                       badge!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.black,
-                        fontSize: 8,
+                        fontSize: compact ? 7 : 8,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -359,21 +381,21 @@ class _PlanCard extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (badge != null) const SizedBox(height: 16),
+                    if (badge != null) SizedBox(height: compact ? 14 : 16),
                     Text(
                       price,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: compact ? 14 : 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: compact ? 3 : 4),
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: compact ? 13 : 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -389,27 +411,32 @@ class _PlanCard extends StatelessWidget {
 }
 
 class _FeatureComparisonTable extends StatelessWidget {
-  const _FeatureComparisonTable();
+  const _FeatureComparisonTable({required this.compact});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 12 : 16,
+              vertical: compact ? 12 : 16,
+            ),
             child: Row(
               children: [
                 const Expanded(flex: 3, child: SizedBox()),
-                _headerLabel('Standard'),
-                _headerLabel('Subscriber'),
-                _headerLabel('Creator'),
+                _headerLabel('Standard', compact),
+                _headerLabel('Subscriber', compact),
+                _headerLabel('Creator', compact),
               ],
             ),
           ),
@@ -419,17 +446,19 @@ class _FeatureComparisonTable extends StatelessWidget {
               padding: EdgeInsets.zero,
               children: [
                 _FeatureRow(
+                  compact: compact,
                   'Watch live content',
                   'Credit card',
                   'After 12 hours',
                   'Watch Instantly',
                 ),
-                _FeatureRow('Create Profile', false, true, true),
-                _FeatureRow('Verification', false, true, true),
-                _FeatureRow('Upload content', false, true, true),
-                _FeatureRow('Monetize content', false, false, true),
-                _FeatureRow('Offer subscriptions', false, false, true),
+                _FeatureRow('Create Profile', false, true, true, compact: compact),
+                _FeatureRow('Verification', false, true, true, compact: compact),
+                _FeatureRow('Upload content', false, true, true, compact: compact),
+                _FeatureRow('Monetize content', false, false, true, compact: compact),
+                _FeatureRow('Offer subscriptions', false, false, true, compact: compact),
                 _FeatureRow(
+                  compact: compact,
                   'Video Quality',
                   'SD (480p)',
                   'Full HD (1080p)',
@@ -443,15 +472,15 @@ class _FeatureComparisonTable extends StatelessWidget {
     );
   }
 
-  Widget _headerLabel(String label) {
+  Widget _headerLabel(String label, bool compact) {
     return Expanded(
       flex: 2,
       child: Text(
         label,
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 10,
+          fontSize: compact ? 9 : 10,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -460,26 +489,27 @@ class _FeatureComparisonTable extends StatelessWidget {
 }
 
 class _FeatureRow extends StatelessWidget {
-  const _FeatureRow(this.feature, this.standard, this.subscriber, this.creator);
+  const _FeatureRow(this.feature, this.standard, this.subscriber, this.creator, {required this.compact});
 
   final String feature;
   final dynamic standard;
   final dynamic subscriber;
   final dynamic creator;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16, vertical: compact ? 10 : 12),
       child: Row(
         children: [
           Expanded(
             flex: 3,
             child: Text(
               feature,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 12,
+                fontSize: compact ? 11 : 12,
                 fontWeight: FontWeight.w400,
               ),
             ),
@@ -496,15 +526,15 @@ class _FeatureRow extends StatelessWidget {
     Widget content;
     if (value is bool) {
       content = value
-          ? const Icon(Icons.check, color: Colors.white, size: 16)
-          : const Icon(Icons.close, color: Colors.white, size: 16);
+          ? Icon(Icons.check, color: Colors.white, size: compact ? 14 : 16)
+          : Icon(Icons.close, color: Colors.white, size: compact ? 14 : 16);
     } else {
       content = Text(
         value.toString(),
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 10,
+          fontSize: compact ? 9 : 10,
           fontWeight: FontWeight.w400,
         ),
       );
@@ -514,8 +544,14 @@ class _FeatureRow extends StatelessWidget {
 }
 
 class _UpgradeButton extends StatelessWidget {
-  const _UpgradeButton({required this.selectedIndex, required this.onPressed, this.isLoading = false});
+  const _UpgradeButton({
+    required this.compact,
+    required this.selectedIndex,
+    required this.onPressed,
+    this.isLoading = false,
+  });
 
+  final bool compact;
   final int selectedIndex;
   final VoidCallback onPressed;
   final bool isLoading;
@@ -527,19 +563,22 @@ class _UpgradeButton extends StatelessWidget {
       child: GestureDetector(
         onTap: isLoading ? null : onPressed,
         child: Container(
-          height: 48,
+          height: compact ? 44 : 48,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
           child: isLoading
               ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFDE106B))))
-              : const Row(
+              : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FaIcon(FontAwesomeIcons.crown, color: Color(0xFFDE106B), size: 18),
-                    SizedBox(width: 8),
-                    Text('Upgrade', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w700)),
+                    const FaIcon(FontAwesomeIcons.crown, color: Color(0xFFDE106B), size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Upgrade',
+                      style: TextStyle(color: Colors.black, fontSize: compact ? 16 : 18, fontWeight: FontWeight.w700),
+                    ),
                   ],
                 ),
         ),
