@@ -15,7 +15,7 @@ abstract final class AppConfig {
   /// RevenueCat public SDK keys (from RevenueCat dashboard).
   /// Keep these non-empty for real billing tests in TestFlight / Play internal testing.
   static const String revenueCatApplePublicKey = 'appl_vPZwqxiBnbyvgMUEvKURLKzCRpj';
-  static const String revenueCatGooglePublicKey = '';
+  static const String revenueCatGooglePublicKey = 'goog_ezkqGoMhvJvOfIAtlmQzbKKDNQB';
 
   /// When true and [pexelsApiKey] is set, reels feed falls back to Pexels when Firestore is empty.
   /// Get a free API key at https://www.pexels.com/api/
