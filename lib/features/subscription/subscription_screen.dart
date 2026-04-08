@@ -440,18 +440,21 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleSize = compact ? 10.0 : 11.0;
-    final priceSize = compact ? 13.0 : 15.0;
-    final metaSize = compact ? 8.5 : 9.5;
+    final titleSize = compact ? 11.0 : 12.0;
+    final priceSize = compact ? 14.0 : 16.0;
+    final metaSize = compact ? 9.0 : 10.0;
+    // Fixed height: a Stack with only Positioned children gets near-zero height inside a Row
+    // when vertical constraints are loose, which hid all plan text (badges still drew).
+    final cardHeight = compact ? 132.0 : 148.0;
 
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          constraints: BoxConstraints(minHeight: compact ? 118 : 128),
+          height: cardHeight,
           padding: EdgeInsets.symmetric(
             horizontal: compact ? 4 : 6,
-            vertical: compact ? 8 : 10,
+            vertical: compact ? 6 : 8,
           ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
@@ -469,12 +472,12 @@ class _PlanCard extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Stack(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (badge != null)
-                Positioned(
-                  top: 0,
-                  left: 0,
+                Align(
+                  alignment: Alignment.centerLeft,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -493,11 +496,13 @@ class _PlanCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              Positioned.fill(
-                child: Padding(
-                  padding: EdgeInsets.only(top: badge != null ? (compact ? 16 : 18) : 0),
+                )
+              else
+                SizedBox(height: compact ? 16 : 18),
+              Expanded(
+                child: Center(
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
