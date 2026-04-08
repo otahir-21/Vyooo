@@ -148,7 +148,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                  // Restore & Close
+                  // Restore & Close (stay pinned; rest scrolls)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
@@ -174,181 +174,180 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                       ],
                     ),
                   ),
-                  // Logo
-                      SizedBox(height: isCompact ? 16 : 24),
-                      Center(
-                        child: Text(
-                      'VyooO',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: logoSize,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -1,
-                          ),
-                        ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
                       ),
-
-                  // Title & Subtitle
-                      SizedBox(height: isCompact ? 30 : 48),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Text(
-                      'Choose your plan',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: titleSize,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: isCompact ? 8 : 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: subtitleSize,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-
-                  if (_fetchingOfferings) ...[
-                    SizedBox(height: isCompact ? 12 : 16),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24),
-                      child: LinearProgressIndicator(
-                        minHeight: 3,
-                        color: Color(0xFFDE106B),
-                        backgroundColor: Colors.white12,
-                      ),
-                    ),
-                  ],
-
-                  if (plansLoadFailed || offeringsUnreachable) ...[
-                    SizedBox(height: isCompact ? 12 : 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                offeringsUnreachable
-                                    ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
-                                    : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                  fontSize: isCompact ? 12.0 : 13.0,
-                                  height: 1.35,
-                                ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: isCompact ? 8 : 12),
+                          Center(
+                            child: Text(
+                              'VyooO',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: logoSize,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -1,
                               ),
-                              const SizedBox(height: 10),
-                              TextButton.icon(
-                                onPressed: _fetchingOfferings ? null : _loadOfferings,
-                                icon: const Icon(Icons.refresh, color: Color(0xFFDE106B), size: 20),
-                                label: const Text(
-                                  'Retry loading plans',
-                                  style: TextStyle(
-                                    color: Color(0xFFDE106B),
-                                    fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(height: isCompact ? 24 : 36),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              'Choose your plan',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: isCompact ? 8 : 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text(
+                              'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.8),
+                                fontSize: subtitleSize,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                          if (_fetchingOfferings) ...[
+                            SizedBox(height: isCompact ? 12 : 16),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 24),
+                              child: LinearProgressIndicator(
+                                minHeight: 3,
+                                color: Color(0xFFDE106B),
+                                backgroundColor: Colors.white12,
+                              ),
+                            ),
+                          ],
+                          if (plansLoadFailed || offeringsUnreachable) ...[
+                            SizedBox(height: isCompact ? 12 : 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        offeringsUnreachable
+                                            ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
+                                            : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(alpha: 0.9),
+                                          fontSize: isCompact ? 12.0 : 13.0,
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      TextButton.icon(
+                                        onPressed: _fetchingOfferings ? null : _loadOfferings,
+                                        icon: const Icon(Icons.refresh, color: Color(0xFFDE106B), size: 20),
+                                        label: const Text(
+                                          'Retry loading plans',
+                                          style: TextStyle(
+                                            color: Color(0xFFDE106B),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
+                          ],
+                          SizedBox(height: sectionGap),
+                          _PlanCardsRow(
+                            compact: isCompact,
+                            selectedIndex: _selectedIndex,
+                            onSelect: (i) => setState(() => _selectedIndex = i),
+                            standardPkg: standardPkg,
+                            subscriberPkg: subscriberPkg,
+                            creatorPkg: creatorPkg,
                           ),
-                        ),
+                          SizedBox(height: tableGap),
+                          _FeatureComparisonTable(compact: isCompact),
+                          SizedBox(height: isCompact ? 16 : 20),
+                          _UpgradeButton(
+                            compact: isCompact,
+                            selectedIndex: _selectedIndex,
+                            isLoading: isPurchasing,
+                            onPressed: () => _handlePurchase(
+                              controller,
+                              selectedIndex: _selectedIndex,
+                              standardPkg: standardPkg,
+                              subscriberPkg: subscriberPkg,
+                              creatorPkg: creatorPkg,
+                            ),
+                          ),
+                          SizedBox(height: isCompact ? 10 : 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: _SubscriptionLegalFooter(
+                              fontSize: legalSize,
+                              isPaidPlanSelected: isPaidPlanSelected,
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: isCompact ? 8 : 10,
+                              bottom: isCompact ? 24 : 32,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TextButton(
+                                  onPressed: () => _openExternalUrl(AppLinks.privacyPolicy),
+                                  child: Text(
+                                    'Privacy Policy',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: legalSize + 1,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white54,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '·',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    fontSize: legalSize + 2,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _openExternalUrl(AppLinks.termsOfUse),
+                                  child: Text(
+                                    'Terms of Use',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      fontSize: legalSize + 1,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white54,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-
-                  // Plan Cards
-                      SizedBox(height: sectionGap),
-                  _PlanCardsRow(
-                        compact: isCompact,
-                    selectedIndex: _selectedIndex,
-                    onSelect: (i) => setState(() => _selectedIndex = i),
-                    standardPkg: standardPkg,
-                    subscriberPkg: subscriberPkg,
-                    creatorPkg: creatorPkg,
-                  ),
-
-                  // Comparison Table
-                      SizedBox(height: tableGap),
-                      Expanded(child: _FeatureComparisonTable(compact: isCompact)),
-
-                  // Bottom Action
-                      SizedBox(height: isCompact ? 12 : 16),
-                  _UpgradeButton(
-                        compact: isCompact,
-                    selectedIndex: _selectedIndex,
-                    isLoading: isPurchasing,
-                    onPressed: () => _handlePurchase(
-                      controller,
-                      selectedIndex: _selectedIndex,
-                      standardPkg: standardPkg,
-                      subscriberPkg: subscriberPkg,
-                      creatorPkg: creatorPkg,
-                    ),
-                  ),
-
-                  // Legal: auto-renew disclosure + functional Privacy / Terms (Guideline 3.1.2)
-                      SizedBox(height: isCompact ? 10 : 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: _SubscriptionLegalFooter(
-                      fontSize: legalSize,
-                      isPaidPlanSelected: isPaidPlanSelected,
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.only(
-                      top: isCompact ? 8 : 10,
-                      bottom: isCompact ? 12 : 20,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        TextButton(
-                          onPressed: () => _openExternalUrl(AppLinks.privacyPolicy),
-                          child: Text(
-                            'Privacy Policy',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: legalSize + 1,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.white54,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '·',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            fontSize: legalSize + 2,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => _openExternalUrl(AppLinks.termsOfUse),
-                          child: Text(
-                            'Terms of Use',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: legalSize + 1,
-                              decoration: TextDecoration.underline,
-                              decorationColor: Colors.white54,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                     ],
@@ -696,31 +695,26 @@ class _FeatureComparisonTable extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: Colors.white12),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _FeatureRow(
-                  compact: compact,
-                  'Watch live content',
-                  'Credit card',
-                  'After 12 hours',
-                  'Watch Instantly',
-                ),
-                _FeatureRow('Create Profile', false, true, true, compact: compact),
-                _FeatureRow('Verification', false, true, true, compact: compact),
-                _FeatureRow('Upload content', false, true, true, compact: compact),
-                _FeatureRow('Monetize content', false, false, true, compact: compact),
-                _FeatureRow('Offer subscriptions', false, false, true, compact: compact),
-                _FeatureRow(
-                  compact: compact,
-                  'Video Quality',
-                  'SD (480p)',
-                  'Full HD (1080p)',
-                  'Upto 4K',
-                ),
-              ],
-            ),
+          // Intrinsic-height rows: parent [SingleChildScrollView] scrolls the full list
+          // (Monetize / Offer subscriptions / Video Quality, etc.).
+          _FeatureRow(
+            compact: compact,
+            'Watch live content',
+            'Credit card',
+            'After 12 hours',
+            'Watch Instantly',
+          ),
+          _FeatureRow('Create Profile', false, true, true, compact: compact),
+          _FeatureRow('Verification', false, true, true, compact: compact),
+          _FeatureRow('Upload content', false, true, true, compact: compact),
+          _FeatureRow('Monetize content', false, false, true, compact: compact),
+          _FeatureRow('Offer subscriptions', false, false, true, compact: compact),
+          _FeatureRow(
+            compact: compact,
+            'Video Quality',
+            'SD (480p)',
+            'Full HD (1080p)',
+            'Upto 4K',
           ),
         ],
       ),
