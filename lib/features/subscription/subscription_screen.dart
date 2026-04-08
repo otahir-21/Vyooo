@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/app_links.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/subscription/subscription_package_mapper.dart';
 
@@ -73,6 +75,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
   }
 
+  Future<void> _openExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open link.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<SubscriptionController>();
@@ -89,6 +101,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       subscriberPkg = mapped.subscriber;
       creatorPkg = mapped.creator;
     }
+
+    final selectedForDisclosure = _selectedIndex == 0
+        ? standardPkg
+        : _selectedIndex == 1
+            ? subscriberPkg
+            : creatorPkg;
+    final isPaidPlanSelected =
+        selectedForDisclosure != null && selectedForDisclosure.storeProduct.price > 0;
 
     return Scaffold(
       body: Stack(
@@ -194,12 +214,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         compact: isCompact,
                     selectedIndex: _selectedIndex,
                     onSelect: (i) => setState(() => _selectedIndex = i),
-                    standardPrice:
-                        standardPkg?.storeProduct.priceString ?? 'FREE',
-                    subscriberPrice:
-                        subscriberPkg?.storeProduct.priceString ?? '\$4.99/M',
-                    creatorPrice:
-                        creatorPkg?.storeProduct.priceString ?? '\$19.99/M',
+                    standardPkg: standardPkg,
+                    subscriberPkg: subscriberPkg,
+                    creatorPkg: creatorPkg,
                   ),
 
                   // Comparison Table
@@ -221,20 +238,57 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                     ),
                   ),
 
-                  // Legal text
+                  // Legal: auto-renew disclosure + functional Privacy / Terms (Guideline 3.1.2)
                       SizedBox(height: isCompact ? 10 : 16),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      'By tapping Continue, you will be charged, your subscription will auto-renew for the same price and package length until you cancel via App Store settings, and you agree to our Terms.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: legalSize,
-                      ),
+                    child: _SubscriptionLegalFooter(
+                      fontSize: legalSize,
+                      isPaidPlanSelected: isPaidPlanSelected,
                     ),
                   ),
-                      SizedBox(height: isCompact ? 14 : 24),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: isCompact ? 8 : 10,
+                      bottom: isCompact ? 12 : 20,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => _openExternalUrl(AppLinks.privacyPolicy),
+                          child: Text(
+                            'Privacy Policy',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: legalSize + 1,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white54,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '·',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: legalSize + 2,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _openExternalUrl(AppLinks.termsOfUse),
+                          child: Text(
+                            'Terms of Use',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: legalSize + 1,
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white54,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                     ],
                   );
                 },
@@ -259,36 +313,41 @@ class _PlanCardsRow extends StatelessWidget {
     required this.compact,
     required this.selectedIndex,
     required this.onSelect,
-    required this.standardPrice,
-    required this.subscriberPrice,
-    required this.creatorPrice,
+    required this.standardPkg,
+    required this.subscriberPkg,
+    required this.creatorPkg,
   });
 
   final bool compact;
   final int selectedIndex;
   final ValueChanged<int> onSelect;
-  final String standardPrice;
-  final String subscriberPrice;
-  final String creatorPrice;
+  final Package? standardPkg;
+  final Package? subscriberPkg;
+  final Package? creatorPkg;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _PlanCard(
             compact: compact,
-            title: 'Standard',
-            price: standardPrice,
+            displayTitle: _planTitle(standardPkg, 'Standard'),
+            priceLine: _priceLine(standardPkg, fallback: 'FREE'),
+            periodLine: _periodLine(standardPkg, isFreeFallback: true),
+            pricePerUnitLine: _pricePerMonthLine(standardPkg),
             isSelected: selectedIndex == 0,
             onTap: () => onSelect(0),
           ),
           SizedBox(width: compact ? 6 : 8),
           _PlanCard(
             compact: compact,
-            title: 'Subscriber',
-            price: subscriberPrice,
+            displayTitle: _planTitle(subscriberPkg, 'Subscriber'),
+            priceLine: _priceLine(subscriberPkg, fallback: '—'),
+            periodLine: _periodLine(subscriberPkg),
+            pricePerUnitLine: _pricePerMonthLine(subscriberPkg),
             badge: 'Popular',
             badgeColor: const Color(0xFF22C55E),
             isSelected: selectedIndex == 1,
@@ -297,8 +356,10 @@ class _PlanCardsRow extends StatelessWidget {
           SizedBox(width: compact ? 6 : 8),
           _PlanCard(
             compact: compact,
-            title: 'Creator',
-            price: creatorPrice,
+            displayTitle: _planTitle(creatorPkg, 'Creator'),
+            priceLine: _priceLine(creatorPkg, fallback: '—'),
+            periodLine: _periodLine(creatorPkg),
+            pricePerUnitLine: _pricePerMonthLine(creatorPkg),
             badge: 'Best value',
             badgeColor: const Color(0xFFFACC15),
             isSelected: selectedIndex == 2,
@@ -308,13 +369,58 @@ class _PlanCardsRow extends StatelessWidget {
       ),
     );
   }
+
+  static String _planTitle(Package? pkg, String fallbackLabel) {
+    final t = pkg?.storeProduct.title.trim();
+    if (t == null || t.isEmpty) return fallbackLabel;
+    return t;
+  }
+
+  static String _priceLine(Package? pkg, {required String fallback}) {
+    return pkg?.storeProduct.priceString ?? fallback;
+  }
+
+  static String? _periodLine(Package? pkg, {bool isFreeFallback = false}) {
+    final p = pkg?.storeProduct.subscriptionPeriod;
+    final label = subscriptionPeriodDisplay(p);
+    if (label != null) return label;
+    if (isFreeFallback) return 'No recurring subscription';
+    return null;
+  }
+
+  static String? _pricePerMonthLine(Package? pkg) {
+    if (pkg == null) return null;
+    final s = pkg.storeProduct.pricePerMonthString;
+    if (s == null || s.isEmpty) return null;
+    if (pkg.storeProduct.price <= 0) return null;
+    return '$s / mo';
+  }
+}
+
+/// ISO 8601 duration from StoreKit / Play (e.g. P1M, P1Y).
+String? subscriptionPeriodDisplay(String? iso) {
+  if (iso == null || iso.isEmpty) return null;
+  final m = RegExp(r'^P(\d+)([DMWY])$').firstMatch(iso);
+  if (m == null) return iso;
+  final n = int.tryParse(m.group(1)!) ?? 1;
+  final u = m.group(2)!;
+  final unit = switch (u) {
+    'D' => n == 1 ? 'day' : 'days',
+    'W' => n == 1 ? 'week' : 'weeks',
+    'M' => n == 1 ? 'month' : 'months',
+    'Y' => n == 1 ? 'year' : 'years',
+    _ => '',
+  };
+  return n == 1 ? '1 $unit' : '$n $unit';
 }
 
 class _PlanCard extends StatelessWidget {
   const _PlanCard({
     required this.compact,
-    required this.title,
-    required this.price,
+    required this.displayTitle,
+    required this.priceLine,
+    this.periodLine,
+    this.pricePerUnitLine,
     this.badge,
     this.badgeColor,
     required this.isSelected,
@@ -322,8 +428,11 @@ class _PlanCard extends StatelessWidget {
   });
 
   final bool compact;
-  final String title;
-  final String price;
+  /// Store product title when available (Apple subscription display name).
+  final String displayTitle;
+  final String priceLine;
+  final String? periodLine;
+  final String? pricePerUnitLine;
   final String? badge;
   final Color? badgeColor;
   final bool isSelected;
@@ -331,11 +440,19 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleSize = compact ? 10.0 : 11.0;
+    final priceSize = compact ? 13.0 : 15.0;
+    final metaSize = compact ? 8.5 : 9.5;
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: compact ? 92 : 100,
+          constraints: BoxConstraints(minHeight: compact ? 118 : 128),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 4 : 6,
+            vertical: compact ? 8 : 10,
+          ),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(8),
@@ -356,8 +473,8 @@ class _PlanCard extends StatelessWidget {
             children: [
               if (badge != null)
                 Positioned(
-                  top: 8,
-                  left: 8,
+                  top: 0,
+                  left: 0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,
@@ -377,34 +494,105 @@ class _PlanCard extends StatelessWidget {
                     ),
                   ),
                 ),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (badge != null) SizedBox(height: compact ? 14 : 16),
-                    Text(
-                      price,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: compact ? 14 : 16,
-                        fontWeight: FontWeight.w700,
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.only(top: badge != null ? (compact ? 16 : 18) : 0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        displayTitle,
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.w600,
+                          height: 1.15,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: compact ? 3 : 4),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: compact ? 13 : 14,
-                        fontWeight: FontWeight.w600,
+                      SizedBox(height: compact ? 6 : 8),
+                      Text(
+                        priceLine,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: priceSize,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                      if (periodLine != null) ...[
+                        SizedBox(height: compact ? 3 : 4),
+                        Text(
+                          periodLine!,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.72),
+                            fontSize: metaSize,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                      if (pricePerUnitLine != null) ...[
+                        SizedBox(height: compact ? 2 : 3),
+                        Text(
+                          pricePerUnitLine!,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: compact ? 8 : 9,
+                            height: 1.2,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SubscriptionLegalFooter extends StatelessWidget {
+  const _SubscriptionLegalFooter({
+    required this.fontSize,
+    required this.isPaidPlanSelected,
+  });
+
+  final double fontSize;
+  final bool isPaidPlanSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final body = isPaidPlanSelected
+        ? 'When you continue, a subscription purchase may be completed. '
+            'The price and billing period for each plan are shown above. '
+            'Payment is charged to your Apple ID. The subscription renews automatically '
+            'for the same price and duration until you turn off auto-renew in '
+            'Settings → Apple ID → Subscriptions at least 24 hours before the period ends.'
+        : 'Standard may be offered at no charge. Subscriber and Creator are auto-renewing '
+            'subscriptions: price and period are shown above. When you purchase a paid plan, '
+            'payment is charged to your Apple ID and the subscription renews until canceled '
+            'in Settings → Apple ID → Subscriptions.';
+
+    return Text(
+      body,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.55),
+        fontSize: fontSize,
+        height: 1.35,
       ),
     );
   }
