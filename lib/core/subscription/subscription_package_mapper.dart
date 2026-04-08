@@ -7,6 +7,18 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 class SubscriptionPackageMapper {
   SubscriptionPackageMapper._();
 
+  /// [Offerings.current], or the `default` offering, or the first entry in [Offerings.all].
+  ///
+  /// Use this when [Offerings.current] is null but packages exist under `default` in RevenueCat.
+  static Offering? resolveCurrentOffering(Offerings? offerings) {
+    if (offerings == null) return null;
+    if (offerings.current != null) return offerings.current;
+    final def = offerings.getOffering('default');
+    if (def != null) return def;
+    if (offerings.all.isEmpty) return null;
+    return offerings.all.values.first;
+  }
+
   /// App Store subscription product IDs (App Store Connect → Subscriptions).
   static const String storeProductStandard = 'vyooo_standard_monthly';
   static const String storeProductSubscriber = 'subscriber_plan_month';
