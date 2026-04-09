@@ -5,6 +5,8 @@ import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import 'email_otp_service.dart';
+
 /// Result of an auth operation. No raw Firebase exceptions exposed to UI.
 class AuthResult {
   const AuthResult({required this.success, this.message, this.user});
@@ -91,6 +93,34 @@ class AuthService {
     }
   }
 
+  /// Sends a 4-digit OTP to the signed-in user's email (Firestore trigger + Resend).
+  Future<AuthResult> sendSignupEmailOtp() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult(success: false, message: 'No user signed in.');
+      }
+      await EmailOtpService().requestSendOtp();
+      return AuthResult(success: true, user: user);
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
+  /// Verifies the email OTP and sets [emailOtpVerified] on the user profile (server).
+  Future<AuthResult> verifySignupEmailOtp(String code) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult(success: false, message: 'No user signed in.');
+      }
+      await EmailOtpService().verifyOtp(code);
+      return AuthResult(success: true, user: user);
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
   /// Confirm password reset using the code from the reset email link.
   Future<AuthResult> confirmPasswordReset({
     required String oobCode,
@@ -104,15 +134,6 @@ class AuthService {
     } catch (e) {
       return AuthResult(success: false, message: _genericMessage(e));
     }
-  }
-
-  /// Placeholder for phone or backend OTP verification. Implement when needed.
-  Future<AuthResult> verifyOTP({String? verificationId, String? code}) async {
-    // TODO: implement verifyPhoneNumber / signInWithCredential or backend OTP
-    return const AuthResult(
-      success: false,
-      message: 'OTP verification not implemented yet.',
-    );
   }
 
   /// Sign in with Apple ID (iOS). Uses Firebase OAuth + nonce for security.
@@ -209,7 +230,10 @@ class AuthService {
   }
 
   static String _genericMessage(Object e) {
-    final s = e.toString();
+    var s = e.toString();
+    if (s.startsWith('Exception: ')) {
+      s = s.substring('Exception: '.length);
+    }
     if (s.isEmpty) return 'Something went wrong. Please try again.';
     return s;
   }

@@ -21,7 +21,8 @@ service cloud.firestore {
         'createdAt',
         'following',
         'blockedUsers',
-        'followersCount'
+        'followersCount',
+        'emailOtpVerified'
       ]) &&
       request.resource.data.uid == userId &&
       request.resource.data.email is string &&
@@ -33,7 +34,16 @@ service cloud.firestore {
       request.resource.data.createdAt is timestamp &&
       request.resource.data.following is list &&
       request.resource.data.blockedUsers is list &&
-      request.resource.data.followersCount is int;
+      request.resource.data.followersCount is int &&
+      (!('emailOtpVerified' in request.resource.data) ||
+        request.resource.data.emailOtpVerified is bool);
+    }
+
+    // Clients cannot set or flip emailOtpVerified; only Cloud Functions (Admin SDK) may.
+    function emailOtpVerifiedUnchanged() {
+      return !('emailOtpVerified' in resource.data)
+        ? !('emailOtpVerified' in request.resource.data)
+        : request.resource.data.emailOtpVerified == resource.data.emailOtpVerified;
     }
 
     // ── Token requests (Firestore-based Agora token generation) ───────────────
@@ -55,7 +65,8 @@ service cloud.firestore {
                     && request.resource.data.followersCount == 0;
       allow update: if isOwner(userId)
                     && validUserDoc(userId)
-                    && request.resource.data.followersCount == resource.data.followersCount;
+                    && request.resource.data.followersCount == resource.data.followersCount
+                    && emailOtpVerifiedUnchanged();
       allow delete: if isOwner(userId);
     }
 
@@ -95,6 +106,25 @@ service cloud.firestore {
     match /cloudflare_upload_requests/{id} {
       allow create: if isSignedIn()
                     && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    // Email OTP (Firestore-triggered Cloud Functions; same pattern as token_requests).
+    match /email_otp_send_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /email_otp_verify_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.code is string
+                    && request.resource.data.code.matches('^[0-9]{4}$');
       allow read, delete: if isSignedIn()
                           && resource.data.userId == request.auth.uid;
       allow update: if false;

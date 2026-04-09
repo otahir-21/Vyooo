@@ -284,6 +284,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onTabChanged(HomeTab tab) {
+    if (tab == HomeTab.vr) {
+      final hasVrAccess = context.read<SubscriptionController>().hasVRAccess;
+      if (!hasVrAccess) {
+        final bg = _currentIndex < _currentReels.length
+            ? (_currentReels[_currentIndex]['thumbnailUrl'] as String?)
+            : null;
+        showVrLockedOverlaySheet(context, backgroundImageUrl: bg);
+        return;
+      }
+    }
     _jumpPageControllerToStart();
     setState(() {
       currentTab = tab;

@@ -31,7 +31,12 @@ class UserService {
 
   static const String _usersCollection = 'users';
 
-  static Map<String, dynamic> _initialUserData(String uid, String email) => {
+  static Map<String, dynamic> _initialUserData(
+    String uid,
+    String email, {
+    required bool emailOtpVerified,
+  }) =>
+      {
         'uid': uid,
         'email': email,
         'username': '',
@@ -39,6 +44,7 @@ class UserService {
         'profileImage': '',
         'interests': [],
         'onboardingCompleted': false,
+        'emailOtpVerified': emailOtpVerified,
         'createdAt': FieldValue.serverTimestamp(),
         'following': <String>[],
         'blockedUsers': <String>[],
@@ -52,7 +58,7 @@ class UserService {
   }) async {
     try {
       await _firestore.collection(_usersCollection).doc(uid).set(
-            _initialUserData(uid, email),
+            _initialUserData(uid, email, emailOtpVerified: false),
           );
     } catch (e) {
       rethrow;
@@ -68,7 +74,9 @@ class UserService {
       final docRef = _firestore.collection(_usersCollection).doc(uid);
       final doc = await docRef.get();
       if (!doc.exists) {
-        await docRef.set(_initialUserData(uid, email));
+        await docRef.set(
+          _initialUserData(uid, email, emailOtpVerified: true),
+        );
       }
     } catch (e) {
       rethrow;
@@ -86,7 +94,9 @@ class UserService {
   }) async {
     try {
       final data = <String, dynamic>{};
-      if (username != null) data['username'] = username;
+      if (username != null) {
+        data['username'] = username.trim().toLowerCase();
+      }
       if (dob != null) data['dob'] = dob;
       if (profileImage != null) data['profileImage'] = profileImage;
       if (interests != null) data['interests'] = interests;

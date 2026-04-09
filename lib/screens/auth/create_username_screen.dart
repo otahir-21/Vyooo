@@ -6,7 +6,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
-import '../../services/mock_username_service.dart';
+import '../../services/firestore_username_service.dart';
 import '../../services/username_service.dart';
 import '../../services/username_validation.dart';
 import '../onboarding/select_dob_screen.dart';
@@ -28,11 +28,12 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
 
   late final TextEditingController _usernameController;
   Timer? _debounceTimer;
+  StreamSubscription<UsernameCheckResult>? _availabilitySub;
   bool _isChecking = false;
   bool? _available;
   List<String> _suggestions = [];
   UsernameService get _usernameService =>
-      widget.usernameService ?? MockUsernameService();
+      widget.usernameService ?? FirestoreUsernameService();
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _availabilitySub?.cancel();
     _usernameController.removeListener(_onUsernameChanged);
     _usernameController.dispose();
     super.dispose();
@@ -63,44 +65,63 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     _availabilityFromLength(normalized.length);
     if (UsernameValidation.shouldCheckAvailability(normalized)) {
       _debounceTimer?.cancel();
-      _debounceTimer = Timer(
-        _debounceDuration,
-        () => _checkAvailability(normalized),
-      );
+      _debounceTimer = Timer(_debounceDuration, () {
+        final latest = UsernameValidation.normalize(_usernameController.text);
+        if (!UsernameValidation.shouldCheckAvailability(latest)) return;
+        _restartAvailabilityWatch(latest);
+      });
     }
   }
 
   void _availabilityFromLength(int length) {
     if (length < UsernameValidation.minLengthForCheck) {
+      _debounceTimer?.cancel();
+      _availabilitySub?.cancel();
+      _availabilitySub = null;
       setState(() {
         _available = null;
         _suggestions = [];
+        _isChecking = false;
       });
     }
   }
 
-  Future<void> _checkAvailability(String username) async {
+  void _restartAvailabilityWatch(String normalized) {
+    _availabilitySub?.cancel();
+    _availabilitySub = null;
+    if (!UsernameValidation.shouldCheckAvailability(normalized)) {
+      return;
+    }
+    final uid = AuthService().currentUser?.uid ?? '';
     setState(() {
       _isChecking = true;
       _available = null;
       _suggestions = [];
     });
-    try {
-      final result = await _usernameService.checkAvailability(username);
-      if (!mounted) return;
-      setState(() {
-        _isChecking = false;
-        _available = result.available;
-        _suggestions = result.suggestions;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isChecking = false;
-        _available = null;
-        _suggestions = [];
-      });
-    }
+    _availabilitySub = _usernameService
+        .watchAvailability(normalized, excludeUid: uid)
+        .listen(
+      (result) {
+        if (!mounted) return;
+        final current = UsernameValidation.normalize(_usernameController.text);
+        if (current != normalized) return;
+        setState(() {
+          _isChecking = false;
+          _available = result.available;
+          _suggestions = result.suggestions;
+        });
+      },
+      onError: (_) {
+        if (!mounted) return;
+        final current = UsernameValidation.normalize(_usernameController.text);
+        if (current != normalized) return;
+        setState(() {
+          _isChecking = false;
+          _available = null;
+          _suggestions = [];
+        });
+      },
+    );
   }
 
   void _applySuggestion(String suggestion) {
@@ -109,13 +130,16 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       ..text = suggestion
       ..selection = TextSelection.collapsed(offset: suggestion.length)
       ..addListener(_onUsernameChanged);
-    _checkAvailability(suggestion);
+    _restartAvailabilityWatch(UsernameValidation.normalize(suggestion));
   }
 
-  /// Allow Next when username has valid format (3+ chars, letters/numbers/underscore).
-  /// Availability check is for UI feedback only; don't block navigation.
-  bool get _isUsernameValid =>
-      UsernameValidation.isValidFormat(_usernameController.text.trim());
+  /// Valid format, finished checking, and available (realtime Firestore).
+  bool get _isUsernameValid {
+    final text = _usernameController.text.trim();
+    if (!UsernameValidation.isValidFormat(text)) return false;
+    if (_isChecking) return false;
+    return _available == true;
+  }
 
   // Future<void> _logout(BuildContext context) async {
   //   await AuthService().signOut();
@@ -291,10 +315,13 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         ),
         const SizedBox(height: 8),
         _buildUsernameInput(),
-        if (_available == false && _usernameController.text.isNotEmpty) ...[
+        if (_available == false &&
+            UsernameValidation.shouldCheckAvailability(
+              UsernameValidation.normalize(_usernameController.text),
+            )) ...[
           const SizedBox(height: 8),
           Text(
-            'The Username ${_usernameController.text} is not available',
+            'This username is not available (someone else may have just taken it)',
             style: const TextStyle(
               fontSize: 12,
               color: Colors.red,

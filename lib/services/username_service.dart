@@ -16,4 +16,11 @@ abstract class UsernameService {
   /// Returns availability and optional suggestions when unavailable.
   /// Only call when username length >= 3 and passes validation.
   Future<UsernameCheckResult> checkAvailability(String username);
+
+  /// Realtime Firestore stream: emits when another user claims [username].
+  /// [excludeUid] is the current account — that user's document does not count as "taken".
+  Stream<UsernameCheckResult> watchAvailability(
+    String username, {
+    required String excludeUid,
+  });
 }

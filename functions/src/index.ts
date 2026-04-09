@@ -1,4 +1,6 @@
+import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
@@ -18,6 +20,47 @@ const HIVE_API_KEY = process.env.HIVE_API_KEY ?? '';
 const HIVE_SYNC_URL = 'https://api.thehive.ai/api/v2/task/sync';
 const HIVE_BLOCK_THRESHOLD = 0.95;
 const HIVE_REVIEW_THRESHOLD = 0.90;
+
+// Resend (email OTP). Set RESEND_API_KEY in environment (e.g. functions/.env.vyooov1 — gitignored).
+// Set RESEND_FROM_EMAIL to an address on your verified domain (e.g. noreply@vyooo.com). If you omit it,
+// the default onboarding@resend.dev sender applies — Resend then only allows "test" recipients (account email).
+const RESEND_API_KEY = (process.env.RESEND_API_KEY ?? '').trim();
+const RESEND_FROM_EMAIL = (
+  process.env.RESEND_FROM_EMAIL ?? 'Vyooo <onboarding@resend.dev>'
+).trim();
+
+function parseResendFailureMessage(status: number, body: string): string {
+  try {
+    const j = JSON.parse(body) as { message?: unknown };
+    const m = typeof j.message === 'string' ? j.message.trim() : '';
+    if (m.length > 0) {
+      return m.length <= 400 ? m : `${m.slice(0, 397)}…`;
+    }
+  } catch {
+    /* not JSON */
+  }
+  if (status === 401 || status === 403) {
+    return 'Email service rejected the request. Check RESEND_API_KEY.';
+  }
+  if (status === 422) {
+    return (
+      'Invalid email request. Verify a domain at resend.com/domains and set RESEND_FROM_EMAIL to an address ' +
+      'on that domain (required to deliver OTP to any inbox).'
+    );
+  }
+  return `Could not send email (HTTP ${status}).`;
+}
+
+const EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
+const EMAIL_OTP_MAX_ATTEMPTS = 8;
+const EMAIL_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+
+function hashEmailOtp(uid: string, plain: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`vyooo-otp-v1:${RESEND_API_KEY}:${uid}:${plain}`, 'utf8')
+    .digest('hex');
+}
 
 // ── generateAgoraTokenOnRequest ────────────────────────────────────────────────
 /**
@@ -358,5 +401,208 @@ export const moderateReelOnCreate = onDocumentCreated(
         { merge: true },
       );
     }
+  },
+);
+
+// ── Email signup OTP (Resend) — Firestore-triggered (no Cloud Run `allUsers` invoker) ──
+// Same pattern as generateAgoraTokenOnRequest: org policy blocks public IAM on HTTP callables.
+
+/**
+ * Client creates: email_otp_send_requests/{id}  { userId, status: 'pending', createdAt }
+ * Function writes:   { status: 'done' }  or  { status: 'error', error }
+ */
+export const processEmailOtpSendRequest = onDocumentCreated(
+  {
+    document: 'email_otp_send_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const markError = async (msg: string) => {
+      await snap.ref.update({ status: 'error', error: msg });
+    };
+
+    if (!RESEND_API_KEY) {
+      await markError('Email delivery is not configured.');
+      return;
+    }
+
+    const raw = snap.data() as { userId?: unknown };
+    const uid =
+      typeof raw.userId === 'string'
+        ? raw.userId.trim()
+        : typeof raw.userId === 'number'
+          ? String(raw.userId)
+          : '';
+    if (!uid) {
+      await markError('Invalid request.');
+      return;
+    }
+
+    const db = admin.firestore();
+    const userDoc = await db.collection('users').doc(uid).get();
+    const profile = userDoc.data() as
+      | { email?: unknown; emailOtpVerified?: unknown }
+      | undefined;
+
+    // Resolve email + password provider via Auth; fall back to Firestore profile when
+    // getUser fails (e.g. transient API errors). Client rules ensure userId matches signer;
+    // emailOtpVerified === false means email/password signup path.
+    let email = '';
+    let isPasswordSignup = false;
+
+    try {
+      const userRecord = await getAuth().getUser(uid);
+      email = (userRecord.email ?? '').trim();
+      isPasswordSignup = userRecord.providerData.some((p) => p.providerId === 'password');
+    } catch (e: unknown) {
+      console.error('processEmailOtpSendRequest getUser failed', uid, e);
+      const emailFromDoc =
+        typeof profile?.email === 'string' ? profile.email.trim() : '';
+      if (emailFromDoc.includes('@') && userDoc.exists) {
+        email = emailFromDoc;
+        // Fallback path for transient Auth Admin lookup failures:
+        // this request can only be created by the signed-in user for their own uid.
+        isPasswordSignup = true;
+      } else {
+        const code =
+          e && typeof e === 'object' && 'code' in e
+            ? String((e as { code: unknown }).code)
+            : '';
+        if (code === 'auth/user-not-found') {
+          await markError('Account not found.');
+        } else {
+          await markError('Could not verify account. Try again in a moment.');
+        }
+        return;
+      }
+    }
+
+    if (!email) {
+      await markError('No email on this account.');
+      return;
+    }
+    if (!isPasswordSignup) {
+      await markError('Email verification not required.');
+      return;
+    }
+
+    const challengeRef = db.collection('email_otp_challenges').doc(uid);
+    const challengeSnap = await challengeRef.get();
+    const now = Date.now();
+    if (challengeSnap.exists) {
+      const last = challengeSnap.data()?.lastSentAt as admin.firestore.Timestamp | undefined;
+      if (last && now - last.toMillis() < EMAIL_OTP_RESEND_COOLDOWN_MS) {
+        await markError('Please wait a moment before requesting a new code.');
+        return;
+      }
+    }
+
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const codeHash = hashEmailOtp(uid, code);
+    await challengeRef.set({
+      codeHash,
+      expiresAt: admin.firestore.Timestamp.fromMillis(now + EMAIL_OTP_TTL_MS),
+      attempts: 0,
+      lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM_EMAIL,
+        to: [email],
+        subject: 'Your Vyooo verification code',
+        text: `Your Vyooo verification code is: ${code}. It expires in 10 minutes.`,
+        html: `<p>Your verification code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:6px;">${code}</p><p>This code expires in 10 minutes.</p>`,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error('Resend error', res.status, errBody);
+      await challengeRef.delete();
+      await markError(parseResendFailureMessage(res.status, errBody));
+      return;
+    }
+
+    await snap.ref.update({ status: 'done' });
+  },
+);
+
+/**
+ * Client creates: email_otp_verify_requests/{id}  { userId, code, status: 'pending', createdAt }
+ * Function writes:   { status: 'done' }  or  { status: 'error', error }
+ */
+export const processEmailOtpVerifyRequest = onDocumentCreated(
+  {
+    document: 'email_otp_verify_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const markError = async (msg: string) => {
+      await snap.ref.update({ status: 'error', error: msg });
+    };
+
+    if (!RESEND_API_KEY) {
+      await markError('Email delivery is not configured.');
+      return;
+    }
+
+    const raw = snap.data() as { userId?: unknown; code?: unknown };
+    const uid = typeof raw.userId === 'string' ? raw.userId : '';
+    const code =
+      typeof raw.code === 'string' ? raw.code.replace(/\D/g, '').slice(0, 4) : '';
+    if (!uid || code.length !== 4) {
+      await markError('Enter the 4-digit code.');
+      return;
+    }
+
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const challengeRef = db.collection('email_otp_challenges').doc(uid);
+    const challengeSnap = await challengeRef.get();
+    if (!challengeSnap.exists) {
+      await markError('No active code. Request a new one.');
+      return;
+    }
+
+    const data = challengeSnap.data()!;
+    const expiresAt = data.expiresAt as admin.firestore.Timestamp;
+    if (expiresAt.toMillis() < Date.now()) {
+      await challengeRef.delete();
+      await markError('Code expired. Request a new one.');
+      return;
+    }
+
+    let attempts = (data.attempts as number) ?? 0;
+    if (attempts >= EMAIL_OTP_MAX_ATTEMPTS) {
+      await challengeRef.delete();
+      await markError('Too many attempts. Request a new code.');
+      return;
+    }
+
+    const expectedHash = data.codeHash as string;
+    if (hashEmailOtp(uid, code) !== expectedHash) {
+      attempts += 1;
+      await challengeRef.update({ attempts });
+      await markError('Invalid code.');
+      return;
+    }
+
+    await userRef.set({ emailOtpVerified: true }, { merge: true });
+    await challengeRef.delete();
+    await snap.ref.update({ status: 'done' });
   },
 );

@@ -134,7 +134,7 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 40.0, right: 40),
+                    padding: const EdgeInsets.only(left: 5.0, right: 5),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -189,13 +189,15 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
   }
 
   Widget _buildTitleSection() {
+    final height = MediaQuery.sizeOf(context).height;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "What's your vibe?",
           style: TextStyle(
-            fontSize: 52,
+            fontSize: height * 0.05,
             fontWeight: FontWeight.w700,
             color: AppTheme.defaultTextColor,
           ),

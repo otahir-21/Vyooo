@@ -6,7 +6,6 @@ import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'sign_in_screen.dart';
-import 'verify_code_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -406,9 +405,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
     if (!mounted) return;
     setState(() => _isLoading = false);
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const VerifyCodeScreen()));
+    // AuthWrapper shows VerifyCodeScreen until email OTP is verified.
   }
 
   void _onSignIn() {

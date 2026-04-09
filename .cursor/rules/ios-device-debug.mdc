@@ -4,9 +4,10 @@ description: Physical iPhone runs — Debug JIT crashes with Agora; use Profile/
 
 # iOS physical device: Debug JIT + Agora (Iris)
 
-## Symptom
+## Symptoms
 
 - App stops on device with `DartWorker` + `EXC_BAD_ACCESS`, often right after Iris logger lines (`iris_logger.cc`, `reset logger`).
+- At launch: `dyld: Library not loaded: @rpath/AgoraRtcWrapper.framework/...` — the Debug app still links Agora but frameworks were not embedded (CocoaPods must copy them into the `.app`).
 
 ## Cause
 

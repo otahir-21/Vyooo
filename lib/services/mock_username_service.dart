@@ -20,4 +20,12 @@ class MockUsernameService implements UsernameService {
           ];
     return UsernameCheckResult(available: available, suggestions: suggestions);
   }
+
+  @override
+  Stream<UsernameCheckResult> watchAvailability(
+    String username, {
+    required String excludeUid,
+  }) async* {
+    yield await checkAvailability(username);
+  }
 }

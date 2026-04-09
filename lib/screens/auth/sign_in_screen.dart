@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/otp_session_service.dart';
 import '../../core/theme/app_padding.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'create_account_screen.dart';
 import 'find_account_screen.dart';
+import 'verify_code_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -26,6 +28,16 @@ class _SignInScreenState extends State<SignInScreen> {
   String? _errorMessage;
 
   final AuthService _auth = AuthService();
+
+  String _maskEmailForDisplay(String email) {
+    final t = email.trim();
+    final at = t.indexOf('@');
+    if (at <= 0 || at >= t.length - 1) return t;
+    final local = t.substring(0, at);
+    final domain = t.substring(at + 1);
+    if (local.length <= 1) return '***@$domain';
+    return '${local[0]}${'*' * (local.length - 1)}@$domain';
+  }
 
   bool get _canLogin =>
       _usernameController.text.trim().isNotEmpty &&
@@ -51,8 +63,32 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (result.success) {
-      // Skip OTP verification: pop back to root so AuthWrapper shows main app.
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      final otpResult = await _auth.sendSignupEmailOtp();
+      if (!mounted) return;
+      if (!otpResult.success) {
+        await OtpSessionService().clearOtpRequirement();
+        await _auth.signOut();
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = otpResult.message ?? 'Could not send verification code.';
+        });
+        return;
+      }
+      final uid = result.user?.uid ?? _auth.currentUser?.uid;
+      if (uid != null && uid.isNotEmpty) {
+        await OtpSessionService().requireOtpForUid(uid);
+      }
+      if (!mounted) return;
+      final email = _usernameController.text.trim();
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => VerifyCodeScreen(
+            maskedEmail: _maskEmailForDisplay(email),
+            autoSendOnOpen: false,
+          ),
+        ),
+      );
+      return;
     } else {
       setState(() => _errorMessage = result.message ?? 'Login failed');
     }

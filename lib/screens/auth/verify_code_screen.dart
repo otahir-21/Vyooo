@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/otp_session_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
-import '../../core/wrappers/auth_wrapper.dart';
-import 'create_username_screen.dart';
 
 class _BackspaceIntent extends Intent {
   const _BackspaceIntent();
@@ -12,12 +12,12 @@ class _BackspaceIntent extends Intent {
 class VerifyCodeScreen extends StatefulWidget {
   const VerifyCodeScreen({
     super.key,
-    this.maskedEmail = 'Ada******@gmail.com',
-    this.isLoginFlow = false,
+    this.maskedEmail = '',
+    this.autoSendOnOpen = true,
   });
 
   final String maskedEmail;
-  final bool isLoginFlow;
+  final bool autoSendOnOpen;
 
   @override
   State<VerifyCodeScreen> createState() => _VerifyCodeScreenState();
@@ -27,6 +27,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   static const int _otpLength = 4;
   late final List<TextEditingController> _controllers;
   late final List<FocusNode> _focusNodes;
+  final AuthService _auth = AuthService();
+  bool _sendInFlight = false;
+  bool _verifyInFlight = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -35,6 +39,9 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     _focusNodes = List.generate(_otpLength, (_) => FocusNode());
     for (int i = 0; i < _otpLength; i++) {
       _controllers[i].addListener(() => _onOtpChanged(i));
+    }
+    if (widget.autoSendOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _sendOtp());
     }
   }
 
@@ -124,7 +131,9 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
 
                       // Masked email
                       Text(
-                        widget.maskedEmail,
+                        widget.maskedEmail.isEmpty
+                            ? 'your email'
+                            : widget.maskedEmail,
                         style: const TextStyle(
                           fontSize: 14,
                           color: Color(0xFFD10057),
@@ -132,7 +141,21 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 16),
+                      if (_errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      const SizedBox(height: 24),
 
                       // OTP boxes
                       Row(
@@ -182,7 +205,9 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: _isOtpComplete ? _onVerify : null,
+                            onPressed: _isOtpComplete && !_verifyInFlight
+                                ? _onVerify
+                                : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppTheme.buttonBackground,
                               foregroundColor: AppTheme.buttonTextColor,
@@ -195,13 +220,22 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                                 borderRadius: BorderRadius.circular(30),
                               ),
                             ),
-                            child: const Text(
-                              'Verify',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _verifyInFlight
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.buttonTextColor,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Verify',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -310,29 +344,52 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     );
   }
 
+  Future<void> _sendOtp() async {
+    if (_sendInFlight || !mounted) return;
+    setState(() {
+      _sendInFlight = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.sendSignupEmailOtp();
+    if (!mounted) return;
+    setState(() {
+      _sendInFlight = false;
+      if (!result.success) {
+        _errorMessage = result.message ?? 'Could not send code.';
+      }
+    });
+  }
+
   void _onResendCode() {
-    // TODO: implement resend OTP
+    if (_sendInFlight || _verifyInFlight) return;
+    _sendOtp();
   }
 
-  void _onVerify() {
-    if (widget.isLoginFlow) {
-      // Route through AuthWrapper so Firestore onboardingCompleted is respected
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const AuthWrapper()),
-        (route) => false,
-      );
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => const CreateUsernameScreen()),
-      );
+  Future<void> _onVerify() async {
+    if (!_isOtpComplete || _verifyInFlight) return;
+    final code = _controllers.map((c) => c.text).join();
+    setState(() {
+      _verifyInFlight = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.verifySignupEmailOtp(code);
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() {
+        _verifyInFlight = false;
+        _errorMessage = result.message ?? 'Verification failed.';
+      });
+      return;
     }
+    await OtpSessionService().clearOtpRequirement();
+    setState(() => _verifyInFlight = false);
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  void _onTryAnotherWay() {
-    if (widget.isLoginFlow) {
-      Navigator.of(context).pop();
-    } else {
-      Navigator.of(context).pop();
-    }
+  Future<void> _onTryAnotherWay() async {
+    if (_verifyInFlight) return;
+    await _auth.signOut();
+    // AuthWrapper shows CreateAccountScreen when signed out.
   }
 }

@@ -270,11 +270,11 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
     return Container(
       height: _pickerHeight,
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withOpacity(0.05),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
+      // decoration: BoxDecoration(
+      //   borderRadius: BorderRadius.circular(20),
+      //   color: Colors.transparent,
+      //   border: Border.all(color: Colors.white.withOpacity(0.08)),
+      // ),
       child: Stack(
         children: [
           /// PICKERS

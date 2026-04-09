@@ -10,6 +10,7 @@ class AppUserModel {
     this.profileImage,
     this.interests = const [],
     this.onboardingCompleted = false,
+    this.emailOtpVerified = true,
     required this.createdAt,
     this.following = const [],
     this.blockedUsers = const [],
@@ -23,6 +24,8 @@ class AppUserModel {
   final String? profileImage;
   final List<String> interests;
   final bool onboardingCompleted;
+  /// False until email OTP is confirmed (email/password signups). Missing in Firestore = treated verified (legacy).
+  final bool emailOtpVerified;
   final Timestamp createdAt;
   /// UIDs this user follows (stored on their Firestore user doc).
   final List<String> following;
@@ -38,6 +41,7 @@ class AppUserModel {
       'profileImage': profileImage ?? '',
       'interests': interests,
       'onboardingCompleted': onboardingCompleted,
+      'emailOtpVerified': emailOtpVerified,
       'createdAt': createdAt,
       'following': following,
       'blockedUsers': blockedUsers,
@@ -65,6 +69,7 @@ class AppUserModel {
       profileImage: json['profileImage'] as String?,
       interests: interestsList,
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
+      emailOtpVerified: json['emailOtpVerified'] as bool? ?? true,
       createdAt: json['createdAt'] is Timestamp
           ? json['createdAt'] as Timestamp
           : Timestamp.now(),
@@ -82,6 +87,7 @@ class AppUserModel {
     String? profileImage,
     List<String>? interests,
     bool? onboardingCompleted,
+    bool? emailOtpVerified,
     Timestamp? createdAt,
     List<String>? following,
     List<String>? blockedUsers,
@@ -95,6 +101,7 @@ class AppUserModel {
       profileImage: profileImage ?? this.profileImage,
       interests: interests ?? this.interests,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+      emailOtpVerified: emailOtpVerified ?? this.emailOtpVerified,
       createdAt: createdAt ?? this.createdAt,
       following: following ?? this.following,
       blockedUsers: blockedUsers ?? this.blockedUsers,

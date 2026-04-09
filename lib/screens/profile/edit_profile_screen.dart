@@ -1,11 +1,17 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/services/storage_service.dart';
+import '../../core/services/user_service.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
+import '../../services/firestore_username_service.dart';
 import '../../services/image_picker_service.dart';
+import '../../services/username_validation.dart';
 import '../music/music_picker_sheet.dart';
 import 'crop_photo_screen.dart';
 import 'personal_information_screen.dart';
@@ -42,8 +48,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   _UsernameStatus _usernameStatus = _UsernameStatus.none;
 
-  /// Picked local file path after Edit picture → crop → Save.
+  /// Picked local file path after Edit picture → crop.
   String? _pickedImagePath;
+
+  Timer? _usernameDebounce;
+  bool _isSaving = false;
 
   static const int _bioMaxLength = 150;
 
@@ -55,10 +64,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _bioController = TextEditingController(text: widget.initialBio);
     _musicController = TextEditingController(text: widget.initialMusic);
     _usernameController.addListener(_onUsernameChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final n = UsernameValidation.normalize(_usernameController.text.trim());
+      if (!UsernameValidation.isValidFormat(n)) return;
+      if (n == UsernameValidation.normalize(widget.initialUsername) && mounted) {
+        setState(() => _usernameStatus = _UsernameStatus.available);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _usernameDebounce?.cancel();
     _usernameController.removeListener(_onUsernameChanged);
     _nameController.dispose();
     _usernameController.dispose();
@@ -68,14 +85,111 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _onUsernameChanged() {
+    _usernameDebounce?.cancel();
     final text = _usernameController.text.trim();
     if (text.isEmpty) {
       setState(() => _usernameStatus = _UsernameStatus.none);
       return;
     }
-    // Simulate validation: "mattrife_22" or containing "22" as suffix = taken (for demo)
-    final taken = text.toLowerCase() == 'mattrife_22' || text.endsWith('22');
-    setState(() => _usernameStatus = taken ? _UsernameStatus.taken : _UsernameStatus.available);
+    final normalized = UsernameValidation.normalize(text);
+    if (!UsernameValidation.isValidFormat(normalized)) {
+      setState(() => _usernameStatus = _UsernameStatus.none);
+      return;
+    }
+
+    final initialNorm = UsernameValidation.normalize(widget.initialUsername);
+    if (normalized == initialNorm) {
+      setState(() => _usernameStatus = _UsernameStatus.available);
+      return;
+    }
+
+    _usernameDebounce = Timer(const Duration(milliseconds: 450), () async {
+      if (!mounted) return;
+      final n = UsernameValidation.normalize(_usernameController.text.trim());
+      if (!UsernameValidation.isValidFormat(n)) return;
+      try {
+        final result = await FirestoreUsernameService().checkAvailability(n);
+        if (!mounted) return;
+        if (UsernameValidation.normalize(_usernameController.text.trim()) != n) {
+          return;
+        }
+        setState(() {
+          _usernameStatus = result.available
+              ? _UsernameStatus.available
+              : _UsernameStatus.taken;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _usernameStatus = _UsernameStatus.none);
+      }
+    });
+  }
+
+  bool get _canSave {
+    if (_isSaving) return false;
+    final un = UsernameValidation.normalize(_usernameController.text.trim());
+    if (!UsernameValidation.isValidFormat(un)) return false;
+    if (_usernameStatus == _UsernameStatus.taken) return false;
+    final initialUn = UsernameValidation.normalize(widget.initialUsername);
+    final usernameChanged = un != initialUn;
+    return _pickedImagePath != null || usernameChanged;
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_canSave) return;
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not signed in.')),
+        );
+      }
+      return;
+    }
+
+    final username = UsernameValidation.normalize(_usernameController.text.trim());
+    final initialUn = UsernameValidation.normalize(widget.initialUsername);
+
+    setState(() => _isSaving = true);
+    try {
+      if (_pickedImagePath != null) {
+        await StorageService().uploadProfileImage(
+          imageFile: File(_pickedImagePath!),
+          uid: uid,
+        );
+      }
+
+      if (username != initialUn) {
+        final avail = await FirestoreUsernameService().checkAvailability(username);
+        if (!avail.available) {
+          if (mounted) {
+            setState(() {
+              _isSaving = false;
+              _usernameStatus = _UsernameStatus.taken;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('That username is already taken.')),
+            );
+          }
+          return;
+        }
+        await UserService().updateUserProfile(uid: uid, username: username);
+      }
+
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save. Check your connection and Firebase Storage rules.'),
+        ),
+      );
+    }
   }
 
   @override
@@ -124,17 +238,36 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
           ),
           const SizedBox(width: AppSpacing.sm),
-          const Text(
-            'Edit Profile',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+          const Expanded(
+            child: Text(
+              'Edit Profile',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+          ),
+          TextButton(
+            onPressed: _canSave ? _saveProfile : null,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Save',
+                    style: TextStyle(
+                      color: _canSave ? const Color(0xFFDE106B) : Colors.white38,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
           ),
         ],
       ),

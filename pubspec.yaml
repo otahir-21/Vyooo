@@ -51,7 +51,6 @@ dependencies:
   provider: ^6.1.2
   agora_rtc_engine: ^6.6.2
   permission_handler: ^11.3.1
-  cloud_functions: ^5.1.4
   just_audio: ^0.9.40
   audio_waveforms: ^1.3.0
   cached_network_image: ^3.4.1
@@ -59,13 +58,9 @@ dependencies:
   crypto: ^3.0.3
 
 # Pub solver only: agora_rtc_engine wants ffi ^1.x, share_plus wants ^2.x.
-# iOS Debug-device Agora crash fix (DartWorker EXC_BAD_ACCESS code=50):
-#   Agora xcframeworks are dynamic dylibs whose C++ static initializers crash Flutter JIT.
-#   Fix = two-part: (1) Podfile post_install removes the Debug embed block from
-#   Pods-Runner-frameworks.sh so Agora .dylibs are never copied into the Debug .app,
-#   AND (2) strip_agora_at_launch.sh (Xcode build phase) strips plugin registration
-#   from GeneratedPluginRegistrant.m and clears the Debug xcfilelists.
-#   Profile/Release builds embed Agora normally. `flutter run` (debug) now works on device.
+# iOS: Agora frameworks must be embedded in Debug too or dyld fails loading AgoraRtcWrapper.
+# strip_agora_at_launch.sh only removes early Flutter plugin registration (deferred via AppDelegate).
+# For live/camera on a physical iPhone, prefer Profile/Release (JIT + Iris can still crash); see ios-device-debug.mdc.
 dependency_overrides:
   ffi: ^2.1.2
 

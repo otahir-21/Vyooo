@@ -23,7 +23,10 @@ class StorageService {
   }) async {
     try {
       final ref = FirebaseStorage.instance.ref().child(_profilePath(uid));
-      await ref.putFile(imageFile);
+      await ref.putFile(
+        imageFile,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
       final downloadUrl = await ref.getDownloadURL();
       await _userService.updateUserProfile(uid: uid, profileImage: downloadUrl);
       return downloadUrl;
