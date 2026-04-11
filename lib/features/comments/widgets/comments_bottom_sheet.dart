@@ -397,12 +397,12 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFF2C0B24).withValues(alpha: 0.78),
-                      const Color(0xFF0F040C).withValues(alpha: 0.88),
+                      const Color(0xFF2C0B24), // Deep Purple
+                      const Color(0xFF0F040C), // Near Black
                     ],
                   ),
                   border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      Border.all(color: Colors.white10),
                 ),
                 child: Column(
                 children: [
@@ -411,13 +411,13 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                     child: _DragHandle(),
                   ),
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
+                    padding: EdgeInsets.symmetric(vertical: 4),
                     child: Text(
                       'Comments',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -645,7 +645,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                                 ),
                                 decoration: InputDecoration(
                                   hintText: _replyParentId != null
-                                      ? 'Write a reply…'
+                                      ? 'Add a reply…'
                                       : 'Add a comment…',
                                   hintStyle: TextStyle(
                                     color:
@@ -653,22 +653,16 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                                   ),
                                   filled: true,
                                   fillColor:
-                                      Colors.white.withValues(alpha: 0.08),
+                                      const Color(0xFF1E1E1E),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(24),
                                     borderSide: BorderSide.none,
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16,
-                                    vertical: 12,
+                                    vertical: 8,
                                   ),
-                                  counterText: '$textLen / $maxLen',
-                                  counterStyle: TextStyle(
-                                    color: overLimit
-                                        ? AppColors.deleteRed
-                                        : Colors.white.withValues(alpha: 0.45),
-                                    fontSize: 11,
-                                  ),
+                                  counterText: '',
                                 ),
                                 textCapitalization:
                                     TextCapitalization.sentences,

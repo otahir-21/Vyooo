@@ -10,11 +10,15 @@ class ReelItemWidget extends StatefulWidget {
     super.key,
     required this.videoUrl,
     required this.isVisible,
+    this.isMuted = false,
+    this.isPaused = false,
     this.onVisibilityChanged,
   });
 
   final String videoUrl;
   final bool isVisible;
+  final bool isMuted;
+  final bool isPaused;
   final VoidCallback? onVisibilityChanged;
 
   @override
@@ -46,8 +50,11 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       _disposePlayer();
       _initializePlayer();
     }
-    if (oldWidget.isVisible != widget.isVisible) {
+    if (oldWidget.isVisible != widget.isVisible ||
+        oldWidget.isPaused != widget.isPaused ||
+        oldWidget.isMuted != widget.isMuted) {
       _handleVisibility();
+      _controller?.setVolume(widget.isMuted ? 0.0 : 1.0);
     }
   }
 
@@ -85,7 +92,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         _showError = false;
         _retryCount = 0;
       });
-      if (widget.isVisible) await ctrl.play();
+      _controller?.setVolume(widget.isMuted ? 0.0 : 1.0);
+      if (widget.isVisible && !widget.isPaused) await ctrl.play();
     } catch (e) {
       debugPrint('Error initializing video: $e');
       _disposePlayer();
@@ -141,26 +149,17 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   void _handleVisibility() {
     if (!_isInitialized || _controller == null) return;
-    if (widget.isVisible) {
+    if (widget.isVisible && !widget.isPaused) {
       _controller!.play();
     } else {
       _controller!.pause();
-    }
-  }
-
-  void _togglePlayPause() {
-    if (_controller == null || !_isInitialized) return;
-    if (_controller!.value.isPlaying) {
-      _controller!.pause();
-    } else {
-      _controller!.play();
     }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     // Show loading/retrying state
     if (_controller == null && !_showError) {
       return Container(
@@ -233,58 +232,55 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
     // Reels style: fullscreen cover (crop to fill, no letterboxing)
     final size = _controller!.value.size;
-    return GestureDetector(
-      onTap: _togglePlayPause,
-      child: Container(
-        width: double.infinity,
-        height: double.infinity,
-        color: Colors.black,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: size.width,
-                  height: size.height,
-                  child: VideoPlayer(_controller!),
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.black,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: size.width,
+                height: size.height,
+                child: VideoPlayer(_controller!),
+              ),
+            ),
+          ),
+          // Top Indicator Bar
+          Positioned(
+            top: 12,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            // Top Indicator Bar
-            Positioned(
-              top: 12,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+          ),
+          // Progress Bar
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: VideoProgressIndicator(
+              _controller!,
+              allowScrubbing: true,
+              colors: const VideoProgressColors(
+                playedColor: Color(0xFFEF4444),
+                bufferedColor: Colors.white24,
+                backgroundColor: Colors.transparent,
               ),
+              padding: EdgeInsets.zero,
             ),
-            // Progress Bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: VideoProgressIndicator(
-                _controller!,
-                allowScrubbing: true,
-                colors: const VideoProgressColors(
-                  playedColor: Color(0xFFEF4444),
-                  bufferedColor: Colors.white24,
-                  backgroundColor: Colors.transparent,
-                ),
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

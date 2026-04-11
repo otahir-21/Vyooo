@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -59,6 +60,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   int _currentIndex = 0;
   HomeTab currentTab = HomeTab.forYou;
   bool _showControls = false;
+  bool _isPaused = false;
+  bool _isMuted = false;
+  Timer? _controlsTimer;
+
   List<Map<String, dynamic>> _reelsForYou = [];
   List<Map<String, dynamic>> _reelsFollowing = [];
   List<Map<String, dynamic>> _reelsTrending = [];
@@ -187,7 +192,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onPageChanged(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _isPaused = false; // Reset pause state when swiping
+      _showControls = false;
+    });
     if (index < _currentReels.length) {
       _reelsController.incrementView(
         reelId: _currentReels[index]['id'] as String,
@@ -299,10 +308,30 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onVideoTap() {
-    setState(() => _showControls = true);
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() => _showControls = false);
+    setState(() {
+      _isPaused = !_isPaused;
+      _showControls = true;
     });
+    _controlsTimer?.cancel();
+    if (!_isPaused) {
+      _controlsTimer = Timer(const Duration(milliseconds: 2000), () {
+        if (mounted) setState(() => _showControls = false);
+      });
+    }
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+      _showControls = true;
+    });
+    // Reset timer on interaction
+    _controlsTimer?.cancel();
+    if (!_isPaused) {
+      _controlsTimer = Timer(const Duration(milliseconds: 2000), () {
+        if (mounted) setState(() => _showControls = false);
+      });
+    }
   }
 
   @override
@@ -334,18 +363,30 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 child: _buildVrContent(),
               )
             else
-              Positioned.fill(
-                top: isFollowing ? 220 : 0, // Push video down for stories
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isFollowing ? 8 : 0,
-                    vertical: isFollowing ? 8 : 0,
-                  ),
-                  child: _buildFeedClipArea(isFollowing),
-                ),
+              Builder(
+                builder: (context) {
+                  final showStoryUI = isFollowing && _currentIndex == 0;
+                  return AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    top: showStoryUI ? 210 : 0, // Push down for stories only on 1st reel
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: AnimatedPadding(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: showStoryUI ? 8 : 0,
+                        vertical: showStoryUI ? 8 : 0,
+                      ),
+                      child: _buildFeedClipArea(isFollowing),
+                    ),
+                  );
+                },
               ),
             _buildHeader(),
-            if (isFollowing) _buildStoryRow(),
+            if (isFollowing && _currentIndex == 0) _buildStoryRow(),
             if (!isVrTab) ...[
               _buildInteractionButtons(),
               _buildBottomUserInfo(),
@@ -521,8 +562,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           onTap: _onVideoTap,
           child: ReelItemWidget(
             videoUrl: videoUrl,
-            // Only play when this page is visible AND the home tab is active.
             isVisible: widget.isActive && index == _currentIndex,
+            isPaused: _isPaused && index == _currentIndex,
+            isMuted: _isMuted,
           ),
         );
       },
@@ -794,35 +836,48 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                             letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.all(1.5),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
+                        if (reel['isVerified'] == true) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.all(1.5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 10,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 10,
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_rounded,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          reel['handle'] as String,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
-                    ),
-                    Text(
-                      reel['handle'] as String,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w400,
-                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             reel['caption'] as String,
             maxLines: 2,
@@ -832,18 +887,19 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               color: Colors.white,
               fontWeight: FontWeight.w400,
               height: 1.4,
+              letterSpacing: 0.1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           GestureDetector(
             onTap: () {
               // TODO: Expand caption
             },
-            child: Text(
+            child: const Text(
               'See More',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.9),
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -873,7 +929,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildControlsOverlay() {
-    final playing = _currentIndex < _currentReels.length && _isVideoPlaying();
     return Center(
       child: AnimatedOpacity(
         opacity: _showControls ? 1.0 : 0.0,
@@ -882,7 +937,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(100), // More rounded pill shape
             border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
           ),
           child: Row(
@@ -891,23 +946,21 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               GestureDetector(
                 onTap: _onVideoTap,
                 child: Icon(
-                  playing ? Icons.pause : Icons.play_arrow,
+                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                   color: Colors.white,
                   size: 28,
                 ),
               ),
               Container(
                 width: 1.5,
-                height: 20,
+                height: 24,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
-                color: Colors.white.withValues(alpha: 0.4),
+                color: Colors.white.withValues(alpha: 0.3),
               ),
               GestureDetector(
-                onTap: () {
-                  // TODO: Toggle mute
-                },
-                child: const Icon(
-                  Icons.volume_off_rounded,
+                onTap: _toggleMute,
+                child: Icon(
+                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                   color: Colors.white,
                   size: 28,
                 ),
