@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/subscription/subscription_controller.dart';
-import '../../core/theme/app_gradients.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../screens/content/vr_detail_screen.dart';
@@ -57,9 +55,8 @@ class VrLockedView extends StatelessWidget {
           child: Image.network(
             'https://images.unsplash.com/photo-1544923246-77307dd654ca?q=80&w=2000&auto=format&fit=crop', // A placeholder that looks like a cave/underwater
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: const Color(0xFF0A1628),
-            ),
+            errorBuilder: (_, __, ___) =>
+                Container(color: const Color(0xFF0A1628)),
           ),
         ),
         // Dark overlay for better contrast
@@ -88,7 +85,9 @@ class VrLockedView extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  const Color(0xFF2C0B24).withValues(alpha: 0.95), // Deep magenta/purple
+                  const Color(
+                    0xFF2C0B24,
+                  ).withValues(alpha: 0.95), // Deep magenta/purple
                   const Color(0xFF0F040C).withValues(alpha: 1.0),
                 ],
               ),
@@ -151,7 +150,9 @@ class VrLockedView extends StatelessWidget {
                             borderRadius: BorderRadius.circular(26),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFDE106B).withValues(alpha: 0.3),
+                                color: const Color(
+                                  0xFFDE106B,
+                                ).withValues(alpha: 0.3),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -169,16 +170,23 @@ class VrLockedView extends StatelessWidget {
                             ),
                             child: const Text(
                               'Get started',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 24),
                         Row(
                           children: [
-                            const Expanded(child: Divider(color: Colors.white12)),
+                            const Expanded(
+                              child: Divider(color: Colors.white12),
+                            ),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               child: Text(
                                 'or',
                                 style: TextStyle(
@@ -187,7 +195,9 @@ class VrLockedView extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            const Expanded(child: Divider(color: Colors.white12)),
+                            const Expanded(
+                              child: Divider(color: Colors.white12),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
@@ -244,7 +254,10 @@ class VrLockedView extends StatelessWidget {
                             ),
                             child: const Text(
                               'See Plans',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),

@@ -26,9 +26,6 @@ class CommentTile extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool isHighlighted;
 
-  static const double _avatarSize = 40;
-  static const double _avatarSizeReply = 32;
-
   @override
   Widget build(BuildContext context) {
     final avatarSize = isReply ? 34.0 : 44.0;
