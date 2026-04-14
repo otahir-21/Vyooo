@@ -1,11 +1,13 @@
 import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
+import 'core/services/push_messaging_service.dart';
 import 'core/subscription/subscription_controller.dart';
 import 'core/theme/app_padding.dart';
 import 'core/theme/app_theme.dart';
@@ -14,6 +16,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   bool firebaseInitialized = false;
   try {
@@ -21,6 +24,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     firebaseInitialized = true;
+    await PushMessagingService.instance.configure();
   } catch (e, st) {
     debugPrint('Firebase initialization failed: $e');
     debugPrint(st.toString());

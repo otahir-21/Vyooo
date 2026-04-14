@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'email_otp_service.dart';
+import 'push_messaging_service.dart';
 
 /// Result of an auth operation. No raw Firebase exceptions exposed to UI.
 class AuthResult {
@@ -180,6 +181,10 @@ class AuthService {
 
   /// Sign out the current user.
   Future<void> signOut() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      await PushMessagingService.instance.clearForSignOut(uid);
+    }
     await _auth.signOut();
   }
 

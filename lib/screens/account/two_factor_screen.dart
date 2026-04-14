@@ -2,8 +2,142 @@ import 'package:flutter/material.dart';
 
 import 'verify_code_screen.dart';
 
-class TwoFactorScreen extends StatelessWidget {
+class _CountryDial {
+  const _CountryDial({
+    required this.flagEmoji,
+    required this.dialCode,
+    required this.name,
+  });
+
+  final String flagEmoji;
+  final String dialCode;
+  final String name;
+}
+
+/// Curated list for phone OTP UI (expand anytime).
+const List<_CountryDial> _kPhoneCountryDials = [
+  _CountryDial(flagEmoji: '🇬🇧', dialCode: '+44', name: 'United Kingdom'),
+  _CountryDial(flagEmoji: '🇺🇸', dialCode: '+1', name: 'United States'),
+  _CountryDial(flagEmoji: '🇦🇪', dialCode: '+971', name: 'United Arab Emirates'),
+  _CountryDial(flagEmoji: '🇵🇰', dialCode: '+92', name: 'Pakistan'),
+  _CountryDial(flagEmoji: '🇮🇳', dialCode: '+91', name: 'India'),
+  _CountryDial(flagEmoji: '🇦🇺', dialCode: '+61', name: 'Australia'),
+  _CountryDial(flagEmoji: '🇸🇦', dialCode: '+966', name: 'Saudi Arabia'),
+  _CountryDial(flagEmoji: '🇪🇬', dialCode: '+20', name: 'Egypt'),
+  _CountryDial(flagEmoji: '🇫🇷', dialCode: '+33', name: 'France'),
+  _CountryDial(flagEmoji: '🇩🇪', dialCode: '+49', name: 'Germany'),
+  _CountryDial(flagEmoji: '🇨🇦', dialCode: '+1', name: 'Canada'),
+  _CountryDial(flagEmoji: '🇳🇬', dialCode: '+234', name: 'Nigeria'),
+  _CountryDial(flagEmoji: '🇿🇦', dialCode: '+27', name: 'South Africa'),
+  _CountryDial(flagEmoji: '🇧🇷', dialCode: '+55', name: 'Brazil'),
+  _CountryDial(flagEmoji: '🇯🇵', dialCode: '+81', name: 'Japan'),
+];
+
+class TwoFactorScreen extends StatefulWidget {
   const TwoFactorScreen({super.key});
+
+  @override
+  State<TwoFactorScreen> createState() => _TwoFactorScreenState();
+}
+
+class _TwoFactorScreenState extends State<TwoFactorScreen> {
+  late _CountryDial _selected;
+  final _phoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = _kPhoneCountryDials.first;
+  }
+
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openCountryPicker() async {
+    final picked = await showModalBottomSheet<_CountryDial>(
+      context: context,
+      backgroundColor: const Color(0xFF1A0A24),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final maxH = MediaQuery.sizeOf(ctx).height * 0.62;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxH),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Country / region',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: _kPhoneCountryDials.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.08),
+                    ),
+                    itemBuilder: (context, i) {
+                      final c = _kPhoneCountryDials[i];
+                      final isSel = c.dialCode == _selected.dialCode &&
+                          c.name == _selected.name;
+                      return ListTile(
+                        leading: Text(c.flagEmoji, style: const TextStyle(fontSize: 26)),
+                        title: Text(
+                          c.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        trailing: Text(
+                          c.dialCode,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        selected: isSel,
+                        selectedTileColor: Colors.white.withValues(alpha: 0.06),
+                        onTap: () => Navigator.pop(ctx, c),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (picked != null && mounted) {
+      setState(() => _selected = picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,31 +311,40 @@ class TwoFactorScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-            child: Row(
-              children: [
-                const Text('🇬🇧', style: TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Text(
-                  '+44',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _openCountryPicker,
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_selected.flagEmoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    Text(
+                      _selected.dialCode,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      size: 18,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: Colors.white.withValues(alpha: 0.5),
-                  size: 18,
-                ),
-              ],
+              ),
             ),
           ),
           Expanded(
             child: TextField(
+              controller: _phoneController,
               style: const TextStyle(color: Colors.white, fontSize: 15),
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(

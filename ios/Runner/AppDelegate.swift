@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 #if DEBUG && !targetEnvironment(simulator)
-#error("Vyooo does not support Debug mode on physical iPhone when Agora is linked. Run with --profile or --release.")
+#error("Physical iPhone Debug mode is blocked for Vyooo because Agora/Iris can crash with EXC_BAD_ACCESS. Use Profile/Release (flutter run --profile/--release).")
 #endif
 
 @main
@@ -12,25 +12,23 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    let ok = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    if ok, let controller = window?.rootViewController as? FlutterViewController {
-      let channel = FlutterMethodChannel(
-        name: "vyooo/deferred_native_plugins",
-        binaryMessenger: controller.engine.binaryMessenger
-      )
-      channel.setMethodCallHandler { [weak controller] call, result in
-        if call.method == "registerAgora" {
-          guard let engine = controller?.engine else {
-            result(FlutterError(code: "no_engine", message: nil, details: nil))
-            return
-          }
-          AgoraDeferredRegistration.register(with: engine)
-          result(nil)
-        } else {
-          result(FlutterMethodNotImplemented)
+    let registrar = self.registrar(forPlugin: "VyoooDeferredNativePlugins")
+    let channel = FlutterMethodChannel(
+      name: "vyooo/deferred_native_plugins",
+      binaryMessenger: registrar.messenger()
+    )
+    channel.setMethodCallHandler { [weak self] call, result in
+      if call.method == "registerAgora" {
+        guard let self else {
+          result(FlutterError(code: "no_registry", message: nil, details: nil))
+          return
         }
+        AgoraDeferredRegistration.register(withRegistry: self)
+        result(nil)
+      } else {
+        result(FlutterMethodNotImplemented)
       }
     }
-    return ok
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

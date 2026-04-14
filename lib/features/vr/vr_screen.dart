@@ -138,7 +138,7 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: 12),
             Text(
               'Stream 360° content by the minute. No commitments, just click and enjoy!',
               style: TextStyle(
@@ -147,12 +147,16 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: 16),
             SizedBox(
               height: 38,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: AppGradients.vrGetStartedButtonGradient,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFDE106B), Color(0xFF7A093B)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: ElevatedButton(
@@ -176,14 +180,14 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: Divider(color: Colors.white.withValues(alpha: 0.25)),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'or',
                     style: TextStyle(
@@ -197,7 +201,7 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: 16),
             const Text(
               'Become a Member to Watch',
               style: TextStyle(
@@ -206,7 +210,7 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: 12),
             Text(
               'Stream Exclusive Live streams, Immersive VR Content and many more',
               style: TextStyle(
@@ -215,7 +219,7 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 height: 1.35,
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: 16),
             SizedBox(
               height: 38,
               child: ElevatedButton(
