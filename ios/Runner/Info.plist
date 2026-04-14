@@ -39,6 +39,10 @@
 	<string>Microphone is used for live streaming audio</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Vyooo needs photo library access to add images to your story and profile.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

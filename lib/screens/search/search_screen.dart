@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 
 import '../../core/constants/app_colors.dart';
+import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/user_service.dart';
@@ -39,6 +40,7 @@ class _SearchScreenState extends State<SearchScreen>
   final _liveService = LiveStreamService();
   List<LiveStreamModel> _liveStreams = [];
   StreamSubscription<List<LiveStreamModel>>? _liveStreamsSub;
+  Map<String, AppUserModel> _liveHostProfiles = const {};
   final UserService _userService = UserService();
   final List<_UserSearchItem> _allUsers = [];
   bool _usersLoading = false;
@@ -61,9 +63,29 @@ class _SearchScreenState extends State<SearchScreen>
     _searchFocusNode.addListener(_onSearchFocusChange);
     _searchController.addListener(_onSearchTextChange);
     _liveStreamsSub = _liveService.liveStreams().listen((streams) {
-      if (mounted) setState(() => _liveStreams = streams);
+      if (mounted) {
+        setState(() => _liveStreams = streams);
+      }
+      _refreshLiveHostProfiles(streams);
     });
     _loadUsers();
+  }
+
+  Future<void> _refreshLiveHostProfiles(List<LiveStreamModel> streams) async {
+    final hostIds = streams.map((s) => s.hostId).where((id) => id.isNotEmpty).toSet().toList();
+    if (hostIds.isEmpty) {
+      if (!mounted) return;
+      if (mounted) setState(() => _liveHostProfiles = const {});
+      return;
+    }
+    try {
+      final users = await _userService.getUsersByIds(hostIds);
+      final map = <String, AppUserModel>{for (final u in users) u.uid: u};
+      if (!mounted) return;
+      setState(() => _liveHostProfiles = map);
+    } catch (_) {
+      // Keep current card design/content even if profile enrichment fails.
+    }
   }
 
   Future<void> _loadUsers() async {
@@ -126,6 +148,127 @@ class _SearchScreenState extends State<SearchScreen>
               u.fullName.toLowerCase().contains(q),
         )
         .toList();
+  }
+
+  List<_LiveCardItem> get _dynamicLiveItems =>
+      _liveStreams.map(_toLiveCardItem).toList(growable: false);
+
+  List<_LiveCardItem> get _dynamicRecommendedItems {
+    final items = List<_LiveCardItem>.from(_dynamicLiveItems);
+    items.sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
+    return items.take(6).toList(growable: false);
+  }
+
+  List<_LiveCardItem> get _dynamicExploreItems {
+    final recommended = _dynamicRecommendedItems;
+    final recommendedHandles = recommended.map((e) => e.handle).toSet();
+    return _dynamicLiveItems
+        .where((e) => !recommendedHandles.contains(e.handle))
+        .take(6)
+        .toList(growable: false);
+  }
+
+  List<_LiveSearchResultItem> get _dynamicLiveSearchResultItems {
+    final q = _searchController.text.trim().toLowerCase();
+    final streams = q.isEmpty
+        ? _liveStreams
+        : _liveStreams.where((s) {
+            final inTags = s.tags.any((t) => t.toLowerCase().contains(q));
+            return s.hostUsername.toLowerCase().contains(q) ||
+                s.title.toLowerCase().contains(q) ||
+                s.description.toLowerCase().contains(q) ||
+                s.category.toLowerCase().contains(q) ||
+                inTags;
+          }).toList(growable: false);
+    return streams
+        .map((s) => _LiveSearchResultItem(stream: s, card: _toLiveCardItem(s)))
+        .toList(growable: false);
+  }
+
+  List<_CategoryItem> get _dynamicCategoryItems {
+    final unique = <String>{};
+    final categories = <_CategoryItem>[];
+    for (final stream in _liveStreams) {
+      final category = stream.category.trim();
+      if (category.isEmpty) continue;
+      final key = category.toLowerCase();
+      if (!unique.add(key)) continue;
+      categories.add(_CategoryItem(label: category, icon: _categoryIconFor(category)));
+    }
+    return categories.take(8).toList(growable: false);
+  }
+
+  List<_CreatorItem> get _dynamicCreatorItems {
+    final byHost = <String, LiveStreamModel>{};
+    for (final stream in _liveStreams) {
+      final existing = byHost[stream.hostId];
+      if (existing == null || stream.viewerCount > existing.viewerCount) {
+        byHost[stream.hostId] = stream;
+      }
+    }
+    final ranked = byHost.values.toList()
+      ..sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
+    return ranked.take(8).map((s) {
+      final profile = _liveHostProfiles[s.hostId];
+      final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
+          ? (profile!.profileImage!).trim()
+          : (s.hostProfileImage?.isNotEmpty == true)
+              ? s.hostProfileImage!
+              : 'https://i.pravatar.cc/120?u=${s.hostId}';
+      final followers = profile?.followersCount ?? s.viewerCount;
+      final following = profile?.following.length ?? 0;
+      return _CreatorItem(
+        name: (profile?.username?.trim().isNotEmpty == true)
+            ? profile!.username!.trim()
+            : s.hostUsername,
+        handle:
+            '@${((profile?.username ?? s.hostUsername).toLowerCase().replaceAll(' ', '_'))}',
+        avatarUrl: avatar,
+        followers: _formatCompactCount(followers),
+        following: following,
+      );
+    }).toList(growable: false);
+  }
+
+  _LiveCardItem _toLiveCardItem(LiveStreamModel stream) {
+    final profile = _liveHostProfiles[stream.hostId];
+    final username = (profile?.username?.trim().isNotEmpty == true)
+        ? profile!.username!.trim()
+        : stream.hostUsername;
+    final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
+        ? (profile!.profileImage!).trim()
+        : (stream.hostProfileImage?.isNotEmpty == true)
+            ? stream.hostProfileImage!
+            : 'https://i.pravatar.cc/80?u=${stream.hostId}';
+    return _LiveCardItem(
+      thumbnailUrl: avatar,
+      name: username,
+      handle: '@${username.toLowerCase().replaceAll(' ', '_')}',
+      avatarUrl: avatar,
+      viewerCount: stream.viewerCount,
+    );
+  }
+
+  static String _formatCompactCount(int n) {
+    if (n >= 1000000) {
+      final v = n / 1000000;
+      return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}M';
+    }
+    if (n >= 1000) {
+      final v = n / 1000;
+      return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}K';
+    }
+    return '$n';
+  }
+
+  static IconData _categoryIconFor(String category) {
+    final c = category.toLowerCase();
+    if (c.contains('game')) return Icons.sports_esports_rounded;
+    if (c.contains('music') || c.contains('concert')) return Icons.music_note_rounded;
+    if (c.contains('sport')) return Icons.sports_soccer_rounded;
+    if (c.contains('news')) return Icons.newspaper_rounded;
+    if (c.contains('travel')) return Icons.travel_explore_rounded;
+    return Icons.live_tv_rounded;
   }
 
   Future<void> _toggleFollow(_UserSearchItem user) async {
@@ -234,7 +377,7 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: AppSpacing.xl),
         _buildSection(
           'Recommended For you',
-          _recommendedItems,
+          _dynamicRecommendedItems,
           showViewAll: true,
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -242,42 +385,30 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: AppSpacing.xl),
         _buildTopCreatorsSection(),
         const SizedBox(height: AppSpacing.xl),
-        _buildSection('Explore More', _exploreMoreItems, showViewAll: true),
+        _buildSection(
+          'Explore More',
+          _dynamicExploreItems,
+          showViewAll: true,
+        ),
       ],
     );
   }
 
   Widget _buildIdleVRContent() {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Trending VR',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 220,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _vrSearchResultItems.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) => SizedBox(
-              width: 160,
-              child: _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl),
-      ],
+    return GridView.builder(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: AppSpacing.xs,
+      ),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.67,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: _vrSearchResultItems.length,
+      itemBuilder: (context, index) =>
+          _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
     );
   }
 
@@ -347,6 +478,15 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildLiveSearchResultsGrid() {
+    final items = _dynamicLiveSearchResultItems;
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          'No live results found',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 14),
+        ),
+      );
+    }
     return GridView.builder(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
@@ -358,9 +498,11 @@ class _SearchScreenState extends State<SearchScreen>
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: _searchResultItems.length,
-      itemBuilder: (context, index) =>
-          _SearchResultGridCard(item: _searchResultItems[index]),
+      itemCount: items.length,
+      itemBuilder: (context, index) => _SearchResultGridCard(
+        item: items[index].card,
+        onTap: () => openLiveStreamScreen(context, items[index].stream),
+      ),
     );
   }
 
@@ -518,15 +660,16 @@ class _SearchScreenState extends State<SearchScreen>
               ),
             ],
             Expanded(
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  height: 48,
                   color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
                 child: TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  cursorColor: Colors.white70,
+                  cursorWidth: 1.2,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -561,9 +704,15 @@ class _SearchScreenState extends State<SearchScreen>
                       ),
                     ),
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+              ),
               ),
             ),
             if (showHashButton) ...[
@@ -694,17 +843,8 @@ class _SearchScreenState extends State<SearchScreen>
             separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final stream = _liveStreams[index];
-              final avatar = (stream.hostProfileImage?.isNotEmpty == true)
-                  ? stream.hostProfileImage!
-                  : 'https://i.pravatar.cc/80?u=${stream.hostId}';
               return _LiveCard(
-                item: _LiveCardItem(
-                  thumbnailUrl: avatar,
-                  name: stream.hostUsername,
-                  handle: '@${stream.hostUsername.toLowerCase().replaceAll(' ', '_')}',
-                  avatarUrl: avatar,
-                  viewerCount: stream.viewerCount,
-                ),
+                item: _toLiveCardItem(stream),
                 onTap: () => openLiveStreamScreen(context, stream),
               );
             },
@@ -719,6 +859,7 @@ class _SearchScreenState extends State<SearchScreen>
     List<_LiveCardItem> items, {
     bool showViewAll = true,
   }) {
+    final hasItems = items.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -751,21 +892,34 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 260,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
+        if (!hasItems)
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: items.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) => _LiveCard(item: items[index]),
+            child: Text(
+              'No live streams available right now.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 260,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: items.length,
+              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) => _LiveCard(item: items[index]),
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _buildLiveCategoriesSection() {
+    final categories = _dynamicCategoryItems;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -781,22 +935,31 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 120,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
+        if (categories.isEmpty)
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _categoryItems.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) =>
-                _CategoryCard(item: _categoryItems[index]),
+            child: Text(
+              'No categories yet. Categories appear when hosts set stream categories.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+            ),
+          )
+        else
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: categories.length,
+              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) => _CategoryCard(item: categories[index]),
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _buildTopCreatorsSection() {
+    final creators = _dynamicCreatorItems;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -812,17 +975,25 @@ class _SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 300,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
+        if (creators.isEmpty)
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _creatorItems.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) =>
-                _CreatorCard(item: _creatorItems[index]),
+            child: Text(
+              'Top creators will appear when users go live.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+            ),
+          )
+        else
+          SizedBox(
+            height: 300,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: creators.length,
+              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) => _CreatorCard(item: creators[index]),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -881,9 +1052,10 @@ class _RecentSearchTile extends StatelessWidget {
 }
 
 class _SearchResultGridCard extends StatelessWidget {
-  const _SearchResultGridCard({required this.item});
+  const _SearchResultGridCard({required this.item, this.onTap});
 
   final _LiveCardItem item;
+  final VoidCallback? onTap;
 
   static String _formatCount(int n) {
     if (n >= 1000) return (n / 1000).toStringAsFixed(0);
@@ -893,7 +1065,7 @@ class _SearchResultGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Stack(
@@ -1020,7 +1192,7 @@ class _VRSearchResultGridCard extends StatelessWidget {
           MaterialPageRoute<void>(
             builder: (_) => VRDetailScreen(
               payload: VRDetailPayload(
-                title: item.title,
+                title: item.creatorName,
                 videoUrl: item.videoUrl,
                 thumbnailUrl: item.thumbnailUrl,
                 creatorName: item.creatorName,
@@ -1056,20 +1228,41 @@ class _VRSearchResultGridCard extends StatelessWidget {
             Positioned(
               top: AppSpacing.sm,
               left: AppSpacing.sm,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'VR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'VR',
+                      style: TextStyle(
+                        color: Colors.black87,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    '${item.viewerCount}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text('👑', style: TextStyle(fontSize: 12)),
+                ],
               ),
             ),
             Positioned(
@@ -1092,18 +1285,33 @@ class _VRSearchResultGridCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          item.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.creatorName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
+                            if (item.isVerified)
+                              const Padding(
+                                padding: EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.verified,
+                                  size: 12,
+                                  color: Color(0xFFFF2D55),
+                                ),
+                              ),
+                          ],
                         ),
                         Text(
-                          '${item.creatorName} ${item.creatorHandle}',
+                          item.creatorHandle,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 11,
@@ -1270,86 +1478,13 @@ class _LiveCardItem {
   final bool isVerified;
 }
 
-final List<_LiveCardItem> _recommendedItems = [
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=rec1',
-    name: 'Alex Rivera',
-    handle: '@alexr',
-    avatarUrl: 'https://i.pravatar.cc/80?img=2',
-    viewerCount: 89,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=rec2',
-    name: 'Sofia Wells',
-    handle: '@sofwells3',
-    avatarUrl: 'https://i.pravatar.cc/80?img=1',
-    viewerCount: 412,
-    isVerified: true,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=rec3',
-    name: 'Night Drives',
-    handle: '@nightdrives',
-    avatarUrl: 'https://i.pravatar.cc/80?img=12',
-    viewerCount: 67,
-  ),
-];
+class _LiveSearchResultItem {
+  const _LiveSearchResultItem({required this.stream, required this.card});
 
-final List<_LiveCardItem> _exploreMoreItems = [
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=ex1',
-    name: 'Tam',
-    handle: '@tamtam03',
-    avatarUrl: 'https://i.pravatar.cc/80?img=25',
-    viewerCount: 102,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=ex2',
-    name: 'Mr. Caspur',
-    handle: '@mrcaspur',
-    avatarUrl: 'https://i.pravatar.cc/80?img=44',
-    viewerCount: 102,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/160/220?random=ex3',
-    name: 'News Live',
-    handle: '@newslive',
-    avatarUrl: 'https://i.pravatar.cc/80?img=50',
-    viewerCount: 89,
-  ),
-];
+  final LiveStreamModel stream;
+  final _LiveCardItem card;
+}
 
-/// Mock results for "Get ready with me vlogs" / any search.
-final List<_LiveCardItem> _searchResultItems = [
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=grwm1',
-    name: 'Sofia Vergara',
-    handle: '@sofiya23',
-    avatarUrl: 'https://i.pravatar.cc/80?img=32',
-    viewerCount: 102,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=grwm2',
-    name: 'Selena Gomet',
-    handle: '@GometroComet',
-    avatarUrl: 'https://i.pravatar.cc/80?img=28',
-    viewerCount: 15000,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=grwm3',
-    name: 'Caroline Hade',
-    handle: '@Carryhune',
-    avatarUrl: 'https://i.pravatar.cc/80?img=41',
-    viewerCount: 102,
-  ),
-  _LiveCardItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=grwm4',
-    name: 'Alena Joy',
-    handle: '@alenajoyt23',
-    avatarUrl: 'https://i.pravatar.cc/80?img=38',
-    viewerCount: 89,
-  ),
-];
 
 class _UserSearchItem {
   const _UserSearchItem({
@@ -1393,51 +1528,59 @@ class _UserSearchItem {
 class _VRSearchItem {
   const _VRSearchItem({
     required this.thumbnailUrl,
-    required this.title,
     required this.creatorName,
     required this.creatorHandle,
     required this.avatarUrl,
+    this.viewerCount = 102,
+    this.isVerified = false,
     this.videoUrl,
   });
   final String thumbnailUrl;
-  final String title;
   final String creatorName;
   final String creatorHandle;
   final String avatarUrl;
+  final int viewerCount;
+  final bool isVerified;
   final String? videoUrl;
 }
 
 final List<_VRSearchItem> _vrSearchResultItems = [
   _VRSearchItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr1',
-    title: '360° City Tour',
-    creatorName: 'Alex Rivera',
-    creatorHandle: '@alexvr',
-    avatarUrl: 'https://i.pravatar.cc/80?img=2',
+    thumbnailUrl:
+        'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop',
+    creatorName: 'Sofia Vergara',
+    creatorHandle: '@Soffy33',
+    avatarUrl: 'https://i.pravatar.cc/80?img=32',
+    viewerCount: 102,
     videoUrl: VrPlayerScreen.testVideoUrls[0],
   ),
   _VRSearchItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr2',
-    title: 'Underwater VR',
-    creatorName: 'Sofia Wells',
-    creatorHandle: '@sofiavr',
-    avatarUrl: 'https://i.pravatar.cc/80?img=1',
+    thumbnailUrl:
+        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
+    creatorName: 'Selena Gomet',
+    creatorHandle: '@GomethoComet',
+    avatarUrl: 'https://i.pravatar.cc/80?img=28',
+    isVerified: true,
+    viewerCount: 102,
     videoUrl: VrPlayerScreen.testVideoUrls[1],
   ),
   _VRSearchItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr3',
-    title: 'Concert Experience',
-    creatorName: 'Night Drives',
-    creatorHandle: '@nightdrives',
-    avatarUrl: 'https://i.pravatar.cc/80?img=12',
+    thumbnailUrl:
+        'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop',
+    creatorName: 'Sofia Vergara',
+    creatorHandle: '@Soffy33',
+    avatarUrl: 'https://i.pravatar.cc/80?img=32',
+    viewerCount: 102,
     videoUrl: VrPlayerScreen.testVideoUrls[2],
   ),
   _VRSearchItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr4',
-    title: 'Mountain Hike 360',
-    creatorName: 'Tam',
-    creatorHandle: '@tamtam03',
-    avatarUrl: 'https://i.pravatar.cc/80?img=25',
+    thumbnailUrl:
+        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
+    creatorName: 'Selena Gomet',
+    creatorHandle: '@GomethoComet',
+    avatarUrl: 'https://i.pravatar.cc/80?img=28',
+    isVerified: true,
+    viewerCount: 102,
   ),
 ];
 
@@ -1447,11 +1590,6 @@ class _CategoryItem {
   final IconData icon;
 }
 
-final List<_CategoryItem> _categoryItems = [
-  _CategoryItem(label: 'Gaming', icon: Icons.sports_esports_rounded),
-  _CategoryItem(label: 'Music & Concerts', icon: Icons.music_note_rounded),
-  _CategoryItem(label: 'Sports', icon: Icons.sports_soccer_rounded),
-];
 
 class _CreatorItem {
   const _CreatorItem({
@@ -1468,29 +1606,6 @@ class _CreatorItem {
   final int following;
 }
 
-final List<_CreatorItem> _creatorItems = [
-  const _CreatorItem(
-    name: 'BTS',
-    handle: '@bts.bighit.official',
-    avatarUrl: 'https://i.pravatar.cc/120?img=60',
-    followers: '77.5M',
-    following: 11,
-  ),
-  const _CreatorItem(
-    name: 'Priyanka Chopra',
-    handle: '@priyankachoprajonaas',
-    avatarUrl: 'https://i.pravatar.cc/120?img=45',
-    followers: '92.7M',
-    following: 567,
-  ),
-  const _CreatorItem(
-    name: 'Taylor Swift',
-    handle: '@taylorswift',
-    avatarUrl: 'https://i.pravatar.cc/120?img=47',
-    followers: '102M',
-    following: 0,
-  ),
-];
 
 class _LiveCard extends StatelessWidget {
   const _LiveCard({required this.item, this.onTap});

@@ -9,7 +9,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'create_account_screen.dart';
 import 'find_account_screen.dart';
-import 'verify_code_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -29,16 +28,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
   final AuthService _auth = AuthService();
 
-  String _maskEmailForDisplay(String email) {
-    final t = email.trim();
-    final at = t.indexOf('@');
-    if (at <= 0 || at >= t.length - 1) return t;
-    final local = t.substring(0, at);
-    final domain = t.substring(at + 1);
-    if (local.length <= 1) return '***@$domain';
-    return '${local[0]}${'*' * (local.length - 1)}@$domain';
-  }
-
   bool get _canLogin =>
       _usernameController.text.trim().isNotEmpty &&
       _passwordController.text.trim().isNotEmpty;
@@ -52,6 +41,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _onLogin() async {
     if (!_canLogin || _isLoading) return;
+    OtpSessionService().startEmailLoginHandshake();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -66,6 +56,7 @@ class _SignInScreenState extends State<SignInScreen> {
       final otpResult = await _auth.sendSignupEmailOtp();
       if (!mounted) return;
       if (!otpResult.success) {
+        OtpSessionService().abortEmailLoginHandshake();
         await OtpSessionService().clearOtpRequirement();
         await _auth.signOut();
         if (!mounted) return;
@@ -79,17 +70,11 @@ class _SignInScreenState extends State<SignInScreen> {
         await OtpSessionService().requireOtpForUid(uid);
       }
       if (!mounted) return;
-      final email = _usernameController.text.trim();
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => VerifyCodeScreen(
-            maskedEmail: _maskEmailForDisplay(email),
-            autoSendOnOpen: false,
-          ),
-        ),
-      );
+      // Drop Sign-In route; AuthWrapper shows Verify from session flag (no feed under overlay).
+      Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     } else {
+      OtpSessionService().abortEmailLoginHandshake();
       setState(() => _errorMessage = result.message ?? 'Login failed');
     }
   }

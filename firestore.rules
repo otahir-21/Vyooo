@@ -70,6 +70,11 @@ service cloud.firestore {
       allow delete: if isOwner(userId);
     }
 
+    // FCM device tokens (one doc per device; Cloud Functions read to send pushes).
+    match /users/{userId}/push_tokens/{docId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
     // ── App collections (explicit so list/get never rely on a fragile catch‑all) ──
     match /stories/{storyId} {
       allow read, write: if isSignedIn();

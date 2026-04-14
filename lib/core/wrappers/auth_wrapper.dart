@@ -9,6 +9,7 @@ import '../config/app_config.dart';
 import '../models/app_user_model.dart';
 import '../services/user_service.dart';
 import '../services/otp_session_service.dart';
+import '../services/push_messaging_service.dart';
 import '../../screens/auth/create_account_screen.dart';
 import '../../screens/auth/create_username_screen.dart';
 import '../../screens/auth/verify_code_screen.dart';
@@ -27,6 +28,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   String? _purchasesBoundUid;
+  String? _fcmBoundUid;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +43,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
             if (!context.mounted) return;
             unawaited(context.read<SubscriptionController>().syncPurchasesIdentity(uid));
           });
+        }
+        if (uid != null && uid.isNotEmpty && _fcmBoundUid != uid) {
+          _fcmBoundUid = uid;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            unawaited(PushMessagingService.instance.syncTokenForUser(uid));
+            unawaited(PushMessagingService.instance.handleInitialMessage());
+          });
+        }
+        if (uid == null) {
+          _fcmBoundUid = null;
         }
         if (!authSnapshot.hasData || user == null) {
           return const CreateAccountScreen();
@@ -143,10 +155,13 @@ class _UserDocGateState extends State<_UserDocGate> {
             if (appUser == null) {
               return const CreateUsernameScreen();
             }
-            return FutureBuilder<bool>(
-              future: OtpSessionService().isOtpRequiredForUid(widget.uid),
-              builder: (context, otpSnapshot) {
-                if (otpSnapshot.connectionState != ConnectionState.done) {
+            return ValueListenableBuilder<int>(
+              valueListenable: OtpSessionService.sessionRevision,
+              builder: (context, revision, _) {
+                final handshake = OtpSessionService().emailLoginHandshakeActive;
+                if (widget.isPasswordAccount &&
+                    appUser.emailOtpVerified &&
+                    handshake) {
                   return const Scaffold(
                     backgroundColor: Color(0xFF0D0015),
                     body: Center(
@@ -156,28 +171,44 @@ class _UserDocGateState extends State<_UserDocGate> {
                     ),
                   );
                 }
-                final sessionOtpRequired = otpSnapshot.data ?? false;
-                if (widget.isPasswordAccount &&
-                    (sessionOtpRequired || !appUser.emailOtpVerified)) {
-                  return VerifyCodeScreen(
-                    maskedEmail: _maskEmailForDisplay(widget.email),
-                    autoSendOnOpen: !sessionOtpRequired,
-                  );
-                }
-                if (appUser.onboardingCompleted) {
-                  if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
-                    return TierPickerScreen(
-                      onContinue: () {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const MainNavWrapper()),
-                          (route) => false,
+                return FutureBuilder<bool>(
+                  key: ValueKey<String>('otp_${widget.uid}_$revision'),
+                  future: OtpSessionService().isOtpRequiredForUid(widget.uid),
+                  builder: (context, otpSnapshot) {
+                    if (otpSnapshot.connectionState != ConnectionState.done) {
+                      return const Scaffold(
+                        backgroundColor: Color(0xFF0D0015),
+                        body: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                      );
+                    }
+                    final sessionOtpRequired = otpSnapshot.data ?? false;
+                    if (widget.isPasswordAccount &&
+                        (sessionOtpRequired || !appUser.emailOtpVerified)) {
+                      return VerifyCodeScreen(
+                        maskedEmail: _maskEmailForDisplay(widget.email),
+                        autoSendOnOpen: !sessionOtpRequired,
+                      );
+                    }
+                    if (appUser.onboardingCompleted) {
+                      if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
+                        return TierPickerScreen(
+                          onContinue: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const MainNavWrapper()),
+                              (route) => false,
+                            );
+                          },
                         );
-                      },
-                    );
-                  }
-                  return const MainNavWrapper();
-                }
-                return const CreateUsernameScreen();
+                      }
+                      return const MainNavWrapper();
+                    }
+                    return const CreateUsernameScreen();
+                  },
+                );
               },
             );
           },

@@ -15,11 +15,11 @@
 
 @implementation AgoraDeferredRegistration
 
-+ (void)registerWithEngine:(FlutterEngine *)engine {
++ (void)registerWithRegistry:(NSObject<FlutterPluginRegistry> *)registry {
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
-    [AgoraRtcNgPlugin registerWithRegistrar:[engine registrarForPlugin:@"AgoraRtcNgPlugin"]];
-    [IrisMethodChannelPlugin registerWithRegistrar:[engine registrarForPlugin:@"IrisMethodChannelPlugin"]];
+    [AgoraRtcNgPlugin registerWithRegistrar:[registry registrarForPlugin:@"AgoraRtcNgPlugin"]];
+    [IrisMethodChannelPlugin registerWithRegistrar:[registry registrarForPlugin:@"IrisMethodChannelPlugin"]];
   });
 }
 

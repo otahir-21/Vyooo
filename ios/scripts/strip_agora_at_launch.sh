@@ -8,6 +8,13 @@
 # "Library not loaded: AgoraRtcWrapper".
 set -euo pipefail
 
+# Hard block: physical iPhone + Debug + Agora is unstable and often crashes at launch.
+if [[ "${CONFIGURATION:-}" == "Debug" && "${PLATFORM_NAME:-}" == "iphoneos" ]]; then
+  echo "error: Vyooo blocks Debug builds on physical iPhone when Agora is linked."
+  echo "error: Use: flutter run --profile  (or --release)."
+  exit 1
+fi
+
 # ── Strip plugin registration from GeneratedPluginRegistrant.m ───────────────
 REG="${SRCROOT}/Runner/GeneratedPluginRegistrant.m"
 if [[ ! -f "$REG" ]]; then
