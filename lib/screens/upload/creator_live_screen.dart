@@ -35,7 +35,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
   late RtcEngine _engine;
   bool _engineReady = false;
   int _localUid = 0;
-  int _engineVersion = 0; // incremented on each init — forces AgoraVideoView to rebuild
+  int _engineVersion =
+      0; // incremented on each init — forces AgoraVideoView to rebuild
 
   // ── State ─────────────────────────────────────────────────────────────────────
   _LiveState _liveState = _LiveState.initializing;
@@ -119,62 +120,71 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 
   Future<bool> _requestPermissions() async {
     final statuses = await [Permission.camera, Permission.microphone].request();
-    return statuses[Permission.camera]!.isGranted && statuses[Permission.microphone]!.isGranted;
+    return statuses[Permission.camera]!.isGranted &&
+        statuses[Permission.microphone]!.isGranted;
   }
 
   Future<void> _initAgora() async {
     _engine = createAgoraRtcEngine();
-    await _engine.initialize(RtcEngineContext(
-      appId: AgoraConfig.appId,
-      channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-    ));
+    await _engine.initialize(
+      RtcEngineContext(
+        appId: AgoraConfig.appId,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+      ),
+    );
 
-    _engine.registerEventHandler(RtcEngineEventHandler(
-      onJoinChannelSuccess: (connection, elapsed) {
-        if (!mounted) return;
-        setState(() => _localUid = connection.localUid ?? 0);
-        if (_streamId != null) {
-          _liveService.updateHostAgoraUid(_streamId!, _localUid);
-        }
-      },
-      onUserJoined: (connection, remoteUid, elapsed) {
-        if (_streamId == null) return;
-        _liveService.sendMessage(
-          streamId: _streamId!,
-          userId: 'system',
-          username: 'system',
-          message: 'Someone joined the stream 👋',
-          type: ChatMessageType.join,
-        ).catchError((_) {});
-      },
-      onUserOffline: (connection, remoteUid, reason) {
-        if (_streamId == null) return;
-        _liveService.sendMessage(
-          streamId: _streamId!,
-          userId: 'system',
-          username: 'system',
-          message: 'A viewer left the stream',
-          type: ChatMessageType.system,
-        ).catchError((_) {});
-      },
-      onTokenPrivilegeWillExpire: (connection, token) async {
-        if (_streamId == null) return;
-        try {
-          final newToken = await _tokenService.renewToken(
-            channelName: _streamId!,
-            uid: _localUid,
-            isHost: true,
-          );
-          await _engine.renewToken(newToken);
-        } catch (_) {
-          _showToast('Token renewal failed — stream may disconnect');
-        }
-      },
-      onError: (err, msg) {
-        if (!mounted) return;
-        _showToast('Stream error: $msg');
-      },
-    ));
+    _engine.registerEventHandler(
+      RtcEngineEventHandler(
+        onJoinChannelSuccess: (connection, elapsed) {
+          if (!mounted) return;
+          setState(() => _localUid = connection.localUid ?? 0);
+          if (_streamId != null) {
+            _liveService.updateHostAgoraUid(_streamId!, _localUid);
+          }
+        },
+        onUserJoined: (connection, remoteUid, elapsed) {
+          if (_streamId == null) return;
+          _liveService
+              .sendMessage(
+                streamId: _streamId!,
+                userId: 'system',
+                username: 'system',
+                message: 'Someone joined the stream 👋',
+                type: ChatMessageType.join,
+              )
+              .catchError((_) {});
+        },
+        onUserOffline: (connection, remoteUid, reason) {
+          if (_streamId == null) return;
+          _liveService
+              .sendMessage(
+                streamId: _streamId!,
+                userId: 'system',
+                username: 'system',
+                message: 'A viewer left the stream',
+                type: ChatMessageType.system,
+              )
+              .catchError((_) {});
+        },
+        onTokenPrivilegeWillExpire: (connection, token) async {
+          if (_streamId == null) return;
+          try {
+            final newToken = await _tokenService.renewToken(
+              channelName: _streamId!,
+              uid: _localUid,
+              isHost: true,
+            );
+            await _engine.renewToken(newToken);
+          } catch (_) {
+            _showToast('Token renewal failed — stream may disconnect');
+          }
+        },
+        onError: (err, msg) {
+          if (!mounted) return;
+          _showToast('Stream error: $msg');
+        },
+      ),
+    );
 
     await _engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
     await _engine.enableVideo();
@@ -226,7 +236,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
     try {
       // Load user profile for display name
       final profile = await _userService.getUser(user.uid);
-      final username = profile?.username ?? user.email?.split('@').first ?? 'Host';
+      final username =
+          profile?.username ?? user.email?.split('@').first ?? 'Host';
       final profileImage = profile?.profileImage;
 
       // Create Firestore document — channel name = doc ID
@@ -296,7 +307,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       // Send heartbeat immediately, then every 30 s so discover list stays current
       _liveService.updateHeartbeat(_streamId!).ignore();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (_streamId != null) _liveService.updateHeartbeat(_streamId!).ignore();
+        if (_streamId != null)
+          _liveService.updateHeartbeat(_streamId!).ignore();
       });
     } catch (e, st) {
       debugPrint('❌ _goLive error: $e\n$st');
@@ -416,7 +428,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.78),
       builder: (_) => const _ConfirmDialog(
         message: 'Do you want to end this live stream?',
-        confirmLabel: 'Yes End',
+        confirmLabel: 'Yes, End',
       ),
     );
     if (end != true || !mounted) return;
@@ -433,7 +445,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       barrierColor: Colors.black.withValues(alpha: 0.78),
       builder: (_) => const _ConfirmDialog(
         message: 'Do you want to add this live stream to your profile?',
-        confirmLabel: 'Yes Add',
+        confirmLabel: 'Yes, Add',
       ),
     );
 
@@ -473,7 +485,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 
   Widget _buildBackground() {
     if (!_engineReady) return Container(color: const Color(0xFF0A000F));
-    if (_isVideoOff && _liveState == _LiveState.live) return Container(color: const Color(0xFF0A000F));
+    if (_isVideoOff && _liveState == _LiveState.live)
+      return Container(color: const Color(0xFF0A000F));
     return AgoraVideoView(
       key: ValueKey(_engineVersion),
       controller: VideoViewController(
@@ -503,7 +516,9 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 
   Widget _buildStateContent() {
     return switch (_liveState) {
-      _LiveState.initializing => const Center(child: CircularProgressIndicator(color: Colors.white)),
+      _LiveState.initializing => const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      ),
       _LiveState.permissionDenied => _buildPermissionDenied(),
       _LiveState.offline => _buildOfflineContent(),
       _LiveState.countdown => _buildCountdownContent(),
@@ -521,12 +536,20 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.videocam_off_rounded, color: Colors.white54, size: 64),
+              const Icon(
+                Icons.videocam_off_rounded,
+                color: Colors.white54,
+                size: 64,
+              ),
               const SizedBox(height: 20),
               const Text(
                 'Camera & microphone access is required to go live.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 24),
               _GradientButton(
@@ -537,7 +560,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('Cancel', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                ),
               ),
             ],
           ),
@@ -556,7 +582,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           Positioned(
             top: 6,
             left: 10,
-            child: _CircleIconButton(icon: Icons.close, onTap: () => Navigator.of(context).pop()),
+            child: _CircleIconButton(
+              icon: Icons.close,
+              onTap: () => Navigator.of(context).pop(),
+            ),
           ),
           // OFFLINE badge
           Positioned(
@@ -565,11 +594,16 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.28),
+                  ),
                 ),
                 child: const Text(
                   'OFFLINE',
@@ -585,19 +619,44 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           ),
           // Right tool icons
           Positioned(
-            top: 52,
-            right: 14,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CircleIconButton(icon: Icons.cameraswitch_rounded, onTap: _flipCamera),
-                const SizedBox(height: 14),
-                _CircleIconButton(icon: Icons.auto_fix_high_rounded, onTap: () {}),
-                const SizedBox(height: 14),
-                _CircleIconButton(icon: Icons.tune_rounded, onTap: _openSettings),
-                const SizedBox(height: 14),
-                _CircleIconButton(icon: Icons.timer_rounded, onTap: () {}),
-              ],
+            top: 60,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _CircleIconButton(
+                    icon: Icons.mic_rounded,
+                    onTap: _toggleMute,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.videocam_rounded,
+                    onTap: _toggleVideo,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.cameraswitch_rounded,
+                    onTap: _flipCamera,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.chat_bubble_rounded,
+                    onTap: _toggleComments,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.settings_rounded,
+                    onTap: _openSettings,
+                    size: 40,
+                  ),
+                ],
+              ),
             ),
           ),
           // Bottom
@@ -616,16 +675,23 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 48,
+                    vertical: 8,
+                  ),
                   child: _GradientButton(
                     label: 'Start Live',
-                    icon: Icons.play_circle_filled_rounded,
+                    icon: Icons.wifi_rounded,
                     onTap: _startCountdown,
+                    isWhite: true,
                   ),
                 ),
                 const _LiveSegmentBar(),
@@ -653,7 +719,11 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           Center(
@@ -663,12 +733,19 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.black.withValues(alpha: 0.5),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2.5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  width: 2.5,
+                ),
               ),
               child: Center(
                 child: Text(
                   '$_countdown',
-                  style: const TextStyle(color: Colors.white, fontSize: 44, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 44,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -681,18 +758,27 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               child: GestureDetector(
                 onTap: _cancelCountdown,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.close, color: Colors.white, size: 18),
-                      SizedBox(width: 6),
-                      Text('Cancel', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                      SizedBox(width: 8),
+                      Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -717,85 +803,117 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           Positioned(
             top: 12,
             left: 16,
-            right: 64,
+            right: 80,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.deleteRed,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  backgroundImage: _streamDoc?.hostProfileImage != null
+                      ? NetworkImage(_streamDoc!.hostProfileImage!)
+                      : null,
+                  child: _streamDoc?.hostProfileImage == null
+                      ? const Icon(Icons.person, color: Colors.white, size: 20)
+                      : null,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    _streamTitle.isEmpty ? 'Live Stream' : _streamTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _streamTitle.isEmpty ? 'Live Stream Topic' : _streamTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _streamDoc?.description ?? 
+                        'Leveraging cutting-edge technologies and modern UI/UX principles to deliver premium experiences. #vyoo #live #creative',
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 11.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          // Viewer count top-right area
           Positioned(
-            top: 10,
-            right: 64,
+            top: 60,
+            right: 16,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.black.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(24),
               ),
-              child: Row(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.remove_red_eye_outlined, color: Colors.white.withValues(alpha: 0.85), size: 14),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatCount(viewers),
-                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                  _CircleIconButton(
+                    icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    onTap: _toggleMute,
+                    active: _isMuted,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: _isVideoOff
+                        ? Icons.videocam_off_rounded
+                        : Icons.videocam_rounded,
+                    onTap: _toggleVideo,
+                    active: _isVideoOff,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.cameraswitch_rounded,
+                    onTap: _flipCamera,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.speaker_notes_rounded,
+                    onTap: _toggleComments,
+                    active: _isCommentsOff,
+                    size: 40,
+                  ),
+                  _CircleIconButton(
+                    icon: Icons.settings_rounded,
+                    onTap: _openSettings,
+                    size: 40,
                   ),
                 ],
               ),
             ),
           ),
-          // Right side controls
-          Positioned(
-            top: 8,
-            right: 14,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _CircleIconButton(icon: Icons.close, onTap: _onEndStream),
-                const SizedBox(height: 10),
-                _CircleIconButton(
-                  icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                  onTap: _toggleMute,
-                  active: _isMuted,
+          if (_isCommentsOff)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.65),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 10),
-                _CircleIconButton(
-                  icon: _isVideoOff ? Icons.videocam_off_rounded : Icons.videocam_rounded,
-                  onTap: _toggleVideo,
-                  active: _isVideoOff,
+                child: const Text(
+                  'Comments turned off',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const SizedBox(height: 10),
-                _CircleIconButton(icon: Icons.cameraswitch_rounded, onTap: _flipCamera),
-                const SizedBox(height: 10),
-                _CircleIconButton(
-                  icon: Icons.speaker_notes_off_rounded,
-                  onTap: _toggleComments,
-                  active: _isCommentsOff,
-                ),
-                const SizedBox(height: 10),
-                _CircleIconButton(icon: Icons.tune_rounded, onTap: _openSettings),
-              ],
+              ),
             ),
-          ),
           // Bottom: chat + input + end button
           Positioned(
             left: 0,
@@ -814,7 +932,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                 children: [
                   _buildChatList(),
                   const SizedBox(height: 8),
-                  _buildCommentRow(likes),
+                  _buildCommentRow(likes, viewers),
                   const SizedBox(height: 10),
                   _buildEndStreamButton(),
                 ],
@@ -827,7 +945,9 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
   }
 
   Widget _buildChatList() {
-    final msgs = _isCommentsOff ? const <LiveChatMessageModel>[] : _chatMessages;
+    final msgs = _isCommentsOff
+        ? const <LiveChatMessageModel>[]
+        : _chatMessages;
     if (msgs.isEmpty) return const SizedBox.shrink();
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 150),
@@ -844,7 +964,11 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               child: Center(
                 child: Text(
                   m.message,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12, fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ),
             );
@@ -857,9 +981,17 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                 CircleAvatar(
                   radius: 12,
                   backgroundColor: Colors.white.withValues(alpha: 0.2),
-                  backgroundImage: (m.profileImage?.isNotEmpty == true) ? NetworkImage(m.profileImage!) : null,
+                  backgroundImage: (m.profileImage?.isNotEmpty == true)
+                      ? NetworkImage(m.profileImage!)
+                      : null,
                   child: (m.profileImage?.isNotEmpty != true)
-                      ? Text(m.username[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10))
+                      ? Text(
+                          m.username[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        )
                       : null,
                 ),
                 const SizedBox(width: 8),
@@ -872,11 +1004,16 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                       children: [
                         TextSpan(
                           text: '${m.username} ',
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         TextSpan(
                           text: m.message,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
                         ),
                       ],
                     ),
@@ -890,64 +1027,95 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
     );
   }
 
-  Widget _buildCommentRow(int likes) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        children: [
-          Expanded(
+  Widget _buildCommentRow(int likes, int viewers) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: TextField(
               controller: _chatCtrl,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _sendChatMessage(),
               decoration: InputDecoration(
-                hintText: 'Comment...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 14),
+                hintText: 'Reply...',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.35),
+                  fontSize: 13,
+                ),
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _sendLike,
-            child: Row(
-              children: [
-                Icon(Icons.favorite_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
-                const SizedBox(width: 4),
-                Text(_formatCount(likes), style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
-              ],
-            ),
+        ),
+        const SizedBox(width: 8),
+        // Views
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.remove_red_eye_outlined, color: Colors.white.withValues(alpha: 0.7), size: 16),
+            const SizedBox(width: 4),
+            Text(_formatCount(viewers), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(width: 12),
+        // Likes
+        GestureDetector(
+          onTap: _sendLike,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.favorite, color: Colors.pink, size: 16),
+              const SizedBox(width: 4),
+              Text(_formatCount(likes), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
           ),
-          const SizedBox(width: 12),
-          Icon(Icons.reply_rounded, color: Colors.white.withValues(alpha: 0.9), size: 21),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Icon(Icons.reply_rounded, color: Colors.white, size: 20),
+      ],
     );
   }
 
   Widget _buildEndStreamButton() {
-    return GestureDetector(
-      onTap: _onEndStream,
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: const Color(0xFFC0002A),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.stop_circle_outlined, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text('End stream', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-          ],
+    return Center(
+      child: GestureDetector(
+        onTap: _onEndStream,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B1538),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'End stream',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -961,7 +1129,14 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           color: Colors.black.withValues(alpha: 0.72),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+        child: Text(
+          msg,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -976,25 +1151,30 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 // ── Shared widgets ─────────────────────────────────────────────────────────────
 
 class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({required this.icon, required this.onTap, this.active = false});
+  const _CircleIconButton({
+    required this.icon,
+    required this.onTap,
+    this.active = false,
+    this.size = 44,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
   final bool active;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: active ? AppColors.pink.withValues(alpha: 0.35) : Colors.black.withValues(alpha: 0.42),
-          border: Border.all(
-            color: active ? AppColors.pink.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.22),
-          ),
+          color: active
+              ? AppColors.pink.withValues(alpha: 0.35)
+              : Colors.transparent,
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
@@ -1003,28 +1183,52 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 class _GradientButton extends StatelessWidget {
-  const _GradientButton({required this.label, required this.icon, required this.onTap});
+  const _GradientButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.isWhite = false,
+  });
 
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final bool isWhite;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 52,
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [Color(0xFFDE106B), Color(0xFFF81945)]),
+          color: isWhite ? Colors.white : null,
+          gradient: isWhite
+              ? null
+              : const LinearGradient(
+                  colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+                ),
           borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 22),
-            const SizedBox(width: 8),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Icon(
+              icon,
+              color: isWhite ? Colors.black : Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: isWhite ? Colors.black : Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -1040,18 +1244,38 @@ class _LiveSegmentBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _SegBtn(label: 'Post', icon: Icons.article_rounded, selected: false, onTap: () => Navigator.of(context).pop()),
-        const SizedBox(width: 32),
-        _SegBtn(label: 'Videos', icon: Icons.video_library_rounded, selected: false, onTap: () => Navigator.of(context).pop()),
-        const SizedBox(width: 32),
-        const _SegBtn(label: 'Live', icon: Icons.videocam_rounded, selected: true, onTap: null),
+        _SegBtn(
+          label: 'Story',
+          icon: Icons.auto_stories_rounded,
+          selected: false,
+          onTap: () => Navigator.of(context).pop(),
+        ),
+        const SizedBox(width: 8),
+        _SegBtn(
+          label: 'Gallery',
+          icon: Icons.photo_library_rounded,
+          selected: false,
+          onTap: () => Navigator.of(context).pop(),
+        ),
+        const SizedBox(width: 8),
+        const _SegBtn(
+          label: 'Live',
+          icon: Icons.videocam_rounded,
+          selected: true,
+          onTap: null,
+        ),
       ],
     );
   }
 }
 
 class _SegBtn extends StatelessWidget {
-  const _SegBtn({required this.label, required this.icon, required this.selected, required this.onTap});
+  const _SegBtn({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final IconData icon;
@@ -1060,43 +1284,85 @@ class _SegBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFFDE106B) : Colors.white.withValues(alpha: 0.65);
+    final color =
+        selected ? Colors.white : Colors.white.withValues(alpha: 0.65);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (selected)
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(icon, size: 26, color: color),
-                Positioned(
-                  top: -2,
-                  right: -4,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(color: Color(0xFFFF2D55), shape: BoxShape.circle),
-                  ),
-                ),
-              ],
-            )
-          else
-            Icon(icon, size: 26, color: color),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFDE106B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _HeartSliderThumb extends SliderComponentShape {
+  final double thumbRadius;
+
+  const _HeartSliderThumb({this.thumbRadius = 14.0});
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => Size.fromRadius(thumbRadius);
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    final Canvas canvas = context.canvas;
+
+    final paint = Paint()
+      ..color = const Color(0xFFF81945)
+      ..style = PaintingStyle.fill;
+
+    // Heart-like badge shape
+    const double r = 10.0;
+    final path = Path();
+    path.moveTo(center.dx, center.dy + r);
+    path.cubicTo(center.dx - r * 1.5, center.dy - r * 0.5, center.dx - r * 0.8, center.dy - r * 1.8, center.dx, center.dy - r * 0.8);
+    path.cubicTo(center.dx + r * 0.8, center.dy - r * 1.8, center.dx + r * 1.5, center.dy - r * 0.5, center.dx, center.dy + r);
+    canvas.drawPath(path, paint);
+
+    // Text inside badge (e.g. C7)
+    final val = (value * 10).round();
+    final tp = TextPainter(
+      text: TextSpan(
+        text: 'C$val',
+        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800),
+      ),
+      textDirection: textDirection,
+    );
+    tp.layout();
+    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2 + 2));
   }
 }
 
@@ -1112,57 +1378,61 @@ class _ConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 40),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
+        padding: const EdgeInsets.fromLTRB(28, 32, 28, 20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF2A0030), Color(0xFF1A001F)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          color: const Color(0xFF1E0A1E),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-              ).createShader(bounds),
-              child: const Text(
-                'VyooO',
-                style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 1),
+            const Text(
+              'VyooO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16, height: 1.4),
-            ),
-            const SizedBox(height: 28),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(true),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFFDE106B), Color(0xFFF81945)]),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Center(
-                  child: Text(
-                    confirmLabel,
-                    style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
-                  ),
-                ),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 15,
+                height: 1.4,
               ),
             ),
-            const SizedBox(height: 14),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(false),
-              child: Text('No', style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 15, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    confirmLabel,
+                    style: const TextStyle(
+                      color: Color(0xFFDE106B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(false),
+                  child: const Text(
+                    'No',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1173,13 +1443,14 @@ class _ConfirmDialog extends StatelessWidget {
 
 // ── Settings bottom sheet ──────────────────────────────────────────────────────
 
-typedef _SettingsSaveCallback = void Function(
-  String title,
-  String description,
-  String category,
-  List<String> tags,
-  int pricePerMinute,
-);
+typedef _SettingsSaveCallback =
+    void Function(
+      String title,
+      String description,
+      String category,
+      List<String> tags,
+      int pricePerMinute,
+    );
 
 class _LiveSettingsSheet extends StatefulWidget {
   const _LiveSettingsSheet({
@@ -1217,8 +1488,16 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
   late double _priceLevel;
 
   static const _categories = [
-    'Entertainment', 'Music', 'Sports', 'Gaming',
-    'Education', 'Fitness', 'Travel', 'Food', 'Art', 'Technology',
+    'Entertainment',
+    'Music',
+    'Sports',
+    'Gaming',
+    'Education',
+    'Fitness',
+    'Travel',
+    'Food',
+    'Art',
+    'Technology',
   ];
 
   @override
@@ -1288,24 +1567,39 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
               ),
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.sm,
+                ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 28),
+                      icon: const Icon(
+                        Icons.chevron_left_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                     const Expanded(
                       child: Text(
                         'Stream Settings',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     TextButton(
                       onPressed: _save,
                       child: const Text(
                         'Save',
-                        style: TextStyle(color: Color(0xFFDE106B), fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          color: Color(0xFFDE106B),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
@@ -1317,13 +1611,28 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                   controller: scrollCtrl,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   children: [
-                    _buildField('Title', _titleCtrl, _titleMax, 'Add your title', 1),
+                    _buildField(
+                      'Title',
+                      _titleCtrl,
+                      _titleMax,
+                      'Add your title',
+                      1,
+                    ),
                     const SizedBox(height: AppSpacing.md),
-                    _buildField('Description', _descCtrl, _descMax, 'Add a short description', 3),
+                    _buildField(
+                      'Description',
+                      _descCtrl,
+                      _descMax,
+                      'Add a short description',
+                      3,
+                    ),
                     const SizedBox(height: 6),
                     Text(
                       'All content must be categorized for better search experience',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 11,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.md),
                     _buildCategoryDropdown(),
@@ -1345,42 +1654,61 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
     );
   }
 
-  Widget _buildField(String label, TextEditingController ctrl, int maxLength, String hint, int maxLines) {
+  Widget _buildField(
+    String label,
+    TextEditingController ctrl,
+    int maxLength,
+    String hint,
+    int maxLines,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: ctrl,
               builder: (context, v, child) => Text(
-                '${maxLength - v.text.length}',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                '${v.text.length}/$maxLength',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          child: TextField(
-            controller: ctrl,
-            maxLength: maxLength,
-            maxLines: maxLines,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 14),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              counterText: '',
+        TextField(
+          controller: ctrl,
+          maxLength: maxLength,
+          maxLines: maxLines,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.35),
+              fontSize: 13,
             ),
+            border: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24, width: 0.8),
+            ),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24, width: 0.8),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFDE106B), width: 1.2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            counterText: '',
           ),
         ),
       ],
@@ -1391,26 +1719,45 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Category', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        const Text(
+          'Category',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedCategory.isEmpty ? null : _selectedCategory,
-              hint: Text('Select your category', style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 14)),
-              isExpanded: true,
-              dropdownColor: const Color(0xFF2A1030),
-              icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.6)),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (v) => setState(() => _selectedCategory = v ?? ''),
+        ),
+        DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _selectedCategory.isEmpty ? null : _selectedCategory,
+            hint: Text(
+              'Select your category',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.35),
+                fontSize: 13,
+              ),
             ),
+            isExpanded: true,
+            dropdownColor: const Color(0xFF2A1030),
+            icon: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white.withValues(alpha: 0.6),
+              size: 20,
+            ),
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            items: _categories
+                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                .toList(),
+            onChanged: (v) => setState(() => _selectedCategory = v ?? ''),
+          ),
+        ),
+        const Divider(color: Colors.white24, height: 1, thickness: 0.8),
+        const SizedBox(height: 8),
+        Text(
+          'All content must be categorized for better search experience.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 11,
           ),
         ),
       ],
@@ -1424,63 +1771,93 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Tags', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-            Text('${_tags.length}/8', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12)),
+            const Text(
+              'Tags',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '${_tags.length}/6',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.4),
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
+        TextField(
+          controller: _tagsCtrl,
+          enabled: _tags.length < 6,
+          onSubmitted: _addTag,
+          textInputAction: TextInputAction.done,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Enter your own tags',
+            hintStyle: TextStyle(
+              color: Colors.white.withValues(alpha: 0.35),
+              fontSize: 13,
+            ),
+            border: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24, width: 0.8),
+            ),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24, width: 0.8),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFFDE106B), width: 1.2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            counterText: '',
+          ),
+        ),
         const SizedBox(height: 8),
+        Text(
+          'Tags are visible by others and are used to make you discoverable on vyoo.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 11,
+          ),
+        ),
         if (_tags.isNotEmpty) ...[
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 6,
             children: _tags.map((t) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDE106B).withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFDE106B).withValues(alpha: 0.4)),
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(t, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    Text(
+                      t,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
                     const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () => setState(() => _tags.remove(t)),
-                      child: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.6), size: 14),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 14,
+                      ),
                     ),
                   ],
                 ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 8),
         ],
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          child: TextField(
-            controller: _tagsCtrl,
-            enabled: _tags.length < 8,
-            onSubmitted: _addTag,
-            textInputAction: TextInputAction.done,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-            decoration: InputDecoration(
-              hintText: _tags.length >= 8 ? 'Max 8 tags reached' : 'Enter your own tags',
-              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 14),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              suffixIcon: IconButton(
-                icon: Icon(Icons.add_rounded, color: Colors.white.withValues(alpha: 0.5)),
-                onPressed: () => _addTag(_tagsCtrl.text),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1489,45 +1866,52 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Live video pricing', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        const Text(
+          'Live video pricing',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           'Set your per-minute rate for non-subscribers',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 12),
         SliderTheme(
           data: SliderThemeData(
             activeTrackColor: const Color(0xFFDE106B),
             inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-            thumbColor: const Color(0xFFDE106B),
-            overlayColor: const Color(0xFFDE106B).withValues(alpha: 0.2),
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            thumbShape: const _HeartSliderThumb(thumbRadius: 16),
+            overlayColor: const Color(0xFFDE106B).withValues(alpha: 0.1),
+            trackHeight: 2,
           ),
           child: Slider(
             value: _priceLevel,
             min: 0,
-            max: 7,
-            divisions: 7,
+            max: 10,
+            divisions: 10,
             onChanged: (v) => setState(() => _priceLevel = v),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(
-              8,
-              (i) => Text(
-                '$i',
-                style: TextStyle(
-                  color: i == _priceLevel.round() ? const Color(0xFFDE106B) : Colors.white.withValues(alpha: 0.4),
-                  fontSize: 12,
-                  fontWeight: i == _priceLevel.round() ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ),
+            children: [0, 2, 4, 6, 8, 10]
+                .map((i) => Text(
+                      '$i',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 11,
+                      ),
+                    ))
+                .toList(),
           ),
         ),
       ],

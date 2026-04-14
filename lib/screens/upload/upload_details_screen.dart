@@ -8,9 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/services/reels_service.dart';
-import '../../core/theme/app_radius.dart';
-import '../../core/theme/app_spacing.dart';
-import '../../core/widgets/app_gradient_background.dart';
 import 'upload_success_screen.dart';
 
 /// Upload Details screen: title, description, tags, isVR.
@@ -196,8 +193,15 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       resizeToAvoidBottomInset: true,
-      body: AppGradientBackground(
-        type: GradientType.profile,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFDE106B), Color(0xFF1E0A1E)],
+            stops: [0.0, 0.6],
+          ),
+        ),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -215,25 +219,35 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          IconButton(
-            onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          ),
-          const Expanded(
-            child: Text(
-              'Post video',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          GestureDetector(
+            onTap: _isUploading ? null : () => Navigator.of(context).pop(),
+            child: const Row(
+              children: [
+                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Add details',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ],
             ),
           ),
-          TextButton(
-            onPressed: _isUploading ? null : _post,
-            child: const Text(
-              'Post',
-              style: TextStyle(color: _pink, fontSize: 17, fontWeight: FontWeight.w700),
+          const Spacer(),
+          GestureDetector(
+            onTap: _isUploading ? null : _post,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              decoration: BoxDecoration(
+                color: _pink,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Upload',
+                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -244,17 +258,17 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   Widget _buildProgress() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.cloud_upload_rounded, color: _pink, size: 56),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: 24),
             const Text(
               'Uploading your video…',
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
@@ -264,11 +278,9 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                 minHeight: 6,
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: 8),
             Text(
-              _uploadProgress > 0
-                  ? '${(_uploadProgress * 100).toInt()}%'
-                  : 'Preparing…',
+              _uploadProgress > 0 ? '${(_uploadProgress * 100).toInt()}%' : 'Preparing…',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
             ),
           ],
@@ -279,43 +291,146 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildForm() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 20),
+          _buildThumbnail(),
+          const SizedBox(height: 32),
           _buildField(
             controller: _titleController,
             label: 'Title',
-            hint: 'Add a title…',
+            hint: 'Add your Title',
             maxLines: 1,
+            maxLength: 120,
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 24),
           _buildField(
             controller: _descController,
             label: 'Description',
-            hint: 'Describe your video…',
-            maxLines: 3,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildField(
-            controller: _tagsController,
-            label: 'Hashtags',
-            hint: '#viral #trending #vyooo',
+            hint: 'Add a short description',
             maxLines: 2,
+            maxLength: 200,
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _buildToggle(
-            label: 'VR Content',
-            subtitle: 'Show in VR tab (360° or spatial video)',
-            value: _isVR,
-            onChanged: (v) => setState(() => _isVR = v),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          _buildPostButton(),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: 24),
+          _buildCategoryPicker(),
+          const SizedBox(height: 24),
+          _buildTagsPicker(),
+          const SizedBox(height: 30),
         ],
       ),
+    );
+  }
+
+  Widget _buildThumbnail() {
+    return Center(
+      child: Container(
+        width: 140,
+        height: 190,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: Colors.white.withValues(alpha: 0.1),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: FutureBuilder<File?>(
+          future: widget.asset.file,
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data != null) {
+              return Image.file(snapshot.data!, fit: BoxFit.cover);
+            }
+            return const Center(child: CircularProgressIndicator(color: Colors.white24));
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Category',
+          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Text(
+                'Select your category',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
+              ),
+              const Spacer(),
+              Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'All content must be categorized for better search experience.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Tags',
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              '0/6',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _tagsController,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Enter your own tags',
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              Text(
+                'Add',
+                style: TextStyle(color: _pink.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Tags are visible by others and are used to make you discoverable on vyoo.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
+        ),
+      ],
     );
   }
 
@@ -324,98 +439,41 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     required String label,
     required String hint,
     required int maxLines,
+    required int maxLength,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.85),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              '0/$maxLength',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
           maxLines: maxLines,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: const TextStyle(color: Colors.white, fontSize: 13),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 15),
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.1),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: _pink),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.input),
-              borderSide: const BorderSide(color: _pink),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildToggle({
-    required String label,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: SwitchListTile(
-        title: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 13),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: _pink,
-        activeTrackColor: _pink.withValues(alpha: 0.5),
-        inactiveThumbColor: Colors.white54,
-        inactiveTrackColor: Colors.white24,
-      ),
-    );
-  }
-
-  Widget _buildPostButton() {
-    return Material(
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: InkWell(
-        onTap: _post,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-            ),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Post Video',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,6 +1,10 @@
 import Flutter
 import UIKit
 
+#if DEBUG && !targetEnvironment(simulator)
+#error("Vyooo does not support Debug mode on physical iPhone when Agora is linked. Run with --profile or --release.")
+#endif
+
 @main
 @objc class AppDelegate: FlutterAppDelegate {
   override func application(
