@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_spacing.dart';
 import '../models/comment.dart';
 
 /// Single comment row: avatar, username, time, text, Reply/View replies, like or delete.
@@ -26,95 +25,95 @@ class CommentTile extends StatelessWidget {
   final VoidCallback? onDelete;
   final bool isHighlighted;
 
-  static const double _avatarSize = 40;
-  static const double _avatarSizeReply = 32;
+  static const double _avatarSize = 56;
+  static const double _avatarSizeReply = 36;
 
   @override
   Widget build(BuildContext context) {
     final avatarSize = isReply ? _avatarSizeReply : _avatarSize;
+
     return Container(
-      color: isHighlighted ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+      color: isHighlighted
+          ? Colors.white.withValues(alpha: 0.025)
+          : Colors.transparent,
       padding: EdgeInsets.only(
-        left: isReply ? 72 : 16,
+        left: isReply ? 64 : 16,
         right: 16,
-        top: 10,
-        bottom: 10,
+        top: 12,
+        bottom: 12,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: isReply
-                  ? null
-                  : Border.all(color: Colors.white10, width: 0.5),
-            ),
-            child: CircleAvatar(
-              radius: avatarSize / 2,
-              backgroundColor: Colors.grey.shade900,
-              backgroundImage: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
-                  ? NetworkImage(comment.avatarUrl)
-                  : null,
-            ),
+          // ── Avatar ──────────────────────────────────────
+          CircleAvatar(
+            radius: avatarSize / 2,
+            backgroundColor: const Color(0xFF2A2A3A),
+            backgroundImage: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
+                ? NetworkImage(comment.avatarUrl)
+                : null,
           ),
-          SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: 16),
+
+          // ── Body ────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Username + verified + time
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Flexible(
-                      child: Row(
-                        children: [
-                          Text(
-                            comment.username,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                          if (comment.isVerified) ...[
-                            const SizedBox(width: 6),
-                            const _VerifiedBadge(),
-                          ],
-                          const SizedBox(width: 12),
-                          Text(
-                            comment.timeAgo,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      comment.username,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: isReply ? 14 : 16,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    if (comment.isVerified) ...[
+                      const SizedBox(width: 8),
+                      const _VerifiedBadge(),
+                    ],
+                    const SizedBox(width: 12),
+                    Text(
+                      comment.timeAgo,
+                      style: const TextStyle(
+                        color: Color(0x4DFFFFFF), // 30% white
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 6),
+
+                // Comment text
                 Text(
                   comment.text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
-                    height: 1.4,
+                    fontSize: isReply ? 16 : 17,
+                    height: 1.3,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: 10),
+
+                // Reply + View more replies
                 Row(
                   children: [
                     GestureDetector(
                       onTap: onReply,
-                      child: Text(
+                      behavior: HitTestBehavior.opaque,
+                      child: const Text(
                         'Reply',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: Color(0x80FFFFFF), // 50% white
                           fontSize: 13,
-                          fontWeight: FontWeight.w400,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -122,22 +121,23 @@ class CommentTile extends StatelessWidget {
                       const SizedBox(width: 24),
                       GestureDetector(
                         onTap: onViewReplies,
+                        behavior: HitTestBehavior.opaque,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               'View more replies (${comment.replyCount})',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
+                              style: const TextStyle(
+                                color: Color(0x80FFFFFF),
                                 fontSize: 13,
-                                fontWeight: FontWeight.w400,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Icon(
-                              Icons.keyboard_arrow_down,
+                            const Icon(
+                              Icons.keyboard_arrow_down_rounded,
                               size: 16,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: Color(0x80FFFFFF),
                             ),
                           ],
                         ),
@@ -148,88 +148,77 @@ class CommentTile extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(width: AppSpacing.sm),
-          if (comment.isOwnComment && onDelete != null)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onDelete,
-                borderRadius: BorderRadius.circular(22),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 22,
-                    color: Color(0xFFEF4444),
+          const SizedBox(width: 12),
+
+          // ── Right: like / delete ────────────────────────
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (comment.isOwnComment && onDelete != null)
+                GestureDetector(
+                  onTap: onDelete,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: Color(0xFFF81945),
+                    ),
                   ),
-                ),
-              ),
-            )
-          else
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                )
+              else
                 GestureDetector(
                   onTap: onLike,
                   behavior: HitTestBehavior.opaque,
-                  child: Opacity(
-                    opacity: onLike != null ? 1 : 0.35,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          comment.isLiked ? Icons.favorite : Icons.favorite_border,
-                          size: 18,
-                          color: comment.isLiked
-                              ? const Color(0xFFEF4444)
-                              : Colors.white.withValues(alpha: 0.6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        comment.isLiked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 20,
+                        color: comment.isLiked
+                            ? const Color(0xFFF81945)
+                            : const Color(0x80FFFFFF),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${comment.likeCount}',
+                        style: const TextStyle(
+                          color: Color(0x80FFFFFF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${comment.likeCount}',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-                if (onReport != null) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    onPressed: onReport,
-                    icon: Icon(
-                      Icons.flag_outlined,
-                      size: 18,
-                      color: Colors.white.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
+// ── Verified badge ───────────────────────────────────────────────────────────
+
 class _VerifiedBadge extends StatelessWidget {
   const _VerifiedBadge();
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 14,
       height: 14,
       decoration: const BoxDecoration(
-        color: Color(0xFFEF4444), // Design accurate Red
+        color: Color(0xFFF81945),
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.check, size: 9, color: Colors.white),
+      alignment: Alignment.center,
+      child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
     );
   }
 }

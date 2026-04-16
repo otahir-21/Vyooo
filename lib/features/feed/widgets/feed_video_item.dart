@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -35,6 +36,9 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
   VideoPlayerController? _controller;
   bool _initialized = false;
   bool _isRouteActive = true;
+  bool _showControls = false;
+  bool _isMuted = false;
+  Timer? _hideTimer;
 
   @override
   void initState() {
@@ -102,14 +106,44 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
     return n.toString();
   }
 
+  void _togglePlay() {
+    if (_controller == null) return;
+    setState(() {
+      if (_controller!.value.isPlaying) {
+        _controller!.pause();
+        _showControls = true; // Stay visible while paused
+        _hideTimer?.cancel();
+      } else {
+        _controller!.play();
+        _startHideTimer();
+      }
+    });
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && (_controller?.value.isPlaying ?? false)) {
+        setState(() => _showControls = false);
+      }
+    });
+  }
+
+  void _toggleMute() {
+    if (_controller == null) return;
+    setState(() {
+      _isMuted = !_isMuted;
+      _controller!.setVolume(_isMuted ? 0 : 1);
+    });
+    _startHideTimer();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         if (_controller == null) return;
-        _controller!.value.isPlaying
-            ? _controller!.pause()
-            : _controller!.play();
+        _togglePlay();
       },
       child: Stack(
         fit: StackFit.expand,
@@ -126,12 +160,12 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
                     ),
                   )
                 : widget.post.thumbnailUrl.isNotEmpty
-                    ? Image.network(
-                        widget.post.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => _placeholder(),
-                      )
-                    : _placeholder(),
+                ? Image.network(
+                    widget.post.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => _placeholder(),
+                  )
+                : _placeholder(),
           ),
           // ── Bottom gradient ───────────────────────────────────────────────
           Positioned(
@@ -174,17 +208,76 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
               onMore: widget.onMore,
             ),
           ),
+          // ── Play/Pause & Mute Overlay ─────────────────────────────────────
+          if (_initialized)
+            Center(
+              child: AnimatedOpacity(
+                opacity:
+                    _showControls || !(_controller?.value.isPlaying ?? true)
+                    ? 1.0
+                    : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: _buildControlPill(),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _placeholder() => Container(
-        color: Colors.grey[900],
-        child: const Center(
-          child: CircularProgressIndicator(color: Colors.white38),
+  Widget _buildControlPill() {
+    final isPlaying = _controller?.value.isPlaying ?? false;
+    return GestureDetector(
+      onTap: () {}, // Swallow taps to prevent background video toggle
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
         ),
-      );
+        child: IntrinsicHeight(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _togglePlay,
+                behavior: HitTestBehavior.opaque,
+                child: Icon(
+                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const VerticalDivider(
+                color: Colors.white24,
+                thickness: 1,
+                width: 1,
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: _toggleMute,
+                behavior: HitTestBehavior.opaque,
+                child: Icon(
+                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+    color: Colors.grey[900],
+    child: const Center(
+      child: CircularProgressIndicator(color: Colors.white38),
+    ),
+  );
 }
 
 // ── User info ─────────────────────────────────────────────────────────────────
