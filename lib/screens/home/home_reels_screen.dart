@@ -35,7 +35,11 @@ enum HomeTab { trending, vr, following, forYou }
 /// Main home screen: vertical reels feed with interactions.
 /// Default tab: For You. Tab switch is internal state only (no new route).
 class HomeReelsScreen extends StatefulWidget {
-  const HomeReelsScreen({super.key, this.isActive = true, this.refreshToken = 0});
+  const HomeReelsScreen({
+    super.key,
+    this.isActive = true,
+    this.refreshToken = 0,
+  });
 
   /// Whether the Home tab is the currently visible bottom-nav tab.
   /// When false, reels should pause even if their page is selected.
@@ -58,7 +62,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   int _currentIndex = 0;
   HomeTab currentTab = HomeTab.forYou;
-  bool _showControls = false;
   List<Map<String, dynamic>> _reelsForYou = [];
   List<Map<String, dynamic>> _reelsFollowing = [];
   List<Map<String, dynamic>> _reelsTrending = [];
@@ -91,7 +94,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         return _reelsForYou;
     }
   }
-
 
   // State for likes/saves (optimistic UI)
   final Map<String, bool> _likedReels = {};
@@ -158,6 +160,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       if (id.isEmpty) return true;
       return !blockedIds.contains(id);
     }
+
     final filteredForYou = forYou.where(allowedByBlock).toList();
     final filteredFollowing = following.where(allowedByBlock).toList();
     final filteredTrending = trending.where(allowedByBlock).toList();
@@ -308,12 +311,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
   }
 
-  void _onVideoTap() {
-    setState(() => _showControls = true);
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() => _showControls = false);
-    });
-  }
+  // void _onVideoTap() {
+  //   // Controls are now handled internally by ReelItemWidget
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -359,7 +359,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             if (!isVrTab) ...[
               _buildInteractionButtons(),
               _buildBottomUserInfo(),
-              if (_showControls) _buildControlsOverlay(),
             ],
           ],
         ),
@@ -401,9 +400,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   Future<void> _openStoryUpload() async {
     final posted = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const StoryUploadScreen(),
-      ),
+      MaterialPageRoute<bool>(builder: (_) => const StoryUploadScreen()),
     );
     if (posted == true) _loadReels();
   }
@@ -420,17 +417,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   Widget _buildStoryRow() {
     final uid = AuthService().currentUser?.uid ?? '';
-    final otherGroups = _storyGroups
-        .where((g) => g.userId != uid)
-        .toList();
+    final otherGroups = _storyGroups.where((g) => g.userId != uid).toList();
 
     final stories = otherGroups
-        .map((g) => {
-              'id': g.userId,
-              'profileImage': g.avatarUrl,
-              'avatarUrl': g.avatarUrl,
-              'username': g.username,
-            })
+        .map(
+          (g) => {
+            'id': g.userId,
+            'profileImage': g.avatarUrl,
+            'avatarUrl': g.avatarUrl,
+            'username': g.username,
+          },
+        )
         .toList();
 
     return Positioned(
@@ -455,10 +452,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   /// Rounded feed; when Following has no followed content, a banner + [For You] fallback.
   Widget _buildFeedClipArea(bool isFollowingTab) {
     final radius = BorderRadius.circular(isFollowingTab ? 24 : 0);
-    final feed = ClipRRect(
-      borderRadius: radius,
-      child: _buildReelsFeed(),
-    );
+    final feed = ClipRRect(borderRadius: radius, child: _buildReelsFeed());
     if (isFollowingTab && _followingUsesForYouFallback) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -480,7 +474,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.people_outline_rounded, color: Colors.white.withValues(alpha: 0.85), size: 20),
+            Icon(
+              Icons.people_outline_rounded,
+              color: Colors.white.withValues(alpha: 0.85),
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -527,13 +525,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             ),
           );
         }
-        return GestureDetector(
-          onTap: _onVideoTap,
-          child: ReelItemWidget(
-            videoUrl: videoUrl,
-            // Only play when this page is visible AND the home tab is active.
-            isVisible: widget.isActive && index == _currentIndex,
-          ),
+        return ReelItemWidget(
+          videoUrl: videoUrl,
+          // Only play when this page is visible AND the home tab is active.
+          isVisible: widget.isActive && index == _currentIndex,
         );
       },
     );
@@ -542,22 +537,22 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   Widget _buildEmptyReelsPlaceholder() {
     final (String title, String subtitle, IconData icon) = switch (currentTab) {
       HomeTab.following => (
-          'Nothing here yet',
-          _reelsForYou.isEmpty
-              ? 'Follow creators to see their reels here. For You is empty too—check back after content is added.'
-              : 'Follow creators to see their reels here. (For You will fill this tab until you do.)',
-          Icons.people_outline_rounded,
-        ),
+        'Nothing here yet',
+        _reelsForYou.isEmpty
+            ? 'Follow creators to see their reels here. For You is empty too—check back after content is added.'
+            : 'Follow creators to see their reels here. (For You will fill this tab until you do.)',
+        Icons.people_outline_rounded,
+      ),
       HomeTab.trending => (
-          'No trending reels',
-          'Check back soon or try For You.',
-          Icons.trending_up_rounded,
-        ),
+        'No trending reels',
+        'Check back soon or try For You.',
+        Icons.trending_up_rounded,
+      ),
       HomeTab.forYou => (
-          'No reels to show',
-          'Pull to refresh later or check your connection.',
-          Icons.play_circle_outline_rounded,
-        ),
+        'No reels to show',
+        'Pull to refresh later or check your connection.',
+        Icons.play_circle_outline_rounded,
+      ),
       HomeTab.vr => ('No reels', '', Icons.video_library_outlined),
     };
 
@@ -569,51 +564,44 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-            Icon(
-              icon,
-              size: 56,
-              color: Colors.white.withValues(alpha: 0.35),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (subtitle.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              Icon(icon, size: 56, color: Colors.white.withValues(alpha: 0.35)),
+              const SizedBox(height: 20),
               Text(
-                subtitle,
+                title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.65),
-                  fontSize: 15,
-                  height: 1.35,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ],
-            if (currentTab == HomeTab.following) ...[
-              const SizedBox(height: 24),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: AppColors.pink),
-                onPressed: () => _onTabChanged(HomeTab.forYou),
-                child: const Text(
-                  'Browse For You',
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 15,
+                    height: 1.35,
                   ),
                 ),
-              ),
+              ],
+              if (currentTab == HomeTab.following) ...[
+                const SizedBox(height: 24),
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: AppColors.pink),
+                  onPressed: () => _onTabChanged(HomeTab.forYou),
+                  child: const Text(
+                    'Browse For You',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
     );
   }
 
@@ -672,7 +660,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           ),
           const SizedBox(height: 18),
           AppInteractionButton(
-            icon: Icons.reply, 
+            icon: Icons.reply,
             count: _formatCount(reel['shares'] as int),
             onTap: () => _onShare(reelId),
           ),
@@ -882,57 +870,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
-  Widget _buildControlsOverlay() {
-    final playing = _currentIndex < _currentReels.length && _isVideoPlaying();
-    return Center(
-      child: AnimatedOpacity(
-        opacity: _showControls ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _onVideoTap,
-                child: Icon(
-                  playing ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              Container(
-                width: 1.5,
-                height: 20,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                color: Colors.white.withValues(alpha: 0.4),
-              ),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Toggle mute
-                },
-                child: const Icon(
-                  Icons.volume_off_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  bool _isVideoPlaying() {
-    // Placeholder - check actual player state from ReelItemWidget if needed
-    return true;
-  }
+  // bool _isVideoPlaying() {
+  //   // Placeholder - check actual player state from ReelItemWidget if needed
+  //   return true;
+  // }
 
   String _formatCount(int count) {
     if (count >= 1000000) {
