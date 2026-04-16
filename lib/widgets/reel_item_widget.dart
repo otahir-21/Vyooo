@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../core/theme/app_spacing.dart';
+import '../core/theme/app_gradients.dart';
 
 /// Single reel item for PageView. Handles video playback, auto-play, pause, preload.
 /// Use AutomaticKeepAliveClientMixin for performance.
@@ -28,6 +30,9 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _showError = false;
   int _retryCount = 0;
   int _urlIndex = 0;
+  bool _showControls = false;
+  bool _isMuted = false;
+  Timer? _hideTimer;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
   @override
@@ -150,11 +155,34 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   void _togglePlayPause() {
     if (_controller == null || !_isInitialized) return;
-    if (_controller!.value.isPlaying) {
-      _controller!.pause();
-    } else {
-      _controller!.play();
-    }
+    setState(() {
+      if (_controller!.value.isPlaying) {
+        _controller!.pause();
+        _showControls = true;
+        _hideTimer?.cancel();
+      } else {
+        _controller!.play();
+        _startHideTimer();
+      }
+    });
+  }
+
+  void _toggleMute() {
+    if (_controller == null || !_isInitialized) return;
+    setState(() {
+      _isMuted = !_isMuted;
+      _controller!.setVolume(_isMuted ? 0 : 1.0);
+    });
+    _startHideTimer();
+  }
+
+  void _startHideTimer() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted && (_controller?.value.isPlaying ?? false)) {
+        setState(() => _showControls = false);
+      }
+    });
   }
 
   @override
@@ -283,7 +311,64 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
                 padding: EdgeInsets.zero,
               ),
             ),
+            // ── Play/Pause & Mute Overlay ─────────────────────────────────────
+            Center(
+              child: AnimatedOpacity(
+                opacity: _showControls || !(_controller?.value.isPlaying ?? true)
+                    ? 1.0
+                    : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: _buildControlPill(),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlPill() {
+    final isPlaying = _controller?.value.isPlaying ?? false;
+    return GestureDetector(
+      onTap: () {}, // Swallow taps to prevent background video toggle
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _togglePlayPause,
+                behavior: HitTestBehavior.opaque,
+                child: Icon(
+                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const VerticalDivider(
+                color: Colors.white24,
+                thickness: 1,
+                width: 1,
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: _toggleMute,
+                behavior: HitTestBehavior.opaque,
+                child: Icon(
+                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -5,13 +5,13 @@ import '../../core/services/auth_service.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../core/theme/app_gradients.dart';
 import '../account/account_screen.dart';
-import 'payout_screen.dart';
 import 'settings_subscriptions_screen.dart';
 import 'downloaded_videos_screen.dart';
 import 'notifications_settings_screen.dart';
 import 'contact_support_screen.dart';
 import 'report_problem_screen.dart';
 import 'about_screen.dart';
+import 'wallet/wallet_screen.dart';
 
 /// Settings screen for standard user: list with icons, PREMIUM tags, Logout in red.
 class SettingsScreen extends StatelessWidget {
@@ -75,12 +75,12 @@ class SettingsScreen extends StatelessWidget {
                           _divider(),
                           _SettingsTile(
                             icon: Icons.account_balance_wallet_outlined,
-                            label: 'VyooO Payout',
+                            label: 'VyooO Wallet',
                             isPremium: true,
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
-                                  builder: (_) => const PayoutScreen(),
+                                  builder: (_) => const WalletScreen(),
                                 ),
                               );
                             },

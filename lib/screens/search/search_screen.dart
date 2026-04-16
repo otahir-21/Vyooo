@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
@@ -72,7 +71,11 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Future<void> _refreshLiveHostProfiles(List<LiveStreamModel> streams) async {
-    final hostIds = streams.map((s) => s.hostId).where((id) => id.isNotEmpty).toSet().toList();
+    final hostIds = streams
+        .map((s) => s.hostId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
     if (hostIds.isEmpty) {
       if (!mounted) return;
       if (mounted) setState(() => _liveHostProfiles = const {});
@@ -99,7 +102,10 @@ class _SearchScreenState extends State<SearchScreen>
       });
     }
     try {
-      final items = await _userService.discoverUserItems(currentUid: me, limit: 120);
+      final items = await _userService.discoverUserItems(
+        currentUid: me,
+        limit: 120,
+      );
       final users = items
           .map(
             (i) => _UserSearchItem(
@@ -118,7 +124,10 @@ class _SearchScreenState extends State<SearchScreen>
         _allUsers
           ..clear()
           ..addAll(users);
-        _myFollowingIds = users.where((u) => u.isFollowing).map((u) => u.uid).toSet();
+        _myFollowingIds = users
+            .where((u) => u.isFollowing)
+            .map((u) => u.uid)
+            .toSet();
         _usersLoading = false;
       });
     } catch (e) {
@@ -172,14 +181,16 @@ class _SearchScreenState extends State<SearchScreen>
     final q = _searchController.text.trim().toLowerCase();
     final streams = q.isEmpty
         ? _liveStreams
-        : _liveStreams.where((s) {
-            final inTags = s.tags.any((t) => t.toLowerCase().contains(q));
-            return s.hostUsername.toLowerCase().contains(q) ||
-                s.title.toLowerCase().contains(q) ||
-                s.description.toLowerCase().contains(q) ||
-                s.category.toLowerCase().contains(q) ||
-                inTags;
-          }).toList(growable: false);
+        : _liveStreams
+              .where((s) {
+                final inTags = s.tags.any((t) => t.toLowerCase().contains(q));
+                return s.hostUsername.toLowerCase().contains(q) ||
+                    s.title.toLowerCase().contains(q) ||
+                    s.description.toLowerCase().contains(q) ||
+                    s.category.toLowerCase().contains(q) ||
+                    inTags;
+              })
+              .toList(growable: false);
     return streams
         .map((s) => _LiveSearchResultItem(stream: s, card: _toLiveCardItem(s)))
         .toList(growable: false);
@@ -193,7 +204,9 @@ class _SearchScreenState extends State<SearchScreen>
       if (category.isEmpty) continue;
       final key = category.toLowerCase();
       if (!unique.add(key)) continue;
-      categories.add(_CategoryItem(label: category, icon: _categoryIconFor(category)));
+      categories.add(
+        _CategoryItem(label: category, icon: _categoryIconFor(category)),
+      );
     }
     return categories.take(8).toList(growable: false);
   }
@@ -208,26 +221,29 @@ class _SearchScreenState extends State<SearchScreen>
     }
     final ranked = byHost.values.toList()
       ..sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
-    return ranked.take(8).map((s) {
-      final profile = _liveHostProfiles[s.hostId];
-      final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
-          ? (profile!.profileImage!).trim()
-          : (s.hostProfileImage?.isNotEmpty == true)
+    return ranked
+        .take(8)
+        .map((s) {
+          final profile = _liveHostProfiles[s.hostId];
+          final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
+              ? (profile!.profileImage!).trim()
+              : (s.hostProfileImage?.isNotEmpty == true)
               ? s.hostProfileImage!
               : 'https://i.pravatar.cc/120?u=${s.hostId}';
-      final followers = profile?.followersCount ?? s.viewerCount;
-      final following = profile?.following.length ?? 0;
-      return _CreatorItem(
-        name: (profile?.username?.trim().isNotEmpty == true)
-            ? profile!.username!.trim()
-            : s.hostUsername,
-        handle:
-            '@${((profile?.username ?? s.hostUsername).toLowerCase().replaceAll(' ', '_'))}',
-        avatarUrl: avatar,
-        followers: _formatCompactCount(followers),
-        following: following,
-      );
-    }).toList(growable: false);
+          final followers = profile?.followersCount ?? s.viewerCount;
+          final following = profile?.following.length ?? 0;
+          return _CreatorItem(
+            name: (profile?.username?.trim().isNotEmpty == true)
+                ? profile!.username!.trim()
+                : s.hostUsername,
+            handle:
+                '@${((profile?.username ?? s.hostUsername).toLowerCase().replaceAll(' ', '_'))}',
+            avatarUrl: avatar,
+            followers: _formatCompactCount(followers),
+            following: following,
+          );
+        })
+        .toList(growable: false);
   }
 
   _LiveCardItem _toLiveCardItem(LiveStreamModel stream) {
@@ -238,8 +254,8 @@ class _SearchScreenState extends State<SearchScreen>
     final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
         ? (profile!.profileImage!).trim()
         : (stream.hostProfileImage?.isNotEmpty == true)
-            ? stream.hostProfileImage!
-            : 'https://i.pravatar.cc/80?u=${stream.hostId}';
+        ? stream.hostProfileImage!
+        : 'https://i.pravatar.cc/80?u=${stream.hostId}';
     return _LiveCardItem(
       thumbnailUrl: avatar,
       name: username,
@@ -264,7 +280,8 @@ class _SearchScreenState extends State<SearchScreen>
   static IconData _categoryIconFor(String category) {
     final c = category.toLowerCase();
     if (c.contains('game')) return Icons.sports_esports_rounded;
-    if (c.contains('music') || c.contains('concert')) return Icons.music_note_rounded;
+    if (c.contains('music') || c.contains('concert'))
+      return Icons.music_note_rounded;
     if (c.contains('sport')) return Icons.sports_soccer_rounded;
     if (c.contains('news')) return Icons.newspaper_rounded;
     if (c.contains('travel')) return Icons.travel_explore_rounded;
@@ -385,11 +402,7 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: AppSpacing.xl),
         _buildTopCreatorsSection(),
         const SizedBox(height: AppSpacing.xl),
-        _buildSection(
-          'Explore More',
-          _dynamicExploreItems,
-          showViewAll: true,
-        ),
+        _buildSection('Explore More', _dynamicExploreItems, showViewAll: true),
       ],
     );
   }
@@ -432,7 +445,9 @@ class _SearchScreenState extends State<SearchScreen>
         if (_usersLoading)
           const Padding(
             padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+            child: Center(
+              child: CircularProgressIndicator(color: Colors.white54),
+            ),
           )
         else if (_usersError != null)
           Padding(
@@ -448,7 +463,8 @@ class _SearchScreenState extends State<SearchScreen>
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _filteredUsers.length,
-            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _UserSearchResultTile(
               user: _filteredUsers[index],
               onTap: () => _openUserProfile(_filteredUsers[index]),
@@ -483,7 +499,10 @@ class _SearchScreenState extends State<SearchScreen>
       return Center(
         child: Text(
           'No live results found',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 14),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.65),
+            fontSize: 14,
+          ),
         ),
       );
     }
@@ -549,7 +568,9 @@ class _SearchScreenState extends State<SearchScreen>
   Widget _buildUserSearchResultsList() {
     _ensureUsersLoaded();
     if (_usersLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white54));
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white54),
+      );
     }
     if (_usersError != null) {
       return Center(
@@ -563,10 +584,7 @@ class _SearchScreenState extends State<SearchScreen>
                 style: TextStyle(color: Colors.white70),
               ),
               const SizedBox(height: 8),
-              TextButton(
-                onPressed: _loadUsers,
-                child: const Text('Retry'),
-              ),
+              TextButton(onPressed: _loadUsers, child: const Text('Retry')),
             ],
           ),
         ),
@@ -575,10 +593,7 @@ class _SearchScreenState extends State<SearchScreen>
     final users = _filteredUsers;
     if (users.isEmpty) {
       return const Center(
-        child: Text(
-          'No users found.',
-          style: TextStyle(color: Colors.white70),
-        ),
+        child: Text('No users found.', style: TextStyle(color: Colors.white70)),
       );
     }
     return ListView.separated(
@@ -587,7 +602,8 @@ class _SearchScreenState extends State<SearchScreen>
         vertical: AppSpacing.xs,
       ),
       itemCount: users.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
         user: users[index],
         onTap: () => _openUserProfile(users[index]),
@@ -620,7 +636,8 @@ class _SearchScreenState extends State<SearchScreen>
               vertical: AppSpacing.xs,
             ),
             itemCount: _recentSearches.length,
-            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _RecentSearchTile(
               query: _recentSearches[index],
               onTap: () {
@@ -665,54 +682,54 @@ class _SearchScreenState extends State<SearchScreen>
                 child: Container(
                   height: 48,
                   color: Colors.white.withValues(alpha: 0.12),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  cursorColor: Colors.white70,
-                  cursorWidth: 1.2,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                  ),
-                  decoration: InputDecoration(
-                    prefixIcon: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Icon(
-                        Icons.search_rounded,
-                        color: Colors.white.withValues(alpha: 0.5),
-                        size: 24,
-                      ),
-                    ),
-                    hintText: 'Search',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    cursorColor: Colors.white70,
+                    cursorWidth: 1.2,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w400,
                     ),
-                    suffixIcon: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.mic_none_rounded,
-                            color: Colors.white.withValues(alpha: 0.5),
-                            size: 22,
-                          ),
-                        ],
+                    decoration: InputDecoration(
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Icon(
+                          Icons.search_rounded,
+                          color: Colors.white.withValues(alpha: 0.5),
+                          size: 24,
+                        ),
                       ),
+                      hintText: 'Search',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.mic_none_rounded,
+                              color: Colors.white.withValues(alpha: 0.5),
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
-              ),
               ),
             ),
             if (showHashButton) ...[
@@ -840,7 +857,8 @@ class _SearchScreenState extends State<SearchScreen>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: _liveStreams.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final stream = _liveStreams[index];
               return _LiveCard(
@@ -910,7 +928,8 @@ class _SearchScreenState extends State<SearchScreen>
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: items.length,
-              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: AppSpacing.md),
               itemBuilder: (context, index) => _LiveCard(item: items[index]),
             ),
           ),
@@ -940,7 +959,10 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'No categories yet. Categories appear when hosts set stream categories.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
             ),
           )
         else
@@ -950,8 +972,10 @@ class _SearchScreenState extends State<SearchScreen>
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: categories.length,
-              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) => _CategoryCard(item: categories[index]),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) =>
+                  _CategoryCard(item: categories[index]),
             ),
           ),
       ],
@@ -980,7 +1004,10 @@ class _SearchScreenState extends State<SearchScreen>
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Top creators will appear when users go live.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 14),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
+              ),
             ),
           )
         else
@@ -990,8 +1017,10 @@ class _SearchScreenState extends State<SearchScreen>
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: creators.length,
-              separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) => _CreatorCard(item: creators[index]),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) =>
+                  _CreatorCard(item: creators[index]),
             ),
           ),
       ],
@@ -1017,7 +1046,12 @@ class _RecentSearchTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 0.8)),
+          border: Border(
+            bottom: BorderSide(
+              color: Colors.white.withValues(alpha: 0.1),
+              width: 0.8,
+            ),
+          ),
         ),
         child: Row(
           children: [
@@ -1231,7 +1265,10 @@ class _VRSearchResultGridCard extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.95),
                       borderRadius: BorderRadius.circular(6),
@@ -1485,7 +1522,6 @@ class _LiveSearchResultItem {
   final _LiveCardItem card;
 }
 
-
 class _UserSearchItem {
   const _UserSearchItem({
     required this.uid,
@@ -1590,7 +1626,6 @@ class _CategoryItem {
   final IconData icon;
 }
 
-
 class _CreatorItem {
   const _CreatorItem({
     required this.name,
@@ -1605,7 +1640,6 @@ class _CreatorItem {
   final String followers;
   final int following;
 }
-
 
 class _LiveCard extends StatelessWidget {
   const _LiveCard({required this.item, this.onTap});
@@ -1623,9 +1657,7 @@ class _LiveCard extends StatelessWidget {
       child: Container(
         width: cardWidth,
         height: cardHeight,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: Stack(
@@ -1678,7 +1710,10 @@ class _LiveCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.4),
                         borderRadius: BorderRadius.circular(4),
@@ -1745,7 +1780,8 @@ class _LiveCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (item.isVerified || true) ...[ // Design has red checks for these
+                              if (item.isVerified || true) ...[
+                                // Design has red checks for these
                                 const SizedBox(width: 4),
                                 Container(
                                   width: 12,
@@ -1801,7 +1837,10 @@ class _CategoryCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.05),
+            width: 1,
+          ),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -1876,7 +1915,8 @@ class _CreatorCardState extends State<_CreatorCard> {
                 CircleAvatar(
                   radius: 36,
                   backgroundColor: Colors.grey.shade800,
-                  backgroundImage: Uri.tryParse(item.avatarUrl)?.isAbsolute == true
+                  backgroundImage:
+                      Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                       ? NetworkImage(item.avatarUrl)
                       : null,
                 ),
@@ -1890,7 +1930,11 @@ class _CreatorCardState extends State<_CreatorCard> {
                       color: Color(0xFFEF4444),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.check, size: 8, color: Colors.white),
+                    child: const Icon(
+                      Icons.check,
+                      size: 8,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -1919,15 +1963,41 @@ class _CreatorCardState extends State<_CreatorCard> {
               children: [
                 Column(
                   children: [
-                    Text(item.followers, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                    Text('Followers', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11)),
+                    Text(
+                      item.followers,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Followers',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(width: 20),
                 Column(
                   children: [
-                    Text('${item.following}', style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
-                    Text('Following', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11)),
+                    Text(
+                      '${item.following}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Following',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ],

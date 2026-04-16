@@ -58,7 +58,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   int _currentIndex = 0;
   HomeTab currentTab = HomeTab.forYou;
-  bool _showControls = false;
   List<Map<String, dynamic>> _reelsForYou = [];
   List<Map<String, dynamic>> _reelsFollowing = [];
   List<Map<String, dynamic>> _reelsTrending = [];
@@ -309,10 +308,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onVideoTap() {
-    setState(() => _showControls = true);
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() => _showControls = false);
-    });
+    // Controls are now handled internally by ReelItemWidget
   }
 
   @override
@@ -359,7 +355,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             if (!isVrTab) ...[
               _buildInteractionButtons(),
               _buildBottomUserInfo(),
-              if (_showControls) _buildControlsOverlay(),
             ],
           ],
         ),
@@ -527,13 +522,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             ),
           );
         }
-        return GestureDetector(
-          onTap: _onVideoTap,
-          child: ReelItemWidget(
-            videoUrl: videoUrl,
-            // Only play when this page is visible AND the home tab is active.
-            isVisible: widget.isActive && index == _currentIndex,
-          ),
+        return ReelItemWidget(
+          videoUrl: videoUrl,
+          // Only play when this page is visible AND the home tab is active.
+          isVisible: widget.isActive && index == _currentIndex,
         );
       },
     );
@@ -882,52 +874,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
-  Widget _buildControlsOverlay() {
-    final playing = _currentIndex < _currentReels.length && _isVideoPlaying();
-    return Center(
-      child: AnimatedOpacity(
-        opacity: _showControls ? 1.0 : 0.0,
-        duration: const Duration(milliseconds: 200),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _onVideoTap,
-                child: Icon(
-                  playing ? Icons.pause : Icons.play_arrow,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              Container(
-                width: 1.5,
-                height: 20,
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                color: Colors.white.withValues(alpha: 0.4),
-              ),
-              GestureDetector(
-                onTap: () {
-                  // TODO: Toggle mute
-                },
-                child: const Icon(
-                  Icons.volume_off_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   bool _isVideoPlaying() {
     // Placeholder - check actual player state from ReelItemWidget if needed
