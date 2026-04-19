@@ -23,11 +23,13 @@ class FollowersFollowingScreen extends StatefulWidget {
   });
 
   final int initialTab;
+
   /// Firestore uid for the profile whose followers/following are listed.
   final String? profileUserId;
 
   @override
-  State<FollowersFollowingScreen> createState() => _FollowersFollowingScreenState();
+  State<FollowersFollowingScreen> createState() =>
+      _FollowersFollowingScreenState();
 }
 
 class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
@@ -119,10 +121,15 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     });
   }
 
-  static _ConnectionUser _connectionFromAppUser(AppUserModel m, List<String> myFollowing) {
+  static _ConnectionUser _connectionFromAppUser(
+    AppUserModel m,
+    List<String> myFollowing,
+  ) {
     final handle = (m.username != null && m.username!.trim().isNotEmpty)
         ? m.username!.trim()
-        : (m.email.contains('@') ? m.email.split('@').first : (m.uid.length > 8 ? m.uid.substring(0, 8) : m.uid));
+        : (m.email.contains('@')
+              ? m.email.split('@').first
+              : (m.uid.length > 8 ? m.uid.substring(0, 8) : m.uid));
     return _ConnectionUser(
       targetUserId: m.uid,
       name: handle,
@@ -158,14 +165,17 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-                  Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   _RemoveModalButton(
@@ -175,9 +185,16 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                       Navigator.pop(ctx);
                       final target = user.targetUserId;
                       final me = AuthService().currentUser?.uid;
-                      if (target == null || target.isEmpty || me == null || me.isEmpty) return;
+                      if (target == null ||
+                          target.isEmpty ||
+                          me == null ||
+                          me.isEmpty)
+                        return;
                       try {
-                        await UserService().blockUser(currentUid: me, targetUid: target);
+                        await UserService().blockUser(
+                          currentUid: me,
+                          targetUid: target,
+                        );
                         if (context.mounted) {
                           await _loadConnections();
                           messenger.showSnackBar(
@@ -208,24 +225,36 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
               CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                backgroundImage:
+                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
                     ? NetworkImage(user.avatarUrl)
                     : null,
                 child: Uri.tryParse(user.avatarUrl)?.isAbsolute != true
-                    ? Icon(Icons.person_rounded, size: 40, color: Colors.white.withValues(alpha: 0.6))
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      )
                     : null,
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 user.name,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
                   'Blocking removes this account from your feed and they won\'t be able to follow your activity.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 14,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -257,7 +286,10 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   _RemoveModalButton(
@@ -266,9 +298,13 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                       Navigator.pop(ctx);
                       final id = user.targetUserId;
                       final me = AuthService().currentUser?.uid;
-                      if (id == null || id.isEmpty || me == null || me.isEmpty) return;
+                      if (id == null || id.isEmpty || me == null || me.isEmpty)
+                        return;
                       try {
-                        await UserService().unfollowUser(currentUid: me, targetUid: id);
+                        await UserService().unfollowUser(
+                          currentUid: me,
+                          targetUid: id,
+                        );
                         if (context.mounted) {
                           await _loadConnections();
                         }
@@ -286,25 +322,46 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
               const SizedBox(height: AppSpacing.sm),
               const Text(
                 'Remove from following?',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute == true ? NetworkImage(user.avatarUrl) : null,
+                backgroundImage:
+                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                    ? NetworkImage(user.avatarUrl)
+                    : null,
                 child: Uri.tryParse(user.avatarUrl)?.isAbsolute != true
-                    ? Icon(Icons.person_rounded, size: 40, color: Colors.white.withValues(alpha: 0.6))
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      )
                     : null,
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(user.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(
+                user.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
                   'We won\'t tell @${user.username} that you stopped following them.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 14,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -316,7 +373,10 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     );
   }
 
-  void _showRemoveSubscriptionModal(BuildContext context, _ConnectionUser user) {
+  void _showRemoveSubscriptionModal(
+    BuildContext context,
+    _ConnectionUser user,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.sheetBackground,
@@ -336,7 +396,10 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                   _RemoveModalButton(
@@ -351,25 +414,46 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
               const SizedBox(height: AppSpacing.sm),
               const Text(
                 'Remove Subscription?',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute == true ? NetworkImage(user.avatarUrl) : null,
+                backgroundImage:
+                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                    ? NetworkImage(user.avatarUrl)
+                    : null,
                 child: Uri.tryParse(user.avatarUrl)?.isAbsolute != true
-                    ? Icon(Icons.person_rounded, size: 40, color: Colors.white.withValues(alpha: 0.6))
+                    ? Icon(
+                        Icons.person_rounded,
+                        size: 40,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      )
                     : null,
               ),
               const SizedBox(height: AppSpacing.sm),
-              Text(user.name, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(
+                user.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Text(
                   'We won\'t tell @${user.username} that you stopped subscribing them.',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 14,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -394,11 +478,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF14001F),
-              Color(0xFF4A003F),
-              Color(0xFFDE106B),
-            ],
+            colors: [Color(0xFF14001F), Color(0xFF4A003F), Color(0xFFDE106B)],
           ),
         ),
         child: SafeArea(
@@ -406,18 +486,31 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                     ),
                     Expanded(
                       child: uid != null
                           ? FutureBuilder<String>(
-                              future: UserService().getUser(uid).then((u) =>
-                                  u?.username?.isNotEmpty == true ? '@${u!.username}' : (AuthService().currentUser?.email ?? '@user')),
+                              future: UserService()
+                                  .getUser(uid)
+                                  .then(
+                                    (u) => u?.username?.isNotEmpty == true
+                                        ? '@${u!.username}'
+                                        : (AuthService().currentUser?.email ??
+                                              '@user'),
+                                  ),
                               builder: (_, snap) => Text(
                                 snap.data ?? '@lexilongbottom',
                                 style: const TextStyle(
@@ -439,14 +532,21 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     ),
                     IconButton(
                       onPressed: () {},
-                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+                      icon: const Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     ),
                   ],
                 ),
               ),
               _buildTabs(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
                 child: Container(
                   height: 44,
                   decoration: BoxDecoration(
@@ -458,10 +558,20 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                     decoration: InputDecoration(
                       hintText: 'Search for users',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                      prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 16,
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        size: 22,
+                      ),
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -479,7 +589,9 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   }
 
   Widget _buildTabs() {
-    final followerLabel = _followerCount == 1 ? '1 Follower' : '${_formatCount(_followerCount)} Followers';
+    final followerLabel = _followerCount == 1
+        ? '1 Follower'
+        : '${_formatCount(_followerCount)} Followers';
     final followingLabel = '${_formatCount(_followingCount)} Following';
     final labels = [followerLabel, followingLabel, 'Subscriptions'];
 
@@ -498,9 +610,13 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     child: Text(
                       labels[index],
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.7),
+                        color: Colors.white.withValues(
+                          alpha: isSelected ? 1.0 : 0.7,
+                        ),
                         fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -523,7 +639,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   }
 
   Widget _buildSubscriptionsContent(BuildContext context) {
-    final isSubscribed = context.watch<SubscriptionController>().isSubscriber ||
+    final isSubscribed =
+        context.watch<SubscriptionController>().isSubscriber ||
         context.watch<SubscriptionController>().isCreator;
     if (!isSubscribed) {
       return _buildBecomeMemberCard(context);
@@ -533,7 +650,10 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
   Widget _buildBecomeMemberCard(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.lg,
+      ),
       child: Column(
         children: [
           const SizedBox(height: AppSpacing.xl),
@@ -570,7 +690,11 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     gradient: const LinearGradient(
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
-                      colors: [Color(0xFFE8C547), Color(0xFFD4A84B), Color(0xFFB8862E)],
+                      colors: [
+                        Color(0xFFE8C547),
+                        Color(0xFFD4A84B),
+                        Color(0xFFB8862E),
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
@@ -586,11 +710,18 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                       },
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(FontAwesomeIcons.crown, size: 18, color: Colors.white.withValues(alpha: 0.95)),
+                            Icon(
+                              FontAwesomeIcons.crown,
+                              size: 18,
+                              color: Colors.white.withValues(alpha: 0.95),
+                            ),
                             const SizedBox(width: 10),
                             const Text(
                               'Become Member',
@@ -616,15 +747,25 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
 
   Widget _buildSubscriptionsList(BuildContext context) {
     final query = _searchController.text.trim().toLowerCase();
-    final recommended = _discoverUsers.where((u) => !u.isFollowing).take(10).toList();
+    final recommended = _discoverUsers
+        .where((u) => !u.isFollowing)
+        .take(10)
+        .toList();
     final filtered = query.isEmpty
         ? _discoverUsers
-        : _discoverUsers.where((u) =>
-            u.name.toLowerCase().contains(query) ||
-            u.username.toLowerCase().contains(query)).toList();
+        : _discoverUsers
+              .where(
+                (u) =>
+                    u.name.toLowerCase().contains(query) ||
+                    u.username.toLowerCase().contains(query),
+              )
+              .toList();
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       children: [
         const Padding(
           padding: EdgeInsets.only(bottom: AppSpacing.sm),
@@ -642,7 +783,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: recommended.length,
-            separatorBuilder: (context, index) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final u = recommended[index];
               return GestureDetector(
@@ -653,9 +795,14 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                     CircleAvatar(
                       radius: 32,
                       backgroundColor: Colors.white.withValues(alpha: 0.2),
-                      backgroundImage: u.avatarUrl.isNotEmpty ? NetworkImage(u.avatarUrl) : null,
+                      backgroundImage: u.avatarUrl.isNotEmpty
+                          ? NetworkImage(u.avatarUrl)
+                          : null,
                       child: u.avatarUrl.isEmpty
-                          ? const Icon(Icons.person_rounded, color: Colors.white54)
+                          ? const Icon(
+                              Icons.person_rounded,
+                              color: Colors.white54,
+                            )
                           : null,
                     ),
                     const SizedBox(height: 6),
@@ -726,9 +873,13 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
         : _discoverUsers;
     final filtered = query.isEmpty
         ? baseList
-        : baseList.where((u) =>
-            u.name.toLowerCase().contains(query) ||
-            u.username.toLowerCase().contains(query)).toList();
+        : baseList
+              .where(
+                (u) =>
+                    u.name.toLowerCase().contains(query) ||
+                    u.username.toLowerCase().contains(query),
+              )
+              .toList();
 
     if (filtered.isEmpty) {
       return Center(
@@ -737,9 +888,14 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
           child: Text(
             query.isNotEmpty
                 ? 'No users found.'
-                : (_selectedTabIndex == 0 ? 'No followers yet.' : 'Not following anyone yet.'),
+                : (_selectedTabIndex == 0
+                      ? 'No followers yet.'
+                      : 'Not following anyone yet.'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 16,
+            ),
           ),
         ),
       );
@@ -748,9 +904,13 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     final me = AuthService().currentUser?.uid;
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       itemCount: filtered.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+      separatorBuilder: (context, index) =>
+          const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) {
         final user = filtered[index];
         final id = user.targetUserId;
@@ -810,10 +970,10 @@ class _ConnectionUser {
   final String username;
   final String avatarUrl;
   final bool isVerified;
+
   /// Whether the signed-in user follows this row (for button state).
   final bool isFollowing;
 }
-
 
 class _ConnectionRow extends StatefulWidget {
   const _ConnectionRow({
@@ -847,7 +1007,8 @@ class _ConnectionRowState extends State<_ConnectionRow> {
   @override
   void didUpdateWidget(_ConnectionRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isFollowing != widget.isFollowing) _isFollowing = widget.isFollowing;
+    if (oldWidget.isFollowing != widget.isFollowing)
+      _isFollowing = widget.isFollowing;
   }
 
   Future<void> _onFollowTap() async {
@@ -864,9 +1025,9 @@ class _ConnectionRowState extends State<_ConnectionRow> {
       if (mounted) setState(() => _isFollowing = true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(messageForFirestore(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageForFirestore(e))));
       }
     } finally {
       if (mounted) setState(() => _followBusy = false);
@@ -882,17 +1043,24 @@ class _ConnectionRowState extends State<_ConnectionRow> {
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(widget.user.avatarUrl)?.isAbsolute == true
+                backgroundImage:
+                    Uri.tryParse(widget.user.avatarUrl)?.isAbsolute == true
                     ? NetworkImage(widget.user.avatarUrl)
                     : null,
                 child: Uri.tryParse(widget.user.avatarUrl)?.isAbsolute != true
-                    ? Icon(Icons.person_rounded, color: Colors.white.withValues(alpha: 0.6))
+                    ? Icon(
+                        Icons.person_rounded,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      )
                     : null,
               ),
               const SizedBox(width: AppSpacing.md),
@@ -955,17 +1123,24 @@ class _SubscriptionRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 24,
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                backgroundImage:
+                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
                     ? NetworkImage(user.avatarUrl)
                     : null,
                 child: Uri.tryParse(user.avatarUrl)?.isAbsolute != true
-                    ? Icon(Icons.person_rounded, color: Colors.white.withValues(alpha: 0.6))
+                    ? Icon(
+                        Icons.person_rounded,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      )
                     : null,
               ),
               const SizedBox(width: AppSpacing.md),
@@ -1001,7 +1176,10 @@ class _SubscriptionRow extends StatelessWidget {
                   onTap: onRemove,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1014,7 +1192,11 @@ class _SubscriptionRow extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Icon(Icons.close, size: 14, color: Colors.white.withValues(alpha: 0.9)),
+                        Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
                       ],
                     ),
                   ),
@@ -1069,7 +1251,11 @@ class _RemoveModalButton extends StatelessWidget {
 }
 
 class _FollowingButton extends StatelessWidget {
-  const _FollowingButton({required this.isFollowing, required this.busy, required this.onTap});
+  const _FollowingButton({
+    required this.isFollowing,
+    required this.busy,
+    required this.onTap,
+  });
 
   final bool isFollowing;
   final bool busy;
@@ -1091,10 +1277,18 @@ class _FollowingButton extends StatelessWidget {
               children: [
                 Text(
                   'Following',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.close, size: 14, color: Colors.white.withValues(alpha: 0.9)),
+                Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
               ],
             ),
           ),
@@ -1102,7 +1296,7 @@ class _FollowingButton extends StatelessWidget {
       );
     }
     return Material(
-      color: AppColors.pink,
+      color: AppColors.brandPink,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: InkWell(
         onTap: busy ? () {} : onTap,
@@ -1113,11 +1307,18 @@ class _FollowingButton extends StatelessWidget {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Text(
                   'Follow',
-                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
         ),
       ),

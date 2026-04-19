@@ -12,14 +12,16 @@ class WithdrawFundsScreen extends StatefulWidget {
 
 class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
   int _selectedTierIndex = 0; // 0 for Bank, 1 for Crypto
-  final TextEditingController _amountController = TextEditingController(text: "500");
+  final TextEditingController _amountController = TextEditingController(
+    text: "500",
+  );
   bool _saveCardInfo = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.authGradient),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -27,13 +29,19 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   children: [
                     _buildAvailableBalance(),
                     const SizedBox(height: 24),
                     _buildToggle(),
                     const SizedBox(height: 24),
-                    if (_selectedTierIndex == 0) _buildBankTransferForm() else _buildCryptoTransferForm(),
+                    if (_selectedTierIndex == 0)
+                      _buildBankTransferForm()
+                    else
+                      _buildCryptoTransferForm(),
                     const SizedBox(height: 32),
                     _buildReviewButton(),
                     const SizedBox(height: 40),
@@ -58,18 +66,30 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
                 SizedBox(width: 12),
                 Text(
                   'Withdraw Funds',
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
           ),
           const Text(
             'VyooO',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -89,7 +109,11 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
         children: [
           const Text(
             'Available to Withdraw',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -100,7 +124,11 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
             ),
             child: const Text(
               '€ 460325',
-              style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -161,7 +189,10 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
         const SizedBox(height: 32),
         _buildFormFieldLabel('Cardholder Name'),
         const SizedBox(height: 8),
-        _buildTextField(hint: 'Mike Jordan', suffixIcon: FontAwesomeIcons.ccMastercard),
+        _buildTextField(
+          hint: 'Mike Jordan',
+          suffixIcon: FontAwesomeIcons.ccMastercard,
+        ),
         const SizedBox(height: 20),
         _buildFormFieldLabel('Routing Number'),
         const SizedBox(height: 8),
@@ -252,14 +283,22 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
           children: [
             const Text(
               '€',
-              style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(width: 16),
             IntrinsicWidth(
               child: TextField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                ),
                 decoration: const InputDecoration(
                   border: InputBorder.none,
                   hintText: '0',
@@ -269,7 +308,10 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
             ),
           ],
         ),
-        const SizedBox(width: 180, child: Divider(color: Colors.white24, thickness: 1)),
+        const SizedBox(
+          width: 180,
+          child: Divider(color: Colors.white24, thickness: 1),
+        ),
         const SizedBox(height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -278,14 +320,22 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
             return GestureDetector(
               onTap: () {},
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: selected ? const Color(0xFFF81945) : Colors.white.withValues(alpha: 0.06),
+                  color: selected
+                      ? const Color(0xFFF81945)
+                      : Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   amount,
-                  style: TextStyle(color: selected ? Colors.white : Colors.white54, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: selected ? Colors.white : Colors.white54,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             );
@@ -302,7 +352,9 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: selected ? const Color(0xFFF81945) : Colors.white10),
+        border: Border.all(
+          color: selected ? const Color(0xFFF81945) : Colors.white10,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -310,14 +362,34 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
           Container(
             width: 24,
             height: 24,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
-            child: Text(name[0], style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+            child: Text(
+              name[0],
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
-          Text(name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(width: 6),
-          Text(code, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+          Text(
+            code,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
+          ),
         ],
       ),
     );
@@ -340,11 +412,22 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Important', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                Text(
+                  'Important',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
                 SizedBox(height: 4),
                 Text(
                   'Please ensure you select the correct network and enter a valid address. Withdrawals sent to the wrong address or network cannot be recovered.',
-                  style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.4),
+                  style: TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
@@ -355,10 +438,21 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
   }
 
   Widget _buildFormFieldLabel(String label) {
-    return Text(label, style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13, fontWeight: FontWeight.w500));
+    return Text(
+      label,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.5),
+        fontSize: 13,
+        fontWeight: FontWeight.w500,
+      ),
+    );
   }
 
-  Widget _buildTextField({required String hint, IconData? suffixIcon, int maxLines = 1}) {
+  Widget _buildTextField({
+    required String hint,
+    IconData? suffixIcon,
+    int maxLines = 1,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
@@ -373,7 +467,15 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
           border: InputBorder.none,
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white24),
-          suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: suffixIcon == FontAwesomeIcons.ccMastercard ? Colors.orange : Colors.white38, size: 20) : null,
+          suffixIcon: suffixIcon != null
+              ? Icon(
+                  suffixIcon,
+                  color: suffixIcon == FontAwesomeIcons.ccMastercard
+                      ? Colors.orange
+                      : Colors.white38,
+                  size: 20,
+                )
+              : null,
         ),
       ),
     );
@@ -391,10 +493,15 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
               color: _saveCardInfo ? const Color(0xFFF81945) : Colors.white10,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: _saveCardInfo ? const Icon(Icons.check, color: Colors.white, size: 14) : null,
+            child: _saveCardInfo
+                ? const Icon(Icons.check, color: Colors.white, size: 14)
+                : null,
           ),
           const SizedBox(width: 12),
-          const Text('Save card information', style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const Text(
+            'Save card information',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -406,17 +513,28 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WithdrawalConfirmationScreen(isCrypto: _selectedTierIndex == 1),
+            builder: (context) =>
+                WithdrawalConfirmationScreen(isCrypto: _selectedTierIndex == 1),
           ),
         );
       },
       child: Container(
         height: 60,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+        ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Review Withdrawal', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              'Review Withdrawal',
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             SizedBox(width: 12),
             Icon(Icons.arrow_forward_rounded, color: Colors.black),
           ],

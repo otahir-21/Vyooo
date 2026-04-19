@@ -54,7 +54,7 @@ class _SearchScreenState extends State<SearchScreen>
     'Travel vlogs',
   ].toList();
 
-  static const List<String> _tabs = ['Live', 'VR', 'Users'];
+  static const List<String> _tabs = ['Users', 'Live', 'VR'];
 
   @override
   void initState() {
@@ -67,6 +67,8 @@ class _SearchScreenState extends State<SearchScreen>
       }
       _refreshLiveHostProfiles(streams);
     });
+    // Ensure Users tab is the default one and loaded
+    _selectedTabIndex = 0;
     _loadUsers();
   }
 
@@ -377,10 +379,10 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: 24),
         Expanded(
           child: _selectedTabIndex == 0
-              ? _buildIdleLiveContent()
+              ? _buildIdleUsersContent()
               : _selectedTabIndex == 1
-              ? _buildIdleVRContent()
-              : _buildIdleUsersContent(),
+              ? _buildIdleLiveContent()
+              : _buildIdleVRContent(),
         ),
       ],
     );
@@ -484,10 +486,10 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: 16),
         Expanded(
           child: _selectedTabIndex == 0
-              ? _buildLiveSearchResultsGrid()
+              ? _buildUserSearchResultsList()
               : _selectedTabIndex == 1
-              ? _buildVRSearchResultsGrid()
-              : _buildUserSearchResultsList(),
+              ? _buildLiveSearchResultsGrid()
+              : _buildVRSearchResultsGrid(),
         ),
       ],
     );
@@ -666,12 +668,13 @@ class _SearchScreenState extends State<SearchScreen>
             if (showBackButton) ...[
               GestureDetector(
                 onTap: _exitSearchMode,
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.only(right: 12),
-                  child: Icon(
-                    Icons.arrow_back_ios_new_rounded,
+                  child: Image.asset(
+                    'assets/vyooO_icons/Home/chevron_left.png',
                     color: Colors.white,
-                    size: 22,
+                    width: 22,
+                    height: 22,
                   ),
                 ),
               ),
@@ -695,10 +698,11 @@ class _SearchScreenState extends State<SearchScreen>
                     decoration: InputDecoration(
                       prefixIcon: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Icon(
-                          Icons.search_rounded,
+                        child: Image.asset(
+                          'assets/vyooO_icons/Home/nav_bar_icons/search.png',
                           color: Colors.white.withValues(alpha: 0.5),
-                          size: 24,
+                          width: 24,
+                          height: 24,
                         ),
                       ),
                       hintText: 'Search',
@@ -712,10 +716,11 @@ class _SearchScreenState extends State<SearchScreen>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.mic_none_rounded,
+                            Image.asset(
+                              'assets/vyooO_icons/Search/microphone.png',
                               color: Colors.white.withValues(alpha: 0.5),
-                              size: 22,
+                              width: 22,
+                              height: 22,
                             ),
                           ],
                         ),
@@ -741,14 +746,12 @@ class _SearchScreenState extends State<SearchScreen>
                   color: Colors.white.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Center(
-                  child: Text(
-                    '#',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w400,
-                    ),
+                child: Center(
+                  child: Image.asset(
+                    'assets/vyooO_icons/Search/hashtag.png',
+                    width: 24,
+                    height: 24,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -1071,9 +1074,10 @@ class _RecentSearchTile extends StatelessWidget {
               onTap: onRemove,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                child: Icon(
-                  Icons.close,
-                  size: 20,
+                child: Image.asset(
+                  'assets/vyooO_icons/Search/close.png',
+                  width: 20,
+                  height: 20,
                   color: Colors.white.withValues(alpha: 0.6),
                 ),
               ),
@@ -1144,9 +1148,10 @@ class _SearchResultGridCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSpacing.xs),
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 12,
+                  Image.asset(
+                    'assets/vyooO_icons/Search/view_count.png',
+                    width: 12,
+                    height: 12,
                     color: Colors.white.withValues(alpha: 0.9),
                   ),
                   const SizedBox(width: 2),
@@ -1283,9 +1288,10 @@ class _VRSearchResultGridCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 12,
+                  Image.asset(
+                    'assets/vyooO_icons/Search/view_count.png',
+                    width: 12,
+                    height: 12,
                     color: Colors.white.withValues(alpha: 0.92),
                   ),
                   const SizedBox(width: 2),
@@ -1337,12 +1343,13 @@ class _VRSearchResultGridCard extends StatelessWidget {
                               ),
                             ),
                             if (item.isVerified)
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.only(left: 4),
-                                child: Icon(
-                                  Icons.verified,
-                                  size: 12,
-                                  color: Color(0xFFFF2D55),
+                                child: Image.asset(
+                                  'assets/vyooO_icons/Search/verified_account.png',
+                                  width: 12,
+                                  height: 12,
+                                  color: const Color(0xFFFF2D55),
                                 ),
                               ),
                           ],
@@ -1398,94 +1405,94 @@ class _UserSearchResultTile extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.sm,
-            horizontal: AppSpacing.xs,
+            vertical: 12,
+            horizontal: 8,
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                backgroundImage:
-                    Uri.tryParse(user.avatarUrl)?.isAbsolute == true
-                    ? NetworkImage(user.avatarUrl)
-                    : null,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                ),
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                  backgroundImage:
+                      Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                      ? NetworkImage(user.avatarUrl)
+                      : null,
+                ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      user.username,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 2),
                     Row(
                       children: [
                         Flexible(
                           child: Text(
-                            user.fullName,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.75),
-                              fontSize: 14,
+                            user.username,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.1,
                             ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
                         ),
                         if (user.isVerified) ...[
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.check_circle_rounded,
-                            size: 16,
-                            color: AppColors.deleteRed,
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 14,
+                            height: 14,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF81945),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
                           ),
                         ],
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${_formatFollowers(user.followerCount)} followers',
+                      user.fullName,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
                       ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Material(
-                color: user.isFollowing
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : AppColors.pink,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: InkWell(
-                  onTap: onFollowTap,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Text(
-                      user.isFollowing ? 'Following' : 'Follow',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: onFollowTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: user.isFollowing 
+                        ? Colors.white.withValues(alpha: 0.1) 
+                        : const Color(0xFFF81945),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    user.isFollowing ? 'Following' : 'Follow',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -1721,9 +1728,10 @@ class _LiveCard extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.visibility_outlined,
-                            size: 11,
+                          Image.asset(
+                            'assets/vyooO_icons/Search/view_count.png',
+                            width: 11,
+                            height: 11,
                             color: Colors.white,
                           ),
                           const SizedBox(width: 4),
@@ -1790,9 +1798,10 @@ class _LiveCard extends StatelessWidget {
                                     color: Color(0xFFEF4444),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    size: 8,
+                                  child: Image.asset(
+                                    'assets/vyooO_icons/Search/verified_account.png',
+                                    width: 8,
+                                    height: 8,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -1930,9 +1939,10 @@ class _CreatorCardState extends State<_CreatorCard> {
                       color: Color(0xFFEF4444),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.check,
-                      size: 8,
+                    child: Image.asset(
+                      'assets/vyooO_icons/Search/verified_account.png',
+                      width: 8,
+                      height: 8,
                       color: Colors.white,
                     ),
                   ),

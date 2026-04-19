@@ -590,7 +590,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               if (currentTab == HomeTab.following) ...[
                 const SizedBox(height: 24),
                 TextButton(
-                  style: TextButton.styleFrom(foregroundColor: AppColors.pink),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.brandPink,
+                  ),
                   onPressed: () => _onTabChanged(HomeTab.forYou),
                   child: const Text(
                     'Browse For You',

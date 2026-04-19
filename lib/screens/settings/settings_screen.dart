@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-
+import 'package:vyooo/core/theme/app_gradients.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/wrappers/auth_wrapper.dart';
-import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/app_gradient_background.dart';
 import '../account/account_screen.dart';
 import 'settings_subscriptions_screen.dart';
 import 'downloaded_videos_screen.dart';
@@ -13,155 +12,164 @@ import 'report_problem_screen.dart';
 import 'about_screen.dart';
 import 'wallet/wallet_screen.dart';
 
-/// Settings screen for standard user: list with icons, PREMIUM tags, Logout in red.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF14001F),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.authGradient),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildAppBar(context),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 24,
-                  ),
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.02),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          width: 0.5,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          _SettingsTile(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Account',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const AccountScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: FontAwesomeIcons.crown,
-                            iconSize: 18,
-                            label: 'Subscriptions',
-                            isPremium: true,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const SettingsSubscriptionsScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.account_balance_wallet_outlined,
-                            label: 'VyooO Wallet',
-                            isPremium: true,
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const WalletScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.download_rounded,
-                            label: 'Downloaded Videos',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const DownloadedVideosScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.notifications_none_rounded,
-                            label: 'Notifications',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      const NotificationSettingsScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.support_agent_rounded,
-                            label: 'Contact Support',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const ContactSupportScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.chat_bubble_outline_rounded,
-                            label: 'Report Problem',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const ReportProblemScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.info_outline_rounded,
-                            label: 'About',
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const AboutScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _divider(),
-                          _SettingsTile(
-                            icon: Icons.logout_rounded,
-                            label: 'Logout',
-                            isLogout: true,
-                            onTap: () => _logout(context),
-                          ),
-                        ],
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 24,
+                ),
+                children: [
+                  _buildSectionHeader('Account settings'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        width: 0.5,
                       ),
                     ),
-                  ],
-                ),
+                    child: Column(
+                      children: [
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/Account.png',
+                          label: 'Account',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AccountScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/Wallet.png',
+                          label: 'Wallet',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const WalletScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath:
+                              'assets/vyooO_icons/Settings/Subscription.png',
+                          label: 'Subscriptions',
+                          isPremium: true,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const SettingsSubscriptionsScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath:
+                              'assets/vyooO_icons/Settings/Downloaded.png',
+                          label: 'Downloaded',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DownloadedVideosScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath:
+                              'assets/vyooO_icons/Settings/Notification.png',
+                          label: 'Notifications',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationSettingsScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildSectionHeader('Support'),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _SettingsTile(
+                          iconPath:
+                              'assets/vyooO_icons/Settings/Customer Support.png',
+                          label: 'Contact Support',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ContactSupportScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath:
+                              'assets/vyooO_icons/Settings/Report a problem.png',
+                          label: 'Report problem',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ReportProblemScreen(),
+                            ),
+                          ),
+                        ),
+                        _divider(),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/About.png',
+                          label: 'About',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AboutScreen(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.02),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: _SettingsTile(
+                      iconPath: 'assets/vyooO_icons/Settings/Logout.png',
+                      label: 'Logout',
+                      isLogout: true,
+                      onTap: () => _logout(context),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -206,6 +214,18 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
       ),
     );
   }
@@ -304,7 +324,7 @@ class SettingsScreen extends StatelessWidget {
 
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
-    required this.icon,
+    required this.iconPath,
     required this.label,
     required this.onTap,
     this.iconSize = 22,
@@ -312,7 +332,7 @@ class _SettingsTile extends StatelessWidget {
     this.isLogout = false,
   });
 
-  final IconData icon;
+  final String iconPath;
   final double iconSize;
   final String label;
   final VoidCallback onTap;
@@ -341,7 +361,12 @@ class _SettingsTile extends StatelessWidget {
                     textDirection: isLogout
                         ? TextDirection.rtl
                         : TextDirection.ltr,
-                    child: Icon(icon, size: iconSize, color: color),
+                    child: Image.asset(
+                      iconPath,
+                      width: iconSize,
+                      height: iconSize,
+                      color: color,
+                    ),
                   ),
                 ),
               ),

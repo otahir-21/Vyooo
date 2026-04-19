@@ -45,6 +45,7 @@ class UserProfilePayload {
   final int followerCount;
   final int followingCount;
   final String bio;
+
   /// If true, show Follow + Subscribe + Share. If false, show Follow + Share only (standard user).
   final bool isCreator;
   final bool isFollowing;
@@ -149,10 +150,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Future<void> _refreshFollowFromFirestore() async {
     final target = widget.payload.targetUserId;
     final me = AuthService().currentUser?.uid;
-    if (target == null || target.isEmpty || me == null || me.isEmpty || me == target) {
+    if (target == null ||
+        target.isEmpty ||
+        me == null ||
+        me.isEmpty ||
+        me == target) {
       return;
     }
-    final v = await UserService().isFollowingUser(currentUid: me, targetUid: target);
+    final v = await UserService().isFollowingUser(
+      currentUid: me,
+      targetUid: target,
+    );
     if (mounted) setState(() => _isFollowing = v);
   }
 
@@ -185,9 +193,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (mounted) await _loadPublicCounts();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(messageForFirestore(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(messageForFirestore(e))));
       }
     } finally {
       if (mounted) setState(() => _followActionBusy = false);
@@ -212,23 +220,40 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             SliverAppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
-              ),
-              title: Text(
-                '@${p.username}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              leading: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Image.asset(
+                    'assets/vyooO_icons/Home/chevron_left.png',
+                    color: Colors.white,
+                    width: 22,
+                    height: 22,
+                  ),
                 ),
               ),
-              centerTitle: false,
+              title: Text(
+                '${p.username}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              centerTitle: true,
               actions: [
-                IconButton(
-                  onPressed: () => _showProfileMenu(context),
-                  icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+                GestureDetector(
+                  onTap: () => _showProfileMenu(context),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: Image.asset(
+                      'assets/vyooO_icons/Home/three_dots.png',
+                      color: Colors.white,
+                      width: 24,
+                      height: 24,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -237,9 +262,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Column(
                   children: [
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: 12),
                     _buildAvatar(p.avatarUrl),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -247,83 +272,62 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           p.displayName,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 18,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: -0.1,
                           ),
                         ),
                         if (p.isVerified) ...[
                           const SizedBox(width: 6),
-                          Icon(Icons.check_circle_rounded, size: 20, color: AppColors.deleteRed),
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF81945),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.check_rounded, size: 10, color: Colors.white),
+                          ),
                         ],
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: 4),
+                    Text(
+                      '@${p.username}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _UserStatChip(label: 'Posts', value: _formatCount(_livePostCount ?? p.postCount)),
-                        const SizedBox(width: AppSpacing.sm),
                         _UserStatChip(
                           label: 'Following',
                           value: _formatCount(_liveFollowingCount ?? p.followingCount),
-                          onTap: () {
-                            final id = p.targetUserId;
-                            if (id == null || id.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Connect this profile to an account to view lists.')),
-                              );
-                              return;
-                            }
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => FollowersFollowingScreen(
-                                  initialTab: 1,
-                                  profileUserId: id,
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () {},
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        const SizedBox(width: 32),
                         _UserStatChip(
                           label: 'Followers',
                           value: _formatCount(_liveFollowerCount ?? p.followerCount),
-                          onTap: () {
-                            final id = p.targetUserId;
-                            if (id == null || id.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Connect this profile to an account to view lists.')),
-                              );
-                              return;
-                            }
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => FollowersFollowingScreen(
-                                  initialTab: 0,
-                                  profileUserId: id,
-                                ),
-                              ),
-                            );
-                          },
+                          onTap: () {},
+                        ),
+                        const SizedBox(width: 32),
+                        _UserStatChip(
+                          label: 'Posts',
+                          value: _formatCount(_livePostCount ?? p.postCount),
+                          onTap: () {},
                         ),
                       ],
                     ),
-                    if (p.bio.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        p.bio,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: 24),
                     _buildActionButtons(p),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: 24),
                     _buildTabs(),
-                    const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
@@ -339,23 +343,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFDE106B), width: 2),
+        border: Border.all(color: Colors.white, width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFDE106B).withValues(alpha: 0.35),
-            blurRadius: 16,
-            spreadRadius: 0,
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            spreadRadius: 2,
           ),
         ],
       ),
       child: CircleAvatar(
-        radius: 52,
-        backgroundColor: Colors.white.withValues(alpha: 0.2),
+        radius: 56,
+        backgroundColor: Colors.white.withValues(alpha: 0.1),
         backgroundImage: Uri.tryParse(avatarUrl)?.isAbsolute == true
             ? NetworkImage(avatarUrl)
             : null,
         child: Uri.tryParse(avatarUrl)?.isAbsolute != true
-            ? Icon(Icons.person_rounded, size: 52, color: Colors.white.withValues(alpha: 0.6))
+            ? Icon(
+                Icons.person_rounded,
+                size: 56,
+                color: Colors.white.withValues(alpha: 0.6),
+              )
             : null,
       ),
     );
@@ -405,7 +413,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.share_rounded, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.share_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
         ),
       ],
@@ -426,12 +438,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.notifications_outlined, color: Colors.white.withValues(alpha: 0.9)),
+                leading: Icon(
+                  Icons.notifications_outlined,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
                 title: Text(
                   'Notifications',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.95), fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.95),
+                    fontSize: 16,
+                  ),
                 ),
-                trailing: Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.6)),
+                trailing: Icon(
+                  Icons.chevron_right,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showNotificationsSheet(context);
@@ -470,7 +491,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               const SizedBox(height: AppSpacing.lg),
               _NotificationOption(title: 'All', selected: true, onTap: () {}),
               _NotificationOption(title: 'None', selected: false, onTap: () {}),
-              _NotificationOption(title: 'Unsubscribe', selected: false, onTap: () {}),
+              _NotificationOption(
+                title: 'Unsubscribe',
+                selected: false,
+                onTap: () {},
+              ),
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
@@ -486,7 +511,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           final isSelected = index == _selectedTabIndex;
           return Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: index < _tabs.length - 1 ? AppSpacing.xs : 0),
+              padding: EdgeInsets.only(
+                right: index < _tabs.length - 1 ? AppSpacing.xs : 0,
+              ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -502,7 +529,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               colors: [Color(0xFFDE106B), Color(0xFFF81945)],
                             )
                           : null,
-                      color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
+                      color: isSelected
+                          ? null
+                          : Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                     child: Center(
@@ -530,7 +559,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Icon(
-                _selectedTabIndex == _savedTabIndex ? Icons.star_rounded : Icons.star_outline_rounded,
+                _selectedTabIndex == _savedTabIndex
+                    ? Icons.star_rounded
+                    : Icons.star_outline_rounded,
                 color: _selectedTabIndex == _savedTabIndex
                     ? const Color(0xFFF81945)
                     : Colors.white.withValues(alpha: 0.8),
@@ -555,7 +586,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       case 2:
         return _buildStreamsListSlivers(p);
       default:
-        return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyTab())];
+        return [
+          SliverFillRemaining(hasScrollBody: false, child: _buildEmptyTab()),
+        ];
     }
   }
 
@@ -568,11 +601,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.info_outline_rounded, size: 48, color: Colors.white.withValues(alpha: 0.5)),
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: 48,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'No posts made yet',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
@@ -582,7 +622,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverGrid(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
@@ -607,7 +650,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: Image.network(_userProfileMockPostUrls[index], fit: BoxFit.cover),
+                child: Image.network(
+                  _userProfileMockPostUrls[index],
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             childCount: _userProfileMockPostUrls.length,
@@ -620,7 +666,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Widget> _buildVRGridSlivers(UserProfilePayload p) {
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverGrid(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
@@ -628,28 +677,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             crossAxisSpacing: 12,
             childAspectRatio: 0.65,
           ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final item = _userProfileMockVRItems[index];
-              return _UserProfileVRCard(
-                item: item,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => VRDetailScreen(
-                      payload: VRDetailPayload(
-                        creatorName: item.creatorName,
-                        creatorHandle: item.creatorHandle,
-                        avatarUrl: item.avatarUrl,
-                        thumbnailUrl: item.thumbnailUrl,
-                        likeCount: item.viewCount * 1000,
-                      ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = _userProfileMockVRItems[index];
+            return _UserProfileVRCard(
+              item: item,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => VRDetailScreen(
+                    payload: VRDetailPayload(
+                      creatorName: item.creatorName,
+                      creatorHandle: item.creatorHandle,
+                      avatarUrl: item.avatarUrl,
+                      thumbnailUrl: item.thumbnailUrl,
+                      likeCount: item.viewCount * 1000,
                     ),
                   ),
                 ),
-              );
-            },
-            childCount: _userProfileMockVRItems.length,
-          ),
+              ),
+            );
+          }, childCount: _userProfileMockVRItems.length),
         ),
       ),
     ];
@@ -658,36 +704,36 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Widget> _buildStreamsListSlivers(UserProfilePayload p) {
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index.isOdd) return const SizedBox(height: AppSpacing.md);
-              final itemIndex = index ~/ 2;
-              final item = _userProfileMockStreamItems[itemIndex];
-              return SizedBox(
-                height: 200,
-                child: _UserProfileStreamCard(
-                  item: item,
-                  onTap: () => openLiveStreamScreen(
-                    context,
-                    LiveStreamModel(
-                      id: item.title,
-                      hostId: '',
-                      hostUsername: 'Host',
-                      title: item.title,
-                      description: item.subtitle,
-                      status: LiveStreamStatus.live,
-                      likeCount: item.viewCount,
-                      agoraChannelName: item.title,
-                      createdAt: Timestamp.now(),
-                    ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            if (index.isOdd) return const SizedBox(height: AppSpacing.md);
+            final itemIndex = index ~/ 2;
+            final item = _userProfileMockStreamItems[itemIndex];
+            return SizedBox(
+              height: 200,
+              child: _UserProfileStreamCard(
+                item: item,
+                onTap: () => openLiveStreamScreen(
+                  context,
+                  LiveStreamModel(
+                    id: item.title,
+                    hostId: '',
+                    hostUsername: 'Host',
+                    title: item.title,
+                    description: item.subtitle,
+                    status: LiveStreamStatus.live,
+                    likeCount: item.viewCount,
+                    agoraChannelName: item.title,
+                    createdAt: Timestamp.now(),
                   ),
                 ),
-              );
-            },
-            childCount: _userProfileMockStreamItems.length * 2 - 1,
-          ),
+              ),
+            );
+          }, childCount: _userProfileMockStreamItems.length * 2 - 1),
         ),
       ),
     ];
@@ -696,7 +742,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   List<Widget> _buildSavedGridSlivers() {
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverGrid(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
@@ -707,7 +756,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           delegate: SliverChildBuilderDelegate(
             (context, index) => ClipRRect(
               borderRadius: BorderRadius.circular(4),
-              child: Image.network(_userProfileMockSavedUrls[index], fit: BoxFit.cover),
+              child: Image.network(
+                _userProfileMockSavedUrls[index],
+                fit: BoxFit.cover,
+              ),
             ),
             childCount: _userProfileMockSavedUrls.length,
           ),
@@ -720,7 +772,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return Center(
       child: Text(
         'No content yet',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.6),
+          fontSize: 16,
+        ),
       ),
     );
   }
@@ -860,7 +915,11 @@ class _UserStatChip extends StatelessWidget {
 }
 
 class _NotificationOption extends StatelessWidget {
-  const _NotificationOption({required this.title, required this.selected, required this.onTap});
+  const _NotificationOption({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String title;
   final bool selected;
@@ -878,8 +937,12 @@ class _NotificationOption extends StatelessWidget {
           child: Row(
             children: [
               Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_off_rounded,
-                color: selected ? const Color(0xFFF81945) : Colors.white.withValues(alpha: 0.6),
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off_rounded,
+                color: selected
+                    ? const Color(0xFFF81945)
+                    : Colors.white.withValues(alpha: 0.6),
                 size: 24,
               ),
               const SizedBox(width: AppSpacing.md),
@@ -909,7 +972,7 @@ class _PinkButton extends StatelessWidget {
     return Material(
       color: label == 'Following'
           ? Colors.white.withValues(alpha: 0.2)
-          : AppColors.pink,
+          : AppColors.brandPink,
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: InkWell(
         onTap: onPressed,
@@ -951,7 +1014,11 @@ class _GradientButton extends StatelessWidget {
             : const LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [Color(0xFFE8C547), Color(0xFFD4A84B), Color(0xFFB8862E)],
+                colors: [
+                  Color(0xFFE8C547),
+                  Color(0xFFD4A84B),
+                  Color(0xFFB8862E),
+                ],
               ),
         color: label == 'Subscribed' ? const Color(0xFFD4A84B) : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -966,7 +1033,11 @@ class _GradientButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.95)),
+                Icon(
+                  icon,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.95),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   label,
@@ -1028,17 +1099,30 @@ class _UserProfileVRCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.deepPurple,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('VR', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'VR',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 4),
                   Text(
                     _formatCount(item.viewCount),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -1076,13 +1160,20 @@ class _UserProfileVRCard extends StatelessWidget {
                             ),
                             if (item.isVerified) ...[
                               const SizedBox(width: 4),
-                              Icon(Icons.check_circle_rounded, size: 14, color: AppColors.deleteRed),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 14,
+                                color: AppColors.deleteRed,
+                              ),
                             ],
                           ],
                         ),
                         Text(
                           item.creatorHandle,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                          ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
@@ -1139,14 +1230,21 @@ class _UserProfileStreamCard extends StatelessWidget {
                 top: AppSpacing.sm,
                 left: AppSpacing.sm,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.deleteRed,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'LIVE',
-                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -1156,11 +1254,18 @@ class _UserProfileStreamCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.visibility_outlined, size: 12, color: Colors.white.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 2),
                   Text(
                     _formatCount(item.viewCount),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -1186,7 +1291,10 @@ class _UserProfileStreamCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     item.subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

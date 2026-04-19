@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/app_gradient_background.dart';
 
 import 'live_stream_monetisation_screen.dart';
 import 'manage_subscriptions_screen.dart';
@@ -10,15 +10,10 @@ class SettingsSubscriptionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF14001F),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               _buildAppBar(context),
               Expanded(
                 child: ListView(
@@ -67,8 +62,7 @@ class SettingsSubscriptionsScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

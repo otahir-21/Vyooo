@@ -33,7 +33,7 @@ class AppGradientBackground extends StatelessWidget {
       case GradientType.feed:
         return AppGradients.feedGradient;
       case GradientType.auth:
-        return AppGradients.authGradient;
+        return AppGradients.mainBackgroundGradient;
     }
   }
 

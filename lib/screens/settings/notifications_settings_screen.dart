@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/app_gradient_background.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 
   @override
-  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+  State<NotificationSettingsScreen> createState() =>
+      _NotificationSettingsScreenState();
 }
 
-class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+class _NotificationSettingsScreenState
+    extends State<NotificationSettingsScreen> {
   bool activity = true;
   bool post = true;
   bool live = true;
@@ -18,82 +20,82 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildAppBar(context),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                  children: [
-                    const Text(
-                      'Push Notifications',
-                      style: TextStyle(
-                        color: Colors.white60,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: ListView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                children: [
+                  const Text(
+                    'Push Notifications',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          width: 1,
+                    child: Column(
+                      children: [
+                        _NotificationSwitch(
+                          title: 'Activity',
+                          subtitle:
+                              'Notify me about likes, comments, and interactions on my content',
+                          value: activity,
+                          onChanged: (v) => setState(() => activity = v),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          _NotificationSwitch(
-                            title: 'Activity',
-                            subtitle: 'Notify me about likes, comments, and interactions on my content',
-                            value: activity,
-                            onChanged: (v) => setState(() => activity = v),
-                          ),
-                          _divider(),
-                          _NotificationSwitch(
-                            title: 'Post',
-                            subtitle: 'Notifications from profiles I follow',
-                            value: post,
-                            onChanged: (v) => setState(() => post = v),
-                          ),
-                          _divider(),
-                          _NotificationSwitch(
-                            title: 'Live',
-                            subtitle: 'Notify me when creators I follow start a live stream',
-                            value: live,
-                            onChanged: (v) => setState(() => live = v),
-                          ),
-                          _divider(),
-                          _NotificationSwitch(
-                            title: 'Subscriptions',
-                            subtitle: 'Notify me about new subscriptions, renewals, & cancellations',
-                            value: subscriptions,
-                            onChanged: (v) => setState(() => subscriptions = v),
-                          ),
-                          _divider(),
-                          _NotificationSwitch(
-                            title: 'Recommended Content',
-                            subtitle: 'Notify when a content is posted based on my interest',
-                            value: recommended,
-                            onChanged: (v) => setState(() => recommended = v),
-                          ),
-                        ],
-                      ),
+                        _divider(),
+                        _NotificationSwitch(
+                          title: 'Post',
+                          subtitle: 'Notifications from profiles I follow',
+                          value: post,
+                          onChanged: (v) => setState(() => post = v),
+                        ),
+                        _divider(),
+                        _NotificationSwitch(
+                          title: 'Live',
+                          subtitle:
+                              'Notify me when creators I follow start a live stream',
+                          value: live,
+                          onChanged: (v) => setState(() => live = v),
+                        ),
+                        _divider(),
+                        _NotificationSwitch(
+                          title: 'Subscriptions',
+                          subtitle:
+                              'Notify me about new subscriptions, renewals, & cancellations',
+                          value: subscriptions,
+                          onChanged: (v) => setState(() => subscriptions = v),
+                        ),
+                        _divider(),
+                        _NotificationSwitch(
+                          title: 'Recommended Content',
+                          subtitle:
+                              'Notify when a content is posted based on my interest',
+                          value: recommended,
+                          onChanged: (v) => setState(() => recommended = v),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -110,7 +112,8 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white, size: 20),
                 SizedBox(width: 16),
                 Text(
                   'Notifications',

@@ -10,9 +10,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -20,7 +18,10 @@ class AboutScreen extends StatelessWidget {
               _buildAppBar(context),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 24,
+                  ),
                   children: [
                     Container(
                       decoration: BoxDecoration(
@@ -82,7 +83,11 @@ class AboutScreen extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 SizedBox(width: 16),
                 Text(
                   'About',
@@ -137,7 +142,11 @@ class _AboutTile extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 20),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ],
           ),
         ),

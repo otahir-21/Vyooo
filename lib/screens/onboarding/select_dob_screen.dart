@@ -216,7 +216,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                   child: Container(
                     height: 3,
                     decoration: const BoxDecoration(
-                      color: AppColors.pink,
+                      color: AppColors.brandPink,
                       borderRadius: BorderRadius.horizontal(
                         left: Radius.circular(10),
                         right: Radius.zero,
@@ -249,15 +249,16 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
             child: const Icon(
               Icons.person_outline,
               size: 64,
-              color: AppColors.pink,
+              color: AppColors.brandPink,
             ),
           ),
-          const Positioned(
+          Positioned(
             top: 0,
             left: 0,
-            child: Icon(
-              Icons.auto_awesome,
-              size: 22,
+            child: Image.asset(
+              'assets/vyooO_icons/Home/vr.png',
+              width: 22,
+              height: 22,
               color: AppColors.lightGold,
             ),
           ),
@@ -490,10 +491,11 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
           width: 56,
           height: 56,
           alignment: Alignment.center,
-          child: Icon(
-            Icons.arrow_forward,
+          child: Image.asset(
+            'assets/vyooO_icons/Profile/arrow.png',
+            width: 28,
+            height: 28,
             color: _isValid ? AppTheme.buttonTextColor : Colors.grey,
-            size: 28,
           ),
         ),
       ),

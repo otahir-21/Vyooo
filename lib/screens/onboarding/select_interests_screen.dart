@@ -227,7 +227,12 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search, color: AppTheme.searchBarColor, size: 22),
+          Image.asset(
+            'assets/vyooO_icons/Home/nav_bar_icons/search.png',
+            width: 22,
+            height: 22,
+            color: AppTheme.searchBarColor,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -247,7 +252,12 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
               ),
             ),
           ),
-          const Icon(Icons.mic_none, color: AppTheme.searchBarColor, size: 22),
+          Image.asset(
+            'assets/vyooO_icons/Search/microphone.png',
+            width: 22,
+            height: 22,
+            color: AppTheme.searchBarColor,
+          ),
         ],
       ),
     );
@@ -329,10 +339,11 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
           width: 56,
           height: 56,
           alignment: Alignment.center,
-          child: Icon(
-            Icons.arrow_forward,
+          child: Image.asset(
+            'assets/vyooO_icons/Profile/arrow.png',
+            width: 28,
+            height: 28,
             color: _canContinue ? AppTheme.buttonTextColor : White50.value,
-            size: 28,
           ),
         ),
       ),

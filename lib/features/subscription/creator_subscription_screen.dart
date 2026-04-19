@@ -29,13 +29,11 @@ class CreatorSubscriptionScreen extends StatefulWidget {
       _CreatorSubscriptionScreenState();
 }
 
-class _CreatorSubscriptionScreenState
-    extends State<CreatorSubscriptionScreen> {
+class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
   int _selectedIndex = 2; // Default to 'Yearly' (Best value)
   bool _loading = false;
 
-  String get _monthlyStr =>
-      '\$${widget.monthlyPrice.toStringAsFixed(2)}/M';
+  String get _monthlyStr => '\$${widget.monthlyPrice.toStringAsFixed(2)}/M';
   String get _threeMonthStr =>
       '\$${(widget.monthlyPrice * 0.80).toStringAsFixed(2)}/M';
   String get _yearlyStr =>
@@ -50,7 +48,7 @@ class _CreatorSubscriptionScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Subscribed to ${widget.name}! 🎉'),
-        backgroundColor: AppColors.pink,
+        backgroundColor: AppColors.brandPink,
       ),
     );
     Navigator.of(context).pop();
@@ -60,9 +58,7 @@ class _CreatorSubscriptionScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -74,8 +70,11 @@ class _CreatorSubscriptionScreenState
                   children: [
                     IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const Text(
                       'Subscription',
@@ -94,32 +93,27 @@ class _CreatorSubscriptionScreenState
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Column(
                     children: [
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       // Creator avatar
-                      CircleAvatar(
-                        radius: 44,
-                        backgroundColor: Colors.white12,
-                        backgroundImage: widget.avatarUrl.isNotEmpty
-                            ? NetworkImage(widget.avatarUrl)
-                            : null,
-                        child: widget.avatarUrl.isEmpty
-                            ? Text(
-                                widget.name.isNotEmpty
-                                    ? widget.name[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w700),
-                              )
-                            : null,
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                        ),
+                        child: CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Colors.white12,
+                          backgroundImage: widget.avatarUrl.isNotEmpty
+                              ? NetworkImage(widget.avatarUrl)
+                              : null,
+                        ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Text(
                         'Subscribe to',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 13,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -127,8 +121,9 @@ class _CreatorSubscriptionScreenState
                         widget.name,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 26,
+                          fontSize: 28,
                           fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -138,19 +133,27 @@ class _CreatorSubscriptionScreenState
                           Text(
                             widget.handle,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.55),
+                              color: Colors.white.withValues(alpha: 0.4),
                               fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           if (widget.isVerified) ...[
                             const SizedBox(width: 4),
-                            const Icon(Icons.check_circle_rounded,
-                                color: AppColors.pink, size: 16),
+                            Container(
+                              width: 14,
+                              height: 14,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF81945),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
+                            ),
                           ],
                         ],
                       ),
 
-                      const SizedBox(height: 36),
+                      const SizedBox(height: 40),
 
                       // Subscription options
                       _SubscriptionOption(
@@ -159,7 +162,7 @@ class _CreatorSubscriptionScreenState
                         isSelected: _selectedIndex == 0,
                         onTap: () => setState(() => _selectedIndex = 0),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       _SubscriptionOption(
                         title: '3 Months',
                         price: _threeMonthStr,
@@ -168,7 +171,7 @@ class _CreatorSubscriptionScreenState
                         isSelected: _selectedIndex == 1,
                         onTap: () => setState(() => _selectedIndex = 1),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       _SubscriptionOption(
                         title: 'Yearly',
                         price: _yearlyStr,
@@ -178,7 +181,7 @@ class _CreatorSubscriptionScreenState
                         onTap: () => setState(() => _selectedIndex = 2),
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
                       // Benefits card
                       _BenefitsCard(),
@@ -190,7 +193,7 @@ class _CreatorSubscriptionScreenState
               ),
 
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
                 child: GestureDetector(
                   onTap: _loading
                       ? null
@@ -207,7 +210,7 @@ class _CreatorSubscriptionScreenState
                     height: 52,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
                     child: _loading
@@ -215,8 +218,9 @@ class _CreatorSubscriptionScreenState
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Color(0xFFDE106B)),
+                              strokeWidth: 2.5,
+                              color: Color(0xFFF81945),
+                            ),
                           )
                         : const Text(
                             'Subscribe',
@@ -235,7 +239,7 @@ class _CreatorSubscriptionScreenState
                   'By tapping Subscribe, you will be charged and your subscription will auto-renew for the same price and package length until you cancel via settings, and you agree to our Terms.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 10,
                     height: 1.5,
                   ),
@@ -273,23 +277,26 @@ class _SubscriptionOption extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.white.withValues(alpha: 0.08)
               : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: isSelected
-              ? Border.all(color: const Color(0xFFDE106B), width: 1.5)
+              ? Border.all(color: const Color(0xFFF81945), width: 1.5)
               : Border.all(
-                  color: Colors.white.withValues(alpha: 0.12), width: 1),
+                  color: Colors.white.withValues(alpha: 0.08),
+                  width: 1,
+                ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFFDE106B).withValues(alpha: 0.3),
-                    blurRadius: 12,
-                  )
+                    color: const Color(0xFFF81945).withValues(alpha: 0.35),
+                    blurRadius: 15,
+                    spreadRadius: -2,
+                  ),
                 ]
               : null,
         ),
@@ -298,16 +305,15 @@ class _SubscriptionOption extends StatelessWidget {
             Text(
               title,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.75),
-                fontSize: 16,
+                color: Colors.white,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
             if (badge != null) ...[
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeColor,
                   borderRadius: BorderRadius.circular(4),
@@ -325,9 +331,9 @@ class _SubscriptionOption extends StatelessWidget {
             const Spacer(),
             Text(
               price,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.75),
-                fontSize: 15,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -347,59 +353,53 @@ class _BenefitsCard extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            color: Colors.white.withValues(alpha: 0.03),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            color: Colors.white.withValues(alpha: 0.02),
           ),
           child: const Column(
             children: [
               _BenefitItem(
                 icon: FontAwesomeIcons.crown,
                 title: 'Subscriber badge',
-                subtitle:
-                    'Match and chat with people anywhere in the world.',
+                subtitle: 'Match and chat with people anywhere in the world.',
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               _BenefitItem(
                 icon: FontAwesomeIcons.star,
                 title: 'Exclusive Content',
-                subtitle:
-                    'Match and chat with people anywhere in the world.',
+                subtitle: 'Match and chat with people anywhere in the world.',
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               _BenefitItem(
                 icon: FontAwesomeIcons.ban,
                 title: 'Ad-Free',
-                subtitle:
-                    'Match and chat with people anywhere in the world.',
+                subtitle: 'Match and chat with people anywhere in the world.',
               ),
             ],
           ),
         ),
         // Floating label
         Positioned(
-          top: -13,
+          top: -14,
           left: 0,
           right: 0,
           child: Center(
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A0020),
+                color: const Color(0xFF07010F),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.3)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: const Text(
                 'Included with Subscription',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -426,8 +426,8 @@ class _BenefitItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FaIcon(icon, color: AppColors.pink, size: 15),
-        const SizedBox(width: 12),
+        FaIcon(icon, color: const Color(0xFFF81945), size: 16),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -436,16 +436,16 @@ class _BenefitItem extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 13,
                   height: 1.4,
                 ),
               ),

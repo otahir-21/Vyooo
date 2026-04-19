@@ -11,10 +11,7 @@ import '../../core/theme/app_spacing.dart';
 
 /// Debug-only screen to pick subscription tier for testing. Shown at app start when [kDebugMode].
 class TierPickerScreen extends StatelessWidget {
-  const TierPickerScreen({
-    super.key,
-    required this.onContinue,
-  });
+  const TierPickerScreen({super.key, required this.onContinue});
 
   final VoidCallback onContinue;
 
@@ -35,11 +32,7 @@ class TierPickerScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF14001F),
-              Color(0xFF4A003F),
-              Color(0xFFDE106B),
-            ],
+            colors: [Color(0xFF14001F), Color(0xFF4A003F), Color(0xFFDE106B)],
           ),
         ),
         child: SafeArea(
@@ -79,12 +72,16 @@ class TierPickerScreen extends StatelessWidget {
                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: Material(
                             color: isSelected
-                                ? AppColors.pink.withValues(alpha: 0.4)
+                                ? AppColors.brandPink.withValues(alpha: 0.4)
                                 : Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.input),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.input,
+                            ),
                             child: InkWell(
                               onTap: () => controller.setTestTier(tier),
-                              borderRadius: BorderRadius.circular(AppRadius.input),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.input,
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AppSpacing.md,
@@ -104,9 +101,13 @@ class TierPickerScreen extends StatelessWidget {
                                       child: Text(
                                         label,
                                         style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.95),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.95,
+                                          ),
                                           fontSize: 16,
-                                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
                                         ),
                                       ),
                                     ),
@@ -132,7 +133,7 @@ class TierPickerScreen extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: onContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.pink,
+                      backgroundColor: AppColors.brandPink,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(

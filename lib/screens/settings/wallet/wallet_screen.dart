@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_gradients.dart';
+import 'package:vyooo/core/theme/app_gradients.dart';
+import '../../../core/widgets/app_gradient_background.dart';
 import 'add_funds_screen.dart';
 import '../manage_subscriptions_screen.dart';
 import 'transaction_history_screen.dart';
@@ -10,32 +11,29 @@ class WalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.authGradient),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildAppBar(context),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 24,
-                  ),
-                  children: [
-                    _buildBalanceCard(context),
-                    const SizedBox(height: 24),
-                    _buildActionButtons(context),
-                    const SizedBox(height: 32),
-                    _buildRecentActivityHeader(),
-                    const SizedBox(height: 16),
-                    _buildActivityList(context),
-                  ],
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildAppBar(context),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
                 ),
+                children: [
+                  _buildBalanceCard(context),
+                  const SizedBox(height: 24),
+                  _buildActionButtons(context),
+                  const SizedBox(height: 32),
+                  _buildRecentActivityHeader(),
+                  const SizedBox(height: 16),
+                  _buildActivityList(context),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

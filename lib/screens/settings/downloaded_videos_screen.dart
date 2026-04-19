@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/app_gradient_background.dart';
 
 class DownloadedVideosScreen extends StatelessWidget {
   const DownloadedVideosScreen({super.key});
@@ -46,14 +46,10 @@ class DownloadedVideosScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               _buildAppBar(context),
               Expanded(
                 child: GridView.builder(
@@ -77,8 +73,7 @@ class DownloadedVideosScreen extends StatelessWidget {
                   },
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

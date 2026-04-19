@@ -64,7 +64,7 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 24),
           decoration: BoxDecoration(
-            color: AppColors.darkPurple,
+            color: AppColors.brandPurple,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -257,7 +257,7 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
                   child: Container(
                     height: 3,
                     decoration: const BoxDecoration(
-                      color: AppColors.pink,
+                      color: AppColors.brandPink,
                       borderRadius: BorderRadius.horizontal(
                         left: Radius.circular(10),
                         right: Radius.zero,
@@ -293,9 +293,10 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
           Positioned(
             top: 8,
             left: 10,
-            child: Icon(
-              Icons.auto_awesome,
-              size: 50,
+            child: Image.asset(
+              'assets/vyooO_icons/Home/vr.png',
+              width: 50,
+              height: 50,
               color: AppColors.lightGold,
             ),
           ),
@@ -324,9 +325,10 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(
-                        Icons.image_outlined,
-                        size: 22,
+                    : Image.asset(
+                        'assets/vyooO_icons/Profile/arrow.png',
+                        width: 22,
+                        height: 22,
                         color: Colors.white,
                       ),
               ),
@@ -348,7 +350,11 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
         border: Border.all(color: White10.value, width: 1),
       ),
       alignment: Alignment.center,
-      child: const Icon(Icons.person_outline, size: 80, color: AppColors.pink),
+      child: const Icon(
+        Icons.person_outline,
+        size: 80,
+        color: AppColors.brandPink,
+      ),
     );
   }
 
@@ -389,10 +395,11 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                   ),
                 )
-              : const Icon(
-                  Icons.arrow_forward,
+              : Image.asset(
+                  'assets/vyooO_icons/Profile/arrow.png',
+                  width: 28,
+                  height: 28,
                   color: AppTheme.buttonTextColor,
-                  size: 28,
                 ),
         ),
       ),

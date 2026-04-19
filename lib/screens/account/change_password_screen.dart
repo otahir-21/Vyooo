@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/app_gradient_background.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -8,71 +9,67 @@ class ChangePasswordScreen extends StatefulWidget {
 }
 
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF14001F),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0D020D),
-              Color(0xFF2D072D),
-              Color(0xFF4D0B3D),
-              Color(0xFF7D124D),
-            ],
-            stops: [0.0, 0.4, 0.7, 1.0],
-          ),
-        ),
+      body: AppGradientBackground(
+        type: GradientType.profile,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildAppBar(context),
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 24,
-                  ),
-                  children: [
-                    const Text(
-                      'Change\npassword',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 40,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                        letterSpacing: -1,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Your new password should be 8 characters long and\nmust contain one special character.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    _buildPasswordField('Current Password'),
-                    const SizedBox(height: 16),
-                    _buildPasswordField('New Password'),
-                    const SizedBox(height: 16),
-                    _buildPasswordField('Confirm Password'),
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () {},
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Change\npassword',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 48,
+                          fontWeight: FontWeight.w700,
+                          height: 1.05,
+                          letterSpacing: -1.5,
                         ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Your new password should be 8 characters long and\nmust contain one special character.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 48),
+                      _buildPasswordField(
+                        'Current Password',
+                        _obscureCurrent,
+                        (val) => setState(() => _obscureCurrent = val),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildPasswordField(
+                        'New Password',
+                        _obscureNew,
+                        (val) => setState(() => _obscureNew = val),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildPasswordField(
+                        'Confirm Password',
+                        _obscureConfirm,
+                        (val) => setState(() => _obscureConfirm = val),
+                      ),
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        onTap: () {},
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -82,28 +79,33 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26),
+                      const SizedBox(height: 48),
+                      Center(
+                        child: SizedBox(
+                          width: 250,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              minimumSize: const Size(double.infinity, 54),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(27),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Change Password',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
-                        elevation: 0,
                       ),
-                      child: const Text(
-                        'Change Password',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -119,34 +121,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Login & Security',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+          ),
+          const Expanded(
+            child: Text(
+              'Login & Security',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
           const Text(
             'VyooO',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
               letterSpacing: -0.2,
             ),
@@ -156,54 +151,44 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
-  Widget _buildPasswordField(String hint) {
+  Widget _buildPasswordField(String hint, bool obscure, ValueChanged<bool> onToggle) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFFDE106B).withValues(alpha: 0.5),
+          color: Colors.white.withValues(alpha: 0.1),
           width: 1.0,
         ),
       ),
       child: TextField(
-        obscureText: true,
-        style: const TextStyle(color: Colors.white),
+        obscureText: obscure,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
-            fontSize: 15,
+            color: Colors.white.withValues(alpha: 0.4),
+            fontSize: 16,
             fontWeight: FontWeight.w500,
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           prefixIcon: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.only(left: 20, right: 12),
             child: Icon(
-              Icons.lock_outline_rounded,
-              color: Color(0xFFDE106B),
+              Icons.lock_rounded,
+              color: Color(0xFFF81945),
               size: 20,
             ),
           ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 48,
-            minHeight: 48,
-          ),
-          suffixIcon: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Icon(
-              Icons.visibility_outlined,
+          prefixIconConstraints: const BoxConstraints(minWidth: 40),
+          suffixIcon: IconButton(
+            onPressed: () => onToggle(!obscure),
+            icon: Icon(
+              obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
               color: Colors.white.withValues(alpha: 0.5),
               size: 20,
             ),
-          ),
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 48,
-            minHeight: 48,
           ),
         ),
       ),

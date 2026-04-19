@@ -824,7 +824,9 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _streamTitle.isEmpty ? 'Live Stream Topic' : _streamTitle,
+                        _streamTitle.isEmpty
+                            ? 'Live Stream Topic'
+                            : _streamTitle,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,
@@ -834,8 +836,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _streamDoc?.description ?? 
-                        'Leveraging cutting-edge technologies and modern UI/UX principles to deliver premium experiences. #vyoo #live #creative',
+                        _streamDoc?.description ??
+                            'Leveraging cutting-edge technologies and modern UI/UX principles to deliver premium experiences. #vyoo #live #creative',
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -899,7 +901,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           if (_isCommentsOff)
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.65),
                   borderRadius: BorderRadius.circular(10),
@@ -1060,9 +1065,20 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.remove_red_eye_outlined, color: Colors.white.withValues(alpha: 0.7), size: 16),
+            Icon(
+              Icons.remove_red_eye_outlined,
+              color: Colors.white.withValues(alpha: 0.7),
+              size: 16,
+            ),
             const SizedBox(width: 4),
-            Text(_formatCount(viewers), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(
+              _formatCount(viewers),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         const SizedBox(width: 12),
@@ -1074,7 +1090,14 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
             children: [
               Icon(Icons.favorite, color: Colors.pink, size: 16),
               const SizedBox(width: 4),
-              Text(_formatCount(likes), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                _formatCount(likes),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -1173,7 +1196,7 @@ class _CircleIconButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: active
-              ? AppColors.pink.withValues(alpha: 0.35)
+              ? AppColors.brandPink.withValues(alpha: 0.35)
               : Colors.transparent,
         ),
         child: Icon(icon, color: Colors.white, size: 20),
@@ -1215,11 +1238,7 @@ class _GradientButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: isWhite ? Colors.black : Colors.white,
-              size: 20,
-            ),
+            Icon(icon, color: isWhite ? Colors.black : Colors.white, size: 20),
             const SizedBox(width: 10),
             Text(
               label,
@@ -1284,8 +1303,9 @@ class _SegBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        selected ? Colors.white : Colors.white.withValues(alpha: 0.65);
+    final color = selected
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.65);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -1321,7 +1341,8 @@ class _HeartSliderThumb extends SliderComponentShape {
   const _HeartSliderThumb({this.thumbRadius = 14.0});
 
   @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) => Size.fromRadius(thumbRadius);
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
+      Size.fromRadius(thumbRadius);
 
   @override
   void paint(
@@ -1348,8 +1369,22 @@ class _HeartSliderThumb extends SliderComponentShape {
     const double r = 10.0;
     final path = Path();
     path.moveTo(center.dx, center.dy + r);
-    path.cubicTo(center.dx - r * 1.5, center.dy - r * 0.5, center.dx - r * 0.8, center.dy - r * 1.8, center.dx, center.dy - r * 0.8);
-    path.cubicTo(center.dx + r * 0.8, center.dy - r * 1.8, center.dx + r * 1.5, center.dy - r * 0.5, center.dx, center.dy + r);
+    path.cubicTo(
+      center.dx - r * 1.5,
+      center.dy - r * 0.5,
+      center.dx - r * 0.8,
+      center.dy - r * 1.8,
+      center.dx,
+      center.dy - r * 0.8,
+    );
+    path.cubicTo(
+      center.dx + r * 0.8,
+      center.dy - r * 1.8,
+      center.dx + r * 1.5,
+      center.dy - r * 0.5,
+      center.dx,
+      center.dy + r,
+    );
     canvas.drawPath(path, paint);
 
     // Text inside badge (e.g. C7)
@@ -1357,7 +1392,11 @@ class _HeartSliderThumb extends SliderComponentShape {
     final tp = TextPainter(
       text: TextSpan(
         text: 'C$val',
-        style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 8,
+          fontWeight: FontWeight.w800,
+        ),
       ),
       textDirection: textDirection,
     );
@@ -1904,13 +1943,15 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [0, 2, 4, 6, 8, 10]
-                .map((i) => Text(
-                      '$i',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontSize: 11,
-                      ),
-                    ))
+                .map(
+                  (i) => Text(
+                    '$i',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.45),
+                      fontSize: 11,
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         ),

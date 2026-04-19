@@ -17,9 +17,7 @@ class _LiveStreamMonetisationScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -176,8 +174,7 @@ class _CustomThumbShape extends SliderComponentShape {
   final int currentValue;
 
   @override
-  Size getPreferredSize(bool isEnabled, bool isDiscrete) =>
-      const Size(20, 20);
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => const Size(20, 20);
 
   @override
   void paint(
@@ -228,10 +225,7 @@ class _CustomThumbShape extends SliderComponentShape {
     )..layout();
     tp.paint(
       canvas,
-      Offset(
-        center.dx - tp.width / 2,
-        center.dy - 28 - tp.height / 2,
-      ),
+      Offset(center.dx - tp.width / 2, center.dy - 28 - tp.height / 2),
     );
   }
 }

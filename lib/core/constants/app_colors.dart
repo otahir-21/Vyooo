@@ -4,9 +4,15 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color pink = Color(0xFFD10057);
-  static const Color darkPurple = Color(0xFF5A003F);
-  static const Color lightGold = Color(0xFFE8C547);
+  /// Branding Colors (New Gradient Theme)
+  static const Color brandPink = Color(0xFFF81945);
+  static const Color brandMagenta = Color(0xFFE11066);
+  static const Color brandDeepMagenta = Color(0xFFDE106B);
+  static const Color brandPurple = Color(0xFF490038);
+  static const Color brandDeepPurple = Color(0xFF21002B);
+  static const Color brandNearBlack = Color(0xFF07010F);
+  static const Color brandBlack = Color(0xFF020109);
+  static const Color lightGold = Color(0xFFF7CA39);
 
   /// Bottom sheets (comments, share)
   static const Color sheetBackground = Color(0xFF2A1B2E);

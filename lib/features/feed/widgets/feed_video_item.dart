@@ -189,18 +189,19 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
           // ── User info ─────────────────────────────────────────────────────
           Positioned(
             left: 16,
-            bottom: 60,
+            bottom: 40,
             right: 80,
             child: _UserInfo(post: widget.post, onSeeMore: widget.onSeeMore),
           ),
           // ── Action buttons ────────────────────────────────────────────────
           Positioned(
             right: 12,
-            bottom: 120,
+            bottom: 100,
             child: FeedActionButtons(
               viewCount: _formatCount(widget.post.viewCount),
               likeCount: _formatCount(widget.post.likeCount),
               commentCount: _formatCount(widget.post.commentCount),
+              favoriteCount: _formatCount(widget.post.viewCount > 1000 ? widget.post.viewCount ~/ 2 : 123), // Dummy for now
               isLiked: widget.isLiked,
               onLike: widget.onLike,
               onComment: widget.onComment,
@@ -243,10 +244,11 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
               GestureDetector(
                 onTap: _togglePlay,
                 behavior: HitTestBehavior.opaque,
-                child: Icon(
-                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                child: Image.asset(
+                  isPlaying ? 'assets/vyooO_icons/Home/pause.png' : 'assets/vyooO_icons/Settings/Play video.png',
                   color: Colors.white,
-                  size: 28,
+                  width: 28,
+                  height: 28,
                 ),
               ),
               const SizedBox(width: 16),
@@ -259,10 +261,11 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
               GestureDetector(
                 onTap: _toggleMute,
                 behavior: HitTestBehavior.opaque,
-                child: Icon(
-                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                child: Image.asset(
+                  _isMuted ? 'assets/vyooO_icons/Home/volume_mute.png' : 'assets/vyooO_icons/Upload_Story_Live/audio.png',
                   color: Colors.white,
-                  size: 28,
+                  width: 28,
+                  height: 28,
                 ),
               ),
             ],
@@ -288,7 +291,7 @@ class _UserInfo extends StatelessWidget {
   final FeedPost post;
   final VoidCallback? onSeeMore;
 
-  static const Color _pinkAccent = Color(0xFFFF2E93);
+  static const Color _pinkAccent = Color(0xFFF81945);
 
   @override
   Widget build(BuildContext context) {
@@ -298,34 +301,65 @@ class _UserInfo extends StatelessWidget {
       children: [
         Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.white24,
-              backgroundImage: post.userAvatarUrl.isNotEmpty
-                  ? NetworkImage(post.userAvatarUrl)
-                  : null,
-              child: post.userAvatarUrl.isEmpty
-                  ? const Icon(Icons.person, color: Colors.white54)
-                  : null,
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white12,
+                backgroundImage: post.userAvatarUrl.isNotEmpty
+                    ? NetworkImage(post.userAvatarUrl)
+                    : null,
+                child: post.userAvatarUrl.isEmpty
+                    ? Image.asset(
+                        'assets/vyooO_icons/Home/profile_icon.png',
+                        color: Colors.white,
+                        width: 20,
+                      )
+                    : null,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    post.username,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        post.username,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _pinkAccent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Follow',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   Text(
                     post.userHandle,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 14,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
@@ -333,12 +367,16 @@ class _UserInfo extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           post.caption,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            height: 1.4,
+          ),
         ),
         const SizedBox(height: 4),
         GestureDetector(
@@ -346,11 +384,30 @@ class _UserInfo extends StatelessWidget {
           child: const Text(
             'See More',
             style: TextStyle(
-              color: _pinkAccent,
+              color: Colors.white70,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Icon(Icons.music_note_rounded, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Original Sound - ${post.username}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ],
     );

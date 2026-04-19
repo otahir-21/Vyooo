@@ -306,7 +306,12 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                    icon: Image.asset(
+                      'assets/vyooO_icons/Home/chevron_left.png',
+                      width: 22,
+                      height: 22,
+                      color: Colors.white,
+                    ),
                     onPressed: () => setState(() => _tab = _Tab.story),
                   ),
                   const Expanded(
@@ -330,7 +335,12 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.photo_library_outlined, size: 72, color: Colors.white.withValues(alpha: 0.35)),
+                    Image.asset(
+                      'assets/vyooO_icons/Upload_Story_Live/gallery.png',
+                      width: 72,
+                      height: 72,
+                      color: Colors.white.withValues(alpha: 0.35),
+                    ),
                     const SizedBox(height: 24),
                     const Text(
                       'Choose photos for your story',
@@ -515,7 +525,12 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+                        icon: Image.asset(
+                          'assets/vyooO_icons/Home/chevron_left.png',
+                          width: 22,
+                          height: 22,
+                          color: Colors.white,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
@@ -528,7 +543,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _SmallCircleBtn(
-                        icon: Icons.photo_library_rounded,
+                        iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png',
                         onTap: () => _pickFromLibrary(append: false),
                       ),
                       GestureDetector(
@@ -550,7 +565,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                         ),
                       ),
                       _SmallCircleBtn(
-                        icon: Icons.flip_camera_ios_rounded,
+                        iconPath: 'assets/vyooO_icons/Upload_Story_Live/camera_switch.png',
                         onTap: _flipCamera,
                       ),
                     ],
@@ -610,7 +625,12 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                      icon: Image.asset(
+                        'assets/vyooO_icons/Home/chevron_left.png',
+                        width: 22,
+                        height: 22,
+                        color: Colors.white,
+                      ),
                       onPressed: () => setState(() {
                         _images.clear();
                         _previewIdx = 0;
@@ -641,7 +661,12 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                                   color: Colors.white.withValues(alpha: 0.12),
                                   border: Border.all(color: Colors.white24),
                                 ),
-                                child: const Icon(Icons.add, color: Colors.white, size: 28),
+                                child: Image.asset(
+                                  'assets/vyooO_icons/Upload_Story_Live/gallery_camera.png',
+                                  width: 28,
+                                  height: 28,
+                                  color: Colors.white,
+                                ),
                               ),
                             );
                           }
@@ -693,10 +718,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _iconBtn(icon: Icons.photo_library_rounded, onTap: () => _pickFromLibrary(append: true)),
+                      _iconBtn(iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png', onTap: () => _pickFromLibrary(append: true)),
                       const SizedBox(width: 8),
                       _iconBtn(
-                        icon: Icons.camera_alt_rounded,
+                        iconPath: 'assets/vyooO_icons/Home/nav_bar_icons/create.png',
                         onTap: () => setState(() {
                           _images.clear();
                           _previewIdx = 0;
@@ -790,7 +815,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     );
   }
 
-  Widget _iconBtn({required IconData icon, required VoidCallback onTap}) {
+  Widget _iconBtn({required String iconPath, required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -801,15 +826,22 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
           color: Colors.black45,
           border: Border.all(color: Colors.white24),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Center(
+          child: Image.asset(
+            iconPath,
+            width: 20,
+            height: 20,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _SmallCircleBtn extends StatelessWidget {
-  const _SmallCircleBtn({required this.icon, required this.onTap});
-  final IconData icon;
+  const _SmallCircleBtn({required this.iconPath, required this.onTap});
+  final String iconPath;
   final VoidCallback onTap;
 
   @override
@@ -824,7 +856,14 @@ class _SmallCircleBtn extends StatelessWidget {
           color: Colors.black.withValues(alpha: 0.35),
           border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
         ),
-        child: Icon(icon, color: Colors.white, size: 24),
+        child: Center(
+          child: Image.asset(
+            iconPath,
+            width: 24,
+            height: 24,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

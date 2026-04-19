@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/widgets/app_gradient_background.dart';
 import '../../core/config/app_links.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/subscription/subscription_package_mapper.dart';
@@ -119,23 +120,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF0D020D),
-                  Color(0xFF2D072D),
-                  Color(0xFF4D0B3D),
-                  Color(0xFF7D124D),
-                ],
-                stops: [0.0, 0.4, 0.7, 1.0],
-              ),
-            ),
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
+          AppGradientBackground(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
                   final isCompact =
                       constraints.maxWidth < 390 || constraints.maxHeight < 780;
                   final logoSize = isCompact ? 40.0 : 48.0;
@@ -184,13 +171,28 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         children: [
                           SizedBox(height: isCompact ? 8 : 12),
                           Center(
-                            child: Text(
-                              'VyooO',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: logoSize,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -1,
+                            child: RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'Vyoo',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: logoSize,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -1,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: 'O',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: logoSize,
+                                      fontWeight: FontWeight.w400,
+                                      letterSpacing: -1,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -352,10 +354,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                     ],
                   );
-                },
-              ),
-            ),
+            },
           ),
+        ),
           if (isPurchasing)
             Container(
               color: Colors.black54,
@@ -551,15 +552,15 @@ class _PlanCard extends StatelessWidget {
                     child: Text(
                       badge!,
                       style: TextStyle(
-                        color: Colors.black,
+                        color: Colors.white,
                         fontSize: compact ? 7 : 8,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 )
               else
-                SizedBox(height: compact ? 16 : 18),
+                SizedBox(height: compact ? 18 : 20),
               Expanded(
                 child: Center(
                   child: Column(

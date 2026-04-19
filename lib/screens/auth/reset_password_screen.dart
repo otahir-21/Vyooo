@@ -7,11 +7,7 @@ import '../../core/widgets/app_gradient_background.dart';
 import 'password_updated_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({
-    super.key,
-    this.emailOrUsername,
-    this.oobCode,
-  });
+  const ResetPasswordScreen({super.key, this.emailOrUsername, this.oobCode});
 
   final String? emailOrUsername;
 
@@ -59,7 +55,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     if (!_isValid || _isLoading) return;
     final oobCode = widget.oobCode?.trim();
     if (oobCode == null || oobCode.isEmpty) {
-      setState(() => _errorMessage = 'Reset link required. Please use the link from your email.');
+      setState(
+        () => _errorMessage =
+            'Reset link required. Please use the link from your email.',
+      );
       return;
     }
     setState(() {
@@ -74,12 +73,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _isLoading = false);
     if (result.success) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const PasswordUpdatedScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const PasswordUpdatedScreen()),
       );
     } else {
-      setState(() => _errorMessage = result.message ?? 'Could not reset password.');
+      setState(
+        () => _errorMessage = result.message ?? 'Could not reset password.',
+      );
     }
   }
 
@@ -94,7 +93,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             child: SafeArea(
               child: SingleChildScrollView(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _horizontalPadding,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -130,10 +131,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         const SizedBox(height: 6),
                         const Text(
                           'Passwords do not match',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.red,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.red),
                         ),
                       ],
                       if (_errorMessage != null) ...[
@@ -155,11 +153,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
             ),
           ),
-          Positioned(
-            right: 24,
-            bottom: 24,
-            child: _buildFloatingButton(),
-          ),
+          Positioned(right: 24, bottom: 24, child: _buildFloatingButton()),
         ],
       ),
     );
@@ -196,11 +190,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.lock_outline,
-            color: AppColors.pink,
-            size: 22,
-          ),
+          const Icon(Icons.lock_outline, color: AppColors.brandPink, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -227,7 +217,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               color: AppTheme.primary,
               size: 22,
             ),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
             style: IconButton.styleFrom(
@@ -247,15 +238,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildCheckItem(
-          'At least 8 characters',
-          minLengthOk,
-        ),
+        _buildCheckItem('At least 8 characters', minLengthOk),
         const SizedBox(height: 6),
-        _buildCheckItem(
-          'Contains a special character',
-          specialOk,
-        ),
+        _buildCheckItem('Contains a special character', specialOk),
       ],
     );
   }
@@ -289,17 +274,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: mismatch
-            ? Border.all(color: Colors.red, width: 1.5)
-            : null,
+        border: mismatch ? Border.all(color: Colors.red, width: 1.5) : null,
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.lock_outline,
-            color: AppColors.pink,
-            size: 22,
-          ),
+          const Icon(Icons.lock_outline, color: AppColors.brandPink, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -364,10 +343,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               )
             : const Text(
                 'Continue',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
       ),
     );
@@ -377,7 +353,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Material(
       elevation: 2,
       shape: const CircleBorder(),
-      color: _isValid ? AppTheme.buttonBackground : Colors.white.withValues(alpha: 0.4),
+      color: _isValid
+          ? AppTheme.buttonBackground
+          : Colors.white.withValues(alpha: 0.4),
       child: InkWell(
         onTap: _isValid && !_isLoading ? _onContinue : null,
         customBorder: const CircleBorder(),

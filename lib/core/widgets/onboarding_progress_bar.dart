@@ -6,10 +6,7 @@ import '../constants/app_colors.dart';
 /// Reusable onboarding progress bar. Same style across profile, interests, etc.
 /// [progress] should be between 0.0 and 1.0.
 class OnboardingProgressBar extends StatelessWidget {
-  const OnboardingProgressBar({
-    super.key,
-    required this.progress,
-  });
+  const OnboardingProgressBar({super.key, required this.progress});
 
   final double progress;
 
@@ -36,7 +33,7 @@ class OnboardingProgressBar extends StatelessWidget {
                   child: Container(
                     height: 3,
                     decoration: const BoxDecoration(
-                      color: AppColors.pink,
+                      color: AppColors.brandPink,
                       borderRadius: BorderRadius.horizontal(
                         left: Radius.circular(10),
                         right: Radius.zero,

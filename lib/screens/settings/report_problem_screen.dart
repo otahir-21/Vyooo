@@ -34,9 +34,7 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,8 +116,11 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                             child: const Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.add_photo_alternate_outlined,
-                                    color: Colors.white60, size: 24),
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  color: Colors.white60,
+                                  size: 24,
+                                ),
                                 SizedBox(height: 8),
                                 Text(
                                   'Upload Images',
@@ -147,13 +148,20 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                                     width: 80,
                                     margin: const EdgeInsets.only(right: 12),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.05),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.05,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.1)),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                      ),
                                     ),
-                                    child: const Icon(Icons.add_rounded,
-                                        color: Colors.white54),
+                                    child: const Icon(
+                                      Icons.add_rounded,
+                                      color: Colors.white54,
+                                    ),
                                   ),
                                 );
                               }
@@ -165,7 +173,9 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                       image: DecorationImage(
-                                        image: FileImage(File(_images[index].path)),
+                                        image: FileImage(
+                                          File(_images[index].path),
+                                        ),
                                         fit: BoxFit.cover,
                                       ),
                                     ),
@@ -181,8 +191,11 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
                                           color: Colors.black54,
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(Icons.close_rounded,
-                                            color: Colors.white, size: 16),
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -239,7 +252,11 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 SizedBox(width: 16),
                 Text(
                   'Report problem',

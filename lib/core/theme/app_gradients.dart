@@ -7,8 +7,34 @@ import 'package:flutter/material.dart';
 class AppGradients {
   AppGradients._();
 
-  /// Auth (exact Figma 6-stop gradient)
-  static const LinearGradient authGradient = LinearGradient(
+  /// Main background gradient (Dark to Bright)
+  static final LinearGradient mainBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      const Color(0xFF020109),
+      const Color(0xFF07010F),
+      const Color(0xFF21002B),
+      const Color(0xFF490038),
+      const Color(0xFFDE106B).withValues(alpha: 0.8),
+      const Color(0xFFE11066),
+      const Color(0xFFF81945),
+    ],
+    stops: const [
+      0.0,
+      0.15,
+      0.35,
+      0.55,
+      0.75,
+      0.9,
+      1.0,
+    ],
+  );
+
+  /// Auth (maps to main background for consistency)
+  static final LinearGradient authGradient = mainBackgroundGradient;
+
+  static const LinearGradient onboardingGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
@@ -17,26 +43,8 @@ class AppGradients {
       Color(0xFF21002B),
       Color(0xFF490038),
       Color(0xFFDE106B),
+      Color(0xFFE11066),
       Color(0xFFF81945),
-    ],
-    stops: [
-      0.0,
-      0.19,
-      0.42,
-      0.54,
-      0.77,
-      1.0,
-    ],
-  );
-
-  static const LinearGradient onboardingGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [
-      Color(0xFF07010F),
-      Color(0xFF21002B),
-      Color(0xFF490038),
-      Color(0xFFDE106B),
     ],
   );
 
@@ -44,9 +52,11 @@ class AppGradients {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFFDE106B),
-      Color(0xFF490038),
       Color(0xFF020109),
+      Color(0xFF07010F),
+      Color(0xFF21002B),
+      Color(0xFF490038),
+      Color(0xFFDE106B),
     ],
   );
 
@@ -54,9 +64,10 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF14001F),
-      Color(0xFF4A003F),
+      Color(0xFF020109),
+      Color(0xFF21002B),
       Color(0xFFDE106B),
+      Color(0xFFF81945),
     ],
   );
 
@@ -75,8 +86,9 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [
-      Color(0xFF14001F),
-      Color(0xFF2A002B),
+      Color(0xFF020109),
+      Color(0xFF07010F),
+      Color(0xFF21002B),
       Color(0xFF490038),
     ],
   );

@@ -412,32 +412,41 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Color(0xF71A1A2E), // ~0.97 opacity
-                      Color(0xFC16011A), // ~0.98 opacity
+                      Color(0xFF5A1531),
+                      Color(0xFF200226),
                     ],
                   ),
                   border: Border.all(
-                    color: Color(0x14FFFFFF), // rgba(255,255,255,0.08)
+                    color: Colors.white.withValues(alpha: 0.1),
+                    width: 0.5,
                   ),
                 ),
                 child: Column(
                   children: [
                     // ── Drag handle ──────────────────────────────────────
-                    const Padding(
-                      padding: EdgeInsets.only(top: 14, bottom: 8),
-                      child: _DragHandle(),
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 50,
+                        height: 4.5,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
                     ),
 
                     // ── Title ────────────────────────────────────────────
                     const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 20),
                       child: Text(
                         'Comments',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
@@ -610,7 +619,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                 child: Text(
                   'Load earlier comments',
                   style: TextStyle(
-                    color: AppColors.pink,
+                    color: AppColors.brandPink,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),

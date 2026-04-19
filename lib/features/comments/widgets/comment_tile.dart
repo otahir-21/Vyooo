@@ -34,26 +34,33 @@ class CommentTile extends StatelessWidget {
 
     return Container(
       color: isHighlighted
-          ? Colors.white.withValues(alpha: 0.025)
+          ? Colors.white.withValues(alpha: 0.05)
           : Colors.transparent,
       padding: EdgeInsets.only(
-        left: isReply ? 64 : 16,
+        left: isReply ? 80 : 16,
         right: 16,
-        top: 12,
-        bottom: 12,
+        top: 14,
+        bottom: 14,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Avatar ──────────────────────────────────────
-          CircleAvatar(
-            radius: avatarSize / 2,
-            backgroundColor: const Color(0xFF2A2A3A),
-            backgroundImage: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
-                ? NetworkImage(comment.avatarUrl)
-                : null,
+          Container(
+            width: avatarSize,
+            height: avatarSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF2A2A3A),
+              image: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
+                  ? DecorationImage(
+                      image: NetworkImage(comment.avatarUrl),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
 
           // ── Body ────────────────────────────────────────
           Expanded(
@@ -66,41 +73,41 @@ class CommentTile extends StatelessWidget {
                   children: [
                     Text(
                       comment.username,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: isReply ? 14 : 16,
-                        letterSpacing: -0.2,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        letterSpacing: 0.1,
                       ),
                     ),
                     if (comment.isVerified) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       const _VerifiedBadge(),
                     ],
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Text(
                       comment.timeAgo,
-                      style: const TextStyle(
-                        color: Color(0x4DFFFFFF), // 30% white
-                        fontSize: 13,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 12,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
 
                 // Comment text
                 Text(
                   comment.text,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontSize: isReply ? 16 : 17,
-                    height: 1.3,
+                    fontSize: 15,
+                    height: 1.4,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // Reply + View more replies
                 Row(
@@ -108,12 +115,12 @@ class CommentTile extends StatelessWidget {
                     GestureDetector(
                       onTap: onReply,
                       behavior: HitTestBehavior.opaque,
-                      child: const Text(
+                      child: Text(
                         'Reply',
                         style: TextStyle(
-                          color: Color(0x80FFFFFF), // 50% white
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
@@ -127,17 +134,11 @@ class CommentTile extends StatelessWidget {
                           children: [
                             Text(
                               'View more replies (${comment.replyCount})',
-                              style: const TextStyle(
-                                color: Color(0x80FFFFFF),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: Color(0x80FFFFFF),
                             ),
                           ],
                         ),
@@ -181,13 +182,13 @@ class CommentTile extends StatelessWidget {
                         size: 20,
                         color: comment.isLiked
                             ? const Color(0xFFF81945)
-                            : const Color(0x80FFFFFF),
+                            : Colors.white.withValues(alpha: 0.6),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${comment.likeCount}',
-                        style: const TextStyle(
-                          color: Color(0x80FFFFFF),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),

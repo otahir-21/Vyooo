@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
+import '../../core/widgets/app_gradient_background.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/subscription/membership_tier.dart';
 import '../../features/subscription/subscription_screen.dart';
@@ -16,25 +16,10 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF14001F),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF0D020D),
-              Color(0xFF2D072D),
-              Color(0xFF4D0B3D),
-              Color(0xFF7D124D),
-            ],
-            stops: [0.0, 0.4, 0.7, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: AppGradientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               _buildAppBar(context),
               Expanded(
                 child: ListView(
@@ -108,8 +93,7 @@ class AccountScreen extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

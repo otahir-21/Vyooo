@@ -101,27 +101,31 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     _availabilitySub = _usernameService
         .watchAvailability(normalized, excludeUid: uid)
         .listen(
-      (result) {
-        if (!mounted) return;
-        final current = UsernameValidation.normalize(_usernameController.text);
-        if (current != normalized) return;
-        setState(() {
-          _isChecking = false;
-          _available = result.available;
-          _suggestions = result.suggestions;
-        });
-      },
-      onError: (_) {
-        if (!mounted) return;
-        final current = UsernameValidation.normalize(_usernameController.text);
-        if (current != normalized) return;
-        setState(() {
-          _isChecking = false;
-          _available = null;
-          _suggestions = [];
-        });
-      },
-    );
+          (result) {
+            if (!mounted) return;
+            final current = UsernameValidation.normalize(
+              _usernameController.text,
+            );
+            if (current != normalized) return;
+            setState(() {
+              _isChecking = false;
+              _available = result.available;
+              _suggestions = result.suggestions;
+            });
+          },
+          onError: (_) {
+            if (!mounted) return;
+            final current = UsernameValidation.normalize(
+              _usernameController.text,
+            );
+            if (current != normalized) return;
+            setState(() {
+              _isChecking = false;
+              _available = null;
+              _suggestions = [];
+            });
+          },
+        );
   }
 
   void _applySuggestion(String suggestion) {
@@ -251,7 +255,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                   child: Container(
                     height: 3,
                     decoration: const BoxDecoration(
-                      color: AppColors.pink,
+                      color: AppColors.brandPink,
                       borderRadius: BorderRadius.horizontal(
                         left: Radius.circular(10),
                         right: Radius.zero,
@@ -284,7 +288,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
             child: const Icon(
               Icons.person_outline,
               size: 72,
-              color: AppColors.pink,
+              color: AppColors.brandPink,
             ),
           ),
           Positioned(
@@ -350,7 +354,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       curve: Curves.easeInOut,
       height: 60,
       decoration: BoxDecoration(
-        color: AppColors.darkPurple.withOpacity(0.25),
+        color: AppColors.brandPurple.withOpacity(0.25),
         borderRadius: BorderRadius.circular(20),
         border: borderWidth > 0
             ? Border.all(color: borderColor, width: borderWidth)

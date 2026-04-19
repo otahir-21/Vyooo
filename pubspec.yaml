@@ -92,6 +92,18 @@ flutter:
     - assets/images/
     - assets/BrandLogo/
     - assets/BottomNavBar/
+    - assets/vyooO_icons/
+    - assets/vyooO_icons/Home/
+    - assets/vyooO_icons/Home/nav_bar_icons/
+    - assets/vyooO_icons/Home/other_opts_flow/
+    - assets/vyooO_icons/Home/ios_default_icons/
+    - assets/vyooO_icons/Membership_Notify/
+    - assets/vyooO_icons/Onboarding/
+    - assets/vyooO_icons/Profile/
+    - assets/vyooO_icons/Search/
+    - assets/vyooO_icons/Settings/
+    - assets/vyooO_icons/Upload_Story_Live/
+    - assets/vyooO_icons/Wallet/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

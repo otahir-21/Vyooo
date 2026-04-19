@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Asset paths for bottom nav icons (selected / unselected).
 class _NavAssets {
-  static const _base = 'assets/BottomNavBar';
-  static const homeSelected = '$_base/HomeSelected.png';
-  static const homeUnselected = '$_base/HomeUnSlected.png';
-  static const searchSelected = '$_base/SearchSelected.png';
-  static const searchUnselected = '$_base/SearchUnSelected.png';
-  static const addSelected = '$_base/AddSelected.png';
-  static const addUnselected = '$_base/addUnSelectedv1.png';
-  static const notificationSelected = '$_base/NotificationSelected.png';
-  static const notificationUnselected = '$_base/NotificationUnSelected.png';
+  static const _base = 'assets/vyooO_icons/Home/nav_bar_icons';
+  static const homeSelected = '$_base/home.png';
+  static const homeUnselected = 'assets/BottomNavBar/HomeUnSlected.png';
+  static const searchSelected = '$_base/search_filled.png';
+  static const searchUnselected = '$_base/search.png';
+  static const addSelected = '$_base/create.png';
+  static const addUnselected = '$_base/create.png';
+  static const profileUnselected = '$_base/profile.png';
+  static const settingsSelected = '$_base/notification_filled.png';
+  static const settingsUnselected = '$_base/notifications.png';
 }
 
 /// Standard BottomNavigationBar wrapper.
-/// Index: 0 Home, 1 Search, 2 Create (+), 3 Notifications, 4 Profile.
+/// Index: 0 Home, 1 Search, 2 Create (+), 3 Settings (as Notifications), 4 Profile.
 class AppBottomNavigation extends StatelessWidget {
   const AppBottomNavigation({
     super.key,
@@ -28,7 +28,7 @@ class AppBottomNavigation extends StatelessWidget {
   final void Function(int) onTap;
   final String? profileImageUrl;
 
-  static const double _iconSize = 26;
+  static const double _iconSize = 24;
 
   Widget _buildIcon(String asset, IconData fallback, bool isSelected) {
     return SizedBox(
@@ -37,114 +37,122 @@ class AppBottomNavigation extends StatelessWidget {
       child: Image.asset(
         asset,
         fit: BoxFit.contain,
-        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.55),
-        colorBlendMode: BlendMode.modulate,
+        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
         errorBuilder: (ctx, err, stack) => Icon(
           fallback,
           size: _iconSize,
           color: isSelected
               ? Colors.white
-              : Colors.white.withValues(alpha: 0.55),
+              : Colors.white.withValues(alpha: 0.5),
         ),
       ),
     );
   }
 
   Widget _buildProfileIcon(bool isSelected) {
-    final hasImage = profileImageUrl != null && profileImageUrl!.isNotEmpty;
     return Container(
-      width: _iconSize,
-      height: _iconSize,
+      width: _iconSize + 2,
+      height: _iconSize + 2,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: hasImage ? null : Colors.white.withValues(alpha: 0.1),
-        image: hasImage
-            ? DecorationImage(
-                image: NetworkImage(profileImageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
+        border: isSelected ? Border.all(color: Colors.white, width: 1.5) : null,
       ),
-      child: hasImage
-          ? null
-          : Icon(
-              Icons.person_rounded,
-              size: _iconSize * 0.55,
-              color: isSelected
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.55),
-            ),
+      child: Center(
+        child: _buildIcon(
+          _NavAssets.profileUnselected,
+          Icons.person_rounded,
+          isSelected,
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            Color(0xFF1B051D), // Dark purple/black
-            Color(0xFF6B0E4C), // Deep magenta
-            Color(0xFF8B125E), // Lighter magenta
-          ],
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.95),
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withValues(alpha: 0.08),
+            width: 0.5,
+          ),
         ),
       ),
-      child: BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: (index) {
-          HapticFeedback.lightImpact();
-          onTap(index);
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: [
-          BottomNavigationBarItem(
-            icon: _buildIcon(_NavAssets.homeUnselected, Icons.home_rounded, false),
-            activeIcon: _buildIcon(_NavAssets.homeSelected, Icons.home_rounded, true),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: _buildIcon(_NavAssets.searchUnselected, Icons.search_rounded, false),
-            activeIcon: _buildIcon(_NavAssets.searchSelected, Icons.search_rounded, true),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                unselectedAsset: _NavAssets.homeUnselected,
+                selectedAsset: _NavAssets.homeSelected,
+                isSelected: currentIndex == 0,
+                onTap: () => onTap(0),
               ),
-              child: _buildIcon(_NavAssets.addUnselected, Icons.add, false),
-            ),
-            activeIcon: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+              _NavItem(
+                unselectedAsset: _NavAssets.searchUnselected,
+                selectedAsset: _NavAssets.searchSelected,
+                isSelected: currentIndex == 1,
+                onTap: () => onTap(1),
               ),
-              child: _buildIcon(_NavAssets.addSelected, Icons.add, true),
-            ),
-            label: 'Create',
+              _NavItem(
+                unselectedAsset: _NavAssets.addUnselected,
+                selectedAsset: _NavAssets.addSelected,
+                isSelected: currentIndex == 2,
+                onTap: () => onTap(2),
+              ),
+              _NavItem(
+                unselectedAsset: _NavAssets.settingsUnselected,
+                selectedAsset: _NavAssets.settingsSelected,
+                isSelected: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+              GestureDetector(
+                onTap: () => onTap(4),
+                child: _buildProfileIcon(currentIndex == 4),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: _buildIcon(_NavAssets.notificationUnselected, Icons.notifications_none_rounded, false),
-            activeIcon: _buildIcon(_NavAssets.notificationSelected, Icons.notifications_rounded, true),
-            label: 'Notifications',
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.unselectedAsset,
+    required this.selectedAsset,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String unselectedAsset;
+  final String selectedAsset;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 60,
+        height: 60,
+        child: Center(
+          child: Image.asset(
+            isSelected ? selectedAsset : unselectedAsset,
+            width: 24,
+            height: 24,
+            color: isSelected
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.5),
           ),
-          BottomNavigationBarItem(
-            icon: _buildProfileIcon(false),
-            activeIcon: _buildProfileIcon(true),
-            label: 'Profile',
-          ),
-        ],
+        ),
       ),
     );
   }

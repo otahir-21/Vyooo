@@ -137,7 +137,12 @@ class _NotificationScreenState extends State<NotificationScreen>
             onPressed: () {
               if (Navigator.of(context).canPop()) Navigator.of(context).pop();
             },
-            icon: const Icon(Icons.chevron_left_rounded, color: Colors.white, size: 32),
+            icon: Image.asset(
+              'assets/vyooO_icons/Home/chevron_left.png',
+              width: 22,
+              height: 22,
+              color: Colors.white,
+            ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           ),
@@ -172,11 +177,13 @@ class _NotificationScreenState extends State<NotificationScreen>
 
       for (final item in items) {
         final idx = globalIndex++;
-        rows.add(_NotifTile(
-          item: item,
-          followedBack: _followedBack[idx] ?? false,
-          onFollowBack: () => setState(() => _followedBack[idx] = true),
-        ));
+        rows.add(
+          _NotifTile(
+            item: item,
+            followedBack: _followedBack[idx] ?? false,
+            onFollowBack: () => setState(() => _followedBack[idx] = true),
+          ),
+        );
         rows.add(const SizedBox(height: 20));
       }
 
@@ -284,9 +291,15 @@ class _NotifTile extends StatelessWidget {
     return CircleAvatar(
       radius: 23,
       backgroundColor: Colors.white.withValues(alpha: 0.15),
-      backgroundImage: item.avatarUrl != null ? NetworkImage(item.avatarUrl!) : null,
+      backgroundImage: item.avatarUrl != null
+          ? NetworkImage(item.avatarUrl!)
+          : null,
       child: item.avatarUrl == null
-          ? Icon(Icons.person_rounded, color: Colors.white.withValues(alpha: 0.6), size: 24)
+          ? Icon(
+              Icons.person_rounded,
+              color: Colors.white.withValues(alpha: 0.6),
+              size: 24,
+            )
           : null,
     );
   }
@@ -295,7 +308,9 @@ class _NotifTile extends StatelessWidget {
     switch (item.type) {
       case _NotifType.follow:
         if (item.followState == _FollowState.canFollowBack) {
-          return followedBack ? _OutlinePillButton(label: 'Following') : _PinkPillButton(label: 'Follow back', onTap: onFollowBack);
+          return followedBack
+              ? _OutlinePillButton(label: 'Following')
+              : _PinkPillButton(label: 'Follow back', onTap: onFollowBack);
         }
         if (item.followState == _FollowState.alreadyFollowing) {
           return _OutlinePillButton(label: 'Following');
@@ -321,12 +336,16 @@ class _PinkPillButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: AppColors.pink,
+          color: AppColors.brandPink,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -347,7 +366,11 @@ class _OutlinePillButton extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.85)),
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Colors.white.withValues(alpha: 0.85),
+        ),
       ),
     );
   }

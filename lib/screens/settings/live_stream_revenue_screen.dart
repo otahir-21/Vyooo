@@ -5,20 +5,48 @@ class LiveStreamRevenueScreen extends StatelessWidget {
   const LiveStreamRevenueScreen({super.key});
 
   static const List<Map<String, String>> _streams = [
-    {'date': 'April 22 2026', 'views': '1M', 'time': '6574', 'rate': '7', 'earnings': '€ 46032'},
-    {'date': 'April 22 2026', 'views': '1M', 'time': '6574', 'rate': '7', 'earnings': '€ 46032'},
-    {'date': 'April 22 2026', 'views': '1M', 'time': '6574', 'rate': '7', 'earnings': '€ 46032'},
-    {'date': 'April 22 2026', 'views': '1M', 'time': '6574', 'rate': '7', 'earnings': '€ 46032'},
-    {'date': 'April 22 2026', 'views': '1M', 'time': '6574', 'rate': '7', 'earnings': '€ 46032'},
+    {
+      'date': 'April 22 2026',
+      'views': '1M',
+      'time': '6574',
+      'rate': '7',
+      'earnings': '€ 46032',
+    },
+    {
+      'date': 'April 22 2026',
+      'views': '1M',
+      'time': '6574',
+      'rate': '7',
+      'earnings': '€ 46032',
+    },
+    {
+      'date': 'April 22 2026',
+      'views': '1M',
+      'time': '6574',
+      'rate': '7',
+      'earnings': '€ 46032',
+    },
+    {
+      'date': 'April 22 2026',
+      'views': '1M',
+      'time': '6574',
+      'rate': '7',
+      'earnings': '€ 46032',
+    },
+    {
+      'date': 'April 22 2026',
+      'views': '1M',
+      'time': '6574',
+      'rate': '7',
+      'earnings': '€ 46032',
+    },
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppGradients.authGradient,
-        ),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -58,7 +86,11 @@ class LiveStreamRevenueScreen extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 SizedBox(width: 16),
                 Text(
                   'Live stream revenue',
@@ -151,13 +183,21 @@ class _StreamCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _DetailRow(label: 'View Count', value: views, isValueBold: true),
+                    _DetailRow(
+                      label: 'View Count',
+                      value: views,
+                      isValueBold: true,
+                    ),
                     _ShortDetailRow(
                       label: 'Total view time\n(Minutes)',
                       value: '$timeMinutes min * ',
                       highlight: '(€$rate)',
                     ),
-                    _DetailRow(label: 'Earnings', value: earnings, isValueBold: true),
+                    _DetailRow(
+                      label: 'Earnings',
+                      value: earnings,
+                      isValueBold: true,
+                    ),
                   ],
                 ),
               ),
@@ -259,4 +299,3 @@ class _ShortDetailRow extends StatelessWidget {
     );
   }
 }
-

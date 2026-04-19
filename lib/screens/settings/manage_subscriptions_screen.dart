@@ -6,7 +6,8 @@ class ManageSubscriptionsScreen extends StatefulWidget {
   const ManageSubscriptionsScreen({super.key});
 
   @override
-  State<ManageSubscriptionsScreen> createState() => _ManageSubscriptionsScreenState();
+  State<ManageSubscriptionsScreen> createState() =>
+      _ManageSubscriptionsScreenState();
 }
 
 class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
@@ -17,7 +18,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.authGradient),
+        decoration: BoxDecoration(gradient: AppGradients.authGradient),
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -58,7 +59,9 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                       plan: 'Annual',
                       rate: '€ 79.99',
                       image: 'https://i.pravatar.cc/150?u=sofia',
-                      statusColor: const Color(0xFFF81945).withValues(alpha: 0.2),
+                      statusColor: const Color(
+                        0xFFF81945,
+                      ).withValues(alpha: 0.2),
                       isCancelled: true,
                     ),
                     const SizedBox(height: 40),
@@ -127,9 +130,14 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
             child: GestureDetector(
               onTap: () => setState(() => _selectedTabIndex = index),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white.withValues(alpha: 0.05) : Colors.transparent,
+                  color: selected
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: selected ? const Color(0xFFF81945) : Colors.white10,
@@ -179,10 +187,7 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundImage: NetworkImage(image),
-              ),
+              CircleAvatar(radius: 20, backgroundImage: NetworkImage(image)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -207,7 +212,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor,
                   borderRadius: BorderRadius.circular(12),
@@ -274,7 +282,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                       const SizedBox(height: 8),
                       Text(
                         nextBilling ?? '',
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
@@ -309,11 +320,20 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                   child: isPaused
                       ? _buildPrimaryButton(
                           label: 'Resume',
-                          onTap: () => _showResumeDialog(context, name, handle, image, plan, rate, nextBilling ?? ''),
+                          onTap: () => _showResumeDialog(
+                            context,
+                            name,
+                            handle,
+                            image,
+                            plan,
+                            rate,
+                            nextBilling ?? '',
+                          ),
                         )
                       : _buildSecondaryButton(
                           label: 'Remove',
-                          onTap: () => _showRemoveDialog(context, name, handle, image),
+                          onTap: () =>
+                              _showRemoveDialog(context, name, handle, image),
                         ),
                 ),
               ],
@@ -323,7 +343,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
     );
   }
 
-  Widget _buildPrimaryButton({required String label, required VoidCallback onTap}) {
+  Widget _buildPrimaryButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -345,7 +368,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
     );
   }
 
-  Widget _buildSecondaryButton({required String label, required VoidCallback onTap}) {
+  Widget _buildSecondaryButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -368,7 +394,12 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
     );
   }
 
-  void _showRemoveDialog(BuildContext context, String name, String handle, String image) {
+  void _showRemoveDialog(
+    BuildContext context,
+    String name,
+    String handle,
+    String image,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -403,10 +434,16 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                     height: 1.5,
                   ),
                   children: [
-                    const TextSpan(text: 'Are you sure you want to cancel your\nsubscription to '),
+                    const TextSpan(
+                      text:
+                          'Are you sure you want to cancel your\nsubscription to ',
+                    ),
                     TextSpan(
                       text: handle,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const TextSpan(
                       text:
@@ -425,7 +462,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
                           'No, keep',
-                          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -435,7 +475,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
                           'Yes, Remove',
-                          style: TextStyle(color: Color(0xFFF81945), fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: Color(0xFFF81945),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -450,7 +493,14 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
   }
 
   void _showResumeDialog(
-      BuildContext context, String name, String handle, String image, String plan, String rate, String date) {
+    BuildContext context,
+    String name,
+    String handle,
+    String image,
+    String plan,
+    String rate,
+    String date,
+  ) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -479,7 +529,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                     const SizedBox(height: 24),
                     Row(
                       children: [
-                        CircleAvatar(radius: 20, backgroundImage: NetworkImage(image)),
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: NetworkImage(image),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -527,7 +580,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
                           'No, Pause',
-                          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -537,7 +593,10 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
                         onPressed: () => Navigator.pop(context),
                         child: const Text(
                           'Yes, Resume',
-                          style: TextStyle(color: Color(0xFFF81945), fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: Color(0xFFF81945),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),

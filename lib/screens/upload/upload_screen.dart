@@ -37,7 +37,9 @@ class _UploadScreenState extends State<UploadScreen> {
     if (_paths.isEmpty) return null;
     switch (_selectedAlbum) {
       case 'Favourites':
-        final list = _paths.where((p) => p.name.toLowerCase().contains('favor')).toList();
+        final list = _paths
+            .where((p) => p.name.toLowerCase().contains('favor'))
+            .toList();
         return list.isNotEmpty ? list.first : _paths.first;
       case 'All Albums':
         return _paths.first; // fallback "All" / root
@@ -47,7 +49,9 @@ class _UploadScreenState extends State<UploadScreen> {
           final n = p.name.toLowerCase();
           return n.contains('recent') || n == 'recents';
         }).toList();
-        return list.isNotEmpty ? list.first : (_paths.length > 1 ? _paths[1] : _paths.first);
+        return list.isNotEmpty
+            ? list.first
+            : (_paths.length > 1 ? _paths[1] : _paths.first);
     }
   }
 
@@ -134,12 +138,20 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: Colors.white, size: 26),
+            icon: Image.asset(
+              'assets/vyooO_icons/Search/close.png',
+              width: 26,
+              height: 26,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           const Text(
@@ -160,11 +172,12 @@ class _UploadScreenState extends State<UploadScreen> {
                   if (v == null) return;
                   if (v == 'All Albums') {
                     if (_paths.isEmpty) return;
-                    final path = await Navigator.of(context).push<AssetPathEntity>(
-                      MaterialPageRoute<AssetPathEntity>(
-                        builder: (_) => AllAlbumsScreen(paths: _paths),
-                      ),
-                    );
+                    final path = await Navigator.of(context)
+                        .push<AssetPathEntity>(
+                          MaterialPageRoute<AssetPathEntity>(
+                            builder: (_) => AllAlbumsScreen(paths: _paths),
+                          ),
+                        );
                     if (!mounted) return;
                     if (path != null) {
                       setState(() {
@@ -189,16 +202,28 @@ class _UploadScreenState extends State<UploadScreen> {
               if (_selectedIndex != null && _selectedIndex! < _assets.length) {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => UploadVideoPreviewScreen(asset: _assets[_selectedIndex!]),
+                    builder: (_) => UploadVideoPreviewScreen(
+                      asset: _assets[_selectedIndex!],
+                    ),
                   ),
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Select a video'), behavior: SnackBarBehavior.floating),
+                  const SnackBar(
+                    content: Text('Select a video'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
-            child: const Text('Next', style: TextStyle(color: Color(0xFFDE106B), fontWeight: FontWeight.w700, fontSize: 16)),
+            child: const Text(
+              'Next',
+              style: TextStyle(
+                color: Color(0xFFDE106B),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
           ),
         ],
       ),
@@ -216,12 +241,18 @@ class _UploadScreenState extends State<UploadScreen> {
               Text(
                 _permissionError!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 15),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 15,
+                ),
               ),
               const SizedBox(height: AppSpacing.lg),
               TextButton(
                 onPressed: _loadGallery,
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -237,7 +268,10 @@ class _UploadScreenState extends State<UploadScreen> {
       return Center(
         child: Text(
           'No videos',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 16),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.7),
+            fontSize: 16,
+          ),
         ),
       );
     }
@@ -264,7 +298,8 @@ class _UploadScreenState extends State<UploadScreen> {
             fit: StackFit.expand,
             children: [
               _GalleryThumbnail(entity: entity),
-              if (entity.type == AssetType.video) _VideoDuration(entity: entity),
+              if (entity.type == AssetType.video)
+                _VideoDuration(entity: entity),
               if (selected) _SelectedBadge(),
             ],
           ),
@@ -282,7 +317,7 @@ class _UploadScreenState extends State<UploadScreen> {
         children: [
           _BottomSegmentButton(
             label: 'Story',
-            icon: Icons.auto_stories_rounded,
+            iconPath: 'assets/vyooO_icons/Upload_Story_Live/story.png',
             selected: _bottomSegment == 0,
             onTap: () {
               setState(() => _bottomSegment = 0);
@@ -294,14 +329,14 @@ class _UploadScreenState extends State<UploadScreen> {
           const SizedBox(width: 8),
           _BottomSegmentButton(
             label: 'Gallery',
-            icon: Icons.photo_library_rounded,
+            iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png',
             selected: _bottomSegment == 1,
             onTap: () => setState(() => _bottomSegment = 1),
           ),
           const SizedBox(width: 8),
           _BottomSegmentButton(
             label: 'Live',
-            icon: Icons.videocam_rounded,
+            iconPath: 'assets/vyooO_icons/Onboarding/vr.png',
             selected: _bottomSegment == 2,
             onTap: () {
               setState(() => _bottomSegment = 2);
@@ -325,15 +360,17 @@ class _GalleryThumbnail extends StatelessWidget {
       future: entity.thumbnailDataWithSize(const ThumbnailSize.square(400)),
       builder: (context, snapshot) {
         if (snapshot.hasData && snapshot.data != null) {
-          return Image.memory(
-            snapshot.data!,
-            fit: BoxFit.cover,
-          );
+          return Image.memory(snapshot.data!, fit: BoxFit.cover);
         }
         return Container(
           color: Colors.white.withValues(alpha: 0.1),
-          child: const Center(
-            child: Icon(Icons.photo_library_rounded, color: Colors.white38, size: 40),
+          child: Center(
+            child: Image.asset(
+              'assets/vyooO_icons/Upload_Story_Live/gallery.png',
+              width: 40,
+              height: 40,
+              color: Colors.white38,
+            ),
           ),
         );
       },
@@ -355,7 +392,9 @@ class _VideoDuration extends StatelessWidget {
     final s = sec % 60;
     final h = m ~/ 60;
     final mm = m % 60;
-    final str = h > 0 ? '$h:${mm.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}' : '$mm:${s.toString().padLeft(2, '0')}';
+    final str = h > 0
+        ? '$h:${mm.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}'
+        : '$mm:${s.toString().padLeft(2, '0')}';
     return Positioned(
       right: 4,
       bottom: 4,
@@ -374,14 +413,22 @@ class _VideoDuration extends StatelessWidget {
 class _SelectedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Positioned(
+    return Positioned(
       top: 6,
       right: 6,
       child: DecoratedBox(
-        decoration: BoxDecoration(color: Color(0xFFDE106B), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: Color(0xFFDE106B),
+          shape: BoxShape.circle,
+        ),
         child: Padding(
           padding: EdgeInsets.all(2),
-          child: Icon(Icons.check, color: Colors.white, size: 16),
+          child: Image.asset(
+            'assets/vyooO_icons/Membership_Notify/Tick.png',
+            width: 16,
+            height: 16,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -414,9 +461,19 @@ class _AlbumDropdown extends StatelessWidget {
           value: 'Recents',
           child: Row(
             children: [
-              Icon(Icons.photo_library_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
+              Icon(
+                Icons.photo_library_rounded,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               const SizedBox(width: 12),
-              Text('Recents', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+              Text(
+                'Recents',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -424,9 +481,19 @@ class _AlbumDropdown extends StatelessWidget {
           value: 'Favourites',
           child: Row(
             children: [
-              Icon(Icons.favorite_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
+              Icon(
+                Icons.favorite_rounded,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               const SizedBox(width: 12),
-              Text('Favourites', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+              Text(
+                'Favourites',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -434,9 +501,19 @@ class _AlbumDropdown extends StatelessWidget {
           value: 'All Albums',
           child: Row(
             children: [
-              Icon(Icons.grid_view_rounded, size: 20, color: Colors.white.withValues(alpha: 0.8)),
+              Icon(
+                Icons.grid_view_rounded,
+                size: 20,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               const SizedBox(width: 12),
-              Text('All Albums', style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+              Text(
+                'All Albums',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 14,
+                ),
+              ),
             ],
           ),
         ),
@@ -447,10 +524,19 @@ class _AlbumDropdown extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(width: 4),
-          Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.9), size: 28),
+          Image.asset(
+            'assets/vyooO_icons/Home/chevron_right.png',
+            width: 20,
+            height: 20,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
         ],
       ),
     );
@@ -460,20 +546,21 @@ class _AlbumDropdown extends StatelessWidget {
 class _BottomSegmentButton extends StatelessWidget {
   const _BottomSegmentButton({
     required this.label,
-    required this.icon,
+    required this.iconPath,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final IconData icon;
+  final String iconPath;
   final bool selected;
   final VoidCallback onTap;
 
-
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.65);
+    final color = selected
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.65);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -486,7 +573,7 @@ class _BottomSegmentButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: color),
+            Image.asset(iconPath, width: 20, height: 20, color: color),
             const SizedBox(width: 8),
             Text(
               label,
