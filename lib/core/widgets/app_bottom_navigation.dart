@@ -8,7 +8,6 @@ class _NavAssets {
   static const searchUnselected = '$_base/search.png';
   static const addSelected = '$_base/create.png';
   static const addUnselected = '$_base/create.png';
-  static const profileUnselected = '$_base/profile.png';
   static const settingsSelected = '$_base/notification_filled.png';
   static const settingsUnselected = '$_base/notifications.png';
 }
@@ -65,14 +64,14 @@ class AppBottomNavigation extends StatelessWidget {
                 profileImageUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (_, error, stackTrace) => _buildIcon(
-                  _NavAssets.profileUnselected,
+                  _NavAssets.homeUnselected,
                   Icons.person_rounded,
                   isSelected,
                 ),
               )
             : Center(
                 child: _buildIcon(
-                  _NavAssets.profileUnselected,
+                  _NavAssets.homeUnselected,
                   Icons.person_rounded,
                   isSelected,
                 ),

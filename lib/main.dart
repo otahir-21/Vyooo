@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
+import 'core/navigation/app_route_observer.dart';
 import 'core/services/push_messaging_service.dart';
 import 'core/subscription/subscription_controller.dart';
 import 'core/theme/app_padding.dart';
@@ -76,6 +77,7 @@ class VyoooApp extends StatelessWidget {
       title: 'Vyooo',
       theme: AppTheme.dark,
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [appRouteObserver],
       home: firebaseInitialized
           ? const AuthWrapper()
           : const _FirebaseInitErrorScreen(),

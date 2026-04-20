@@ -4,6 +4,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/mock/mock_music_data.dart';
+import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_spacing.dart';
 import '../music/add_audio_screen.dart';
 import 'upload_details_screen.dart';
@@ -18,11 +19,15 @@ class EditVideoScreen extends StatefulWidget {
   State<EditVideoScreen> createState() => _EditVideoScreenState();
 }
 
-class _EditVideoScreenState extends State<EditVideoScreen> {
+class _EditVideoScreenState extends State<EditVideoScreen>
+    with RouteAware, WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
   bool _muted = true;
+  bool _isRouteVisible = true;
+  bool _isAppForeground = true;
+  bool _isRouteObserverSubscribed = false;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   MusicTrack? _selectedTrack;
@@ -32,15 +37,54 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initVideo();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouteObserverSubscribed) return;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverSubscribed = true;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
     _audioPlayer.dispose();
     _controller?.removeListener(_listener);
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteVisible) return;
+    setState(() => _isRouteVisible = false);
+    _syncMediaPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteVisible) return;
+    setState(() => _isRouteVisible = true);
+    _syncMediaPlayback();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    _isAppForeground = foreground;
+    _syncMediaPlayback();
   }
 
   void _listener() {
@@ -61,7 +105,7 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
           _isInitialized = true;
           _hasError = false;
         });
-        await _controller!.play();
+        _syncMediaPlayback();
       }
     } catch (e) {
       debugPrint('EditVideoScreen: $e');
@@ -80,6 +124,25 @@ class _EditVideoScreenState extends State<EditVideoScreen> {
       _controller?.setVolume(_muted ? 0 : 1);
     });
   }
+
+  void _syncMediaPlayback() {
+    final controller = _controller;
+    if (controller == null || !_isInitialized) return;
+    final shouldPlayVideo = _isRouteVisible && _isAppForeground;
+    if (shouldPlayVideo) {
+      controller.play();
+      if (_selectedTrack != null && !_audioPlaying) {
+        _audioPlayer.play();
+      }
+    } else {
+      controller.pause();
+      if (_audioPlaying) {
+        _audioPlayer.pause();
+      }
+    }
+  }
+
+  bool get _audioPlaying => _audioPlayer.playing;
 
   String _formatDuration(Duration d) {
     final m = d.inMinutes.remainder(60);

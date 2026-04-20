@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_spacing.dart';
 
 /// VR player for testing: plays a video fullscreen. Replace with real VR/streaming later.
@@ -27,21 +28,64 @@ class VrPlayerScreen extends StatefulWidget {
   State<VrPlayerScreen> createState() => _VrPlayerScreenState();
 }
 
-class _VrPlayerScreenState extends State<VrPlayerScreen> {
+class _VrPlayerScreenState extends State<VrPlayerScreen>
+    with RouteAware, WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
+  bool _isRouteVisible = true;
+  bool _isAppForeground = true;
+  bool _isRouteObserverSubscribed = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializePlayer();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouteObserverSubscribed) return;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverSubscribed = true;
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteVisible) return;
+    setState(() => _isRouteVisible = false);
+    _syncPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteVisible) return;
+    setState(() => _isRouteVisible = true);
+    _syncPlayback();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    _isAppForeground = foreground;
+    _syncPlayback();
   }
 
   Future<void> _initializePlayer() async {
@@ -64,7 +108,7 @@ class _VrPlayerScreenState extends State<VrPlayerScreen> {
           _isInitialized = true;
           _hasError = false;
         });
-        await _controller!.play();
+        _syncPlayback();
       }
     } catch (e) {
       debugPrint('VrPlayerScreen: Error initializing video: $e');
@@ -85,6 +129,16 @@ class _VrPlayerScreenState extends State<VrPlayerScreen> {
       _controller!.play();
     }
     setState(() {});
+  }
+
+  void _syncPlayback() {
+    final controller = _controller;
+    if (controller == null || !_isInitialized) return;
+    if (_isRouteVisible && _isAppForeground) {
+      controller.play();
+    } else {
+      controller.pause();
+    }
   }
 
   @override

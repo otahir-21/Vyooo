@@ -5,6 +5,7 @@ class AppUserModel {
   const AppUserModel({
     required this.uid,
     required this.email,
+    this.displayName,
     this.username,
     this.dob,
     this.profileImage,
@@ -19,6 +20,7 @@ class AppUserModel {
 
   final String uid;
   final String email;
+  final String? displayName;
   final String? username;
   final String? dob;
   final String? profileImage;
@@ -36,6 +38,7 @@ class AppUserModel {
     return {
       'uid': uid,
       'email': email,
+      'displayName': displayName ?? '',
       'username': username ?? '',
       'dob': dob ?? '',
       'profileImage': profileImage ?? '',
@@ -64,6 +67,7 @@ class AppUserModel {
     return AppUserModel(
       uid: json['uid'] as String? ?? '',
       email: json['email'] as String? ?? '',
+      displayName: json['displayName'] as String?,
       username: json['username'] as String?,
       dob: json['dob'] as String?,
       profileImage: json['profileImage'] as String?,
@@ -82,6 +86,7 @@ class AppUserModel {
   AppUserModel copyWith({
     String? uid,
     String? email,
+    String? displayName,
     String? username,
     String? dob,
     String? profileImage,
@@ -96,6 +101,7 @@ class AppUserModel {
     return AppUserModel(
       uid: uid ?? this.uid,
       email: email ?? this.email,
+      displayName: displayName ?? this.displayName,
       username: username ?? this.username,
       dob: dob ?? this.dob,
       profileImage: profileImage ?? this.profileImage,

@@ -13,6 +13,7 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'uid',
         'email',
+        'displayName',
         'username',
         'dob',
         'profileImage',
@@ -26,6 +27,8 @@ service cloud.firestore {
       ]) &&
       request.resource.data.uid == userId &&
       request.resource.data.email is string &&
+      (!('displayName' in request.resource.data) ||
+        request.resource.data.displayName is string) &&
       request.resource.data.username is string &&
       request.resource.data.dob is string &&
       request.resource.data.profileImage is string &&

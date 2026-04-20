@@ -236,12 +236,15 @@ class _SearchScreenState extends State<SearchScreen>
               : 'https://i.pravatar.cc/120?u=${s.hostId}';
           final followers = profile?.followersCount ?? s.viewerCount;
           final following = profile?.following.length ?? 0;
+          final handleUsername = (profile?.username?.trim().isNotEmpty == true)
+              ? profile!.username!.trim()
+              : s.hostUsername;
+          final displayName = (profile?.displayName?.trim().isNotEmpty == true)
+              ? profile!.displayName!.trim()
+              : handleUsername;
           return _CreatorItem(
-            name: (profile?.username?.trim().isNotEmpty == true)
-                ? profile!.username!.trim()
-                : s.hostUsername,
-            handle:
-                '@${((profile?.username ?? s.hostUsername).toLowerCase().replaceAll(' ', '_'))}',
+            name: displayName,
+            handle: '@${handleUsername.toLowerCase().replaceAll(' ', '_')}',
             avatarUrl: avatar,
             followers: _formatCompactCount(followers),
             following: following,
@@ -255,6 +258,9 @@ class _SearchScreenState extends State<SearchScreen>
     final username = (profile?.username?.trim().isNotEmpty == true)
         ? profile!.username!.trim()
         : stream.hostUsername;
+    final displayName = (profile?.displayName?.trim().isNotEmpty == true)
+        ? profile!.displayName!.trim()
+        : username;
     final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
         ? (profile!.profileImage!).trim()
         : (stream.hostProfileImage?.isNotEmpty == true)
@@ -262,7 +268,7 @@ class _SearchScreenState extends State<SearchScreen>
         : 'https://i.pravatar.cc/80?u=${stream.hostId}';
     return _LiveCardItem(
       thumbnailUrl: avatar,
-      name: username,
+      name: displayName,
       handle: '@${username.toLowerCase().replaceAll(' ', '_')}',
       avatarUrl: avatar,
       viewerCount: stream.viewerCount,
