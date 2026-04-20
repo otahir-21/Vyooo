@@ -12,7 +12,36 @@
           "package_name": "com.vyooo"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "177333950751-13v3p17eq8us49nferbje3nq2n16nsja.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vyooo",
+            "certificate_hash": "e32cd069b8f29c40e499c5dbf2e237b4de0bae01"
+          }
+        },
+        {
+          "client_id": "177333950751-3t4dngp46g85lg9gakafgkeifsse4vs6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vyooo",
+            "certificate_hash": "a70724d54eb197e8322c0277c62507ce58ce3b17"
+          }
+        },
+        {
+          "client_id": "177333950751-p9mllh2vn1mta4i77e4t32q6dq5ampit.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vyooo",
+            "certificate_hash": "f718a1d63fcaa4b893c10ffa37da1d493add533b"
+          }
+        },
+        {
+          "client_id": "177333950751-ul5dp69sih78ea0ebh03rr88gpt60vuu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBgU1_X6RUr9FND84pq4qu5Vv4m8JVr9l4"
@@ -20,7 +49,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "177333950751-ul5dp69sih78ea0ebh03rr88gpt60vuu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "177333950751-4ku8c2nd4643bfamep394q09g1q07fsl.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.vyooo"
+              }
+            }
+          ]
         }
       }
     }

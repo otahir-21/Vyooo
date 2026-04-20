@@ -5,10 +5,6 @@ import '../../core/services/otp_session_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
 
-class _BackspaceIntent extends Intent {
-  const _BackspaceIntent();
-}
-
 class VerifyCodeScreen extends StatefulWidget {
   const VerifyCodeScreen({
     super.key,
@@ -37,9 +33,6 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     super.initState();
     _controllers = List.generate(_otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(_otpLength, (_) => FocusNode());
-    for (int i = 0; i < _otpLength; i++) {
-      _controllers[i].addListener(() => _onOtpChanged(i));
-    }
     if (widget.autoSendOnOpen) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _sendOtp());
     }
@@ -56,16 +49,6 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     super.dispose();
   }
 
-  void _onOtpChanged(int index) {
-    final text = _controllers[index].text;
-    if (text.length == 1) {
-      if (index < _otpLength - 1) {
-        _focusNodes[index + 1].requestFocus();
-      }
-    }
-    setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,192 +56,146 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       body: AppGradientBackground(
         type: GradientType.auth,
         child: SafeArea(
-          child: Shortcuts(
-            shortcuts: const {
-              SingleActivator(LogicalKeyboardKey.backspace): _BackspaceIntent(),
-            },
-            child: Actions(
-              actions: {
-                _BackspaceIntent: CallbackAction<_BackspaceIntent>(
-                  onInvoke: (_) {
-                    for (int i = 0; i < _otpLength; i++) {
-                      if (_focusNodes[i].hasFocus &&
-                          _controllers[i].text.isEmpty &&
-                          i > 0) {
-                        _focusNodes[i - 1].requestFocus();
-                        break;
-                      }
-                    }
-                    return null;
-                  },
-                ),
-              },
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 20),
-
-                      // Logo
-                      _buildLogo(),
-                      const SizedBox(height: 60),
-
-                      // Title
-                      const Text(
-                        'Verify Code',
-                        style: TextStyle(
-                          color: AppTheme.defaultTextColor,
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildLogo(),
+                  const SizedBox(height: 60),
+                  const Text(
+                    'Verify Code',
+                    style: TextStyle(
+                      color: AppTheme.defaultTextColor,
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Please enter the code we've just sent to email",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.secondaryTextColor,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.maskedEmail.isEmpty ? 'your email' : widget.maskedEmail,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFD10057),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w400,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 16),
-
-                      // Subtitle
-                      const Text(
-                        "Please enter the code we've just sent to email",
+                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(_otpLength, (i) => _buildOtpBox(i)),
+                  ),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Didn't receive OTP?",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.secondaryTextColor,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: _onResendCode,
+                          child: const Text(
+                            'Resend Code',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppTheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _isOtpComplete && !_verifyInFlight ? _onVerify : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.buttonBackground,
+                          foregroundColor: AppTheme.buttonTextColor,
+                          disabledBackgroundColor: Colors.white.withValues(
+                            alpha: 0.4,
+                          ),
+                          disabledForegroundColor: AppTheme.secondaryTextColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: _verifyInFlight
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppTheme.buttonTextColor,
+                                ),
+                              )
+                            : const Text(
+                                'Verify',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: GestureDetector(
+                      onTap: _onTryAnotherWay,
+                      child: const Text(
+                        'Try Another Way',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppTheme.secondaryTextColor,
                           fontWeight: FontWeight.w400,
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 6),
-
-                      // Masked email
-                      Text(
-                        widget.maskedEmail.isEmpty
-                            ? 'your email'
-                            : widget.maskedEmail,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFFD10057),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      if (_errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.redAccent,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      const SizedBox(height: 24),
-
-                      // OTP boxes
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(
-                          _otpLength,
-                          (i) => _buildOtpBox(i),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-
-                      // Resend section
-                      Center(
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Didn't receive OTP?",
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppTheme.secondaryTextColor,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: _onResendCode,
-                              child: const Text(
-                                'Resend Code',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: AppTheme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-
-                      // Verify button
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _isOtpComplete && !_verifyInFlight
-                                ? _onVerify
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.buttonBackground,
-                              foregroundColor: AppTheme.buttonTextColor,
-                              disabledBackgroundColor: Colors.white.withValues(
-                                alpha: 0.4,
-                              ),
-                              disabledForegroundColor:
-                                  AppTheme.secondaryTextColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: _verifyInFlight
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppTheme.buttonTextColor,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Verify',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Try Another Way
-                      Center(
-                        child: GestureDetector(
-                          onTap: _onTryAnotherWay,
-                          child: const Text(
-                            'Try Another Way',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.secondaryTextColor,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 30),
+                ],
               ),
             ),
           ),
@@ -318,6 +255,19 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onTap: () {
+              // Makes replacing a wrong digit one tap on mobile keyboards.
+              _controllers[index].selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: _controllers[index].text.length,
+              );
+            },
+            onChanged: (value) {
+              if (value.isNotEmpty && index < _otpLength - 1) {
+                _focusNodes[index + 1].requestFocus();
+              }
+              if (mounted) setState(() {});
+            },
             style: const TextStyle(
               color: AppTheme.primary,
               fontSize: 32,

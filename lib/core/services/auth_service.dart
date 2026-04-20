@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'email_otp_service.dart';
@@ -179,6 +181,67 @@ class AuthService {
     }
   }
 
+  /// Sign in with Google.
+  Future<AuthResult> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn.instance;
+    try {
+      // Primary path: GoogleSignIn plugin then Firebase credential sign-in.
+      // This gives us explicit control over cancellation and token handling.
+      await googleSignIn.initialize();
+      final googleUser = await googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+      if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
+        throw Exception('Google authentication did not return tokens.');
+      }
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await _auth.signInWithCredential(credential);
+      return AuthResult(success: true, user: userCredential.user);
+    } on GoogleSignInException catch (e) {
+      // User dismissed the account picker.
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const AuthResult(success: false, message: '');
+      }
+      debugPrint('GoogleSignInException: ${e.code} ${e.description}');
+      // Try provider-based fallback before surfacing an error.
+      final fallback = await _signInWithGoogleProviderFallback();
+      if (fallback.success) return fallback;
+      return AuthResult(
+        success: false,
+        message: fallback.message ?? 'Google sign-in failed.',
+      );
+    } on FirebaseAuthException catch (e) {
+      return AuthResult(success: false, message: _mapAuthException(e.code));
+    } catch (e) {
+      final fallback = await _signInWithGoogleProviderFallback();
+      if (fallback.success) return fallback;
+      debugPrint('Google sign-in fallback failed after primary error: $e');
+      return AuthResult(
+        success: false,
+        message: fallback.message ??
+            'Google sign-in failed. Check Firebase Google provider and Android SHA settings.',
+      );
+    }
+  }
+
+  Future<AuthResult> _signInWithGoogleProviderFallback() async {
+    try {
+      final provider = GoogleAuthProvider();
+      provider.setCustomParameters({'prompt': 'select_account'});
+      final userCredential = await _auth.signInWithProvider(provider);
+      return AuthResult(success: true, user: userCredential.user);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult(success: false, message: _mapAuthException(e.code));
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        message:
+            'Google sign-in failed. Check Firebase Google provider and Android SHA settings.',
+      );
+    }
+  }
+
   /// Sign out the current user.
   Future<void> signOut() async {
     final uid = _auth.currentUser?.uid;
@@ -213,16 +276,18 @@ class AuthService {
       case 'invalid-email':
         return 'Invalid email address.';
       case 'email-already-in-use':
-        return 'Email already registered.';
+        return 'Email already registered. If you used Google, continue with Google sign-in.';
       case 'user-disabled':
         return 'This account has been disabled.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       case 'invalid-credential':
       case 'INVALID_LOGIN_CREDENTIALS':
-        return 'Invalid email or password.';
+        return 'Invalid email or password. If this email was created with Google, use Google sign-in first.';
       case 'operation-not-allowed':
         return 'Sign-in method is not enabled.';
+      case 'account-exists-with-different-credential':
+        return 'This email is already linked with a different sign-in method.';
       case 'weak-password':
         return 'Password is too weak.';
       case 'expired-action-code':

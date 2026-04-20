@@ -93,7 +93,13 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
   }
 
   Future<void> _onNext() async {
-    if (!_canContinue) return;
+    if (!_canContinue) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least 3 interests.')),
+      );
+      return;
+    }
     final uid = AuthService().currentUser?.uid;
     if (uid != null && uid.isNotEmpty) {
       try {
@@ -333,17 +339,16 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
           ? AppTheme.buttonBackground
           : Colors.white.withValues(alpha: 0.4),
       child: InkWell(
-        onTap: _canContinue ? _onNext : null,
+        onTap: _onNext,
         customBorder: const CircleBorder(),
         child: Container(
           width: 56,
           height: 56,
           alignment: Alignment.center,
-          child: Image.asset(
-            'assets/vyooO_icons/Profile/arrow.png',
-            width: 28,
-            height: 28,
+          child: Icon(
+            Icons.arrow_forward,
             color: _canContinue ? AppTheme.buttonTextColor : White50.value,
+            size: 28,
           ),
         ),
       ),

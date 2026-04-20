@@ -23,6 +23,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
 
@@ -278,7 +279,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         child: Image.asset(
           'assets/BrandLogo/Vyooo logo (2).png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
@@ -324,10 +325,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Widget _buildSocialIcon(IconData icon) {
+    final isGoogle = icon == FontAwesomeIcons.google;
     final isApple = icon == FontAwesomeIcons.apple;
     return GestureDetector(
-      onTap: isApple ? _onAppleSignIn : null,
-      child: isApple && _isAppleLoading
+      onTap: isGoogle
+          ? _onGoogleSignIn
+          : isApple
+              ? _onAppleSignIn
+              : null,
+      child: (isGoogle && _isGoogleLoading) || (isApple && _isAppleLoading)
           ? SizedBox(
               width: _socialIconSize,
               height: _socialIconSize,
@@ -349,6 +355,22 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final result = await _auth.signInWithApple();
     if (!mounted) return;
     setState(() => _isAppleLoading = false);
+    if (result.success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else if (result.message != null && result.message!.isNotEmpty) {
+      setState(() => _errorMessage = result.message);
+    }
+  }
+
+  Future<void> _onGoogleSignIn() async {
+    if (_isGoogleLoading || _isAppleLoading || _isLoading) return;
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isGoogleLoading = false);
     if (result.success) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else if (result.message != null && result.message!.isNotEmpty) {

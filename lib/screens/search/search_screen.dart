@@ -2,18 +2,20 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/user_service.dart';
+import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../features/vr/vr_screen.dart';
 import '../../features/vr/vr_player_screen.dart';
 import '../content/live_stream_route.dart';
-import '../content/vr_detail_screen.dart';
 import '../profile/user_profile_screen.dart';
 
 /// Search tab: search bar, Live/VR/Camera tabs, Ongoing Now & Recommended sections.
@@ -54,7 +56,7 @@ class _SearchScreenState extends State<SearchScreen>
     'Travel vlogs',
   ].toList();
 
-  static const List<String> _tabs = ['Users', 'Live', 'VR'];
+  static const List<String> _tabs = ['Live', 'VR', 'Users'];
 
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _SearchScreenState extends State<SearchScreen>
       }
       _refreshLiveHostProfiles(streams);
     });
-    // Ensure Users tab is the default one and loaded
+    // Keep Live as the default tab (matches new segmented control design).
     _selectedTabIndex = 0;
     _loadUsers();
   }
@@ -379,10 +381,10 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: 24),
         Expanded(
           child: _selectedTabIndex == 0
-              ? _buildIdleUsersContent()
-              : _selectedTabIndex == 1
               ? _buildIdleLiveContent()
-              : _buildIdleVRContent(),
+              : _selectedTabIndex == 1
+              ? _buildIdleVRContent()
+              : _buildIdleUsersContent(),
         ),
       ],
     );
@@ -410,20 +412,27 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildIdleVRContent() {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: AppSpacing.xs,
-      ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.67,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: _vrSearchResultItems.length,
-      itemBuilder: (context, index) =>
-          _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+    return Consumer<SubscriptionController>(
+      builder: (context, subscriptionController, _) {
+        if (!subscriptionController.hasVRAccess) {
+          return const VrLockedView();
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: AppSpacing.xs,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.67,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: _vrSearchResultItems.length,
+          itemBuilder: (context, index) =>
+              _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+        );
+      },
     );
   }
 
@@ -486,10 +495,10 @@ class _SearchScreenState extends State<SearchScreen>
         const SizedBox(height: 16),
         Expanded(
           child: _selectedTabIndex == 0
-              ? _buildUserSearchResultsList()
-              : _selectedTabIndex == 1
               ? _buildLiveSearchResultsGrid()
-              : _buildVRSearchResultsGrid(),
+              : _selectedTabIndex == 1
+              ? _buildVRSearchResultsGrid()
+              : _buildUserSearchResultsList(),
         ),
       ],
     );
@@ -528,20 +537,27 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildVRSearchResultsGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: AppSpacing.xs,
-      ),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: _vrSearchResultItems.length,
-      itemBuilder: (context, index) =>
-          _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+    return Consumer<SubscriptionController>(
+      builder: (context, subscriptionController, _) {
+        if (!subscriptionController.hasVRAccess) {
+          return const VrLockedView();
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: AppSpacing.xs,
+          ),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 0.65,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+          ),
+          itemCount: _vrSearchResultItems.length,
+          itemBuilder: (context, index) =>
+              _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+        );
+      },
     );
   }
 
@@ -764,49 +780,59 @@ class _SearchScreenState extends State<SearchScreen>
 
   Widget _buildTabs() {
     return Container(
-      height: 40,
+      height: 44,
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF1B1327).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Row(
-        children: List.generate(_tabs.length, (index) {
-          final isSelected = index == _selectedTabIndex;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                if (_selectedTabIndex != index) {
-                  setState(() => _selectedTabIndex = index);
-                }
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: isSelected
-                      ? const LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-                        )
-                      : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  _tabs[index],
-                  style: TextStyle(
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.5),
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        children: [
+          for (int index = 0; index < _tabs.length; index++) ...[
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  if (_selectedTabIndex != index) {
+                    setState(() => _selectedTabIndex = index);
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: index == _selectedTabIndex
+                        ? const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _tabs[index],
+                    style: TextStyle(
+                      color: index == _selectedTabIndex
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.9),
+                      fontSize: 14,
+                      fontWeight: index == _selectedTabIndex
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
             ),
-          );
-        }),
+            if (index < _tabs.length - 1)
+              Container(
+                width: 1,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                color: Colors.white.withValues(alpha: 0.16),
+              ),
+          ],
+        ],
       ),
     );
   }
@@ -1229,17 +1255,9 @@ class _VRSearchResultGridCard extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => VRDetailScreen(
-              payload: VRDetailPayload(
-                title: item.creatorName,
-                videoUrl: item.videoUrl,
-                thumbnailUrl: item.thumbnailUrl,
-                creatorName: item.creatorName,
-                creatorHandle: item.creatorHandle,
-                avatarUrl: item.avatarUrl,
-                description: 'It\'s the silence that is more beauti...',
-                likeCount: 100000,
-              ),
+            builder: (_) => VrPlayerScreen(
+              title: item.creatorName,
+              videoUrl: item.videoUrl,
             ),
           ),
         );
@@ -1631,6 +1649,7 @@ final List<_VRSearchItem> _vrSearchResultItems = [
     avatarUrl: 'https://i.pravatar.cc/80?img=28',
     isVerified: true,
     viewerCount: 102,
+    videoUrl: VrPlayerScreen.testVideoUrls[0],
   ),
 ];
 

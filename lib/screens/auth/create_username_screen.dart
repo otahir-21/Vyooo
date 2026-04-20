@@ -197,7 +197,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               ),
             ),
           ),
-          Positioned(right: 24, bottom: 24, child: _buildNextButton()),
+          Positioned(right: 24, bottom: 36, child: _buildNextButton()),
           // Temporary logout
           // Positioned(
           //   top: 16,
@@ -432,25 +432,62 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   }
 
   Future<void> _onNext() async {
-    if (!_isUsernameValid) return;
+    final username = UsernameValidation.normalize(_usernameController.text.trim());
+    if (!UsernameValidation.isValidFormat(username)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter at least 3 characters (letters, numbers, underscore).'),
+        ),
+      );
+      return;
+    }
+    if (_isChecking) return;
+
+    // Final one-shot check on tap so users can proceed even if realtime stream
+    // hasn't emitted yet (common right after typing).
+    if (_available != true) {
+      try {
+        final check = await _usernameService.checkAvailability(username);
+        if (!mounted) return;
+        setState(() {
+          _available = check.available;
+          _suggestions = check.suggestions;
+        });
+        if (!check.available) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Username is not available.')),
+          );
+          return;
+        }
+      } catch (_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not verify username right now. Try again.'),
+          ),
+        );
+        return;
+      }
+    }
+
     final uid = AuthService().currentUser?.uid;
-    final username = _usernameController.text.trim();
     if (uid != null && uid.isNotEmpty) {
       try {
         await UserService().updateUserProfile(uid: uid, username: username);
       } catch (_) {
         // Still navigate so onboarding isn't blocked by network/backend errors
         if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (context) => const SelectDobScreen()),
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const SelectDobScreen()),
         );
         return;
       }
     }
     if (!mounted) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const SelectDobScreen()));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const SelectDobScreen()),
+    );
   }
 
   Widget _buildSuggestions() {

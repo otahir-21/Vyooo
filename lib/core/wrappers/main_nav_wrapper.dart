@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+import '../services/user_service.dart';
 import '../subscription/subscription_controller.dart';
 import '../widgets/app_bottom_navigation.dart';
 import '../../screens/home/home_reels_screen.dart';
@@ -22,6 +24,7 @@ class MainNavWrapper extends StatefulWidget {
 class _MainNavWrapperState extends State<MainNavWrapper> {
   int _currentIndex = 0;
   int _feedRefreshToken = 0;
+  final UserService _userService = UserService();
 
   void _onNavTap(BuildContext context, int index) {
     if (index == 2) {
@@ -48,6 +51,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final screens = <Widget>[
       HomeReelsScreen(isActive: _currentIndex == 0, refreshToken: _feedRefreshToken),
       const SearchScreen(),
@@ -58,10 +62,16 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: AppBottomNavigation(
-        currentIndex: _currentIndex,
-        onTap: (index) => _onNavTap(context, index),
-        profileImageUrl: null,
+      bottomNavigationBar: StreamBuilder(
+        stream: uid.isEmpty ? null : _userService.userStream(uid),
+        builder: (context, snapshot) {
+          final profileImageUrl = snapshot.data?.profileImage;
+          return AppBottomNavigation(
+            currentIndex: _currentIndex,
+            onTap: (index) => _onNavTap(context, index),
+            profileImageUrl: profileImageUrl,
+          );
+        },
       ),
     );
   }

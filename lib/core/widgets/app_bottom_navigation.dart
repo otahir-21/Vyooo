@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class _NavAssets {
   static const _base = 'assets/vyooO_icons/Home/nav_bar_icons';
@@ -14,7 +13,7 @@ class _NavAssets {
   static const settingsUnselected = '$_base/notifications.png';
 }
 
-/// Standard BottomNavigationBar wrapper.
+/// Custom bottom nav wrapper matching the VyooO design language.
 /// Index: 0 Home, 1 Search, 2 Create (+), 3 Settings (as Notifications), 4 Profile.
 class AppBottomNavigation extends StatelessWidget {
   const AppBottomNavigation({
@@ -28,7 +27,10 @@ class AppBottomNavigation extends StatelessWidget {
   final void Function(int) onTap;
   final String? profileImageUrl;
 
-  static const double _iconSize = 24;
+  static const double _iconSize = 25;
+  static const Color _activeIconColor = Colors.white;
+  static const Color _inactiveIconColor = Color(0xFF8C8C96);
+  static const Color _splashColor = Color(0x44DE106B);
 
   Widget _buildIcon(String asset, IconData fallback, bool isSelected) {
     return SizedBox(
@@ -37,31 +39,65 @@ class AppBottomNavigation extends StatelessWidget {
       child: Image.asset(
         asset,
         fit: BoxFit.contain,
-        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+        color: isSelected ? _activeIconColor : _inactiveIconColor,
         errorBuilder: (ctx, err, stack) => Icon(
           fallback,
           size: _iconSize,
-          color: isSelected
-              ? Colors.white
-              : Colors.white.withValues(alpha: 0.5),
+          color: isSelected ? _activeIconColor : _inactiveIconColor,
         ),
       ),
     );
   }
 
   Widget _buildProfileIcon(bool isSelected) {
+    final hasProfileImage =
+        profileImageUrl != null && profileImageUrl!.trim().isNotEmpty;
     return Container(
-      width: _iconSize + 2,
-      height: _iconSize + 2,
+      width: _iconSize + 8,
+      height: _iconSize + 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: isSelected ? Border.all(color: Colors.white, width: 1.5) : null,
+        border: isSelected ? Border.all(color: Colors.white, width: 1.4) : null,
       ),
-      child: Center(
-        child: _buildIcon(
-          _NavAssets.profileUnselected,
-          Icons.person_rounded,
-          isSelected,
+      child: ClipOval(
+        child: hasProfileImage
+            ? Image.network(
+                profileImageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, error, stackTrace) => _buildIcon(
+                  _NavAssets.profileUnselected,
+                  Icons.person_rounded,
+                  isSelected,
+                ),
+              )
+            : Center(
+                child: _buildIcon(
+                  _NavAssets.profileUnselected,
+                  Icons.person_rounded,
+                  isSelected,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildNavTap({
+    required VoidCallback onPressed,
+    required Widget child,
+  }) {
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          onTap: onPressed,
+          containedInkWell: true,
+          highlightShape: BoxShape.circle,
+          radius: 26,
+          splashColor: _splashColor,
+          highlightColor: _splashColor.withValues(alpha: 0.6),
+          child: Center(child: child),
         ),
       ),
     );
@@ -71,50 +107,71 @@ class AppBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.95),
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-            width: 0.5,
-          ),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF5A044A),
+            Color(0xFF2A0332),
+            Color(0xFF14001F),
+          ],
+          stops: [0.0, 0.42, 1.0],
         ),
+        border: Border.all(
+          color: const Color(0xFFDE106B).withValues(alpha: 0.2),
+          width: 0.9,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x4D000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                unselectedAsset: _NavAssets.homeUnselected,
-                selectedAsset: _NavAssets.homeSelected,
-                isSelected: currentIndex == 0,
-                onTap: () => onTap(0),
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.searchUnselected,
-                selectedAsset: _NavAssets.searchSelected,
-                isSelected: currentIndex == 1,
-                onTap: () => onTap(1),
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.addUnselected,
-                selectedAsset: _NavAssets.addSelected,
-                isSelected: currentIndex == 2,
-                onTap: () => onTap(2),
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.settingsUnselected,
-                selectedAsset: _NavAssets.settingsSelected,
-                isSelected: currentIndex == 3,
-                onTap: () => onTap(3),
-              ),
-              GestureDetector(
-                onTap: () => onTap(4),
-                child: _buildProfileIcon(currentIndex == 4),
-              ),
-            ],
+      child: ClipRRect(
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.only(bottom: 4),
+          child: SizedBox(
+            height: 79,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  unselectedAsset: _NavAssets.homeUnselected,
+                  selectedAsset: _NavAssets.homeSelected,
+                  isSelected: currentIndex == 0,
+                  onTap: () => onTap(0),
+                  splashColor: _splashColor,
+                ),
+                _NavItem(
+                  unselectedAsset: _NavAssets.searchUnselected,
+                  selectedAsset: _NavAssets.searchSelected,
+                  isSelected: currentIndex == 1,
+                  onTap: () => onTap(1),
+                  splashColor: _splashColor,
+                ),
+                _NavItem(
+                  unselectedAsset: _NavAssets.addUnselected,
+                  selectedAsset: _NavAssets.addSelected,
+                  isSelected: currentIndex == 2,
+                  onTap: () => onTap(2),
+                  splashColor: _splashColor,
+                ),
+                _NavItem(
+                  unselectedAsset: _NavAssets.settingsUnselected,
+                  selectedAsset: _NavAssets.settingsSelected,
+                  isSelected: currentIndex == 3,
+                  onTap: () => onTap(3),
+                  splashColor: _splashColor,
+                ),
+                _buildNavTap(
+                  onPressed: () => onTap(4),
+                  child: _buildProfileIcon(currentIndex == 4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -128,29 +185,38 @@ class _NavItem extends StatelessWidget {
     required this.selectedAsset,
     required this.isSelected,
     required this.onTap,
+    required this.splashColor,
   });
 
   final String unselectedAsset;
   final String selectedAsset;
   final bool isSelected;
   final VoidCallback onTap;
+  final Color splashColor;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 60,
-        height: 60,
-        child: Center(
-          child: Image.asset(
-            isSelected ? selectedAsset : unselectedAsset,
-            width: 24,
-            height: 24,
-            color: isSelected
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.5),
+    return SizedBox(
+      width: 62,
+      height: 62,
+      child: Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          onTap: onTap,
+          containedInkWell: true,
+          highlightShape: BoxShape.circle,
+          radius: 26,
+          splashColor: splashColor,
+          highlightColor: splashColor.withValues(alpha: 0.6),
+          child: Center(
+            child: Image.asset(
+              isSelected ? selectedAsset : unselectedAsset,
+              width: 25,
+              height: 25,
+              color: isSelected
+                  ? AppBottomNavigation._activeIconColor
+                  : AppBottomNavigation._inactiveIconColor,
+            ),
           ),
         ),
       ),

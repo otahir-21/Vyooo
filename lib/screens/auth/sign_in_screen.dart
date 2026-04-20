@@ -23,6 +23,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
 
@@ -88,6 +89,24 @@ class _SignInScreenState extends State<SignInScreen> {
     final result = await _auth.signInWithApple();
     if (!mounted) return;
     setState(() => _isAppleLoading = false);
+    if (result.success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else if (result.message != null && result.message!.isNotEmpty) {
+      setState(() => _errorMessage = result.message);
+    }
+  }
+
+  Future<void> _onGoogleSignIn() async {
+    if (_isGoogleLoading || _isAppleLoading || _isLoading) return;
+    OtpSessionService().abortEmailLoginHandshake();
+    await OtpSessionService().clearOtpRequirement();
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+    final result = await _auth.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isGoogleLoading = false);
     if (result.success) {
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else if (result.message != null && result.message!.isNotEmpty) {
@@ -166,7 +185,7 @@ class _SignInScreenState extends State<SignInScreen> {
         child: Image.asset(
           'assets/BrandLogo/Vyooo logo (2).png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
@@ -375,7 +394,23 @@ class _SignInScreenState extends State<SignInScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        FaIcon(FontAwesomeIcons.google, color: AppTheme.primary, size: 28),
+        GestureDetector(
+          onTap: _onGoogleSignIn,
+          child: _isGoogleLoading
+              ? const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppTheme.primary,
+                  ),
+                )
+              : const FaIcon(
+                  FontAwesomeIcons.google,
+                  color: AppTheme.primary,
+                  size: 28,
+                ),
+        ),
         const SizedBox(width: 40),
         GestureDetector(
           onTap: _onAppleSignIn,

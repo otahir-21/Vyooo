@@ -491,11 +491,10 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
           width: 56,
           height: 56,
           alignment: Alignment.center,
-          child: Image.asset(
-            'assets/vyooO_icons/Profile/arrow.png',
-            width: 28,
-            height: 28,
+          child: Icon(
+            Icons.arrow_forward,
             color: _isValid ? AppTheme.buttonTextColor : Colors.grey,
+            size: 28,
           ),
         ),
       ),

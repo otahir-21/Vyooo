@@ -294,10 +294,9 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
             top: 8,
             left: 10,
             child: Image.asset(
-              'assets/vyooO_icons/Home/vr.png',
+              'assets/vyooO_icons/Profile/profile_sparkle.png',
               width: 50,
               height: 50,
-              color: AppColors.lightGold,
             ),
           ),
 
@@ -395,10 +394,9 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                   ),
                 )
-              : Image.asset(
-                  'assets/vyooO_icons/Profile/arrow.png',
-                  width: 28,
-                  height: 28,
+              : const Icon(
+                  Icons.arrow_forward,
+                  size: 28,
                   color: AppTheme.buttonTextColor,
                 ),
         ),
