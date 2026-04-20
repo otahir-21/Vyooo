@@ -310,8 +310,8 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      color: Colors.black.withValues(alpha: 0.1),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      color: Colors.black.withValues(alpha: 0.12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -326,17 +326,17 @@ class _UploadScreenState extends State<UploadScreen> {
               );
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           _BottomSegmentButton(
             label: 'Gallery',
             iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png',
             selected: _bottomSegment == 1,
             onTap: () => setState(() => _bottomSegment = 1),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           _BottomSegmentButton(
             label: 'Live',
-            iconPath: 'assets/vyooO_icons/Onboarding/vr.png',
+            iconPath: 'assets/vyooO_icons/Upload_Story_Live/live.png',
             selected: _bottomSegment == 2,
             onTap: () {
               setState(() => _bottomSegment = 2);
@@ -558,28 +558,47 @@ class _BottomSegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? Colors.white
-        : Colors.white.withValues(alpha: 0.65);
+    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.72);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFDE106B) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          gradient: selected
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFF71866), Color(0xFFDE106B)],
+                )
+              : null,
+          color: selected ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(iconPath, width: 20, height: 20, color: color),
+            Image.asset(
+              iconPath,
+              width: label == 'Live' ? 19 : 18,
+              height: label == 'Live' ? 19 : 18,
+              color: color,
+              errorBuilder: (_, _, _) => Icon(
+                label == 'Story'
+                    ? Icons.videocam_outlined
+                    : label == 'Gallery'
+                        ? Icons.grid_view_rounded
+                        : Icons.wifi_tethering_rounded,
+                color: color,
+                size: 18,
+              ),
+            ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),

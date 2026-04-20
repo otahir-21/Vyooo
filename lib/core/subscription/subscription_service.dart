@@ -78,13 +78,33 @@ class SubscriptionService {
   }
 
   MembershipTier getTier(CustomerInfo info) {
-    if (info.entitlements.active.containsKey('creator_access')) {
+    final entitlementIds = info.entitlements.active.keys
+        .map((e) => e.trim().toLowerCase())
+        .toSet();
+    final activeProductIds = info.activeSubscriptions
+        .map((e) => e.trim().toLowerCase())
+        .toSet();
+
+    bool hasAny(Iterable<String> values, List<String> candidates) {
+      for (final c in candidates) {
+        if (values.contains(c)) return true;
+      }
+      return false;
+    }
+
+    if (hasAny(entitlementIds, const ['creator_access']) ||
+        entitlementIds.any((id) => id.contains('creator')) ||
+        activeProductIds.any((id) => id.contains('creator'))) {
       return MembershipTier.creator;
     }
-    if (info.entitlements.active.containsKey('subscriber_access')) {
+    if (hasAny(entitlementIds, const ['subscriber_access']) ||
+        entitlementIds.any((id) => id.contains('subscriber')) ||
+        activeProductIds.any((id) => id.contains('subscriber'))) {
       return MembershipTier.subscriber;
     }
-    if (info.entitlements.active.containsKey('standard_access')) {
+    if (hasAny(entitlementIds, const ['standard_access']) ||
+        entitlementIds.any((id) => id.contains('standard')) ||
+        activeProductIds.any((id) => id.contains('standard'))) {
       return MembershipTier.standard;
     }
     return MembershipTier.none;

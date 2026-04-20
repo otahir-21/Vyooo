@@ -26,6 +26,7 @@ class SubscriptionController extends ChangeNotifier {
 
   MembershipTier currentTier = MembershipTier.none;
   MembershipTier? _testTierOverride;
+  bool _hasAnyStoreSubscription = false;
   bool isLoading = false;
   String? purchaseError; // non-null if last purchase failed (not cancelled)
 
@@ -86,12 +87,36 @@ class SubscriptionController extends ChangeNotifier {
     if ((kDebugMode || AppConfig.enableSubscriptionTierTesting) &&
         _testTierOverride != null) {
       currentTier = _testTierOverride!;
+      _hasAnyStoreSubscription = currentTier != MembershipTier.none;
       notifyListeners();
       return;
     }
     final info = await _service.getCustomerInfoSafe();
-    currentTier = info != null ? _service.getTier(info) : MembershipTier.none;
+    if (info == null) {
+      currentTier = MembershipTier.none;
+      _hasAnyStoreSubscription = false;
+    } else {
+      currentTier = _service.getTier(info);
+      _hasAnyStoreSubscription =
+          info.entitlements.active.isNotEmpty || info.activeSubscriptions.isNotEmpty;
+    }
     notifyListeners();
+  }
+
+  /// Strong status reconciliation for cases where sandbox entitlement sync lags.
+  /// Returns true when an active paid subscription is detected after recovery.
+  Future<bool> reconcilePaidStatus({String? firebaseUid}) async {
+    // Ensure RevenueCat identity matches Firebase before checking status.
+    if (firebaseUid != null && firebaseUid.isNotEmpty) {
+      await _service.syncFirebaseUser(firebaseUid);
+    }
+    await refreshStatus();
+    if (isPaid) return true;
+
+    // Recovery path: restore, then refresh again.
+    await restorePurchases();
+    await refreshStatus();
+    return isPaid;
   }
 
   /// After Firebase Auth sign-in / sign-out, keep RevenueCat `appUserID` aligned.
@@ -113,6 +138,11 @@ class SubscriptionController extends ChangeNotifier {
       final code = PurchasesErrorHelper.getErrorCode(e);
       if (code == PurchasesErrorCode.purchaseCancelledError) {
         return false; // user cancelled — silent
+      }
+      if (code == PurchasesErrorCode.productAlreadyPurchasedError) {
+        // Common on sandbox/test devices when the subscription is already active.
+        await refreshStatus();
+        return true;
       }
       purchaseError = e.message ?? e.code;
       notifyListeners();
@@ -161,7 +191,7 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   /// True if user has any paid plan (Standard, Subscriber, or Creator).
-  bool get isPaid => currentTier != MembershipTier.none;
+  bool get isPaid => currentTier != MembershipTier.none || _hasAnyStoreSubscription;
 
   /// True if user can monetize content (Creator only in typical setup).
   bool get canMonetize => isCreator;
@@ -170,7 +200,9 @@ class SubscriptionController extends ChangeNotifier {
   bool get canOfferSubscriptions => isCreator;
 
   /// True if user can upload content (Subscriber & Creator).
-  bool get canUploadContent => isSubscriber || isCreator;
+  ///
+  /// Business update: any active paid plan should unlock upload access.
+  bool get canUploadContent => isPaid;
 
   /// True if user has verification badge (Subscriber & Creator).
   bool get hasVerification => isSubscriber || isCreator;
