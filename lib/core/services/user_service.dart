@@ -39,6 +39,7 @@ class UserService {
       {
         'uid': uid,
         'email': email,
+        'displayName': '',
         'username': '',
         'dob': '',
         'profileImage': '',
@@ -86,6 +87,7 @@ class UserService {
   /// Updates user profile fields. Uses set with merge so the doc is created if it doesn't exist yet.
   Future<void> updateUserProfile({
     required String uid,
+    String? displayName,
     String? username,
     String? dob,
     String? profileImage,
@@ -94,6 +96,9 @@ class UserService {
   }) async {
     try {
       final data = <String, dynamic>{};
+      if (displayName != null) {
+        data['displayName'] = displayName.trim();
+      }
       if (username != null) {
         data['username'] = username.trim().toLowerCase();
       }
@@ -426,7 +431,9 @@ class UserService {
       final username = (u.username ?? '').trim().isNotEmpty
           ? u.username!.trim()
           : (u.email.contains('@') ? u.email.split('@').first : uid);
-      final displayName = username;
+      final displayName = (u.displayName ?? '').trim().isNotEmpty
+          ? u.displayName!.trim()
+          : username;
       out.add(
         UserDiscoveryItem(
           uid: uid,

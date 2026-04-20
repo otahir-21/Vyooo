@@ -6,6 +6,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/mock/mock_music_data.dart';
+import '../../core/navigation/app_route_observer.dart';
 import '../../core/theme/app_spacing.dart';
 
 /// After selecting a track: matches EditVideoScreen layout — "add audio" label,
@@ -25,12 +26,16 @@ class AddAudioTrimScreen extends StatefulWidget {
   State<AddAudioTrimScreen> createState() => _AddAudioTrimScreenState();
 }
 
-class _AddAudioTrimScreenState extends State<AddAudioTrimScreen> {
+class _AddAudioTrimScreenState extends State<AddAudioTrimScreen>
+    with RouteAware, WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _videoReady = false;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _audioPlaying = false;
+  bool _isRouteVisible = true;
+  bool _isAppForeground = true;
+  bool _isRouteObserverSubscribed = false;
 
   double _trimStart = 0.1;
   double _trimEnd = 0.6;
@@ -45,6 +50,7 @@ class _AddAudioTrimScreenState extends State<AddAudioTrimScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initVideo();
     _initAudio();
     _audioPlayer.playerStateStream.listen((state) {
@@ -53,6 +59,17 @@ class _AddAudioTrimScreenState extends State<AddAudioTrimScreen> {
             state.playing && state.processingState != ProcessingState.completed);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouteObserverSubscribed) return;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverSubscribed = true;
+    }
   }
 
   Future<void> _initVideo() async {
@@ -68,7 +85,7 @@ class _AddAudioTrimScreenState extends State<AddAudioTrimScreen> {
       await _controller!.initialize();
       if (mounted) {
         setState(() => _videoReady = true);
-        await _controller!.play();
+        _syncPlayback();
       }
     } catch (_) {
       if (mounted) setState(() => _videoReady = false);
@@ -79,16 +96,60 @@ class _AddAudioTrimScreenState extends State<AddAudioTrimScreen> {
     try {
       if (widget.track.audioUrl.isNotEmpty) {
         await _audioPlayer.setUrl(widget.track.audioUrl);
-        await _audioPlayer.play();
+        _syncPlayback();
       }
     } catch (_) {}
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
     _audioPlayer.dispose();
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteVisible) return;
+    setState(() => _isRouteVisible = false);
+    _syncPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteVisible) return;
+    setState(() => _isRouteVisible = true);
+    _syncPlayback();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    _isAppForeground = foreground;
+    _syncPlayback();
+  }
+
+  void _syncPlayback() {
+    final shouldPlay = _isRouteVisible && _isAppForeground;
+    if (shouldPlay) {
+      if (_videoReady) {
+        _controller?.play();
+      }
+      if (_audioPlayer.audioSource != null && !_audioPlayer.playing) {
+        _audioPlayer.play();
+      }
+    } else {
+      _controller?.pause();
+      if (_audioPlayer.playing) {
+        _audioPlayer.pause();
+      }
+    }
   }
 
   String _formatDuration(Duration d) {

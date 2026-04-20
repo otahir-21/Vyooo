@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/models/story_model.dart';
+import '../../core/navigation/app_route_observer.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/story_service.dart';
@@ -53,7 +54,7 @@ class HomeReelsScreen extends StatefulWidget {
 }
 
 class _HomeReelsScreenState extends State<HomeReelsScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, RouteAware, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
   final PageController _pageController = PageController();
@@ -107,11 +108,26 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   String _playbackSpeedLabel = '1x (Normal)';
   String _qualityId = 'auto';
   String _qualityLabel = 'Auto (1080p HD)';
+  bool _isRouteVisible = true;
+  bool _isAppForeground = true;
+  bool _isRouteObserverSubscribed = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadReels();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouteObserverSubscribed) return;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverSubscribed = true;
+    }
   }
 
   @override
@@ -185,8 +201,36 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteVisible && mounted) return;
+    if (mounted) setState(() => _isRouteVisible = false);
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteVisible && mounted) return;
+    if (mounted) setState(() => _isRouteVisible = true);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    if (mounted) {
+      setState(() => _isAppForeground = foreground);
+    } else {
+      _isAppForeground = foreground;
+    }
   }
 
   void _onPageChanged(int index) {
@@ -528,7 +572,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         return ReelItemWidget(
           videoUrl: videoUrl,
           // Only play when this page is visible AND the home tab is active.
-          isVisible: widget.isActive && index == _currentIndex,
+          isVisible: widget.isActive &&
+              _isRouteVisible &&
+              _isAppForeground &&
+              index == _currentIndex,
         );
       },
     );

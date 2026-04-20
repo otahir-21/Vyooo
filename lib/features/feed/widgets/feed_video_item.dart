@@ -32,17 +32,20 @@ class FeedVideoItem extends StatefulWidget {
   State<FeedVideoItem> createState() => _FeedVideoItemState();
 }
 
-class _FeedVideoItemState extends State<FeedVideoItem> {
+class _FeedVideoItemState extends State<FeedVideoItem>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _initialized = false;
   bool _isRouteActive = true;
   bool _showControls = false;
   bool _isMuted = false;
+  bool _isAppForeground = true;
   Timer? _hideTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.isActive) _initVideo();
   }
 
@@ -54,6 +57,7 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
     } else if (!widget.isActive && old.isActive) {
       _controller?.pause();
     }
+    _syncPlayback();
   }
 
   @override
@@ -62,13 +66,7 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
     final routeActive = TickerMode.of(context);
     if (routeActive == _isRouteActive) return;
     _isRouteActive = routeActive;
-    if (!_isRouteActive) {
-      _controller?.pause();
-      return;
-    }
-    if (widget.isActive) {
-      _initVideo();
-    }
+    _syncPlayback();
   }
 
   Future<void> _initVideo() async {
@@ -86,16 +84,37 @@ class _FeedVideoItemState extends State<FeedVideoItem> {
         return;
       }
       ctrl.setLooping(true);
-      await ctrl.play();
       setState(() {
         _controller = ctrl;
         _initialized = true;
       });
+      _syncPlayback();
     } catch (_) {}
+  }
+
+  void _syncPlayback() {
+    final controller = _controller;
+    if (controller == null) return;
+    final shouldPlay = widget.isActive && _isRouteActive && _isAppForeground;
+    if (shouldPlay) {
+      controller.play();
+    } else {
+      controller.pause();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    _isAppForeground = foreground;
+    _syncPlayback();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _hideTimer?.cancel();
     _controller?.dispose();
     super.dispose();
   }

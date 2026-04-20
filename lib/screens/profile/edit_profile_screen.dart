@@ -63,6 +63,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameController = TextEditingController(text: widget.initialUsername);
     _bioController = TextEditingController(text: widget.initialBio);
     _musicController = TextEditingController(text: widget.initialMusic);
+    _nameController.addListener(_onFormChanged);
     _usernameController.addListener(_onUsernameChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final n = UsernameValidation.normalize(_usernameController.text.trim());
@@ -76,6 +77,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _usernameDebounce?.cancel();
+    _nameController.removeListener(_onFormChanged);
     _usernameController.removeListener(_onUsernameChanged);
     _nameController.dispose();
     _usernameController.dispose();
@@ -124,14 +126,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
   }
 
+  void _onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
   bool get _canSave {
     if (_isSaving) return false;
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return false;
     final un = UsernameValidation.normalize(_usernameController.text.trim());
     if (!UsernameValidation.isValidFormat(un)) return false;
     if (_usernameStatus == _UsernameStatus.taken) return false;
     final initialUn = UsernameValidation.normalize(widget.initialUsername);
+    final initialName = widget.initialName.trim();
+    final nameChanged = name != initialName;
     final usernameChanged = un != initialUn;
-    return _pickedImagePath != null || usernameChanged;
+    return _pickedImagePath != null || usernameChanged || nameChanged;
   }
 
   Future<void> _saveProfile() async {
@@ -147,7 +157,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     final username = UsernameValidation.normalize(_usernameController.text.trim());
+    final name = _nameController.text.trim();
     final initialUn = UsernameValidation.normalize(widget.initialUsername);
+    final initialName = widget.initialName.trim();
 
     setState(() => _isSaving = true);
     try {
@@ -173,6 +185,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           return;
         }
         await UserService().updateUserProfile(uid: uid, username: username);
+      }
+
+      if (name != initialName) {
+        await UserService().updateUserProfile(uid: uid, displayName: name);
+        await AuthService().currentUser?.updateDisplayName(name);
       }
 
       if (!mounted) return;

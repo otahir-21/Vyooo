@@ -3,6 +3,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/theme/app_spacing.dart';
+import '../../core/navigation/app_route_observer.dart';
 import 'edit_video_screen.dart';
 import 'upload_details_screen.dart';
 
@@ -16,25 +17,68 @@ class UploadVideoPreviewScreen extends StatefulWidget {
   State<UploadVideoPreviewScreen> createState() => _UploadVideoPreviewScreenState();
 }
 
-class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
+class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
+    with RouteAware, WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _hasError = false;
   bool _muted = true;
+  bool _isRouteVisible = true;
+  bool _isAppForeground = true;
+  bool _isRouteObserverSubscribed = false;
 
   static const Color _pink = Color(0xFFDE106B);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initVideo();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
     _controller?.removeListener(_listener);
     _controller?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouteObserverSubscribed) return;
+    final route = ModalRoute.of(context);
+    if (route is PageRoute<void>) {
+      appRouteObserver.subscribe(this, route);
+      _isRouteObserverSubscribed = true;
+    }
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteVisible) return;
+    setState(() => _isRouteVisible = false);
+    _syncPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteVisible) return;
+    setState(() => _isRouteVisible = true);
+    _syncPlayback();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final foreground = state == AppLifecycleState.resumed;
+    if (_isAppForeground == foreground) return;
+    _isAppForeground = foreground;
+    _syncPlayback();
   }
 
   void _listener() {
@@ -55,7 +99,7 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
           _isInitialized = true;
           _hasError = false;
         });
-        await _controller!.play();
+        _syncPlayback();
       }
     } catch (e) {
       debugPrint('UploadVideoPreview: $e');
@@ -73,6 +117,17 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen> {
       _muted = !_muted;
       _controller?.setVolume(_muted ? 0 : 1);
     });
+  }
+
+  void _syncPlayback() {
+    final controller = _controller;
+    if (controller == null || !_isInitialized) return;
+    final shouldPlay = _isRouteVisible && _isAppForeground;
+    if (shouldPlay) {
+      controller.play();
+    } else {
+      controller.pause();
+    }
   }
 
   String _formatDuration(Duration d) {

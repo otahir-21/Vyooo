@@ -130,9 +130,12 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
         : (m.email.contains('@')
               ? m.email.split('@').first
               : (m.uid.length > 8 ? m.uid.substring(0, 8) : m.uid));
+    final displayName = (m.displayName != null && m.displayName!.trim().isNotEmpty)
+        ? m.displayName!.trim()
+        : handle;
     return _ConnectionUser(
       targetUserId: m.uid,
-      name: handle,
+      name: displayName,
       username: handle,
       avatarUrl: m.profileImage ?? '',
       isVerified: false,

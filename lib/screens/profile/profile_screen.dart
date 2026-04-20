@@ -367,7 +367,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     final username = user?.username?.isNotEmpty == true
         ? '@${user!.username}'
         : (AuthService().currentUser?.email ?? 'Profile');
-    final displayName = user?.username?.isNotEmpty == true ? user!.username! : 'Name +';
+    final displayName = user?.displayName?.isNotEmpty == true
+        ? user!.displayName!
+        : (user?.username?.isNotEmpty == true ? user!.username! : 'Name +');
     final avatarUrl = user?.profileImage;
 
     return CustomScrollView(
@@ -476,7 +478,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => EditProfileScreen(
-                                initialName: user?.username ?? '',
+                                initialName: user?.displayName ?? user?.username ?? '',
                                 initialUsername: user?.username ?? '',
                                 initialBio: '',
                                 initialMusic: 'Zulfein • Mehul Mahesh, DJ A...',
