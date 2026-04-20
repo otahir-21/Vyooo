@@ -26,9 +26,14 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   int _feedRefreshToken = 0;
   final UserService _userService = UserService();
 
-  void _onNavTap(BuildContext context, int index) {
+  Future<void> _onNavTap(int index) async {
     if (index == 2) {
-      final canUpload = context.read<SubscriptionController>().canUploadContent;
+      final subscriptionController = context.read<SubscriptionController>();
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final canUpload = await subscriptionController.reconcilePaidStatus(
+        firebaseUid: uid,
+      );
+      if (!mounted) return;
       if (canUpload) {
         Navigator.of(context)
             .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
@@ -40,6 +45,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
           });
         });
       } else {
+        if (!mounted) return;
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
         );
@@ -68,7 +74,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
           final profileImageUrl = snapshot.data?.profileImage;
           return AppBottomNavigation(
             currentIndex: _currentIndex,
-            onTap: (index) => _onNavTap(context, index),
+            onTap: _onNavTap,
             profileImageUrl: profileImageUrl,
           );
         },

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/config/app_links.dart';
+import '../../core/subscription/membership_tier.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/subscription/subscription_package_mapper.dart';
 
@@ -23,11 +25,44 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Offerings? _offerings;
   /// Start true so the first frame doesn’t flash “couldn’t reach store” before [ _loadOfferings] runs.
   bool _fetchingOfferings = true;
+  bool _closingForActivePlan = false;
 
   @override
   void initState() {
     super.initState();
-    _loadOfferings();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initScreenState());
+  }
+
+  Future<void> _initScreenState() async {
+    if (!mounted) return;
+    final controller = context.read<SubscriptionController>();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final isPaid = await controller.reconcilePaidStatus(firebaseUid: uid);
+    if (!mounted) return;
+    if (isPaid) {
+      setState(() => _closingForActivePlan = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You are already subscribed to ${controller.planDisplayName}.'),
+        ),
+      );
+      Navigator.of(context).pop();
+      return;
+    }
+    await _loadOfferings();
+  }
+
+  MembershipTier _selectedTierFromIndex(int index) {
+    switch (index) {
+      case 0:
+        return MembershipTier.standard;
+      case 1:
+        return MembershipTier.subscriber;
+      case 2:
+        return MembershipTier.creator;
+      default:
+        return MembershipTier.none;
+    }
   }
 
   Future<void> _handlePurchase(
@@ -46,6 +81,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Plans not available yet. Try again shortly.')),
       );
+      return;
+    }
+    final selectedTier = _selectedTierFromIndex(selectedIndex);
+    if (controller.currentTier == selectedTier) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You are already on the ${controller.planDisplayName} plan.')),
+      );
+      Navigator.of(context).pop();
       return;
     }
     try {
@@ -89,6 +132,16 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_closingForActivePlan) {
+      return const Scaffold(
+        body: ColoredBox(
+          color: Colors.black,
+          child: Center(
+            child: CircularProgressIndicator(color: Color(0xFFDE106B)),
+          ),
+        ),
+      );
+    }
     final controller = context.watch<SubscriptionController>();
     // Only block the screen during purchase — not while fetching offerings (that hid all plans).
     final isPurchasing = controller.isLoading;
@@ -116,6 +169,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             : creatorPkg;
     final isPaidPlanSelected =
         selectedForDisclosure != null && selectedForDisclosure.storeProduct.price > 0;
+    final alreadyHasPaidPlan = controller.isPaid;
 
     return Scaffold(
       body: Stack(
@@ -289,6 +343,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           _UpgradeButton(
                             compact: isCompact,
                             selectedIndex: _selectedIndex,
+                            title: alreadyHasPaidPlan
+                                ? 'Current plan: ${controller.planDisplayName}'
+                                : 'Upgrade',
+                            disabled: alreadyHasPaidPlan &&
+                                controller.currentTier ==
+                                    _selectedTierFromIndex(_selectedIndex),
                             isLoading: isPurchasing,
                             onPressed: () => _handlePurchase(
                               controller,
@@ -798,12 +858,16 @@ class _UpgradeButton extends StatelessWidget {
     required this.compact,
     required this.selectedIndex,
     required this.onPressed,
+    required this.title,
+    this.disabled = false,
     this.isLoading = false,
   });
 
   final bool compact;
   final int selectedIndex;
   final VoidCallback onPressed;
+  final String title;
+  final bool disabled;
   final bool isLoading;
 
   @override
@@ -811,11 +875,11 @@ class _UpgradeButton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: GestureDetector(
-        onTap: isLoading ? null : onPressed,
+        onTap: (isLoading || disabled) ? null : onPressed,
         child: Container(
           height: compact ? 44 : 48,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: disabled ? Colors.white54 : Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
           child: isLoading
@@ -826,8 +890,8 @@ class _UpgradeButton extends StatelessWidget {
                     const FaIcon(FontAwesomeIcons.crown, color: Color(0xFFDE106B), size: 18),
                     const SizedBox(width: 8),
                     Text(
-                      'Upgrade',
-                      style: TextStyle(color: Colors.black, fontSize: compact ? 16 : 18, fontWeight: FontWeight.w700),
+                      title,
+                      style: TextStyle(color: Colors.black, fontSize: compact ? 14 : 16, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
