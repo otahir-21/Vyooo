@@ -2,7 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../core/config/deep_link_config.dart';
+import '../../core/theme/app_gradients.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
@@ -45,7 +48,107 @@ class _ProfileScreenState extends State<ProfileScreen>
     return '$n';
   }
 
+  static bool _isValidNetworkUrl(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return false;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return false;
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
+
+  Future<void> _shareProfile({
+    required String uid,
+    String? username,
+  }) async {
+    final ref = uid.trim();
+    if (ref.isEmpty) return;
+    final link = DeepLinkConfig.profileWebUri(ref).toString();
+    final handle = (username ?? '').trim();
+    final message = handle.isNotEmpty
+        ? 'Check out @$handle on Vyooo:\n$link'
+        : 'Check out this profile on Vyooo:\n$link';
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? Rect.fromLTWH(0, 0, MediaQuery.sizeOf(context).width, 1)
+        : box.localToGlobal(Offset.zero) & box.size;
+    await Share.share(
+      message,
+      subject: 'Vyooo profile',
+      sharePositionOrigin: origin,
+    );
+  }
+
   Future<void> _logout(BuildContext context) async {
+    final bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: AppGradients.authGradient,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.1),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Do you want to logout from your account?',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text(
+                      'No, stay',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text(
+                      'Yes, Logout',
+                      style: TextStyle(
+                        color: Color(0xFFF43F5E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (shouldLogout != true) return;
     await AuthService().signOut();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -416,8 +519,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   child: CircleAvatar(
                     radius: 52,
                     backgroundColor: Colors.white.withValues(alpha: 0.2),
-                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty) ? NetworkImage(avatarUrl) : null,
-                    child: (avatarUrl == null || avatarUrl.isEmpty) ? Icon(Icons.person_rounded, size: 52, color: Colors.white.withValues(alpha: 0.6)) : null,
+                    backgroundImage: _isValidNetworkUrl(avatarUrl)
+                        ? NetworkImage(avatarUrl!)
+                        : null,
+                    child: !_isValidNetworkUrl(avatarUrl)
+                        ? Icon(
+                            Icons.person_rounded,
+                            size: 52,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          )
+                        : null,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -491,7 +602,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
-                      child: _OutlineButton(label: 'Share', onPressed: () {}),
+                      child: _OutlineButton(
+                        label: 'Share',
+                        onPressed: () => _shareProfile(
+                          uid: profileUid,
+                          username: user?.username,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -933,7 +1050,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: Icon(
-                _selectedTabIndex == _savedTabIndex ? Icons.star_rounded : Icons.star_outline_rounded,
+                _selectedTabIndex == _savedTabIndex
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
                 color: _selectedTabIndex == _savedTabIndex
                     ? const Color(0xFFF81945)
                     : Colors.white.withValues(alpha: 0.8),
@@ -1084,7 +1203,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           Icon(Icons.bookmark_border_rounded, size: 48, color: Colors.white.withValues(alpha: 0.5)),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'No saved items yet',
+            'No saved posts yet',
             style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
           ),
         ],

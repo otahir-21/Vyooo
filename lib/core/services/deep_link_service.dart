@@ -15,10 +15,14 @@ class DeepLinkService {
 
   final StreamController<String> _reelLinkController =
       StreamController<String>.broadcast();
+  final StreamController<String> _profileLinkController =
+      StreamController<String>.broadcast();
 
   String? _pendingReelId;
+  String? _pendingProfileRef;
 
   Stream<String> get reelLinkStream => _reelLinkController.stream;
+  Stream<String> get profileLinkStream => _profileLinkController.stream;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -56,12 +60,24 @@ class DeepLinkService {
     return id;
   }
 
+  String? takePendingProfileRef() {
+    final profile = _pendingProfileRef;
+    _pendingProfileRef = null;
+    return profile;
+  }
+
   void _handleUri(Uri? uri) {
     if (uri == null) return;
     final reelId = _extractReelId(uri);
-    if (reelId == null || reelId.isEmpty) return;
-    _pendingReelId = reelId;
-    _reelLinkController.add(reelId);
+    if (reelId != null && reelId.isNotEmpty) {
+      _pendingReelId = reelId;
+      _reelLinkController.add(reelId);
+    }
+    final profileRef = _extractProfileRef(uri);
+    if (profileRef != null && profileRef.isNotEmpty) {
+      _pendingProfileRef = profileRef;
+      _profileLinkController.add(profileRef);
+    }
   }
 
   String? _extractReelId(Uri uri) {
@@ -83,8 +99,28 @@ class DeepLinkService {
     return null;
   }
 
+  String? _extractProfileRef(Uri uri) {
+    final q = uri.queryParameters['profile']?.trim();
+    if (q != null && q.isNotEmpty) return q;
+
+    if (uri.scheme == 'vyooo' &&
+        uri.host == 'profile' &&
+        uri.pathSegments.isNotEmpty) {
+      final id = uri.pathSegments.first.trim();
+      if (id.isNotEmpty) return id;
+    }
+
+    final path = uri.pathSegments;
+    if (path.length >= 2 && path.first == 'profile') {
+      final id = path[1].trim();
+      if (id.isNotEmpty) return id;
+    }
+    return null;
+  }
+
   Future<void> dispose() async {
     await _sub?.cancel();
     await _reelLinkController.close();
+    await _profileLinkController.close();
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:async';
 
+import '../../core/config/deep_link_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -208,6 +210,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return '$n';
   }
 
+  bool _isValidNetworkUrl(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return false;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return false;
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
+
+  Future<void> _shareProfile() async {
+    final p = widget.payload;
+    final ref = (p.targetUserId ?? p.username).trim();
+    if (ref.isEmpty) return;
+    final link = DeepLinkConfig.profileWebUri(ref).toString();
+    final message = 'Check out @${p.username} on Vyooo:\n$link';
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box == null
+        ? Rect.fromLTWH(0, 0, MediaQuery.sizeOf(context).width, 1)
+        : box.localToGlobal(Offset.zero) & box.size;
+    await Share.share(
+      message,
+      subject: 'Vyooo profile',
+      sharePositionOrigin: origin,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.payload;
@@ -363,10 +390,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       child: CircleAvatar(
         radius: 56,
         backgroundColor: Colors.white.withValues(alpha: 0.1),
-        backgroundImage: Uri.tryParse(avatarUrl)?.isAbsolute == true
+        backgroundImage: _isValidNetworkUrl(avatarUrl)
             ? NetworkImage(avatarUrl)
             : null,
-        child: Uri.tryParse(avatarUrl)?.isAbsolute != true
+        child: !_isValidNetworkUrl(avatarUrl)
             ? Icon(
                 Icons.person_rounded,
                 size: 56,
@@ -420,7 +447,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               : const Color(0xFF1a2e1a),
           borderRadius: BorderRadius.circular(AppRadius.pill),
           child: IconButton(
-            onPressed: () {},
+            onPressed: _shareProfile,
             icon: const Icon(
               Icons.share_rounded,
               color: Colors.white,
@@ -448,27 +475,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-                title: Text(
-                  'Notifications',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    fontSize: 16,
-                  ),
-                ),
-                trailing: Icon(
-                  Icons.chevron_right,
-                  color: Colors.white.withValues(alpha: 0.6),
-                ),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showNotificationsSheet(context);
-                },
-              ),
               if (canBlock)
                 ListTile(
                   leading: const Icon(
@@ -498,44 +504,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   },
                 ),
               const SizedBox(height: AppSpacing.sm),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showNotificationsSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.sheetBackground,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Notifications',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _NotificationOption(title: 'All', selected: true, onTap: () {}),
-              _NotificationOption(title: 'None', selected: false, onTap: () {}),
-              _NotificationOption(
-                title: 'Unsubscribe',
-                selected: false,
-                onTap: () {},
-              ),
-              const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
@@ -943,53 +911,6 @@ class _UserStatChip extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationOption extends StatelessWidget {
-  const _NotificationOption({
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String title;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Row(
-            children: [
-              Icon(
-                selected
-                    ? Icons.radio_button_checked
-                    : Icons.radio_button_off_rounded,
-                color: selected
-                    ? const Color(0xFFF81945)
-                    : Colors.white.withValues(alpha: 0.6),
-                size: 24,
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.95),
-                  fontSize: 16,
                 ),
               ),
             ],

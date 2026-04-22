@@ -12,6 +12,7 @@ import '../../screens/search/search_screen.dart';
 import '../../screens/upload/upload_screen.dart';
 import '../../screens/notifications/notification_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/profile/user_profile_screen.dart';
 import '../../features/subscription/subscription_screen.dart';
 
 /// Main app shell: IndexedStack (0 Home, 1 Search, 2 placeholder, 3 Notifications, 4 Profile) + single bottom nav.
@@ -29,7 +30,8 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   int _deepLinkNonce = 0;
   String? _deepLinkedReelId;
   final UserService _userService = UserService();
-  StreamSubscription<String>? _deepLinkSub;
+  StreamSubscription<String>? _reelDeepLinkSub;
+  StreamSubscription<String>? _profileDeepLinkSub;
 
   @override
   void initState() {
@@ -40,7 +42,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
       _deepLinkNonce = 1;
       _currentIndex = 0;
     }
-    _deepLinkSub = DeepLinkService.instance.reelLinkStream.listen((reelId) {
+    _reelDeepLinkSub = DeepLinkService.instance.reelLinkStream.listen((reelId) {
       if (!mounted) return;
       setState(() {
         _currentIndex = 0;
@@ -48,12 +50,57 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
         _deepLinkNonce++;
       });
     });
+    final pendingProfile = DeepLinkService.instance.takePendingProfileRef();
+    if (pendingProfile != null && pendingProfile.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openProfileFromDeepLink(pendingProfile);
+      });
+    }
+    _profileDeepLinkSub = DeepLinkService.instance.profileLinkStream.listen((
+      profileRef,
+    ) {
+      if (!mounted) return;
+      _openProfileFromDeepLink(profileRef);
+    });
   }
 
   @override
   void dispose() {
-    _deepLinkSub?.cancel();
+    _reelDeepLinkSub?.cancel();
+    _profileDeepLinkSub?.cancel();
     super.dispose();
+  }
+
+  Future<void> _openProfileFromDeepLink(String profileRef) async {
+    final ref = profileRef.trim();
+    if (ref.isEmpty) return;
+    final appUser =
+        await _userService.getUser(ref) ??
+        await _userService.getUserByUsername(ref);
+    if (!mounted || appUser == null) return;
+    final followerCount = await _userService.getFollowerCount(appUser.uid);
+    final postCount = await _userService.getReelCountForUser(appUser.uid);
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          payload: UserProfilePayload(
+            username: appUser.username ?? '',
+            displayName: appUser.displayName ?? appUser.username ?? 'User',
+            avatarUrl: appUser.profileImage ?? '',
+            isVerified: false,
+            postCount: postCount,
+            followerCount: followerCount,
+            followingCount: appUser.following.length,
+            bio: appUser.bio ?? '',
+            isCreator: true,
+            isFollowing: false,
+            targetUserId: appUser.uid,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _onNavTap(int index) async {
