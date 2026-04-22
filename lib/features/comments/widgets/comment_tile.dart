@@ -31,6 +31,9 @@ class CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarSize = isReply ? _avatarSizeReply : _avatarSize;
+    final initial = comment.username.trim().isNotEmpty
+        ? comment.username.trim()[0].toUpperCase()
+        : '?';
 
     return Container(
       color: isHighlighted
@@ -46,19 +49,10 @@ class CommentTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Avatar ──────────────────────────────────────
-          Container(
-            width: avatarSize,
-            height: avatarSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF2A2A3A),
-              image: Uri.tryParse(comment.avatarUrl)?.isAbsolute == true
-                  ? DecorationImage(
-                      image: NetworkImage(comment.avatarUrl),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
+          _CommentAvatar(
+            avatarUrl: comment.avatarUrl,
+            size: avatarSize,
+            fallbackInitial: initial,
           ),
           const SizedBox(width: 12),
 
@@ -199,6 +193,61 @@ class CommentTile extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CommentAvatar extends StatelessWidget {
+  const _CommentAvatar({
+    required this.avatarUrl,
+    required this.size,
+    required this.fallbackInitial,
+  });
+
+  final String avatarUrl;
+  final double size;
+  final String fallbackInitial;
+
+  bool get _isValidNetworkAvatar {
+    final url = avatarUrl.trim();
+    if (url.isEmpty) return false;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return false;
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Color(0xFF2A2A3A),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        fallbackInitial,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.9),
+          fontWeight: FontWeight.w700,
+          fontSize: size * 0.38,
+        ),
+      ),
+    );
+
+    if (!_isValidNetworkAvatar) return fallback;
+
+    return ClipOval(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Image.network(
+          avatarUrl.trim(),
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => fallback,
+        ),
       ),
     );
   }

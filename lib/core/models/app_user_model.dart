@@ -7,6 +7,7 @@ class AppUserModel {
     required this.email,
     this.displayName,
     this.username,
+    this.bio,
     this.dob,
     this.profileImage,
     this.interests = const [],
@@ -22,6 +23,7 @@ class AppUserModel {
   final String email;
   final String? displayName;
   final String? username;
+  final String? bio;
   final String? dob;
   final String? profileImage;
   final List<String> interests;
@@ -40,6 +42,7 @@ class AppUserModel {
       'email': email,
       'displayName': displayName ?? '',
       'username': username ?? '',
+      'bio': bio ?? '',
       'dob': dob ?? '',
       'profileImage': profileImage ?? '',
       'interests': interests,
@@ -69,6 +72,7 @@ class AppUserModel {
       email: json['email'] as String? ?? '',
       displayName: json['displayName'] as String?,
       username: json['username'] as String?,
+      bio: json['bio'] as String?,
       dob: json['dob'] as String?,
       profileImage: json['profileImage'] as String?,
       interests: interestsList,
@@ -88,6 +92,7 @@ class AppUserModel {
     String? email,
     String? displayName,
     String? username,
+    String? bio,
     String? dob,
     String? profileImage,
     List<String>? interests,
@@ -103,6 +108,7 @@ class AppUserModel {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       username: username ?? this.username,
+      bio: bio ?? this.bio,
       dob: dob ?? this.dob,
       profileImage: profileImage ?? this.profileImage,
       interests: interests ?? this.interests,

@@ -480,7 +480,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                               builder: (_) => EditProfileScreen(
                                 initialName: user?.displayName ?? user?.username ?? '',
                                 initialUsername: user?.username ?? '',
-                                initialBio: '',
+                                initialBio: user?.bio ?? '',
                                 initialMusic: 'Zulfein • Mehul Mahesh, DJ A...',
                                 avatarUrl: user?.profileImage,
                               ),
@@ -508,17 +508,15 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   List<Widget> _buildProfileContentSlivers(BuildContext context, bool canUploadContent, {required String uid}) {
+    // Saved tab should always be visible, regardless of upload subscription status.
+    if (_selectedTabIndex == _savedTabIndex) {
+      return _buildSavedGridSlivers();
+    }
     if (!canUploadContent) {
       if (_selectedTabIndex == 0) {
         return [SliverFillRemaining(hasScrollBody: false, child: _buildBecomeMemberPrompt(context))];
       }
-      if (_selectedTabIndex == _savedTabIndex) {
-        return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptySavedPlaceholder())];
-      }
       return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyTabPlaceholder())];
-    }
-    if (_selectedTabIndex == _savedTabIndex) {
-      return _buildSavedGridSlivers();
     }
     switch (_selectedTabIndex) {
       case 0:
@@ -533,26 +531,169 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   List<Widget> _buildSavedGridSlivers() {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _buildEmptySavedPlaceholder(),
+        ),
+      ];
+    }
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 1,
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.network(_profileMockSavedUrls[index], fit: BoxFit.cover),
-            ),
-            childCount: _profileMockSavedUrls.length,
-          ),
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchSavedReels(uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white54),
+                  ),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              debugPrint('Saved reels load error: ${snapshot.error}');
+            }
+            final savedReels = snapshot.data ?? <Map<String, dynamic>>[];
+            if (savedReels.isEmpty) {
+              return _buildEmptySavedPlaceholder();
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  childAspectRatio: 1,
+                ),
+                itemCount: savedReels.length,
+                itemBuilder: (context, index) {
+                  final reel = savedReels[index];
+                  final thumb = _thumbnailFromSavedReel(reel);
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => _ProfileReelFeedScreen(
+                          reels: savedReels,
+                          initialIndex: index,
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(color: Colors.grey[900]),
+                          if (thumb.isNotEmpty)
+                            Image.network(
+                              thumb,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                            ),
+                          const Align(
+                            alignment: Alignment.bottomRight,
+                            child: Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.play_arrow_rounded,
+                                color: Colors.white70,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ),
     ];
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSavedReels(String uid) async {
+    try {
+      final savesSnap = await FirebaseFirestore.instance
+          .collection('userSaves')
+          .where('userId', isEqualTo: uid)
+          .get();
+      if (savesSnap.docs.isEmpty) return <Map<String, dynamic>>[];
+
+      final saveMeta = <String, int>{};
+      final reelIds = <String>[];
+      for (final d in savesSnap.docs) {
+        final data = d.data();
+        final reelId = (data['reelId'] as String?)?.trim() ?? '';
+        if (reelId.isEmpty) continue;
+        final ts = data['savedAt'];
+        final epoch = ts is Timestamp ? ts.millisecondsSinceEpoch : 0;
+        saveMeta[reelId] = epoch;
+        reelIds.add(reelId);
+      }
+      if (reelIds.isEmpty) return <Map<String, dynamic>>[];
+
+      final reelsById = <String, Map<String, dynamic>>{};
+      for (var i = 0; i < reelIds.length; i += 10) {
+        final chunk = reelIds.sublist(
+          i,
+          (i + 10) > reelIds.length ? reelIds.length : (i + 10),
+        );
+        final q = await FirebaseFirestore.instance
+            .collection('reels')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in q.docs) {
+          final data = doc.data();
+          reelsById[doc.id] = {
+            'id': doc.id,
+            'videoUrl': data['videoUrl'] as String? ?? '',
+            'caption': data['caption'] as String? ?? '',
+            'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
+            'imageUrl': data['imageUrl'] as String? ?? '',
+            'createdAt': data['createdAt'],
+          };
+        }
+      }
+
+      final out = <Map<String, dynamic>>[];
+      for (final id in reelIds) {
+        final reel = reelsById[id];
+        if (reel != null) out.add(reel);
+      }
+      out.sort((a, b) {
+        final aTs = saveMeta[a['id']] ?? 0;
+        final bTs = saveMeta[b['id']] ?? 0;
+        return bTs.compareTo(aTs);
+      });
+      return out;
+    } catch (e) {
+      debugPrint('Failed to fetch saved reels: $e');
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  static String _thumbnailFromSavedReel(Map<String, dynamic> reel) {
+    final imageUrl = (reel['imageUrl'] as String?)?.trim() ?? '';
+    if (imageUrl.isNotEmpty) return imageUrl;
+    final explicitThumb = (reel['thumbnailUrl'] as String?)?.trim() ?? '';
+    if (explicitThumb.isNotEmpty) return explicitThumb;
+    final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+    if (videoUrl.isEmpty) return '';
+    return _thumbnailFromVideoUrl(videoUrl);
   }
 
   List<Widget> _buildPostsGridSlivers({required String uid}) {

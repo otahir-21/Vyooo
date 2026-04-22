@@ -8,6 +8,7 @@ import '../../core/theme/app_spacing.dart';
 import 'all_albums_screen.dart';
 import 'creator_live_route.dart';
 import 'story_capture_screen.dart';
+import 'upload_photo_preview_screen.dart';
 import 'upload_video_preview_screen.dart';
 
 /// Upload screen for subscribers: media grid from gallery, album dropdown, Story / Gallery / Live actions.
@@ -71,12 +72,13 @@ class _UploadScreenState extends State<UploadScreen> {
       if (!perm.isAuth) {
         setState(() {
           _loading = false;
-          _permissionError = 'Photo library access is needed to choose videos.';
+          _permissionError =
+              'Media library access is needed to choose photos or videos.';
         });
         return;
       }
       final paths = await PhotoManager.getAssetPathList(
-        type: RequestType.video,
+        type: RequestType.common,
         hasAll: true,
       );
       if (!mounted) return;
@@ -101,9 +103,14 @@ class _UploadScreenState extends State<UploadScreen> {
     setState(() => _loading = true);
     try {
       final list = await path.getAssetListPaged(page: 0, size: 200);
+      final media = list
+          .where(
+            (e) => e.type == AssetType.video || e.type == AssetType.image,
+          )
+          .toList();
       if (!mounted) return;
       setState(() {
-        _assets = list;
+        _assets = media;
         _loading = false;
         _selectedIndex = null;
       });
@@ -200,17 +207,37 @@ class _UploadScreenState extends State<UploadScreen> {
           TextButton(
             onPressed: () {
               if (_selectedIndex != null && _selectedIndex! < _assets.length) {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => UploadVideoPreviewScreen(
-                      asset: _assets[_selectedIndex!],
+                final selected = _assets[_selectedIndex!];
+                if (selected.type == AssetType.video) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UploadVideoPreviewScreen(
+                        asset: selected,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else if (selected.type == AssetType.image) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UploadPhotoPreviewScreen(
+                        asset: selected,
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Unsupported media selected.',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Select a video'),
+                    content: Text('Select photo or video'),
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
@@ -267,7 +294,7 @@ class _UploadScreenState extends State<UploadScreen> {
     if (_assets.isEmpty) {
       return Center(
         child: Text(
-          'No videos',
+          'No photos or videos',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.7),
             fontSize: 16,

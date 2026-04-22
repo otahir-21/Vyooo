@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
@@ -13,7 +15,6 @@ import '../../services/firestore_username_service.dart';
 import '../../services/image_picker_service.dart';
 import '../../services/username_validation.dart';
 import '../music/music_picker_sheet.dart';
-import 'crop_photo_screen.dart';
 import 'personal_information_screen.dart';
 
 /// Subscriber Edit Profile: avatar, Edit picture, Name/Username/Bio/Music, Personal information settings.
@@ -65,6 +66,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _musicController = TextEditingController(text: widget.initialMusic);
     _nameController.addListener(_onFormChanged);
     _usernameController.addListener(_onUsernameChanged);
+    _bioController.addListener(_onFormChanged);
+    _musicController.addListener(_onFormChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final n = UsernameValidation.normalize(_usernameController.text.trim());
       if (!UsernameValidation.isValidFormat(n)) return;
@@ -79,6 +82,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _usernameDebounce?.cancel();
     _nameController.removeListener(_onFormChanged);
     _usernameController.removeListener(_onUsernameChanged);
+    _bioController.removeListener(_onFormChanged);
+    _musicController.removeListener(_onFormChanged);
     _nameController.dispose();
     _usernameController.dispose();
     _bioController.dispose();
@@ -139,9 +144,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_usernameStatus == _UsernameStatus.taken) return false;
     final initialUn = UsernameValidation.normalize(widget.initialUsername);
     final initialName = widget.initialName.trim();
+    final initialBio = widget.initialBio.trim();
     final nameChanged = name != initialName;
     final usernameChanged = un != initialUn;
-    return _pickedImagePath != null || usernameChanged || nameChanged;
+    final bioChanged = _bioController.text.trim() != initialBio;
+    return _pickedImagePath != null || usernameChanged || nameChanged || bioChanged;
   }
 
   Future<void> _saveProfile() async {
@@ -158,16 +165,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final username = UsernameValidation.normalize(_usernameController.text.trim());
     final name = _nameController.text.trim();
+    final bio = _bioController.text.trim();
     final initialUn = UsernameValidation.normalize(widget.initialUsername);
     final initialName = widget.initialName.trim();
+    final initialBio = widget.initialBio.trim();
 
     setState(() => _isSaving = true);
+    var partialWarning = false;
     try {
       if (_pickedImagePath != null) {
-        await StorageService().uploadProfileImage(
-          imageFile: File(_pickedImagePath!),
-          uid: uid,
-        );
+        try {
+          await StorageService().uploadProfileImage(
+            imageFile: File(_pickedImagePath!),
+            uid: uid,
+          );
+        } catch (e) {
+          // Non-fatal: let profile text changes still save.
+          partialWarning = true;
+          debugPrint('Profile image upload failed: $e');
+        }
       }
 
       if (username != initialUn) {
@@ -192,19 +208,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await AuthService().currentUser?.updateDisplayName(name);
       }
 
+      if (bio != initialBio) {
+        try {
+          await UserService().updateUserProfile(uid: uid, bio: bio);
+        } catch (e) {
+          // Non-fatal: in case deployed Firestore rules don't yet allow `bio`.
+          partialWarning = true;
+          debugPrint('Bio update failed: $e');
+        }
+      }
+
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
-      );
-      Navigator.of(context).pop(true);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save. Check your connection and Firebase Storage rules.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          partialWarning
+              ? 'Profile updated, but some changes could not be saved.'
+              : 'Profile updated',
         ),
+      ));
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save: $e')),
       );
     }
   }
@@ -292,15 +320,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _onEditPicture() async {
-    final path = await ImagePickerService().pickFromGallery();
-    if (!mounted || path == null) return;
-    final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute<String>(
-        builder: (_) => CropPhotoScreen(imagePath: path),
+    final source = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Profile Photo'),
+        message: const Text('Choose where to pick your photo from'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('camera'),
+            child: const Text('Take Photo'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('gallery'),
+            child: const Text('Choose from Library'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
       ),
     );
-    if (!mounted) return;
-    if (result != null) setState(() => _pickedImagePath = result);
+    if (!mounted || source == null) return;
+
+    final picker = ImagePickerService();
+    final path = source == 'camera'
+        ? await picker.pickFromCamera()
+        : await picker.pickFromGallery();
+    if (!mounted || path == null) return;
+
+    try {
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: path,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop profile photo',
+            toolbarColor: AppColors.brandPurple,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: AppColors.brandPink,
+            lockAspectRatio: true,
+            initAspectRatio: CropAspectRatioPreset.square,
+            aspectRatioPresets: const [CropAspectRatioPreset.square],
+            cropStyle: CropStyle.circle,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop profile photo',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+            cropStyle: CropStyle.circle,
+          ),
+        ],
+      );
+      if (!mounted) return;
+      if (cropped != null) {
+        setState(() => _pickedImagePath = cropped.path);
+      }
+    } catch (error) {
+      debugPrint('Profile crop failed in edit profile: $error');
+      if (mounted) setState(() => _pickedImagePath = path);
+    }
   }
 
   Widget _buildProfilePictureSection() {
@@ -505,12 +589,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       },
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 20, color: const Color(0xFFDE106B)),
+          const Icon(Icons.info_outline_rounded, size: 20, color: Colors.white),
           const SizedBox(width: AppSpacing.sm),
           const Text(
             'Personal information settings',
             style: TextStyle(
-              color: Color(0xFFDE106B),
+              color: Colors.white,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),

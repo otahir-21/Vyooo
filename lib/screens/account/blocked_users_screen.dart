@@ -98,14 +98,33 @@ class BlockedUsersScreen extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: Text(
-                                            row.label,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: -0.2,
-                                            ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                row.title,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  letterSpacing: -0.2,
+                                                ),
+                                              ),
+                                              if (row.subtitle.isNotEmpty)
+                                                Text(
+                                                  row.subtitle,
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withValues(
+                                                          alpha: 0.65,
+                                                        ),
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                            ],
                                           ),
                                         ),
                                         Material(
@@ -153,14 +172,24 @@ class BlockedUsersScreen extends StatelessWidget {
 
   static Future<List<_BlockedListRow>> _loadBlockedRows(List<String> ids) async {
     final svc = UserService();
+    final users = await svc.getUsersByIds(ids);
+    final byId = <String, AppUserModel>{for (final u in users) u.uid: u};
     final rows = <_BlockedListRow>[];
     for (final id in ids) {
-      final u = await svc.getUser(id);
-      final handle = u?.username?.trim();
+      final u = byId[id];
+      final handle = u?.username?.trim() ?? '';
+      final displayName = u?.displayName?.trim() ?? '';
+      final title = displayName.isNotEmpty
+          ? displayName
+          : (handle.isNotEmpty ? '@$handle' : id);
+      final subtitle = handle.isNotEmpty && displayName.isNotEmpty
+          ? '@$handle'
+          : '';
       rows.add(
         _BlockedListRow(
           uid: id,
-          label: (handle != null && handle.isNotEmpty) ? '@$handle' : id,
+          title: title,
+          subtitle: subtitle,
           avatarUrl: u?.profileImage?.trim() ?? '',
         ),
       );
@@ -186,11 +215,13 @@ class BlockedUsersScreen extends StatelessWidget {
 class _BlockedListRow {
   const _BlockedListRow({
     required this.uid,
-    required this.label,
+    required this.title,
+    required this.subtitle,
     required this.avatarUrl,
   });
   final String uid;
-  final String label;
+  final String title;
+  final String subtitle;
   final String avatarUrl;
 }
 

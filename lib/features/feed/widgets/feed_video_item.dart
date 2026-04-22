@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../../core/mock/mock_feed_data.dart';
+import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/user_service.dart';
+import '../../../../screens/profile/user_profile_screen.dart';
 import 'feed_action_buttons.dart';
 
 /// Single feed video item — plays video when active, shows thumbnail fallback.
@@ -40,12 +43,16 @@ class _FeedVideoItemState extends State<FeedVideoItem>
   bool _showControls = false;
   bool _isMuted = false;
   bool _isAppForeground = true;
+  bool _isFollowingAuthor = false;
+  bool _followBusy = false;
+  String? _targetUserId;
   Timer? _hideTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _resolveAuthorFollowState();
     if (widget.isActive) _initVideo();
   }
 
@@ -58,6 +65,47 @@ class _FeedVideoItemState extends State<FeedVideoItem>
       _controller?.pause();
     }
     _syncPlayback();
+  }
+
+  Future<void> _resolveAuthorFollowState() async {
+    final me = AuthService().currentUser?.uid;
+    if (me == null || me.isEmpty) return;
+
+    final handle = widget.post.userHandle.trim().replaceFirst('@', '');
+    final username = handle.isNotEmpty ? handle : widget.post.username.trim();
+    final user = await UserService().getUserByUsername(username);
+    if (!mounted || user == null || user.uid.isEmpty || user.uid == me) return;
+
+    final following = await UserService().isFollowingUser(
+      currentUid: me,
+      targetUid: user.uid,
+    );
+    if (!mounted) return;
+    setState(() {
+      _targetUserId = user.uid;
+      _isFollowingAuthor = following;
+    });
+  }
+
+  Future<void> _onFollowTap() async {
+    if (_followBusy) return;
+    final me = AuthService().currentUser?.uid;
+    final target = _targetUserId;
+    if (me == null || me.isEmpty || target == null || target.isEmpty || me == target) {
+      return;
+    }
+    setState(() => _followBusy = true);
+    try {
+      if (_isFollowingAuthor) {
+        await UserService().unfollowUser(currentUid: me, targetUid: target);
+      } else {
+        await UserService().followUser(currentUid: me, targetUid: target);
+      }
+      if (!mounted) return;
+      setState(() => _isFollowingAuthor = !_isFollowingAuthor);
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
+    }
   }
 
   @override
@@ -210,7 +258,14 @@ class _FeedVideoItemState extends State<FeedVideoItem>
             left: 16,
             bottom: 40,
             right: 80,
-            child: _UserInfo(post: widget.post, onSeeMore: widget.onSeeMore),
+            child: _UserInfo(
+              post: widget.post,
+              onSeeMore: widget.onSeeMore,
+              onUserTap: _openUserProfile,
+              isFollowing: _isFollowingAuthor,
+              followBusy: _followBusy,
+              onFollowTap: _onFollowTap,
+            ),
           ),
           // ── Action buttons ────────────────────────────────────────────────
           Positioned(
@@ -300,15 +355,48 @@ class _FeedVideoItemState extends State<FeedVideoItem>
       child: CircularProgressIndicator(color: Colors.white38),
     ),
   );
+
+  void _openUserProfile() {
+    final username = widget.post.userHandle.replaceFirst('@', '').trim();
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          payload: UserProfilePayload(
+            username: username.isNotEmpty ? username : widget.post.username,
+            displayName: widget.post.username,
+            avatarUrl: widget.post.userAvatarUrl,
+            isVerified: false,
+            postCount: 0,
+            followerCount: widget.post.likeCount,
+            followingCount: 0,
+            bio: '',
+            isCreator: true,
+            isFollowing: false,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── User info ─────────────────────────────────────────────────────────────────
 
 class _UserInfo extends StatelessWidget {
-  const _UserInfo({required this.post, this.onSeeMore});
+  const _UserInfo({
+    required this.post,
+    this.onSeeMore,
+    this.onUserTap,
+    this.onFollowTap,
+    this.isFollowing = false,
+    this.followBusy = false,
+  });
 
   final FeedPost post;
   final VoidCallback? onSeeMore;
+  final VoidCallback? onUserTap;
+  final VoidCallback? onFollowTap;
+  final bool isFollowing;
+  final bool followBusy;
 
   static const Color _pinkAccent = Color(0xFFF81945);
 
@@ -320,24 +408,27 @@ class _UserInfo extends StatelessWidget {
       children: [
         Row(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white12,
-                backgroundImage: post.userAvatarUrl.isNotEmpty
-                    ? NetworkImage(post.userAvatarUrl)
-                    : null,
-                child: post.userAvatarUrl.isEmpty
-                    ? Image.asset(
-                        'assets/vyooO_icons/Home/profile_icon.png',
-                        color: Colors.white,
-                        width: 20,
-                      )
-                    : null,
+            GestureDetector(
+              onTap: onUserTap,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white12,
+                  backgroundImage: post.userAvatarUrl.isNotEmpty
+                      ? NetworkImage(post.userAvatarUrl)
+                      : null,
+                  child: post.userAvatarUrl.isEmpty
+                      ? Image.asset(
+                          'assets/vyooO_icons/Home/profile_icon.png',
+                          color: Colors.white,
+                          width: 20,
+                        )
+                      : null,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -347,38 +438,47 @@ class _UserInfo extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        post.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                      GestureDetector(
+                        onTap: onUserTap,
+                        child: Text(
+                          post.username,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _pinkAccent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Follow',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                      GestureDetector(
+                        onTap: followBusy ? null : onFollowTap,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isFollowing ? Colors.white24 : _pinkAccent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            followBusy ? '...' : (isFollowing ? 'Following' : 'Follow'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  Text(
-                    post.userHandle,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
+                  GestureDetector(
+                    onTap: onUserTap,
+                    child: Text(
+                      post.userHandle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ],

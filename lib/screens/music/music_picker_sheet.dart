@@ -52,65 +52,76 @@ class _MusicPickerSheetState extends State<_MusicPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1A0020),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(2),
-            ),
+    final media = MediaQuery.of(context);
+    final keyboardInset = media.viewInsets.bottom;
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: FractionallySizedBox(
+        heightFactor: 0.96,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A0020),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              decoration: InputDecoration(
-                hintText: 'Search Music',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.input),
-                  borderSide: BorderSide.none,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: 'Search Music',
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
+                      prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.input),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Expanded(
+                  child: ListView.builder(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                    itemCount: _filteredTracks.length,
+                    itemBuilder: (context, index) {
+                      final track = _filteredTracks[index];
+                      final isSelected = _selectedTrack?.id == track.id;
+                      return _PickerMusicTile(
+                        track: track,
+                        isSelected: isSelected,
+                        onTap: () => setState(() => _selectedTrack = track),
+                      );
+                    },
+                  ),
+                ),
+                if (_selectedTrack != null) _buildSelectionPreview(),
+                _buildActions(),
+              ],
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              itemCount: _filteredTracks.length,
-              itemBuilder: (context, index) {
-                final track = _filteredTracks[index];
-                final isSelected = _selectedTrack?.id == track.id;
-                return _PickerMusicTile(
-                  track: track,
-                  isSelected: isSelected,
-                  onTap: () => setState(() => _selectedTrack = track),
-                );
-              },
-            ),
-          ),
-          if (_selectedTrack != null) _buildSelectionPreview(),
-          _buildActions(),
-        ],
+        ),
       ),
     );
   }

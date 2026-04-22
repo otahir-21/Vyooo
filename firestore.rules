@@ -15,6 +15,7 @@ service cloud.firestore {
         'email',
         'displayName',
         'username',
+        'bio',
         'dob',
         'profileImage',
         'interests',
@@ -30,6 +31,8 @@ service cloud.firestore {
       (!('displayName' in request.resource.data) ||
         request.resource.data.displayName is string) &&
       request.resource.data.username is string &&
+      (!('bio' in request.resource.data) ||
+        request.resource.data.bio is string) &&
       request.resource.data.dob is string &&
       request.resource.data.profileImage is string &&
       request.resource.data.interests is list &&

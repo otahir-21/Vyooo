@@ -152,7 +152,7 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   List<_UserSearchItem> get _filteredUsers {
-    final q = _searchController.text.trim().toLowerCase();
+    final q = _normalizedQuery;
     if (q.isEmpty) return _allUsers;
     return _allUsers
         .where(
@@ -182,12 +182,16 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   List<_LiveSearchResultItem> get _dynamicLiveSearchResultItems {
-    final q = _searchController.text.trim().toLowerCase();
+    final q = _normalizedQuery;
+    final hashtagOnly = _isHashtagQuery;
     final streams = q.isEmpty
         ? _liveStreams
         : _liveStreams
               .where((s) {
-                final inTags = s.tags.any((t) => t.toLowerCase().contains(q));
+                final inTags = s.tags.any(
+                  (t) => _normalizeTag(t).contains(q),
+                );
+                if (hashtagOnly) return inTags;
                 return s.hostUsername.toLowerCase().contains(q) ||
                     s.title.toLowerCase().contains(q) ||
                     s.description.toLowerCase().contains(q) ||
@@ -324,6 +328,35 @@ class _SearchScreenState extends State<SearchScreen>
 
   void _onSearchTextChange() {
     setState(() {});
+  }
+
+  String get _normalizedQuery {
+    final raw = _searchController.text.trim().toLowerCase();
+    if (raw.startsWith('#')) {
+      return raw.substring(1).trimLeft();
+    }
+    return raw;
+  }
+
+  bool get _isHashtagQuery =>
+      _searchController.text.trimLeft().startsWith('#');
+
+  static String _normalizeTag(String tag) {
+    final t = tag.trim().toLowerCase();
+    return t.startsWith('#') ? t.substring(1) : t;
+  }
+
+  void _activateHashtagSearch() {
+    final raw = _searchController.text.trimLeft();
+    if (!raw.startsWith('#')) {
+      final q = _searchController.text.trim();
+      _searchController.text = q.isEmpty ? '#' : '#$q';
+      _searchController.selection = TextSelection.collapsed(
+        offset: _searchController.text.length,
+      );
+    }
+    _searchFocusNode.requestFocus();
+    setState(() => _isSearchActive = true);
   }
 
   @override
@@ -761,19 +794,22 @@ class _SearchScreenState extends State<SearchScreen>
             ),
             if (showHashButton) ...[
               const SizedBox(width: 12),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Image.asset(
-                    'assets/vyooO_icons/Search/hashtag.png',
-                    width: 24,
-                    height: 24,
-                    color: Colors.white,
+              GestureDetector(
+                onTap: _activateHashtagSearch,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Center(
+                    child: Image.asset(
+                      'assets/vyooO_icons/Search/hashtag.png',
+                      width: 24,
+                      height: 24,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -1410,6 +1446,8 @@ class _UserSearchResultTile extends StatelessWidget {
   final _UserSearchItem user;
   final VoidCallback? onTap;
   final VoidCallback? onFollowTap;
+  static const String _defaultAvatarAsset =
+      'assets/vyooO_icons/Home/profile_icon.png';
 
   // static String _formatFollowers(int n) {
   //   if (n >= 1000000) {
@@ -1445,10 +1483,10 @@ class _UserSearchResultTile extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 28,
                   backgroundColor: Colors.white.withValues(alpha: 0.1),
-                  backgroundImage:
-                      Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                  backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute ==
+                          true
                       ? NetworkImage(user.avatarUrl)
-                      : null,
+                      : const AssetImage(_defaultAvatarAsset),
                 ),
               ),
               const SizedBox(width: 14),

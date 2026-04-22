@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/config/deep_link_config.dart';
 import '../data/mock_share_data.dart';
 import '../models/share_contact.dart';
 import '../models/share_action.dart';
@@ -15,7 +16,7 @@ void showShareBottomSheet(
   required VoidCallback onShareViaNative,
   required VoidCallback onCopyLink,
 }) {
-  final shareUrl = 'https://vyooo.com/reel/$reelId';
+  final shareUrl = DeepLinkConfig.reelWebUri(reelId).toString();
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -221,6 +222,10 @@ class _ContentHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final thumb = thumbnailUrl?.trim() ?? '';
+    final hasValidThumb = thumb.isNotEmpty &&
+        Uri.tryParse(thumb)?.isAbsolute == true &&
+        (Uri.tryParse(thumb)?.host.isNotEmpty ?? false);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(12),
@@ -236,11 +241,13 @@ class _ContentHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.grey[900],
               borderRadius: BorderRadius.circular(12),
-              image: thumbnailUrl != null
-                  ? DecorationImage(image: NetworkImage(thumbnailUrl!), fit: BoxFit.cover)
+              image: hasValidThumb
+                  ? DecorationImage(image: NetworkImage(thumb), fit: BoxFit.cover)
                   : null,
             ),
-            child: thumbnailUrl == null ? const Icon(Icons.videocam, color: Colors.white24) : null,
+            child: !hasValidThumb
+                ? const Icon(Icons.videocam, color: Colors.white24)
+                : null,
           ),
           const SizedBox(width: 16),
           Expanded(

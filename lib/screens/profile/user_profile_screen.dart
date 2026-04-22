@@ -15,6 +15,7 @@ import '../../core/utils/user_facing_errors.dart';
 import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
+import '../../features/reel/widgets/block_user_sheet.dart';
 import '../../features/subscription/creator_subscription_screen.dart';
 
 /// Data for displaying another user's profile (e.g. from search or followers list).
@@ -232,7 +233,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               ),
               title: Text(
-                '${p.username}',
+                p.username,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -432,6 +433,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   void _showProfileMenu(BuildContext context) {
+    final target = widget.payload.targetUserId;
+    final me = AuthService().currentUser?.uid;
+    final canBlock = target != null && target.isNotEmpty && target != me;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.sheetBackground,
@@ -465,6 +469,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   _showNotificationsSheet(context);
                 },
               ),
+              if (canBlock)
+                ListTile(
+                  leading: const Icon(
+                    Icons.block_flipped,
+                    color: Color(0xFFEF4444),
+                  ),
+                  title: const Text(
+                    'Block User',
+                    style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showBlockUserSheet(
+                      context,
+                      username: widget.payload.displayName,
+                      avatarUrl: widget.payload.avatarUrl,
+                      targetUserId: target,
+                    );
+                  },
+                ),
               const SizedBox(height: AppSpacing.sm),
             ],
           ),
