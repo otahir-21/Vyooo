@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../utils/video_upload_policy.dart';
 import 'auth_service.dart';
 import 'pexels_feed_service.dart';
 import 'user_service.dart';
@@ -25,7 +26,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r))
+          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
@@ -57,7 +58,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r))
+          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
@@ -78,7 +79,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r))
+          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
@@ -99,7 +100,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r))
+          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
@@ -107,6 +108,23 @@ class ReelsService {
     } catch (_) {
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
       return [];
+    }
+  }
+
+  /// Fetch a single reel by document id.
+  Future<Map<String, dynamic>?> getReelById(String reelId) async {
+    final id = reelId.trim();
+    if (id.isEmpty) return null;
+    try {
+      final doc = await _firestore.collection(_reelsCollection).doc(id).get();
+      if (!doc.exists) return null;
+      final data = doc.data();
+      if (data == null) return null;
+      final reel = _snapshotDataToReelMap(doc.id, data);
+      if (_isReelBlocked(reel) || !_isPlayableReel(reel)) return null;
+      return reel;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -174,11 +192,32 @@ class ReelsService {
     return false;
   }
 
+  static bool _isPlayableReel(Map<String, dynamic> data) {
+    final mediaType = ((data['mediaType'] as String?) ?? '').toLowerCase();
+    if (mediaType == 'image') {
+      final imageUrl = ((data['imageUrl'] as String?) ?? '').trim();
+      if (imageUrl.isNotEmpty) return Uri.tryParse(imageUrl)?.isAbsolute == true;
+      final thumbnailUrl = ((data['thumbnailUrl'] as String?) ?? '').trim();
+      return thumbnailUrl.isNotEmpty && Uri.tryParse(thumbnailUrl)?.isAbsolute == true;
+    }
+    final url = (data['videoUrl'] as String?) ?? '';
+    return VideoUploadPolicy.isPlayableUrl(url);
+  }
+
   Map<String, dynamic> _docToReelMap(QueryDocumentSnapshot<Map<String, dynamic>> d) {
-    final data = d.data();
+    return _snapshotDataToReelMap(d.id, d.data());
+  }
+
+  Map<String, dynamic> _snapshotDataToReelMap(
+    String id,
+    Map<String, dynamic> data,
+  ) {
     return {
-      'id': d.id,
+      'id': id,
+      'mediaType': data['mediaType'] ?? 'video',
       'videoUrl': data['videoUrl'] ?? '',
+      'imageUrl': data['imageUrl'] ?? '',
+      'thumbnailUrl': data['thumbnailUrl'] ?? data['imageUrl'] ?? '',
       'username': data['username'] ?? '',
       'handle': data['handle'] ?? '',
       'caption': data['caption'] ?? '',

@@ -139,6 +139,44 @@ class AuthService {
     }
   }
 
+  /// Change current user's password by reauthenticating with current password.
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult(success: false, message: 'No user signed in.');
+      }
+      final email = user.email;
+      if (email == null || email.isEmpty) {
+        return const AuthResult(
+          success: false,
+          message: 'Password change is not available for this account.',
+        );
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+      return const AuthResult(success: true);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return const AuthResult(
+          success: false,
+          message: 'Your current password is not correct.',
+        );
+      }
+      return AuthResult(success: false, message: _mapAuthException(e.code));
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
   /// Sign in with Apple ID (iOS). Uses Firebase OAuth + nonce for security.
   Future<AuthResult> signInWithApple() async {
     try {

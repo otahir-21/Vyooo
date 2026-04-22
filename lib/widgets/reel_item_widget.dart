@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../core/utils/video_upload_policy.dart';
 import '../core/theme/app_spacing.dart';
 
 /// Single reel item for PageView. Handles video playback, auto-play, pause, preload.
@@ -32,6 +33,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _showControls = false;
   bool _isMuted = false;
   Timer? _hideTimer;
+  bool _lastIsPlaying = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
   @override
@@ -89,6 +91,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         _showError = false;
         _retryCount = 0;
       });
+      _lastIsPlaying = ctrl.value.isPlaying;
+      ctrl.addListener(_onControllerValueChanged);
       if (widget.isVisible) await ctrl.play();
     } catch (e) {
       debugPrint('Error initializing video: $e');
@@ -119,14 +123,25 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   void _disposePlayer() {
+    _hideTimer?.cancel();
+    _hideTimer = null;
+    _controller?.removeListener(_onControllerValueChanged);
     _controller?.dispose();
     _controller = null;
     _isInitialized = false;
   }
 
+  void _onControllerValueChanged() {
+    final isPlaying = _controller?.value.isPlaying ?? false;
+    if (isPlaying == _lastIsPlaying) return;
+    _lastIsPlaying = isPlaying;
+    if (!mounted) return;
+    setState(() {});
+  }
+
   List<String> _candidateUrls(String raw) {
     final url = raw.trim();
-    if (url.isEmpty) return const [];
+    if (!VideoUploadPolicy.isPlayableUrl(url)) return const [];
     final out = <String>[url];
     final m = RegExp(
       r'^(https?:\/\/[^/]+)\/([^/]+)\/manifest\/video\.m3u8$',
@@ -135,10 +150,13 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     if (m != null) {
       final hostBase = m.group(1)!;
       final videoId = m.group(2)!;
-      out.add('$hostBase/$videoId/downloads/default.mp4');
+      final mp4 = '$hostBase/$videoId/downloads/default.mp4';
+      if (VideoUploadPolicy.isPlayableUrl(mp4)) out.add(mp4);
       // Backward compatibility: if saved host is wrong, still try Cloudflare global domain.
-      out.add('https://videodelivery.net/$videoId/manifest/video.m3u8');
-      out.add('https://videodelivery.net/$videoId/downloads/default.mp4');
+      final hlsFallback = 'https://videodelivery.net/$videoId/manifest/video.m3u8';
+      final mp4Fallback = 'https://videodelivery.net/$videoId/downloads/default.mp4';
+      if (VideoUploadPolicy.isPlayableUrl(hlsFallback)) out.add(hlsFallback);
+      if (VideoUploadPolicy.isPlayableUrl(mp4Fallback)) out.add(mp4Fallback);
     }
     return out.toSet().toList();
   }
@@ -202,7 +220,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
               if (_retryCount > 0) ...[
                 SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Preparing video... (${_retryCount}/$_maxRetries)',
+                  'Preparing video... ($_retryCount/$_maxRetries)',
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -275,22 +293,6 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
                   width: size.width,
                   height: size.height,
                   child: VideoPlayer(_controller!),
-                ),
-              ),
-            ),
-            // Top Indicator Bar
-            Positioned(
-              top: 12,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
                 ),
               ),
             ),

@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/services/reels_service.dart';
+import '../../core/utils/video_upload_policy.dart';
 import 'upload_success_screen.dart';
 
 /// Upload Details screen: title, description, tags, isVR.
@@ -29,9 +31,10 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   final _descController = TextEditingController();
   final _tagsController = TextEditingController();
 
-  bool _isVR = false;
+  final bool _isVR = false;
   bool _isUploading = false;
   double _uploadProgress = 0;
+  bool get _isVideoAsset => widget.asset.type == AssetType.video;
 
   @override
   void dispose() {
@@ -53,6 +56,15 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    if (_isVideoAsset) {
+      final validation = await VideoUploadPolicy.validateAsset(widget.asset);
+      if (validation != null) {
+        if (!mounted) return;
+        await _showValidationFixDialog(validation);
+        return;
+      }
+    }
+
     setState(() {
       _isUploading = true;
       _uploadProgress = 0;
@@ -66,8 +78,10 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         return;
       }
 
-      // 2 — get direct upload URL from Cloud Function, then upload to Cloudflare
-      final videoUrl = await _uploadVideo(file);
+      // 2 — upload selected media and get URL
+      final mediaUrl = _isVideoAsset
+          ? await _uploadVideo(file)
+          : await _uploadPhoto(file);
 
       if (!mounted) return;
 
@@ -86,7 +100,10 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
       // 5 — save reel doc to Firestore
       final reelRef = await FirebaseFirestore.instance.collection('reels').add({
-        'videoUrl': videoUrl,
+        'mediaType': _isVideoAsset ? 'video' : 'image',
+        'videoUrl': _isVideoAsset ? mediaUrl : '',
+        'imageUrl': _isVideoAsset ? '' : mediaUrl,
+        'thumbnailUrl': _isVideoAsset ? '' : mediaUrl,
         'username': username,
         'handle': handle,
         'caption': caption,
@@ -188,6 +205,71 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     return ReelsService.streamPlaybackUrl(videoId);
   }
 
+  Future<String> _uploadPhoto(File file) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final ext = _extFromPath(file.path);
+    final ref = FirebaseStorage.instance.ref().child(
+      'users/$uid/uploads/photos/${DateTime.now().millisecondsSinceEpoch}.$ext',
+    );
+    await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
+    if (mounted) setState(() => _uploadProgress = 1);
+    return ref.getDownloadURL();
+  }
+
+  String _extFromPath(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'png';
+    if (lower.endsWith('.webp')) return 'webp';
+    if (lower.endsWith('.heic')) return 'heic';
+    if (lower.endsWith('.heif')) return 'heif';
+    return 'jpg';
+  }
+
+  Future<void> _showValidationFixDialog(VideoValidationResult validation) async {
+    final canEdit = validation.canOpenEditorFix;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A0020),
+        title: const Text('Video needs adjustment', style: TextStyle(color: Colors.white)),
+        content: Text(
+          '${validation.message}\n\n${_fixHintForIssue(validation.issue)}',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), height: 1.35),
+        ),
+        actions: [
+          if (canEdit)
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Back to editor'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fixHintForIssue(VideoValidationIssue issue) {
+    switch (issue) {
+      case VideoValidationIssue.tooLong:
+        return 'Trim the clip to 60 seconds or less.';
+      case VideoValidationIssue.invalidAspectRatio:
+        return 'Crop to vertical 9:16 for reels.';
+      case VideoValidationIssue.tooLarge:
+        return 'Compress/export to under 100 MB.';
+      case VideoValidationIssue.tooShort:
+        return 'Use a clip at least 3 seconds long.';
+      case VideoValidationIssue.unreadableDimensions:
+      case VideoValidationIssue.inaccessibleFile:
+        return 'Pick a different video from gallery.';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -264,8 +346,8 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           children: [
             const Icon(Icons.cloud_upload_rounded, color: _pink, size: 56),
             const SizedBox(height: 24),
-            const Text(
-              'Uploading your video…',
+            Text(
+              _isVideoAsset ? 'Uploading your video…' : 'Uploading your photo…',
               style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),

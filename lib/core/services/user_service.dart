@@ -41,6 +41,7 @@ class UserService {
         'email': email,
         'displayName': '',
         'username': '',
+        'bio': '',
         'dob': '',
         'profileImage': '',
         'interests': [],
@@ -89,6 +90,7 @@ class UserService {
     required String uid,
     String? displayName,
     String? username,
+    String? bio,
     String? dob,
     String? profileImage,
     List<String>? interests,
@@ -102,6 +104,7 @@ class UserService {
       if (username != null) {
         data['username'] = username.trim().toLowerCase();
       }
+      if (bio != null) data['bio'] = bio.trim();
       if (dob != null) data['dob'] = dob;
       if (profileImage != null) data['profileImage'] = profileImage;
       if (interests != null) data['interests'] = interests;
@@ -124,6 +127,23 @@ class UserService {
         return AppUserModel.fromJson(doc.data()!);
       }
       return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Finds a user by normalized username (lowercase, without leading @).
+  Future<AppUserModel?> getUserByUsername(String username) async {
+    final normalized = username.trim().toLowerCase().replaceAll('@', '');
+    if (normalized.isEmpty) return null;
+    try {
+      final q = await _firestore
+          .collection(_usersCollection)
+          .where('username', isEqualTo: normalized)
+          .limit(1)
+          .get();
+      if (q.docs.isEmpty) return null;
+      return AppUserModel.fromJson(q.docs.first.data());
     } catch (_) {
       return null;
     }

@@ -12,18 +12,20 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    let registrar = self.registrar(forPlugin: "VyoooDeferredNativePlugins")
+    guard let registrar = self.registrar(forPlugin: "VyoooDeferredNativePlugins") else {
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
     let channel = FlutterMethodChannel(
       name: "vyooo/deferred_native_plugins",
       binaryMessenger: registrar.messenger()
     )
-    channel.setMethodCallHandler { [weak self] call, result in
+    channel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
       if call.method == "registerAgora" {
         guard let self else {
           result(FlutterError(code: "no_registry", message: nil, details: nil))
           return
         }
-        AgoraDeferredRegistration.register(withRegistry: self)
+        AgoraDeferredRegistration.register(with: self)
         result(nil)
       } else {
         result(FlutterMethodNotImplemented)

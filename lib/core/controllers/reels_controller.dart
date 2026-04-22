@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../config/deep_link_config.dart';
 import '../services/auth_service.dart';
 
 /// Controller for reel interactions. No UI logic here.
@@ -14,6 +15,71 @@ class ReelsController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String? get _currentUserId => AuthService().currentUser?.uid;
 
+  Future<Set<String>> getLikedReelIds(Set<String> reelIds) async {
+    final uid = _currentUserId;
+    if (uid == null || reelIds.isEmpty) return <String>{};
+    try {
+      final q = await _firestore
+          .collection('userLikes')
+          .where('userId', isEqualTo: uid)
+          .get();
+      final liked = <String>{};
+      for (final d in q.docs) {
+        final reelId = (d.data()['reelId'] as String?) ?? '';
+        if (reelId.isNotEmpty && reelIds.contains(reelId)) liked.add(reelId);
+      }
+      return liked;
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  Future<Set<String>> getSavedReelIds(Set<String> reelIds) async {
+    final uid = _currentUserId;
+    if (uid == null || reelIds.isEmpty) return <String>{};
+    try {
+      final q = await _firestore
+          .collection('userSaves')
+          .where('userId', isEqualTo: uid)
+          .get();
+      final saved = <String>{};
+      for (final d in q.docs) {
+        final reelId = (d.data()['reelId'] as String?) ?? '';
+        if (reelId.isNotEmpty && reelIds.contains(reelId)) saved.add(reelId);
+      }
+      return saved;
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  /// Aggregate saved counts for the provided reels from `userSaves`.
+  Future<Map<String, int>> getSaveCountsByReelIds(Set<String> reelIds) async {
+    if (reelIds.isEmpty) return <String, int>{};
+    final counts = <String, int>{};
+    try {
+      final ids = reelIds.toList();
+      for (var i = 0; i < ids.length; i += 10) {
+        final chunk = ids.sublist(
+          i,
+          (i + 10) > ids.length ? ids.length : (i + 10),
+        );
+        final q = await _firestore
+            .collection('userSaves')
+            .where('reelId', whereIn: chunk)
+            .get();
+        for (final d in q.docs) {
+          final reelId = (d.data()['reelId'] as String?) ?? '';
+          if (reelId.isEmpty) continue;
+          counts[reelId] = (counts[reelId] ?? 0) + 1;
+        }
+      }
+    } catch (_) {
+      return <String, int>{};
+    }
+    return counts;
+  }
+
   /// Like a reel. Toggles like state and updates Firestore.
   /// Optimistic UI: return new liked state immediately.
   Future<bool> likeReel({
@@ -25,18 +91,29 @@ class ReelsController {
 
     final newLikedState = !currentlyLiked;
     try {
-      await _firestore.collection('reels').doc(reelId).update({
-        'likes': newLikedState ? FieldValue.increment(1) : FieldValue.increment(-1),
-      });
-      await _firestore
-          .collection('userLikes')
-          .doc('${uid}_$reelId')
-          .set({'userId': uid, 'reelId': reelId, 'likedAt': FieldValue.serverTimestamp()});
-      if (!newLikedState) {
+      // Keep per-user like source of truth even if the reel is from fallback feeds.
+      if (newLikedState) {
+        await _firestore.collection('userLikes').doc('${uid}_$reelId').set({
+          'userId': uid,
+          'reelId': reelId,
+          'likedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
         await _firestore.collection('userLikes').doc('${uid}_$reelId').delete();
       }
+
+      // Best effort aggregate counter update for Firestore-backed reels.
+      final reelRef = _firestore.collection('reels').doc(reelId);
+      final reelDoc = await reelRef.get();
+      if (reelDoc.exists) {
+        await reelRef.update({
+          'likes': newLikedState
+              ? FieldValue.increment(1)
+              : FieldValue.increment(-1),
+        });
+      }
     } catch (_) {
-      // Optimistic UI: still return new state; background sync can retry
+      return currentlyLiked;
     }
     return newLikedState;
   }
@@ -58,6 +135,17 @@ class ReelsController {
             .set({'userId': uid, 'reelId': reelId, 'savedAt': FieldValue.serverTimestamp()});
       } else {
         await _firestore.collection('userSaves').doc('${uid}_$reelId').delete();
+      }
+
+      // Best effort aggregate counter update for Firestore-backed reels.
+      final reelRef = _firestore.collection('reels').doc(reelId);
+      final reelDoc = await reelRef.get();
+      if (reelDoc.exists) {
+        await reelRef.update({
+          'saves': newSavedState
+              ? FieldValue.increment(1)
+              : FieldValue.increment(-1),
+        });
       }
     } catch (_) {}
     return newSavedState;
@@ -82,7 +170,7 @@ class ReelsController {
     String? reelUrl,
   }) async {
     try {
-      final url = reelUrl ?? 'https://vyooo.com/reel/$reelId';
+      final url = reelUrl ?? DeepLinkConfig.reelWebUri(reelId).toString();
       await Share.share(url, subject: 'Check out this reel on Vyooo!');
     } on PlatformException catch (_) {
       // Share cancelled or unavailable

@@ -29,9 +29,17 @@ import '../../features/reel/widgets/video_quality_sheet.dart';
 import '../../features/reel/widgets/why_seeing_this_sheet.dart';
 import '../../features/share/widgets/share_bottom_sheet.dart';
 import '../../features/vr/vr_screen.dart';
+import '../profile/user_profile_screen.dart';
 import '../../widgets/reel_item_widget.dart';
 
 enum HomeTab { trending, vr, following, forYou }
+
+class _ReelTarget {
+  const _ReelTarget(this.tab, this.index);
+
+  final HomeTab tab;
+  final int index;
+}
 
 /// Main home screen: vertical reels feed with interactions.
 /// Default tab: For You. Tab switch is internal state only (no new route).
@@ -40,6 +48,8 @@ class HomeReelsScreen extends StatefulWidget {
     super.key,
     this.isActive = true,
     this.refreshToken = 0,
+    this.deepLinkReelId,
+    this.deepLinkNonce = 0,
   });
 
   /// Whether the Home tab is the currently visible bottom-nav tab.
@@ -48,6 +58,8 @@ class HomeReelsScreen extends StatefulWidget {
 
   /// Increment this from outside to trigger a feed reload (e.g. after upload).
   final int refreshToken;
+  final String? deepLinkReelId;
+  final int deepLinkNonce;
 
   @override
   State<HomeReelsScreen> createState() => _HomeReelsScreenState();
@@ -111,6 +123,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   bool _isRouteVisible = true;
   bool _isAppForeground = true;
   bool _isRouteObserverSubscribed = false;
+  int _lastHandledDeepLinkNonce = -1;
 
   @override
   void initState() {
@@ -146,6 +159,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _ensurePageControllerMatchesFeed();
       });
       _loadReels();
+    }
+    if (widget.deepLinkNonce != old.deepLinkNonce) {
+      _handleIncomingDeepLink();
     }
   }
 
@@ -184,19 +200,95 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final filteredStories = storyGroups
         .where((g) => !blockedIds.contains(g.userId))
         .toList();
+    final reelIds = <String>{
+      ...filteredForYou.map((r) => (r['id'] as String?) ?? ''),
+      ...filteredFollowing.map((r) => (r['id'] as String?) ?? ''),
+      ...filteredTrending.map((r) => (r['id'] as String?) ?? ''),
+      ...filteredVr.map((r) => (r['id'] as String?) ?? ''),
+    }..removeWhere((id) => id.isEmpty);
+    final likedIds = await _reelsController.getLikedReelIds(reelIds);
+    final savedIds = await _reelsController.getSavedReelIds(reelIds);
+    final saveCounts = await _reelsController.getSaveCountsByReelIds(reelIds);
     if (mounted) {
       setState(() {
+        List<Map<String, dynamic>> withSaveCounts(List<Map<String, dynamic>> src) {
+          return src.map((r) {
+            final id = (r['id'] as String?) ?? '';
+            if (id.isEmpty) return r;
+            final remoteCount = saveCounts[id];
+            if (remoteCount == null) return r;
+            return Map<String, dynamic>.from(r)..['saves'] = remoteCount;
+          }).toList();
+        }
         // Always assign so empty API results clear lists (avoids stale / black feed).
-        _reelsForYou = filteredForYou;
-        _reelsFollowing = filteredFollowing;
-        if (filteredTrending.isNotEmpty) _reelsTrending = filteredTrending;
-        if (filteredVr.isNotEmpty) _reelsVR = filteredVr;
+        _reelsForYou = withSaveCounts(filteredForYou);
+        _reelsFollowing = withSaveCounts(filteredFollowing);
+        if (filteredTrending.isNotEmpty) {
+          _reelsTrending = withSaveCounts(filteredTrending);
+        }
+        if (filteredVr.isNotEmpty) _reelsVR = withSaveCounts(filteredVr);
         _storyGroups = filteredStories;
         _myStories = myStories;
         _myAvatarUrl = avatarUrl;
         _followingIds = followingIds;
+        _likedReels
+          ..clear()
+          ..addEntries(likedIds.map((id) => MapEntry(id, true)));
+        _savedReels
+          ..clear()
+          ..addEntries(savedIds.map((id) => MapEntry(id, true)));
       });
+      _handleIncomingDeepLink();
     }
+  }
+
+  Future<void> _handleIncomingDeepLink() async {
+    if (_lastHandledDeepLinkNonce == widget.deepLinkNonce) return;
+    final reelId = widget.deepLinkReelId;
+    if (reelId == null || reelId.isEmpty) return;
+    var target = _findReelTarget(reelId);
+    if (target == null) {
+      final fetched = await _reelsService.getReelById(reelId);
+      if (!mounted) return;
+      if (fetched != null) {
+        setState(() {
+          final exists = _reelsForYou.any((r) => r['id'] == reelId);
+          if (!exists) {
+            _reelsForYou = [fetched, ..._reelsForYou];
+          }
+        });
+        target = _findReelTarget(reelId);
+      }
+    }
+    _lastHandledDeepLinkNonce = widget.deepLinkNonce;
+    if (target == null) return;
+    final resolvedTarget = target;
+    setState(() {
+      currentTab = resolvedTarget.tab;
+      _currentIndex = resolvedTarget.index;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(resolvedTarget.index);
+      }
+    });
+  }
+
+  _ReelTarget? _findReelTarget(String reelId) {
+    int idx = _reelsForYou.indexWhere((r) => r['id'] == reelId);
+    if (idx >= 0) return _ReelTarget(HomeTab.forYou, idx);
+
+    idx = _reelsFollowing.indexWhere((r) => r['id'] == reelId);
+    if (idx >= 0) return _ReelTarget(HomeTab.following, idx);
+
+    idx = _reelsTrending.indexWhere((r) => r['id'] == reelId);
+    if (idx >= 0) return _ReelTarget(HomeTab.trending, idx);
+
+    idx = _reelsVR.indexWhere((r) => r['id'] == reelId);
+    if (idx >= 0) return _ReelTarget(HomeTab.vr, idx);
+
+    return null;
   }
 
   @override
@@ -247,7 +339,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       reelId: reelId,
       currentlyLiked: currentlyLiked,
     );
-    setState(() => _likedReels[reelId] = newState);
+    if (!mounted) return;
+    final delta = newState == currentlyLiked ? 0 : (newState ? 1 : -1);
+    setState(() {
+      _likedReels[reelId] = newState;
+      if (delta != 0) {
+        _adjustReelStat(reelId, 'likes', delta);
+      }
+    });
   }
 
   Future<void> _onSave(String reelId, bool currentlySaved) async {
@@ -255,7 +354,21 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       reelId: reelId,
       currentlySaved: currentlySaved,
     );
-    setState(() => _savedReels[reelId] = newState);
+    if (!mounted) return;
+    final delta = newState == currentlySaved ? 0 : (newState ? 1 : -1);
+    setState(() {
+      _savedReels[reelId] = newState;
+      if (delta != 0) {
+        _adjustReelStat(reelId, 'saves', delta);
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(newState ? 'Saved to profile' : 'Removed from saved'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
   }
 
   void _onShare(String reelId) {
@@ -307,6 +420,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       bump(_reelsTrending);
       bump(_reelsVR);
     });
+  }
+
+  void _adjustReelStat(String reelId, String key, int delta) {
+    void bump(List<Map<String, dynamic>> list) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i]['id'] != reelId) continue;
+        final cur = (list[i][key] as num?)?.toInt() ?? 0;
+        final next = (cur + delta).clamp(0, 999999999);
+        list[i] = Map<String, dynamic>.from(list[i])..[key] = next;
+        break;
+      }
+    }
+
+    bump(_reelsForYou);
+    bump(_reelsFollowing);
+    bump(_reelsTrending);
+    bump(_reelsVR);
   }
 
   /// While the *previous* tab's [PageView] is still mounted, force page 0 so the
@@ -553,21 +683,20 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       itemCount: reels.length,
       itemBuilder: (context, index) {
         final reel = reels[index];
+        final mediaType =
+            ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
+        if (mediaType == 'image') {
+          final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+          final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
+          final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
+          if (displayUrl.isEmpty) {
+            return _buildMissingMediaPlaceholder('This reel has no image URL.');
+          }
+          return _buildImageReelItem(displayUrl);
+        }
         final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
         if (videoUrl.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                'This reel has no video URL.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          );
+          return _buildMissingMediaPlaceholder('This reel has no video URL.');
         }
         return ReelItemWidget(
           videoUrl: videoUrl,
@@ -578,6 +707,47 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               index == _currentIndex,
         );
       },
+    );
+  }
+
+  Widget _buildImageReelItem(String imageUrl) {
+    return SizedBox.expand(
+      child: ColoredBox(
+        color: Colors.black,
+        child: InteractiveViewer(
+          minScale: 1.0,
+          maxScale: 4.0,
+          child: Center(
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildMissingMediaPlaceholder(
+                  'Failed to load image reel.',
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMissingMediaPlaceholder(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 
@@ -674,50 +844,69 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final reelId = reel['id'] as String;
     final isLiked = _likedReels[reelId] ?? false;
     final isSaved = _savedReels[reelId] ?? false;
+    final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
+    // Keep action stack clearly above the bottom nav bar.
+    final interactionBottom = 84.0 + bottomSafeInset;
 
     return Positioned(
-      right: 12,
-      bottom: 60, // Adjusted to sit above bottom safe area/nav
+      right: 16,
+      bottom: interactionBottom,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AppInteractionButton(
             icon: Icons.visibility_outlined,
             count: _formatCount(reel['views'] as int),
+            iconSize: 24,
+            textSize: 10,
+            spacing: 3,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           AppInteractionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
             count: _formatCount(reel['likes'] as int),
             isActive: isLiked,
             activeColor: const Color(0xFFEF4444),
             onTap: () => _onLike(reelId, isLiked),
+            iconSize: 24,
+            textSize: 10,
+            spacing: 3,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           AppInteractionButton(
             icon: Icons.chat_bubble_outline,
             count: _formatCount(reel['comments'] as int),
             onTap: () => _onComment(reelId),
+            iconSize: 24,
+            textSize: 10,
+            spacing: 3,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           AppInteractionButton(
             icon: isSaved ? Icons.star : Icons.star_border,
             count: _formatCount(reel['saves'] as int),
             isActive: isSaved,
             activeColor: const Color(0xFFFFD700),
             onTap: () => _onSave(reelId, isSaved),
+            iconSize: 24,
+            textSize: 10,
+            spacing: 3,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           AppInteractionButton(
             icon: Icons.reply,
             count: _formatCount(reel['shares'] as int),
             onTap: () => _onShare(reelId),
+            iconSize: 24,
+            textSize: 10,
+            spacing: 3,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           AppInteractionButton(
             icon: Icons.more_horiz,
             count: '',
-            onTap: () => _onMoreOptions(reelId),
+            onTap: () => _onMoreOptions(reelId), 
+            iconSize: 24,
           ),
         ],
       ),
@@ -802,27 +991,30 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return Positioned(
       left: 16,
       right: 80,
-      bottom: 40,
+      bottom: 14,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Colors.grey[900],
-                  backgroundImage: (reel['avatarUrl'] as String).isNotEmpty
-                      ? NetworkImage(reel['avatarUrl'] as String)
-                      : null,
-                  child: (reel['avatarUrl'] as String).isEmpty
-                      ? const Icon(Icons.person, color: Colors.white, size: 20)
-                      : null,
+              GestureDetector(
+                onTap: () => _openReelAuthorProfile(reel),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey[900],
+                    backgroundImage: (reel['avatarUrl'] as String).isNotEmpty
+                        ? NetworkImage(reel['avatarUrl'] as String)
+                        : null,
+                    child: (reel['avatarUrl'] as String).isEmpty
+                        ? const Icon(Icons.person, color: Colors.white, size: 20)
+                        : null,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -832,13 +1024,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                   children: [
                     Row(
                       children: [
-                        Text(
-                          reel['username'] as String,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: 0.2,
+                        GestureDetector(
+                          onTap: () => _openReelAuthorProfile(reel),
+                          child: Text(
+                            reel['username'] as String,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -856,12 +1051,15 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                         ),
                       ],
                     ),
-                    Text(
-                      reel['handle'] as String,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w400,
+                    GestureDetector(
+                      onTap: () => _openReelAuthorProfile(reel),
+                      child: Text(
+                        reel['handle'] as String,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ),
                   ],
@@ -870,50 +1068,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            reel['caption'] as String,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.white,
-              fontWeight: FontWeight.w400,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 6),
-          GestureDetector(
-            onTap: () {
-              // TODO: Expand caption
-            },
-            child: Text(
-              'See More',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.9),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+          _CaptionWithSeeMore(
+            text: reel['caption'] as String,
           ),
           const SizedBox(height: 16),
-          // Page indicators
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(5, (index) {
-              final isTarget = index == 0;
-              return Container(
-                width: isTarget ? 10 : 5,
-                height: 5,
-                margin: const EdgeInsets.only(right: 5),
-                decoration: BoxDecoration(
-                  color: isTarget
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              );
-            }),
-          ),
         ],
       ),
     );
@@ -932,5 +1090,101 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+
+  void _openReelAuthorProfile(Map<String, dynamic> reel) {
+    final rawHandle = (reel['handle'] as String? ?? '').trim();
+    final normalizedUsername = rawHandle.replaceFirst('@', '').trim();
+    final fallbackName = (reel['username'] as String? ?? '').trim();
+    final avatar = (reel['avatarUrl'] as String? ?? '').trim();
+    final targetUid = (reel['userId'] as String? ?? '').trim();
+    final isFollowing = targetUid.isNotEmpty && _followingIds.contains(targetUid);
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          payload: UserProfilePayload(
+            username: normalizedUsername.isNotEmpty ? normalizedUsername : fallbackName,
+            displayName: fallbackName.isNotEmpty ? fallbackName : normalizedUsername,
+            avatarUrl: avatar,
+            isVerified: false,
+            postCount: 0,
+            followerCount: 0,
+            followingCount: 0,
+            bio: '',
+            isCreator: true,
+            isFollowing: isFollowing,
+            targetUserId: targetUid.isNotEmpty ? targetUid : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CaptionWithSeeMore extends StatefulWidget {
+  const _CaptionWithSeeMore({required this.text});
+
+  final String text;
+
+  @override
+  State<_CaptionWithSeeMore> createState() => _CaptionWithSeeMoreState();
+}
+
+class _CaptionWithSeeMoreState extends State<_CaptionWithSeeMore> {
+  bool _expanded = false;
+
+  static const _captionStyle = TextStyle(
+    fontSize: 15,
+    color: Colors.white,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+  );
+
+  bool _isOverflowing(String text, double maxWidth) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: _captionStyle),
+      maxLines: 2,
+      textDirection: TextDirection.ltr,
+    )..layout(maxWidth: maxWidth);
+    return painter.didExceedMaxLines;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final caption = widget.text.trim();
+    if (caption.isEmpty) return const SizedBox.shrink();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hasOverflow = _isOverflowing(caption, constraints.maxWidth);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              caption,
+              maxLines: _expanded ? null : 2,
+              overflow: TextOverflow.clip,
+              style: _captionStyle,
+            ),
+            if (hasOverflow && !_expanded) ...[
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () => setState(() => _expanded = true),
+                child: Text(
+                  'See More',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
   }
 }

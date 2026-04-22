@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'core/config/app_config.dart';
 import 'core/navigation/app_route_observer.dart';
+import 'core/services/deep_link_service.dart';
 import 'core/services/push_messaging_service.dart';
 import 'core/subscription/subscription_controller.dart';
 import 'core/theme/app_padding.dart';
@@ -18,6 +19,9 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -30,6 +34,13 @@ void main() async {
     await PushMessagingService.instance.configure();
   } catch (e, st) {
     debugPrint('Firebase initialization failed: $e');
+    debugPrint(st.toString());
+  }
+
+  try {
+    await DeepLinkService.instance.init();
+  } catch (e, st) {
+    debugPrint('Deep link init failed: $e');
     debugPrint(st.toString());
   }
 

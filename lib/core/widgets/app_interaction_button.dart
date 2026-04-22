@@ -12,6 +12,9 @@ class AppInteractionButton extends StatelessWidget {
     this.activeColor = const Color(0xFFD10057),
     this.defaultColor = Colors.white,
     this.iconColor,
+    this.iconSize = 28,
+    this.textSize = 12,
+    this.spacing = 4,
   });
 
   final IconData icon;
@@ -22,10 +25,9 @@ class AppInteractionButton extends StatelessWidget {
   final Color defaultColor;
   /// Override icon color (e.g. yellow for Crown). If null, uses active/default.
   final Color? iconColor;
-
-  static const double iconSize = 28;
-  static const double textSize = 12;
-  static const double spacing = 4;
+  final double iconSize;
+  final double textSize;
+  final double spacing;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class AppInteractionButton extends StatelessWidget {
         children: [
           Icon(icon, size: iconSize, color: color),
           if (count.isNotEmpty) ...[
-            const SizedBox(height: spacing),
+            SizedBox(height: spacing),
             Text(
               count,
               style: TextStyle(

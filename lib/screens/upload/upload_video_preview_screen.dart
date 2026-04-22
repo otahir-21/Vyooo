@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/utils/video_upload_policy.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/navigation/app_route_observer.dart';
 import 'edit_video_screen.dart';
@@ -26,6 +27,7 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
   bool _isRouteVisible = true;
   bool _isAppForeground = true;
   bool _isRouteObserverSubscribed = false;
+  VideoValidationResult? _validationIssue;
 
   static const Color _pink = Color(0xFFDE106B);
 
@@ -33,7 +35,109 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _validateSelectedVideo();
     _initVideo();
+  }
+
+  Future<void> _validateSelectedVideo() async {
+    final issue = await VideoUploadPolicy.validateAsset(widget.asset);
+    if (!mounted) return;
+    setState(() => _validationIssue = issue);
+  }
+
+  Future<void> _showFixPrompt() async {
+    final issue = _validationIssue;
+    if (issue == null || !mounted) return;
+    final canEdit = issue.canOpenEditorFix;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1E0A1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Video needs adjustment',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                issue.message,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.85), height: 1.35),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _fixHintForIssue(issue.issue),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.68), fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 18),
+              if (canEdit)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _controller?.pause();
+                    Navigator.of(context)
+                        .push(MaterialPageRoute<void>(
+                      builder: (_) => EditVideoScreen(asset: widget.asset),
+                    ))
+                        .then((_) => _controller?.play());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _pink,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                  child: const Text('Open editor to fix'),
+                ),
+              if (canEdit) const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).pop();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                  minimumSize: const Size.fromHeight(44),
+                ),
+                child: const Text('Choose another video'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fixHintForIssue(VideoValidationIssue issue) {
+    switch (issue) {
+      case VideoValidationIssue.tooLong:
+        return 'Trim your video to 60 seconds or less.';
+      case VideoValidationIssue.invalidAspectRatio:
+        return 'Crop your video to vertical 9:16 (for example 1080x1920).';
+      case VideoValidationIssue.tooLarge:
+        return 'Export/compress to a smaller file (recommended 1080p, under 100 MB).';
+      case VideoValidationIssue.tooShort:
+        return 'Choose a clip at least 3 seconds long.';
+      case VideoValidationIssue.unreadableDimensions:
+      case VideoValidationIssue.inaccessibleFile:
+        return 'Please pick another video from gallery.';
+    }
   }
 
   @override
@@ -225,6 +329,10 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
           label: 'Next',
           icon: Icons.arrow_forward_ios_rounded,
           onTap: () {
+            if (_validationIssue != null) {
+              _showFixPrompt();
+              return;
+            }
             _controller?.pause();
             Navigator.of(context).push(
               MaterialPageRoute<void>(

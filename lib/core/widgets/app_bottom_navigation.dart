@@ -10,6 +10,7 @@ class _NavAssets {
   static const addUnselected = '$_base/create.png';
   static const settingsSelected = '$_base/notification_filled.png';
   static const settingsUnselected = '$_base/notifications.png';
+  static const profileDefault = 'assets/vyooO_icons/Home/profile_icon.png';
 }
 
 /// Custom bottom nav wrapper matching the VyooO design language.
@@ -52,25 +53,31 @@ class AppBottomNavigation extends StatelessWidget {
     final hasProfileImage =
         profileImageUrl != null && profileImageUrl!.trim().isNotEmpty;
     return Container(
-      width: _iconSize + 8,
-      height: _iconSize + 8,
+      width: _iconSize,
+      height: _iconSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: isSelected ? Border.all(color: Colors.white, width: 1.4) : null,
+        border: isSelected ? Border.all(color: Colors.white, width: 1.2) : null,
       ),
       child: ClipOval(
         child: hasProfileImage
             ? Image.network(
                 profileImageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) => _buildIcon(
-                  _NavAssets.homeUnselected,
-                  Icons.person_rounded,
-                  isSelected,
+                errorBuilder: (_, error, stackTrace) => Image.asset(
+                  _NavAssets.profileDefault,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildIcon(
+                    _NavAssets.homeUnselected,
+                    Icons.person_rounded,
+                    isSelected,
+                  ),
                 ),
               )
-            : Center(
-                child: _buildIcon(
+            : Image.asset(
+                _NavAssets.profileDefault,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildIcon(
                   _NavAssets.homeUnselected,
                   Icons.person_rounded,
                   isSelected,

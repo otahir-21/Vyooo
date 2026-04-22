@@ -1577,23 +1577,28 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     return DraggableScrollableSheet(
       initialChildSize: 0.88,
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (context, scrollCtrl) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1A0020), Color(0xFF0D000F), Color(0xFF1A0020)],
-              stops: [0.0, 0.5, 1.0],
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboardInset),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1A0020), Color(0xFF0D000F), Color(0xFF1A0020)],
+                stops: [0.0, 0.5, 1.0],
+              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
+            child: Column(
+              children: [
               // Handle bar
               const SizedBox(height: 12),
               Container(
@@ -1645,11 +1650,13 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                 ),
               ),
               // Form
-              Expanded(
-                child: ListView(
-                  controller: scrollCtrl,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  children: [
+                Expanded(
+                  child: ListView(
+                    controller: scrollCtrl,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
                     _buildField(
                       'Title',
                       _titleCtrl,
@@ -1683,10 +1690,11 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                       _buildPricingSlider(),
                     ],
                     const SizedBox(height: 32),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/storage_service.dart';
@@ -101,15 +102,52 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
     if (source == null || !mounted) return;
     setState(() => _isPicking = true);
     try {
-      final path = source == 'camera'
+      final pickedPath = source == 'camera'
           ? await _imageService.pickFromCamera()
           : await _imageService.pickFromGallery();
-      if (mounted && path != null) {
-        _state.profileImagePath = path;
+      if (!mounted || pickedPath == null) return;
+      final croppedPath = await _cropProfileImage(pickedPath);
+      if (mounted && croppedPath != null) {
+        _state.profileImagePath = croppedPath;
         setState(() {});
       }
     } finally {
       if (mounted) setState(() => _isPicking = false);
+    }
+  }
+
+  Future<String?> _cropProfileImage(String sourcePath) async {
+    try {
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: sourcePath,
+        compressFormat: ImageCompressFormat.jpg,
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop profile photo',
+            toolbarColor: AppColors.brandPurple,
+            toolbarWidgetColor: Colors.white,
+            backgroundColor: Colors.black,
+            activeControlsWidgetColor: AppColors.brandPink,
+            lockAspectRatio: true,
+            initAspectRatio: CropAspectRatioPreset.square,
+            aspectRatioPresets: const [CropAspectRatioPreset.square],
+            cropStyle: CropStyle.circle,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop profile photo',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+            aspectRatioPickerButtonHidden: true,
+            cropStyle: CropStyle.circle,
+          ),
+        ],
+      );
+      return cropped?.path;
+    } catch (error) {
+      debugPrint('Profile crop failed: $error');
+      return sourcePath;
     }
   }
 
@@ -221,7 +259,7 @@ class _AddProfileScreenState extends State<AddProfileScreen> {
         child: Image.asset(
           'assets/BrandLogo/Vyooo logo (2).png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (context, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
