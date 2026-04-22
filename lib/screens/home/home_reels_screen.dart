@@ -1008,10 +1008,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                   child: CircleAvatar(
                     radius: 20,
                     backgroundColor: Colors.grey[900],
-                    backgroundImage: (reel['avatarUrl'] as String).isNotEmpty
-                        ? NetworkImage(reel['avatarUrl'] as String)
+                    backgroundImage: _isValidNetworkUrl(
+                            reel['avatarUrl'] as String?)
+                        ? NetworkImage((reel['avatarUrl'] as String).trim())
                         : null,
-                    child: (reel['avatarUrl'] as String).isEmpty
+                    child: !_isValidNetworkUrl(reel['avatarUrl'] as String?)
                         ? const Icon(Icons.person, color: Colors.white, size: 20)
                         : null,
                   ),
@@ -1090,6 +1091,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       return '${(count / 1000).toStringAsFixed(1)}K';
     }
     return count.toString();
+  }
+
+  bool _isValidNetworkUrl(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return false;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return false;
+    return uri.scheme == 'http' || uri.scheme == 'https';
   }
 
   void _openReelAuthorProfile(Map<String, dynamic> reel) {

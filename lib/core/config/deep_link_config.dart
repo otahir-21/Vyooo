@@ -19,4 +19,16 @@ class DeepLinkConfig {
       pathSegments: [reelId],
     );
   }
+
+  static Uri profileWebUri(String profileRef) {
+    return Uri.https(webHost, '/', {'profile': profileRef});
+  }
+
+  static Uri profileAppUri(String profileRef) {
+    return Uri(
+      scheme: customScheme,
+      host: 'profile',
+      pathSegments: [profileRef],
+    );
+  }
 }
