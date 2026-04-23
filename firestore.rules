@@ -24,7 +24,11 @@ service cloud.firestore {
         'following',
         'blockedUsers',
         'followersCount',
-        'emailOtpVerified'
+        'emailOtpVerified',
+        'isVerified',
+        'verificationStatus',
+        'accountType',
+        'vipVerified'
       ]) &&
       request.resource.data.uid == userId &&
       request.resource.data.email is string &&
@@ -42,7 +46,15 @@ service cloud.firestore {
       request.resource.data.blockedUsers is list &&
       request.resource.data.followersCount is int &&
       (!('emailOtpVerified' in request.resource.data) ||
-        request.resource.data.emailOtpVerified is bool);
+        request.resource.data.emailOtpVerified is bool) &&
+      (!('isVerified' in request.resource.data) ||
+        request.resource.data.isVerified is bool) &&
+      (!('verificationStatus' in request.resource.data) ||
+        request.resource.data.verificationStatus is string) &&
+      (!('accountType' in request.resource.data) ||
+        request.resource.data.accountType is string) &&
+      (!('vipVerified' in request.resource.data) ||
+        request.resource.data.vipVerified is bool);
     }
 
     // Clients cannot set or flip emailOtpVerified; only Cloud Functions (Admin SDK) may.
@@ -120,6 +132,15 @@ service cloud.firestore {
       allow read, delete: if isSignedIn()
                           && resource.data.userId == request.auth.uid;
       allow update: if false;
+    }
+
+    // User verification requests (manual CRM/admin review workflow).
+    match /verification_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.uid == request.auth.uid;
+      allow read, delete: if isSignedIn()
+                          && resource.data.uid == request.auth.uid;
+      allow update: if false; // only admin/CRM should update status
     }
 
     // Email OTP (Firestore-triggered Cloud Functions; same pattern as token_requests).

@@ -14,6 +14,8 @@ class StorageService {
   final UserService _userService = UserService();
 
   static String _profilePath(String uid) => 'users/$uid/profile.jpg';
+  static String _verificationPdfPath(String uid, String requestRef) =>
+      'users/$uid/verification_requests/$requestRef.pdf';
 
   /// Uploads profile image to users/{uid}/profile.jpg, returns download URL.
   /// After upload, updates Firestore user document with [UserService.updateUserProfile(profileImage: downloadURL)].
@@ -43,5 +45,21 @@ class StorageService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Uploads verification PDF and returns public download URL.
+  Future<String> uploadVerificationPdf({
+    required File pdfFile,
+    required String uid,
+    required String requestRef,
+  }) async {
+    final ref = FirebaseStorage.instance.ref().child(
+      _verificationPdfPath(uid, requestRef),
+    );
+    await ref.putFile(
+      pdfFile,
+      SettableMetadata(contentType: 'application/pdf'),
+    );
+    return await ref.getDownloadURL();
   }
 }

@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/services/reels_service.dart';
@@ -26,14 +27,31 @@ class UploadDetailsScreen extends StatefulWidget {
 
 class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   static const Color _pink = Color(0xFFDE106B);
+  static const int _maxTags = 6;
+  static const List<String> _categories = <String>[
+    'Entertainment',
+    'Education',
+    'Travel',
+    'Sports',
+    'Music',
+    'Comedy',
+    'Fashion',
+    'Food',
+    'Technology',
+    'Other',
+  ];
 
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
   final _tagsController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
 
   final bool _isVR = false;
   bool _isUploading = false;
   double _uploadProgress = 0;
+  String? _selectedCategory;
+  final List<String> _selectedTags = <String>[];
+  File? _customThumbnailFile;
   bool get _isVideoAsset => widget.asset.type == AssetType.video;
 
   @override
@@ -96,18 +114,30 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
       // 4 — build caption from title + tags
       final tags = _tagsController.text.trim();
-      final caption = tags.isNotEmpty ? '$title\n$tags' : title;
+      if (tags.isNotEmpty) {
+        _addTag(tags);
+      }
+      final tagsLine = _selectedTags.isEmpty ? '' : _selectedTags.map((t) => '#$t').join(' ');
+      final caption = tagsLine.isNotEmpty ? '$title\n$tagsLine' : title;
+
+      var thumbnailUrl = _isVideoAsset ? '' : mediaUrl;
+      if (_isVideoAsset && _customThumbnailFile != null) {
+        thumbnailUrl = await _uploadCustomThumbnail(_customThumbnailFile!);
+      }
 
       // 5 — save reel doc to Firestore
       final reelRef = await FirebaseFirestore.instance.collection('reels').add({
         'mediaType': _isVideoAsset ? 'video' : 'image',
         'videoUrl': _isVideoAsset ? mediaUrl : '',
         'imageUrl': _isVideoAsset ? '' : mediaUrl,
-        'thumbnailUrl': _isVideoAsset ? '' : mediaUrl,
+        'thumbnailUrl': thumbnailUrl,
         'username': username,
         'handle': handle,
         'caption': caption,
         'description': _descController.text.trim(),
+        'title': title,
+        'category': _selectedCategory ?? '',
+        'tags': _selectedTags,
         'likes': 0,
         'comments': 0,
         'saves': 0,
@@ -213,6 +243,16 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     );
     await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
     if (mounted) setState(() => _uploadProgress = 1);
+    return ref.getDownloadURL();
+  }
+
+  Future<String> _uploadCustomThumbnail(File file) async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final ext = _extFromPath(file.path);
+    final ref = FirebaseStorage.instance.ref().child(
+      'users/$uid/uploads/thumbnails/${DateTime.now().millisecondsSinceEpoch}.$ext',
+    );
+    await ref.putFile(file, SettableMetadata(contentType: 'image/jpeg'));
     return ref.getDownloadURL();
   }
 
@@ -407,24 +447,148 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildThumbnail() {
     return Center(
-      child: Container(
-        width: 140,
-        height: 190,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: FutureBuilder<File?>(
-          future: widget.asset.file,
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data != null) {
-              return Image.file(snapshot.data!, fit: BoxFit.cover);
-            }
-            return const Center(child: CircularProgressIndicator(color: Colors.white24));
-          },
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _isUploading ? null : _pickCustomThumbnail,
+            child: Container(
+              width: 140,
+              height: 190,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: FutureBuilder<File?>(
+                future: widget.asset.file,
+                builder: (context, snapshot) {
+                  if (_customThumbnailFile != null) {
+                    return Image.file(_customThumbnailFile!, fit: BoxFit.cover);
+                  }
+                  if (_isVideoAsset) {
+                    return FutureBuilder<Uint8List?>(
+                      future: widget.asset.thumbnailDataWithSize(
+                        const ThumbnailSize(400, 700),
+                      ),
+                      builder: (context, thumbSnap) {
+                        final bytes = thumbSnap.data;
+                        if (bytes != null && bytes.isNotEmpty) {
+                          return Image.memory(bytes, fit: BoxFit.cover);
+                        }
+                        return Container(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          child: const Center(
+                            child: Icon(
+                              Icons.play_circle_fill_rounded,
+                              color: Colors.white70,
+                              size: 44,
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Image.file(snapshot.data!, fit: BoxFit.cover);
+                  }
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white24),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: _isUploading ? null : _pickCustomThumbnail,
+            child: Text(
+              _customThumbnailFile == null ? 'Upload thumbnail image' : 'Change thumbnail image',
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickCustomThumbnail() async {
+    final file = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+      maxWidth: 1280,
+    );
+    if (!mounted || file == null) return;
+    setState(() => _customThumbnailFile = File(file.path));
+  }
+
+  Future<void> _showCategoryPickerSheet() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1A0020),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: _categories
+              .map(
+                (category) => ListTile(
+                  title: Text(
+                    category,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  trailing: _selectedCategory == category
+                      ? const Icon(Icons.check_rounded, color: _pink)
+                      : null,
+                  onTap: () => Navigator.of(ctx).pop(category),
+                ),
+              )
+              .toList(),
         ),
       ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _selectedCategory = picked);
+  }
+
+  void _addTag(String rawTag) {
+    final normalized = rawTag
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9_ ]'), '')
+        .replaceAll(RegExp(r'\s+'), '_');
+    if (normalized.isEmpty) return;
+    if (_selectedTags.contains(normalized)) return;
+    if (_selectedTags.length >= _maxTags) return;
+    setState(() => _selectedTags.add(normalized));
+    _tagsController.clear();
+  }
+
+  void _removeTag(String tag) {
+    setState(() => _selectedTags.remove(tag));
+  }
+
+  Widget _buildTagChips() {
+    if (_selectedTags.isEmpty) {
+      return Text(
+        'No tags added yet.',
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+      );
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _selectedTags
+          .map(
+            (tag) => Chip(
+              label: Text('#$tag', style: const TextStyle(color: Colors.white)),
+              backgroundColor: Colors.white.withValues(alpha: 0.12),
+              deleteIconColor: Colors.white70,
+              onDeleted: () => _removeTag(tag),
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -437,21 +601,29 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              Text(
-                'Select your category',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 13),
-              ),
-              const Spacer(),
-              Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
-            ],
+        GestureDetector(
+          onTap: _showCategoryPickerSheet,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _selectedCategory ?? 'Select your category',
+                  style: TextStyle(
+                    color: _selectedCategory == null
+                        ? Colors.white.withValues(alpha: 0.4)
+                        : Colors.white,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),
@@ -475,7 +647,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
             ),
             Text(
-              '0/6',
+              '${_selectedTags.length}/$_maxTags',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
             ),
           ],
@@ -492,21 +664,35 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               Expanded(
                 child: TextField(
                   controller: _tagsController,
+                  onSubmitted: _addTag,
+                  textAlignVertical: TextAlignVertical.center,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Enter your own tags',
                     hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
                   ),
                 ),
               ),
-              Text(
-                'Add',
-                style: TextStyle(color: _pink.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w600),
+              GestureDetector(
+                onTap: () => _addTag(_tagsController.text),
+                child: Text(
+                  'Add',
+                  style: TextStyle(color: _pink.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        _buildTagChips(),
         const SizedBox(height: 12),
         Text(
           'Tags are visible by others and are used to make you discoverable on vyoo.',
@@ -534,7 +720,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
             ),
             Text(
-              '0/$maxLength',
+              '${controller.text.length}/$maxLength',
               style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
             ),
           ],
@@ -543,8 +729,11 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         TextField(
           controller: controller,
           maxLines: maxLines,
+          maxLength: maxLength,
+          onChanged: (_) => setState(() {}),
           style: const TextStyle(color: Colors.white, fontSize: 13),
           decoration: InputDecoration(
+            counterText: '',
             hintText: hint,
             hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
             enabledBorder: UnderlineInputBorder(

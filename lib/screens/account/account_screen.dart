@@ -8,6 +8,7 @@ import 'blocked_users_screen.dart';
 import 'change_password_screen.dart';
 import 'delete_account_screen.dart';
 import 'two_factor_screen.dart';
+import 'verification_request_screen.dart';
 
 /// Account screen: Current Plan, Login & Security, Delete Account.
 class AccountScreen extends StatelessWidget {
@@ -70,6 +71,17 @@ class AccountScreen extends StatelessWidget {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => const TwoFactorScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _divider(),
+                          _AccountRow(
+                            label: 'Request verification',
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const VerificationRequestScreen(),
                                 ),
                               );
                             },

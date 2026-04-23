@@ -15,6 +15,7 @@ import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/verification_badge.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
 import '../../core/models/live_stream_model.dart';
@@ -24,6 +25,16 @@ import '../music/music_library_screen.dart';
 import 'edit_profile_screen.dart';
 import 'followers_following_screen.dart';
 import '../settings/settings_screen.dart';
+
+// Profile palette tuned to match the provided UI reference.
+const Color _profileBgTop = Color(0xFF090313);
+const Color _profileBgMid = Color(0xFF14051F);
+const Color _profileBgGlow = Color(0xFFA01262);
+const Color _profileBgBottom = Color(0xFF0B0612);
+const Color _profileChipSurface = Color(0xFF2A1632);
+const Color _profileSurface = Color(0xFF15091D);
+const Color _profileAccentStart = Color(0xFFDE106B);
+const Color _profileAccentEnd = Color(0xFFF81945);
 
 /// Own profile tab: header, stats, Edit Profile/Share, Posts/VR/Streams, empty or Become Member.
 class ProfileScreen extends StatefulWidget {
@@ -434,58 +445,86 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF14001F), Color(0xFF1A0022), Color(0xFF2A002E)],
-          ),
-        ),
-        child: SafeArea(
-          child: uid == null
-              ? _buildFallbackProfile(context)
-              : StreamBuilder<AppUserModel?>(
-                  stream: UserService().userStream(uid),
-                  builder: (context, userSnap) {
-                    final user = userSnap.data;
-                    if (userSnap.connectionState == ConnectionState.waiting &&
-                        user == null) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white70,
-                          ),
-                        ),
-                      );
-                    }
-                    return StreamBuilder<int>(
-                      stream: UserService().followerCountStream(uid),
-                      builder: (context, followerSnap) {
-                        final fc = followerSnap.data ?? 0;
-                        return StreamBuilder<int>(
-                          stream: UserService().reelCountStream(uid),
-                          builder: (context, postSnap) {
-                            final pc = postSnap.data ?? 0;
-                            final following = user?.following.length ?? 0;
-                            return _buildProfileBody(
-                              context,
-                              user: user,
-                              profileUid: uid,
-                              canUploadContent: canUploadContent,
-                              followerCount: fc,
-                              followingCount: following,
-                              postCount: pc,
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    _profileBgTop,
+                    _profileBgMid,
+                    _profileBgBottom,
+                  ],
+                  stops: [0.0, 0.58, 1.0],
                 ),
-        ),
+              ),
+            ),
+          ),
+          // Center-right magenta glow like the reference screenshot.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0.62, 0.1),
+                    radius: 0.85,
+                    colors: [
+                      _profileBgGlow.withValues(alpha: 0.78),
+                      _profileBgGlow.withValues(alpha: 0.28),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.52, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: uid == null
+                ? _buildFallbackProfile(context)
+                : StreamBuilder<AppUserModel?>(
+                    stream: UserService().userStream(uid),
+                    builder: (context, userSnap) {
+                      final user = userSnap.data;
+                      if (userSnap.connectionState == ConnectionState.waiting &&
+                          user == null) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white70,
+                            ),
+                          ),
+                        );
+                      }
+                      return StreamBuilder<int>(
+                        stream: UserService().followerCountStream(uid),
+                        builder: (context, followerSnap) {
+                          final fc = followerSnap.data ?? 0;
+                          return StreamBuilder<int>(
+                            stream: UserService().reelCountStream(uid),
+                            builder: (context, postSnap) {
+                              final pc = postSnap.data ?? 0;
+                              final following = user?.following.length ?? 0;
+                              return _buildProfileBody(
+                                context,
+                                user: user,
+                                profileUid: uid,
+                                canUploadContent: canUploadContent,
+                                followerCount: fc,
+                                followingCount: following,
+                                postCount: pc,
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -520,6 +559,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         ? user!.displayName!
         : (user?.username?.isNotEmpty == true ? user!.username! : 'Name +');
     final avatarUrl = user?.profileImage;
+    final isVerified = user?.isVerified ?? false;
+    final badgeColor = verificationBadgeColor(
+      isVerified: isVerified,
+      accountType: user?.accountType ?? 'personal',
+      vipVerified: user?.vipVerified ?? false,
+    );
 
     return CustomScrollView(
       slivers: [
@@ -565,8 +610,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      width: 1,
+                      color: _profileAccentStart,
+                      width: 2,
                     ),
                   ),
                   child: CircleAvatar(
@@ -585,13 +630,26 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (isVerified) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        size: 18,
+                        color: badgeColor,
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 Row(
@@ -679,7 +737,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           hasScrollBody: true,
           child: Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF120015),
+              color: _profileSurface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
@@ -1142,8 +1200,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                     colors: [
-                                      Color(0xFFDE106B),
-                                      Color(0xFFF81945),
+                                      _profileAccentStart,
+                                      _profileAccentEnd,
                                     ],
                                   )
                                 : null,
@@ -1187,7 +1245,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ? Icons.star_rounded
                       : Icons.star_border_rounded,
                   color: _selectedTabIndex == _savedTabIndex
-                      ? const Color(0xFFF81945)
+                      ? _profileAccentEnd
                       : Colors.white.withValues(alpha: 0.8),
                   size: 20,
                 ),
@@ -1779,8 +1837,11 @@ class _StatChip extends StatelessWidget {
           width: 80,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: Colors.white.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.1),
+            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1832,10 +1893,10 @@ class _OutlineButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: _profileChipSurface,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withValues(alpha: 0.12),
               width: 1.2,
             ),
           ),
@@ -1879,12 +1940,34 @@ class _ProfileReelFeedScreen extends StatefulWidget {
 class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
   late final PageController _pageController;
   late int _currentIndex;
+  late final List<Map<String, dynamic>> _seedReels;
+  final List<Map<String, dynamic>> _loopedReels = <Map<String, dynamic>>[];
 
   @override
   void initState() {
     super.initState();
+    _seedReels = widget.reels.map((r) => Map<String, dynamic>.from(r)).toList();
+    _loopedReels.addAll(_seedReels);
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  void _appendRandomBatch() {
+    if (_seedReels.isEmpty) return;
+    final batch = _seedReels.map((r) => Map<String, dynamic>.from(r)).toList()
+      ..shuffle();
+    if (_loopedReels.isNotEmpty && batch.length > 1) {
+      final lastId = _loopedReels.last['id'];
+      if (batch.first['id'] == lastId) {
+        final swapIndex = batch.indexWhere((item) => item['id'] != lastId);
+        if (swapIndex > 0) {
+          final tmp = batch[0];
+          batch[0] = batch[swapIndex];
+          batch[swapIndex] = tmp;
+        }
+      }
+    }
+    _loopedReels.addAll(batch);
   }
 
   @override
@@ -1902,10 +1985,19 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
           PageView.builder(
             controller: _pageController,
             scrollDirection: Axis.vertical,
-            onPageChanged: (i) => setState(() => _currentIndex = i),
-            itemCount: widget.reels.length,
+            onPageChanged: (i) {
+              if (i >= _loopedReels.length - 2) {
+                setState(() {
+                  _appendRandomBatch();
+                  _currentIndex = i;
+                });
+                return;
+              }
+              setState(() => _currentIndex = i);
+            },
+            itemCount: _loopedReels.length,
             itemBuilder: (context, index) {
-              final videoUrl = widget.reels[index]['videoUrl'] as String;
+              final videoUrl = _loopedReels[index]['videoUrl'] as String;
               return ReelItemWidget(
                 videoUrl: videoUrl,
                 isVisible: index == _currentIndex,

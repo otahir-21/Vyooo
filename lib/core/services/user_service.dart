@@ -10,6 +10,9 @@ class UserDiscoveryItem {
     required this.avatarUrl,
     required this.isFollowing,
     required this.followerCount,
+    required this.isVerified,
+    required this.accountType,
+    required this.vipVerified,
   });
 
   final String uid;
@@ -18,6 +21,9 @@ class UserDiscoveryItem {
   final String avatarUrl;
   final bool isFollowing;
   final int followerCount;
+  final bool isVerified;
+  final String accountType;
+  final bool vipVerified;
 }
 
 /// Firestore user document operations. No UI, no BuildContext.
@@ -47,6 +53,10 @@ class UserService {
         'interests': [],
         'onboardingCompleted': false,
         'emailOtpVerified': emailOtpVerified,
+        'isVerified': false,
+        'verificationStatus': 'none',
+        'accountType': 'personal',
+        'vipVerified': false,
         'createdAt': FieldValue.serverTimestamp(),
         'following': <String>[],
         'blockedUsers': <String>[],
@@ -95,6 +105,8 @@ class UserService {
     String? profileImage,
     List<String>? interests,
     bool? onboardingCompleted,
+    String? accountType,
+    bool? vipVerified,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -109,6 +121,10 @@ class UserService {
       if (profileImage != null) data['profileImage'] = profileImage;
       if (interests != null) data['interests'] = interests;
       if (onboardingCompleted != null) data['onboardingCompleted'] = onboardingCompleted;
+      if (accountType != null && accountType.trim().isNotEmpty) {
+        data['accountType'] = accountType.trim().toLowerCase();
+      }
+      if (vipVerified != null) data['vipVerified'] = vipVerified;
       if (data.isEmpty) return;
       await _firestore.collection(_usersCollection).doc(uid).set(
             data,
@@ -462,6 +478,9 @@ class UserService {
           avatarUrl: (u.profileImage ?? '').trim(),
           isFollowing: following.contains(uid),
           followerCount: u.followersCount,
+          isVerified: u.isVerified,
+          accountType: u.accountType,
+          vipVerified: u.vipVerified,
         ),
       );
     }

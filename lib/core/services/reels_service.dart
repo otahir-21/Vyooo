@@ -26,7 +26,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
+          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
@@ -58,7 +58,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
+          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
@@ -79,7 +79,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
+          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
@@ -100,7 +100,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => !_isReelBlocked(r) && _isPlayableReel(r))
+          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
@@ -121,10 +121,37 @@ class ReelsService {
       final data = doc.data();
       if (data == null) return null;
       final reel = _snapshotDataToReelMap(doc.id, data);
-      if (_isReelBlocked(reel) || !_isPlayableReel(reel)) return null;
+      if (!_isReelApproved(reel) || !_isPlayableReel(reel)) return null;
       return reel;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Admin helper: reels that require manual moderation review.
+  ///
+  /// Returns newest first and does not apply feed visibility filters.
+  Future<List<Map<String, dynamic>>> getReelsNeedingReview({int limit = 50}) async {
+    try {
+      final q = await _firestore
+          .collection(_reelsCollection)
+          .where('moderation.status', isEqualTo: 'review')
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+      return q.docs.map((d) => _docToReelMap(d)).toList();
+    } catch (_) {
+      // Fallback for projects without composite index on moderation.status + createdAt.
+      try {
+        final q = await _firestore
+            .collection(_reelsCollection)
+            .where('moderation.status', isEqualTo: 'review')
+            .limit(limit)
+            .get();
+        return q.docs.map((d) => _docToReelMap(d)).toList();
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -178,16 +205,20 @@ class ReelsService {
     return added;
   }
 
-  static bool _isReelBlocked(Map<String, dynamic> data) {
+  static bool _isReelApproved(Map<String, dynamic> data) {
     final m = data['moderation'];
     if (m is Map<String, dynamic>) {
       final s = (m['status'] as String?)?.toLowerCase() ?? '';
-      return s == 'blocked';
+      // Feed-safe default: only show content explicitly cleared by moderation.
+      // Pending/review/blocked/error and empty statuses stay hidden from user feeds.
+      if (s.isEmpty) return false;
+      return s == 'clear' || s == 'approved';
     }
     if (m is Map) {
       final raw = m['status'];
       final s = raw == null ? '' : raw.toString().toLowerCase();
-      return s == 'blocked';
+      if (s.isEmpty) return false;
+      return s == 'clear' || s == 'approved';
     }
     return false;
   }

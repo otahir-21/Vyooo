@@ -23,10 +23,15 @@ class SubscriptionController extends ChangeNotifier {
   final SubscriptionService _service = SubscriptionService();
 
   static const String _keyDebugTier = 'debug_subscription_tier';
+  static const String _keyCachedTierPrefix = 'cached_subscription_tier_';
+  static const String _keyCachedPaidPrefix = 'cached_subscription_paid_';
+  static const String _keyCachedSyncedAtPrefix = 'cached_subscription_synced_at_';
 
   MembershipTier currentTier = MembershipTier.none;
   MembershipTier? _testTierOverride;
   bool _hasAnyStoreSubscription = false;
+  bool _hasResolvedStatusOnce = false;
+  String? _activeFirebaseUid;
   bool isLoading = false;
   String? purchaseError; // non-null if last purchase failed (not cancelled)
 
@@ -68,6 +73,44 @@ class SubscriptionController extends ChangeNotifier {
     return null;
   }
 
+  Future<void> _loadCachedStatusForUid(String uid) async {
+    if (uid.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final tierName = prefs.getString('$_keyCachedTierPrefix$uid');
+    final cachedPaid = prefs.getBool('$_keyCachedPaidPrefix$uid');
+    final syncedAtMs = prefs.getInt('$_keyCachedSyncedAtPrefix$uid');
+    final tier = tierName == null ? null : _tierFromString(tierName);
+    if (tier == null && cachedPaid == null) return;
+    currentTier = tier ?? MembershipTier.none;
+    _hasAnyStoreSubscription = cachedPaid ?? (currentTier != MembershipTier.none);
+    _hasResolvedStatusOnce = true;
+    if (kDebugMode && syncedAtMs != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final diffMs = (now - syncedAtMs).clamp(0, 1 << 31);
+      final mins = diffMs ~/ 60000;
+      debugPrint(
+        'Subscription cache hit for $uid: tier=${currentTier.name}, paid=$_hasAnyStoreSubscription, last synced ${mins}m ago',
+      );
+    }
+  }
+
+  Future<void> _persistCurrentStatusForActiveUid() async {
+    final uid = _activeFirebaseUid;
+    if (uid == null || uid.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_keyCachedTierPrefix$uid', currentTier.name);
+    await prefs.setBool('$_keyCachedPaidPrefix$uid', _hasAnyStoreSubscription);
+    await prefs.setInt(
+      '$_keyCachedSyncedAtPrefix$uid',
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    if (kDebugMode) {
+      debugPrint(
+        'Subscription cache updated for $uid: tier=${currentTier.name}, paid=$_hasAnyStoreSubscription',
+      );
+    }
+  }
+
   Future<void> init(String publicKey) async {
     final ok = await _service.init(publicKey);
     if (!ok) {
@@ -93,12 +136,18 @@ class SubscriptionController extends ChangeNotifier {
     }
     final info = await _service.getCustomerInfoSafe();
     if (info == null) {
-      currentTier = MembershipTier.none;
-      _hasAnyStoreSubscription = false;
+      // Do not downgrade on transient SDK/network failures after we already
+      // resolved a real status once in this session.
+      if (!_hasResolvedStatusOnce) {
+        currentTier = MembershipTier.none;
+        _hasAnyStoreSubscription = false;
+      }
     } else {
       currentTier = _service.getTier(info);
       _hasAnyStoreSubscription =
           info.entitlements.active.isNotEmpty || info.activeSubscriptions.isNotEmpty;
+      _hasResolvedStatusOnce = true;
+      await _persistCurrentStatusForActiveUid();
     }
     notifyListeners();
   }
@@ -121,6 +170,18 @@ class SubscriptionController extends ChangeNotifier {
 
   /// After Firebase Auth sign-in / sign-out, keep RevenueCat `appUserID` aligned.
   Future<void> syncPurchasesIdentity(String? firebaseUid) async {
+    // On account changes, show last known status immediately for this user.
+    if (firebaseUid != _activeFirebaseUid) {
+      _activeFirebaseUid = firebaseUid;
+      if (firebaseUid == null || firebaseUid.isEmpty) {
+        currentTier = MembershipTier.none;
+        _hasAnyStoreSubscription = false;
+        _hasResolvedStatusOnce = false;
+      } else {
+        await _loadCachedStatusForUid(firebaseUid);
+      }
+      notifyListeners();
+    }
     await _service.syncFirebaseUser(firebaseUid);
     await refreshStatus();
   }

@@ -70,6 +70,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   @override
   bool get wantKeepAlive => true;
   final PageController _pageController = PageController();
+  final Map<HomeTab, List<List<int>>> _tabCycleOrders = {};
   final ReelsController _reelsController = ReelsController();
   final ReelsService _reelsService = ReelsService();
 
@@ -231,6 +232,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _myStories = myStories;
         _myAvatarUrl = avatarUrl;
         _followingIds = followingIds;
+        _tabCycleOrders.clear();
         _likedReels
           ..clear()
           ..addEntries(likedIds.map((id) => MapEntry(id, true)));
@@ -325,11 +327,50 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
   }
 
+  int _feedIndexForPage(int pageIndex, int reelCount) {
+    if (reelCount <= 0) return 0;
+    final cycle = pageIndex ~/ reelCount;
+    final position = pageIndex % reelCount;
+    final order = _cycleOrderForTab(currentTab, reelCount, cycle);
+    return order[position];
+  }
+
+  List<int> _cycleOrderForTab(HomeTab tab, int reelCount, int cycle) {
+    final cycles = _tabCycleOrders.putIfAbsent(tab, () => <List<int>>[]);
+    while (cycles.length <= cycle) {
+      if (cycles.isEmpty) {
+        cycles.add(List<int>.generate(reelCount, (i) => i));
+        continue;
+      }
+      final shuffled = List<int>.generate(reelCount, (i) => i)..shuffle();
+      if (reelCount > 1) {
+        final previousLast = cycles.last.last;
+        if (shuffled.first == previousLast) {
+          final swapIndex = shuffled.indexWhere((value) => value != previousLast);
+          if (swapIndex > 0) {
+            final tmp = shuffled[0];
+            shuffled[0] = shuffled[swapIndex];
+            shuffled[swapIndex] = tmp;
+          }
+        }
+      }
+      cycles.add(shuffled);
+    }
+    return cycles[cycle];
+  }
+
+  Map<String, dynamic>? _currentFeedReel() {
+    final reels = _currentReels;
+    if (reels.isEmpty) return null;
+    return reels[_feedIndexForPage(_currentIndex, reels.length)];
+  }
+
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
-    if (index < _currentReels.length) {
+    if (_currentReels.isNotEmpty) {
+      final feedIndex = _feedIndexForPage(index, _currentReels.length);
       _reelsController.incrementView(
-        reelId: _currentReels[index]['id'] as String,
+        reelId: _currentReels[feedIndex]['id'] as String,
       );
     }
   }
@@ -372,9 +413,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onShare(String reelId) {
-    final reel = _currentIndex < _currentReels.length
-        ? _currentReels[_currentIndex]
-        : null;
+    final reel = _currentReels.isEmpty
+        ? null
+        : _currentReels[_feedIndexForPage(_currentIndex, _currentReels.length)];
     showShareBottomSheet(
       context,
       reelId: reelId,
@@ -464,9 +505,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     if (tab == HomeTab.vr) {
       final hasVrAccess = context.read<SubscriptionController>().hasVRAccess;
       if (!hasVrAccess) {
-        final bg = _currentIndex < _currentReels.length
-            ? (_currentReels[_currentIndex]['thumbnailUrl'] as String?)
-            : null;
+        final bg = _currentFeedReel()?['thumbnailUrl'] as String?;
         showVrLockedOverlaySheet(context, backgroundImageUrl: bg);
         return;
       }
@@ -680,9 +719,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       controller: _pageController,
       scrollDirection: Axis.vertical,
       onPageChanged: _onPageChanged,
-      itemCount: reels.length,
+      // Keep feed infinite; replay content in randomized cycles.
       itemBuilder: (context, index) {
-        final reel = reels[index];
+        final feedIndex = _feedIndexForPage(index, reels.length);
+        final reel = reels[feedIndex];
         final mediaType =
             ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
         if (mediaType == 'image') {
@@ -839,8 +879,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildInteractionButtons() {
-    if (_currentIndex >= _currentReels.length) return const SizedBox.shrink();
-    final reel = _currentReels[_currentIndex];
+    final reel = _currentFeedReel();
+    if (reel == null) return const SizedBox.shrink();
     final reelId = reel['id'] as String;
     final isLiked = _likedReels[reelId] ?? false;
     final isSaved = _savedReels[reelId] ?? false;
@@ -985,8 +1025,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildBottomUserInfo() {
-    if (_currentIndex >= _currentReels.length) return const SizedBox.shrink();
-    final reel = _currentReels[_currentIndex];
+    final reel = _currentFeedReel();
+    if (reel == null) return const SizedBox.shrink();
 
     return Positioned(
       left: 16,
@@ -1116,7 +1156,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             username: normalizedUsername.isNotEmpty ? normalizedUsername : fallbackName,
             displayName: fallbackName.isNotEmpty ? fallbackName : normalizedUsername,
             avatarUrl: avatar,
-            isVerified: false,
+            isVerified: (reel['isVerified'] as bool?) ?? false,
+            accountType: (reel['accountType'] as String?) ?? 'personal',
+            vipVerified: (reel['vipVerified'] as bool?) ?? false,
             postCount: 0,
             followerCount: 0,
             followingCount: 0,

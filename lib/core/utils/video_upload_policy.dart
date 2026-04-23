@@ -27,8 +27,6 @@ class VideoUploadPolicy {
   VideoUploadPolicy._();
 
   static const Duration minDuration = Duration(seconds: 3);
-  static const Duration maxDuration = Duration(seconds: 60);
-  static const int maxBytes = 100 * 1024 * 1024; // 100 MB
   static const double minAspectRatio = 0.55; // around 9:16
   static const double maxAspectRatio = 0.60;
 
@@ -40,13 +38,6 @@ class VideoUploadPolicy {
         message: 'Video is too short. Minimum is ${minDuration.inSeconds}s.',
       );
     }
-    if (duration > maxDuration) {
-      return VideoValidationResult(
-        issue: VideoValidationIssue.tooLong,
-        message: 'Video is too long. Maximum is ${maxDuration.inSeconds}s.',
-      );
-    }
-
     final width = asset.width;
     final height = asset.height;
     if (width <= 0 || height <= 0) {
@@ -68,13 +59,6 @@ class VideoUploadPolicy {
       return const VideoValidationResult(
         issue: VideoValidationIssue.inaccessibleFile,
         message: 'Unable to access selected video file.',
-      );
-    }
-    final bytes = await file.length();
-    if (bytes > maxBytes) {
-      return const VideoValidationResult(
-        issue: VideoValidationIssue.tooLarge,
-        message: 'Video is too large. Maximum allowed size is 100 MB.',
       );
     }
     return null;

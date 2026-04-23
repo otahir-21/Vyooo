@@ -11,6 +11,8 @@ import '../../services/username_service.dart';
 import '../../services/username_validation.dart';
 import '../onboarding/select_dob_screen.dart';
 
+enum _OnboardingAccountType { personal, business, government }
+
 class CreateUsernameScreen extends StatefulWidget {
   const CreateUsernameScreen({super.key, this.usernameService});
 
@@ -472,9 +474,15 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     }
 
     final uid = AuthService().currentUser?.uid;
+    final selectedType = await _showAccountTypeDialog();
+    if (selectedType == null) return;
     if (uid != null && uid.isNotEmpty) {
       try {
-        await UserService().updateUserProfile(uid: uid, username: username);
+        await UserService().updateUserProfile(
+          uid: uid,
+          username: username,
+          accountType: selectedType.name,
+        );
       } catch (_) {
         // Still navigate so onboarding isn't blocked by network/backend errors
         if (!mounted) return;
@@ -487,6 +495,60 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const SelectDobScreen()),
+    );
+  }
+
+  Future<_OnboardingAccountType?> _showAccountTypeDialog() async {
+    _OnboardingAccountType selected = _OnboardingAccountType.personal;
+    return showDialog<_OnboardingAccountType>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A0A24),
+          title: const Text(
+            'Select account type',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _OnboardingAccountType.values.map((type) {
+              final label = switch (type) {
+                _OnboardingAccountType.personal => 'Personal account',
+                _OnboardingAccountType.business => 'Business account',
+                _OnboardingAccountType.government => 'Government account',
+              };
+              return RadioListTile<_OnboardingAccountType>(
+                value: type,
+                groupValue: selected,
+                activeColor: const Color(0xFFF81945),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setDialogState(() => selected = v);
+                },
+                title: Text(label, style: const TextStyle(color: Colors.white)),
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFF81945),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

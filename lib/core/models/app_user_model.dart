@@ -13,6 +13,10 @@ class AppUserModel {
     this.interests = const [],
     this.onboardingCompleted = false,
     this.emailOtpVerified = true,
+    this.isVerified = false,
+    this.verificationStatus = 'none',
+    this.accountType = 'personal',
+    this.vipVerified = false,
     required this.createdAt,
     this.following = const [],
     this.blockedUsers = const [],
@@ -30,6 +34,10 @@ class AppUserModel {
   final bool onboardingCompleted;
   /// False until email OTP is confirmed (email/password signups). Missing in Firestore = treated verified (legacy).
   final bool emailOtpVerified;
+  final bool isVerified;
+  final String verificationStatus;
+  final String accountType;
+  final bool vipVerified;
   final Timestamp createdAt;
   /// UIDs this user follows (stored on their Firestore user doc).
   final List<String> following;
@@ -48,6 +56,10 @@ class AppUserModel {
       'interests': interests,
       'onboardingCompleted': onboardingCompleted,
       'emailOtpVerified': emailOtpVerified,
+      'isVerified': isVerified,
+      'verificationStatus': verificationStatus,
+      'accountType': accountType,
+      'vipVerified': vipVerified,
       'createdAt': createdAt,
       'following': following,
       'blockedUsers': blockedUsers,
@@ -78,6 +90,10 @@ class AppUserModel {
       interests: interestsList,
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
       emailOtpVerified: json['emailOtpVerified'] as bool? ?? true,
+      isVerified: json['isVerified'] as bool? ?? false,
+      verificationStatus: json['verificationStatus'] as String? ?? 'none',
+      accountType: json['accountType'] as String? ?? 'personal',
+      vipVerified: json['vipVerified'] as bool? ?? false,
       createdAt: json['createdAt'] is Timestamp
           ? json['createdAt'] as Timestamp
           : Timestamp.now(),
@@ -98,6 +114,10 @@ class AppUserModel {
     List<String>? interests,
     bool? onboardingCompleted,
     bool? emailOtpVerified,
+    bool? isVerified,
+    String? verificationStatus,
+    String? accountType,
+    bool? vipVerified,
     Timestamp? createdAt,
     List<String>? following,
     List<String>? blockedUsers,
@@ -114,6 +134,10 @@ class AppUserModel {
       interests: interests ?? this.interests,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       emailOtpVerified: emailOtpVerified ?? this.emailOtpVerified,
+      isVerified: isVerified ?? this.isVerified,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      accountType: accountType ?? this.accountType,
+      vipVerified: vipVerified ?? this.vipVerified,
       createdAt: createdAt ?? this.createdAt,
       following: following ?? this.following,
       blockedUsers: blockedUsers ?? this.blockedUsers,

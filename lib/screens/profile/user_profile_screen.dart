@@ -12,6 +12,7 @@ import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
+import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
@@ -26,6 +27,8 @@ class UserProfilePayload {
     required this.displayName,
     required this.avatarUrl,
     this.isVerified = false,
+    this.accountType = 'personal',
+    this.vipVerified = false,
     this.postCount = 0,
     required this.followerCount,
     this.followingCount = 0,
@@ -42,6 +45,8 @@ class UserProfilePayload {
   final String displayName;
   final String avatarUrl;
   final bool isVerified;
+  final String accountType;
+  final bool vipVerified;
   final int postCount;
   final int followerCount;
   final int followingCount;
@@ -74,6 +79,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int? _liveFollowerCount;
   int? _liveFollowingCount;
   int? _livePostCount;
+  bool? _liveIsVerified;
+  String? _liveAccountType;
+  bool? _liveVipVerified;
   StreamSubscription<int>? _followerCountSub;
   StreamSubscription<int>? _postCountSub;
   StreamSubscription<AppUserModel?>? _targetUserSub;
@@ -98,6 +106,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _liveFollowerCount = null;
       _liveFollowingCount = null;
       _livePostCount = null;
+      _liveIsVerified = null;
+      _liveAccountType = null;
+      _liveVipVerified = null;
       _refreshFollowFromFirestore();
       _loadPublicCounts();
       _bindLiveCountStreams();
@@ -129,7 +140,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
     _targetUserSub = svc.userStream(id).listen((u) {
       if (!mounted) return;
-      setState(() => _liveFollowingCount = u?.following.length ?? 0);
+      setState(() {
+        _liveFollowingCount = u?.following.length ?? 0;
+        _liveIsVerified = u?.isVerified;
+        _liveAccountType = u?.accountType;
+        _liveVipVerified = u?.vipVerified;
+      });
     });
   }
 
@@ -237,6 +253,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final p = widget.payload;
+    final isVerified = _liveIsVerified ?? p.isVerified;
+    final badgeColor = verificationBadgeColor(
+      isVerified: isVerified,
+      accountType: _liveAccountType ?? p.accountType,
+      vipVerified: _liveVipVerified ?? p.vipVerified,
+    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -301,13 +323,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (p.isVerified) ...[
+                        if (isVerified) ...[
                           const SizedBox(width: 8),
                           Container(
                             width: 18,
                             height: 18,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF81945),
+                            decoration: BoxDecoration(
+                              color: badgeColor,
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(

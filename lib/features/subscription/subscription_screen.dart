@@ -628,6 +628,18 @@ class _PlanCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
+                        priceLine,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: priceSize,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: compact ? 6 : 8),
+                      Text(
                         displayTitle,
                         textAlign: TextAlign.center,
                         maxLines: 3,
@@ -637,18 +649,6 @@ class _PlanCard extends StatelessWidget {
                           fontSize: titleSize,
                           fontWeight: FontWeight.w600,
                           height: 1.15,
-                        ),
-                      ),
-                      SizedBox(height: compact ? 6 : 8),
-                      Text(
-                        priceLine,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: priceSize,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (periodLine != null) ...[

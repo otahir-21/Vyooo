@@ -49,6 +49,13 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     _selectedTabIndex = widget.initialTab.clamp(0, 2);
     _searchController.addListener(() => setState(() {}));
     _loadConnections();
+    // Reconcile store status on entry so paid members don't momentarily see
+    // upsell UI due to delayed sandbox/store sync.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final uid = AuthService().currentUser?.uid;
+      context.read<SubscriptionController>().reconcilePaidStatus(firebaseUid: uid);
+    });
   }
 
   @override
@@ -99,6 +106,9 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
             name: i.displayName,
             username: i.username,
             avatarUrl: i.avatarUrl,
+            isVerified: i.isVerified,
+            accountType: i.accountType,
+            vipVerified: i.vipVerified,
             isFollowing: i.isFollowing,
           ),
         )
@@ -138,7 +148,9 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
       name: displayName,
       username: handle,
       avatarUrl: m.profileImage ?? '',
-      isVerified: false,
+      isVerified: m.isVerified,
+      accountType: m.accountType,
+      vipVerified: m.vipVerified,
       isFollowing: myFollowing.contains(m.uid),
     );
   }
@@ -571,6 +583,11 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                         size: 22,
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
                         vertical: 12,
@@ -642,9 +659,7 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
   }
 
   Widget _buildSubscriptionsContent(BuildContext context) {
-    final isSubscribed =
-        context.watch<SubscriptionController>().isSubscriber ||
-        context.watch<SubscriptionController>().isCreator;
+    final isSubscribed = context.watch<SubscriptionController>().isPaid;
     if (!isSubscribed) {
       return _buildBecomeMemberCard(context);
     }
@@ -842,6 +857,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                         displayName: user.name,
                         avatarUrl: user.avatarUrl,
                         isVerified: user.isVerified,
+                        accountType: user.accountType,
+                        vipVerified: user.vipVerified,
                         postCount: 0,
                         followerCount: 0,
                         followingCount: 0,
@@ -940,6 +957,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                           displayName: user.name,
                           avatarUrl: user.avatarUrl,
                           isVerified: user.isVerified,
+                          accountType: user.accountType,
+                          vipVerified: user.vipVerified,
                           postCount: 0,
                           followerCount: 0,
                           followingCount: 0,
@@ -966,6 +985,8 @@ class _ConnectionUser {
     required this.username,
     required this.avatarUrl,
     this.isVerified = false,
+    this.accountType = 'personal',
+    this.vipVerified = false,
     this.isFollowing = false,
   });
   final String? targetUserId;
@@ -973,6 +994,8 @@ class _ConnectionUser {
   final String username;
   final String avatarUrl;
   final bool isVerified;
+  final String accountType;
+  final bool vipVerified;
 
   /// Whether the signed-in user follows this row (for button state).
   final bool isFollowing;

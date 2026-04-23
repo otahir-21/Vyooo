@@ -2,6 +2,7 @@ import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { logger } from 'firebase-functions';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
 admin.initializeApp();
@@ -16,8 +17,13 @@ const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE ?? '';
 // Cloudflare Stream credentials — set in .env.vyooov1
 const CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 const CF_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? '';
-const HIVE_API_KEY = process.env.HIVE_API_KEY ?? '';
-const HIVE_SYNC_URL = 'https://api.thehive.ai/api/v2/task/sync';
+const HIVE_API_KEY = (process.env.HIVE_API_KEY ?? '').trim();
+const HIVE_ACCESS_KEY = (process.env.HIVE_ACCESS_KEY ?? '').trim();
+const HIVE_SECRET_KEY = (process.env.HIVE_SECRET_KEY ?? '').trim();
+const HIVE_V3_BEARER = HIVE_SECRET_KEY || HIVE_API_KEY;
+const HIVE_V2_TOKEN = HIVE_ACCESS_KEY || HIVE_API_KEY;
+const HIVE_MODERATION_URL = 'https://api.thehive.ai/api/v3/hive/visual-moderation';
+const HIVE_V2_SYNC_URL = 'https://api.thehive.ai/api/v2/task/sync';
 const HIVE_BLOCK_THRESHOLD = 0.95;
 const HIVE_REVIEW_THRESHOLD = 0.90;
 
@@ -266,6 +272,15 @@ export const syncFollowersCountOnFollowingChange = onDocumentWritten(
 
 // ── moderateReelOnCreate (Hive Visual Moderation) ────────────────────────────
 type HiveClassScore = { class: string; score: number };
+type HiveV3Class = { class_name?: unknown; value?: unknown };
+type HiveV3OutputItem = { classes?: unknown };
+type HiveV3Payload = { output?: unknown };
+type HiveRequestResult = {
+  ok: boolean;
+  status: number;
+  endpoint: 'v3' | 'v2';
+  payloadText: string;
+};
 
 function toHiveImageUrl(videoUrl: string): string {
   // Cloudflare Stream HLS URL:
@@ -315,6 +330,78 @@ function evaluateHive(classes: HiveClassScore[]): {
   return { status: 'clear', score: max, reasons };
 }
 
+function extractHiveClassScores(payload: HiveV3Payload): HiveClassScore[] {
+  const output = Array.isArray(payload.output) ? payload.output : [];
+  const maxScores = new Map<string, number>();
+  for (const item of output) {
+    const maybeItem = item as HiveV3OutputItem;
+    const classes = Array.isArray(maybeItem.classes) ? maybeItem.classes : [];
+    for (const c of classes) {
+      const entry = c as HiveV3Class;
+      const className = typeof entry.class_name === 'string' ? entry.class_name.trim() : '';
+      const value = typeof entry.value === 'number' ? entry.value : NaN;
+      if (!className || !Number.isFinite(value)) continue;
+      const prev = maxScores.get(className) ?? 0;
+      if (value > prev) maxScores.set(className, value);
+    }
+  }
+  return Array.from(maxScores.entries()).map(([className, score]) => ({
+    class: className,
+    score,
+  }));
+}
+
+function summarizeErrorBody(body: string): string {
+  const trimmed = body.trim();
+  if (!trimmed) return 'empty_response';
+  const compact = trimmed.replace(/\s+/g, ' ');
+  return compact.length <= 180 ? compact : `${compact.slice(0, 177)}...`;
+}
+
+async function callHiveModeration(mediaUrl: string): Promise<HiveRequestResult> {
+  // Preferred path: Hive V3 Visual Moderation API.
+  const v3Res = await fetch(HIVE_MODERATION_URL, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${HIVE_V3_BEARER}`,
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      input: [{ media_url: mediaUrl }],
+    }),
+  });
+  const v3Text = await v3Res.text();
+  const v3FallbackOn = new Set([401, 403, 404]);
+  if (v3Res.ok || !v3FallbackOn.has(v3Res.status)) {
+    return {
+      ok: v3Res.ok,
+      status: v3Res.status,
+      endpoint: 'v3',
+      payloadText: v3Text,
+    };
+  }
+
+  // Backward-compatible fallback for projects still provisioned on legacy endpoint/key format.
+  const form = new FormData();
+  form.append('url', mediaUrl);
+  const v2Res = await fetch(HIVE_V2_SYNC_URL, {
+    method: 'POST',
+    headers: {
+      authorization: `Token ${HIVE_V2_TOKEN}`,
+      accept: 'application/json',
+    },
+    body: form,
+  });
+  const v2Text = await v2Res.text();
+  return {
+    ok: v2Res.ok,
+    status: v2Res.status,
+    endpoint: 'v2',
+    payloadText: v2Text,
+  };
+}
+
 export const moderateReelOnCreate = onDocumentCreated(
   {
     document: 'reels/{reelId}',
@@ -324,8 +411,11 @@ export const moderateReelOnCreate = onDocumentCreated(
   async (event) => {
     const snap = event.data;
     if (!snap) return;
-    const data = snap.data() as { videoUrl?: unknown };
-    if (!HIVE_API_KEY) {
+    const reelId = event.params.reelId as string;
+    const data = snap.data() as { videoUrl?: unknown; imageUrl?: unknown; thumbnailUrl?: unknown };
+    logger.info(`[moderateReelOnCreate] start reelId=${reelId}`);
+    if (!HIVE_V3_BEARER && !HIVE_V2_TOKEN) {
+      logger.warn(`[moderateReelOnCreate] skipped_missing_key reelId=${reelId}`);
       await snap.ref.set(
         {
           moderation: {
@@ -342,28 +432,31 @@ export const moderateReelOnCreate = onDocumentCreated(
     }
 
     const videoUrl = typeof data.videoUrl === 'string' ? data.videoUrl.trim() : '';
-    if (!videoUrl) return;
-    const mediaUrl = toHiveImageUrl(videoUrl);
+    const imageUrl = typeof data.imageUrl === 'string' ? data.imageUrl.trim() : '';
+    const thumbnailUrl = typeof data.thumbnailUrl === 'string' ? data.thumbnailUrl.trim() : '';
+    const mediaUrl = imageUrl || thumbnailUrl || (videoUrl ? toHiveImageUrl(videoUrl) : '');
+    if (!mediaUrl) {
+      logger.warn(`[moderateReelOnCreate] no_media_url reelId=${reelId}`);
+      return;
+    }
 
     try {
-      const form = new FormData();
-      form.append('url', mediaUrl);
-      const res = await fetch(HIVE_SYNC_URL, {
-        method: 'POST',
-        headers: {
-          authorization: `Token ${HIVE_API_KEY}`,
-          accept: 'application/json',
-        },
-        body: form,
-      });
+      const res = await callHiveModeration(mediaUrl);
+      logger.info(
+        `[moderateReelOnCreate] hive_http_status reelId=${reelId} endpoint=${res.endpoint} status=${res.status} ok=${res.ok}`,
+      );
       if (!res.ok) {
+        const errSummary = summarizeErrorBody(res.payloadText);
+        logger.error(
+          `[moderateReelOnCreate] hive_http_error reelId=${reelId} endpoint=${res.endpoint} status=${res.status} body=${errSummary}`,
+        );
         await snap.ref.set(
           {
             moderation: {
               provider: 'hive',
               status: 'error',
               score: 0,
-              reasons: [`http_${res.status}`],
+              reasons: [`http_${res.status}`, `hive_endpoint:${res.endpoint}`, `hive:${errSummary}`],
               checkedAt: admin.firestore.FieldValue.serverTimestamp(),
             },
           },
@@ -371,8 +464,14 @@ export const moderateReelOnCreate = onDocumentCreated(
         );
         return;
       }
-      const payload = (await res.json()) as { output?: Array<{ classes?: HiveClassScore[] }> };
-      const classes = payload.output?.[0]?.classes ?? [];
+      let classes: HiveClassScore[] = [];
+      if (res.endpoint === 'v3') {
+        const payload = JSON.parse(res.payloadText) as HiveV3Payload;
+        classes = extractHiveClassScores(payload);
+      } else {
+        const payload = JSON.parse(res.payloadText) as { output?: Array<{ classes?: HiveClassScore[] }> };
+        classes = payload.output?.[0]?.classes ?? [];
+      }
       const result = evaluateHive(classes);
       await snap.ref.set(
         {
@@ -387,8 +486,140 @@ export const moderateReelOnCreate = onDocumentCreated(
         },
         { merge: true },
       );
+      logger.info(
+        `[moderateReelOnCreate] final_status reelId=${reelId} status=${result.status} score=${result.score} reasons=${result.reasons.join('|')}`,
+      );
     } catch (e) {
+      logger.error(`[moderateReelOnCreate] exception reelId=${reelId} error=${String(e)}`);
       await snap.ref.set(
+        {
+          moderation: {
+            provider: 'hive',
+            status: 'error',
+            score: 0,
+            reasons: [String(e)],
+            checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+    }
+  },
+);
+
+// Re-run moderation when media URL changes or moderation is reset to pending.
+export const moderateReelOnWrite = onDocumentWritten(
+  {
+    document: 'reels/{reelId}',
+    timeoutSeconds: 25,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const before = event.data?.before.data() as
+      | { videoUrl?: unknown; imageUrl?: unknown; thumbnailUrl?: unknown; moderation?: unknown }
+      | undefined;
+    const after = event.data?.after.data() as
+      | { videoUrl?: unknown; imageUrl?: unknown; thumbnailUrl?: unknown; moderation?: unknown }
+      | undefined;
+    const ref = event.data?.after.ref;
+    if (!after || !ref) return;
+    const reelId = event.params.reelId as string;
+    logger.info(`[moderateReelOnWrite] start reelId=${reelId}`);
+
+    const beforeVideo = typeof before?.videoUrl === 'string' ? before.videoUrl.trim() : '';
+    const beforeImage = typeof before?.imageUrl === 'string' ? before.imageUrl.trim() : '';
+    const beforeThumb = typeof before?.thumbnailUrl === 'string' ? before.thumbnailUrl.trim() : '';
+    const afterVideo = typeof after.videoUrl === 'string' ? after.videoUrl.trim() : '';
+    const afterImage = typeof after.imageUrl === 'string' ? after.imageUrl.trim() : '';
+    const afterThumb = typeof after.thumbnailUrl === 'string' ? after.thumbnailUrl.trim() : '';
+
+    const afterStatus =
+      typeof (after.moderation as { status?: unknown } | undefined)?.status === 'string'
+        ? String((after.moderation as { status: string }).status).toLowerCase()
+        : '';
+
+    const mediaChanged = beforeVideo !== afterVideo || beforeImage !== afterImage || beforeThumb !== afterThumb;
+    const needsModeration = afterStatus === 'pending' || afterStatus === 'review' || afterStatus === '';
+    if (!mediaChanged && !needsModeration) {
+      logger.info(`[moderateReelOnWrite] skip_no_change reelId=${reelId} afterStatus=${afterStatus}`);
+      return;
+    }
+
+    if (!HIVE_V3_BEARER && !HIVE_V2_TOKEN) {
+      logger.warn(`[moderateReelOnWrite] skipped_missing_key reelId=${reelId}`);
+      await ref.set(
+        {
+          moderation: {
+            provider: 'hive',
+            status: 'skipped',
+            score: 0,
+            reasons: ['missing_hive_api_key'],
+            checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+      return;
+    }
+
+    const mediaUrl = afterImage || afterThumb || (afterVideo ? toHiveImageUrl(afterVideo) : '');
+    if (!mediaUrl) {
+      logger.warn(`[moderateReelOnWrite] no_media_url reelId=${reelId}`);
+      return;
+    }
+
+    try {
+      const res = await callHiveModeration(mediaUrl);
+      logger.info(
+        `[moderateReelOnWrite] hive_http_status reelId=${reelId} endpoint=${res.endpoint} status=${res.status} ok=${res.ok}`,
+      );
+      if (!res.ok) {
+        const errSummary = summarizeErrorBody(res.payloadText);
+        logger.error(
+          `[moderateReelOnWrite] hive_http_error reelId=${reelId} endpoint=${res.endpoint} status=${res.status} body=${errSummary}`,
+        );
+        await ref.set(
+          {
+            moderation: {
+              provider: 'hive',
+              status: 'error',
+              score: 0,
+              reasons: [`http_${res.status}`, `hive_endpoint:${res.endpoint}`, `hive:${errSummary}`],
+              checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          { merge: true },
+        );
+        return;
+      }
+      let classes: HiveClassScore[] = [];
+      if (res.endpoint === 'v3') {
+        const payload = JSON.parse(res.payloadText) as HiveV3Payload;
+        classes = extractHiveClassScores(payload);
+      } else {
+        const payload = JSON.parse(res.payloadText) as { output?: Array<{ classes?: HiveClassScore[] }> };
+        classes = payload.output?.[0]?.classes ?? [];
+      }
+      const result = evaluateHive(classes);
+      await ref.set(
+        {
+          moderation: {
+            provider: 'hive',
+            status: result.status,
+            score: result.score,
+            reasons: result.reasons,
+            mediaUrl,
+            checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+      logger.info(
+        `[moderateReelOnWrite] final_status reelId=${reelId} status=${result.status} score=${result.score} reasons=${result.reasons.join('|')}`,
+      );
+    } catch (e) {
+      logger.error(`[moderateReelOnWrite] exception reelId=${reelId} error=${String(e)}`);
+      await ref.set(
         {
           moderation: {
             provider: 'hive',

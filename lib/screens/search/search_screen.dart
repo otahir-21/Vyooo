@@ -10,6 +10,7 @@ import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
+import '../../core/utils/verification_badge.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -118,7 +119,9 @@ class _SearchScreenState extends State<SearchScreen>
               fullName: i.displayName,
               followerCount: i.followerCount,
               avatarUrl: i.avatarUrl,
-              isVerified: false,
+              isVerified: i.isVerified,
+              accountType: i.accountType,
+              vipVerified: i.vipVerified,
               isFollowing: i.isFollowing,
             ),
           )
@@ -609,6 +612,8 @@ class _SearchScreenState extends State<SearchScreen>
             displayName: user.fullName,
             avatarUrl: user.avatarUrl,
             isVerified: user.isVerified,
+            accountType: user.accountType,
+            vipVerified: user.vipVerified,
             postCount: 0,
             followerCount: user.followerCount,
             followingCount: 0,
@@ -1515,8 +1520,12 @@ class _UserSearchResultTile extends StatelessWidget {
                           Container(
                             width: 14,
                             height: 14,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF81945),
+                            decoration: BoxDecoration(
+                              color: verificationBadgeColor(
+                                isVerified: user.isVerified,
+                                accountType: user.accountType,
+                                vipVerified: user.vipVerified,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -1606,6 +1615,8 @@ class _UserSearchItem {
     required this.followerCount,
     required this.avatarUrl,
     this.isVerified = false,
+    this.accountType = 'personal',
+    this.vipVerified = false,
     this.isFollowing = false,
   });
   final String uid;
@@ -1614,6 +1625,8 @@ class _UserSearchItem {
   final int followerCount;
   final String avatarUrl;
   final bool isVerified;
+  final String accountType;
+  final bool vipVerified;
   final bool isFollowing;
 
   _UserSearchItem copyWith({
@@ -1623,6 +1636,8 @@ class _UserSearchItem {
     int? followerCount,
     String? avatarUrl,
     bool? isVerified,
+    String? accountType,
+    bool? vipVerified,
     bool? isFollowing,
   }) {
     return _UserSearchItem(
@@ -1632,6 +1647,8 @@ class _UserSearchItem {
       followerCount: followerCount ?? this.followerCount,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isVerified: isVerified ?? this.isVerified,
+      accountType: accountType ?? this.accountType,
+      vipVerified: vipVerified ?? this.vipVerified,
       isFollowing: isFollowing ?? this.isFollowing,
     );
   }
