@@ -56,10 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return uri.scheme == 'http' || uri.scheme == 'https';
   }
 
-  Future<void> _shareProfile({
-    required String uid,
-    String? username,
-  }) async {
+  Future<void> _shareProfile({required String uid, String? username}) async {
     final ref = uid.trim();
     if (ref.isEmpty) return;
     final link = DeepLinkConfig.profileWebUri(ref).toString();
@@ -185,10 +182,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'abc123\ndef456\n...',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
                     border: const OutlineInputBorder(),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
                 ),
@@ -198,7 +199,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   onChanged: (v) => setDialogState(() => markAsVR = v ?? false),
                   title: Text(
                     'Show in VR tab',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 14,
+                    ),
                   ),
                   activeColor: const Color(0xFFDE106B),
                   controlAffinity: ListTileControlAffinity.leading,
@@ -228,7 +232,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 final messenger = ScaffoldMessenger.of(context);
                 Navigator.of(ctx).pop();
                 try {
-                  final added = await ReelsService().seedStreamReels(ids, markAsVR: markAsVR);
+                  final added = await ReelsService().seedStreamReels(
+                    ids,
+                    markAsVR: markAsVR,
+                  );
                   messenger.showSnackBar(
                     SnackBar(
                       content: Text('Uploaded $added reel(s) to Firebase.'),
@@ -282,7 +289,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text(
               'Delete account',
-              style: TextStyle(color: Color(0xFFD10057), fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Color(0xFFD10057),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -315,36 +325,58 @@ class _ProfileScreenState extends State<ProfileScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.settings_rounded, color: Colors.white.withValues(alpha: 0.8)),
+              leading: Icon(
+                Icons.settings_rounded,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               title: Text(
                 'Settings',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 16,
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
                 );
               },
             ),
             ListTile(
-              leading: Icon(Icons.music_note_rounded, color: Colors.white.withValues(alpha: 0.8)),
+              leading: Icon(
+                Icons.music_note_rounded,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               title: Text(
                 'Music library',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 16,
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
                 Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const MusicLibraryScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MusicLibraryScreen(),
+                  ),
                 );
               },
             ),
             ListTile(
-              leading: Icon(Icons.upload_rounded, color: Colors.white.withValues(alpha: 0.8)),
+              leading: Icon(
+                Icons.upload_rounded,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               title: Text(
                 'Upload Stream videos',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 16,
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -352,10 +384,16 @@ class _ProfileScreenState extends State<ProfileScreen>
               },
             ),
             ListTile(
-              leading: Icon(Icons.logout_rounded, color: Colors.white.withValues(alpha: 0.8)),
+              leading: Icon(
+                Icons.logout_rounded,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
               title: Text(
                 'Log out',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 16),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 16,
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -363,10 +401,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_forever_rounded, color: Colors.red.withValues(alpha: 0.9)),
+              leading: Icon(
+                Icons.delete_forever_rounded,
+                color: Colors.red.withValues(alpha: 0.9),
+              ),
               title: const Text(
                 'Delete account',
-                style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               onTap: () {
                 Navigator.pop(ctx);
@@ -394,13 +439,9 @@ class _ProfileScreenState extends State<ProfileScreen>
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF14001F),
-              Color(0xFF4A003F),
-              Color(0xFFDE106B),
-            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF14001F), Color(0xFF1A0022), Color(0xFF2A002E)],
           ),
         ),
         child: SafeArea(
@@ -410,10 +451,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                   stream: UserService().userStream(uid),
                   builder: (context, userSnap) {
                     final user = userSnap.data;
-                    if (userSnap.connectionState == ConnectionState.waiting && user == null) {
+                    if (userSnap.connectionState == ConnectionState.waiting &&
+                        user == null) {
                       return const Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white70,
+                          ),
                         ),
                       );
                     }
@@ -451,7 +495,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       context,
       user: null,
       profileUid: '',
-      canUploadContent: context.watch<SubscriptionController>().canUploadContent,
+      canUploadContent: context
+          .watch<SubscriptionController>()
+          .canUploadContent,
       followerCount: 0,
       followingCount: 0,
       postCount: 0,
@@ -485,21 +531,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    const SizedBox(width: 40),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                     Expanded(
                       child: Text(
                         username,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
                       onPressed: () => _showProfileMenu(context),
-                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 26),
+                      icon: const Icon(
+                        Icons.menu_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ],
                 ),
@@ -507,61 +564,44 @@ class _ProfileScreenState extends State<ProfileScreen>
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFDE106B), width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFDE106B).withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        spreadRadius: 0,
-                      ),
-                    ],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      width: 1,
+                    ),
                   ),
                   child: CircleAvatar(
-                    radius: 52,
-                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    radius: 54,
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
                     backgroundImage: _isValidNetworkUrl(avatarUrl)
                         ? NetworkImage(avatarUrl!)
                         : null,
                     child: !_isValidNetworkUrl(avatarUrl)
                         ? Icon(
                             Icons.person_rounded,
-                            size: 52,
-                            color: Colors.white.withValues(alpha: 0.6),
+                            size: 54,
+                            color: Colors.white.withValues(alpha: 0.4),
                           )
                         : null,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   displayName,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _StatChip(label: 'Posts', value: _formatStatCount(postCount)),
-                    const SizedBox(width: AppSpacing.xl),
                     _StatChip(
-                      label: 'Following',
-                      value: _formatStatCount(followingCount),
-                      onTap: () {
-                        if (profileUid.isEmpty) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => FollowersFollowingScreen(
-                              initialTab: 1,
-                              profileUserId: profileUid,
-                            ),
-                          ),
-                        );
-                      },
+                      label: 'Posts',
+                      value: _formatStatCount(postCount),
                     ),
-                    const SizedBox(width: AppSpacing.xl),
+                    const SizedBox(width: 12),
                     _StatChip(
                       label: 'Followers',
                       value: _formatStatCount(followerCount),
@@ -571,6 +611,22 @@ class _ProfileScreenState extends State<ProfileScreen>
                           MaterialPageRoute<void>(
                             builder: (_) => FollowersFollowingScreen(
                               initialTab: 0,
+                              profileUserId: profileUid,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    _StatChip(
+                      label: 'Following',
+                      value: _formatStatCount(followingCount),
+                      onTap: () {
+                        if (profileUid.isEmpty) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => FollowersFollowingScreen(
+                              initialTab: 1,
                               profileUserId: profileUid,
                             ),
                           ),
@@ -589,7 +645,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => EditProfileScreen(
-                                initialName: user?.displayName ?? user?.username ?? '',
+                                initialName:
+                                    user?.displayName ?? user?.username ?? '',
                                 initialUsername: user?.username ?? '',
                                 initialBio: user?.bio ?? '',
                                 initialMusic: 'Zulfein • Mehul Mahesh, DJ A...',
@@ -600,10 +657,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                         },
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: _OutlineButton(
                         label: 'Share',
+                        icon: Icons.share_outlined,
                         onPressed: () => _shareProfile(
                           uid: profileUid,
                           username: user?.username,
@@ -612,29 +670,64 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                _buildTabs(),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: 32),
               ],
             ),
           ),
         ),
-        ..._buildProfileContentSlivers(context, canUploadContent, uid: profileUid),
+        SliverFillRemaining(
+          hasScrollBody: true,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF120015),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
+                  child: _buildTabs(),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: CustomScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    slivers: _buildProfileContentSlivers(
+                      context,
+                      canUploadContent,
+                      uid: profileUid,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  List<Widget> _buildProfileContentSlivers(BuildContext context, bool canUploadContent, {required String uid}) {
-    // Saved tab should always be visible, regardless of upload subscription status.
+  List<Widget> _buildProfileContentSlivers(
+    BuildContext context,
+    bool canUploadContent, {
+    required String uid,
+  }) {
     if (_selectedTabIndex == _savedTabIndex) {
       return _buildSavedGridSlivers();
     }
+
     if (!canUploadContent) {
-      if (_selectedTabIndex == 0) {
-        return [SliverFillRemaining(hasScrollBody: false, child: _buildBecomeMemberPrompt(context))];
-      }
-      return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyTabPlaceholder())];
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _buildEmptyPostsPrompt(context, showModalOnTap: true),
+        ),
+      ];
     }
+
     switch (_selectedTabIndex) {
       case 0:
         return _buildPostsGridSlivers(uid: uid);
@@ -643,7 +736,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       case 2:
         return _buildStreamsListSlivers();
       default:
-        return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyPostsPrompt())];
+        return [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyPostsPrompt(context),
+          ),
+        ];
     }
   }
 
@@ -716,7 +814,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                             Image.network(
                               thumb,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
                             ),
                           const Align(
                             alignment: Alignment.bottomRight,
@@ -815,7 +914,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   List<Widget> _buildPostsGridSlivers({required String uid}) {
     if (uid.isEmpty) {
-      return [SliverFillRemaining(hasScrollBody: false, child: _buildEmptyPostsPrompt())];
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _buildEmptyPostsPrompt(context),
+        ),
+      ];
     }
     return [
       SliverToBoxAdapter(
@@ -848,16 +952,21 @@ class _ProfileScreenState extends State<ProfileScreen>
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
                 height: 200,
-                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
               );
             }
             if (snapshot.hasError) {
               debugPrint('Profile posts error: ${snapshot.error}');
             }
             final posts = snapshot.data ?? [];
-            if (posts.isEmpty) return _buildEmptyPostsPrompt();
+            if (posts.isEmpty) return _buildEmptyPostsPrompt(context);
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
               child: GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -890,13 +999,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                             Image.network(
                               thumbnailUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
                             ),
                           const Align(
                             alignment: Alignment.bottomRight,
                             child: Padding(
                               padding: EdgeInsets.all(4),
-                              child: Icon(Icons.play_arrow_rounded, color: Colors.white70, size: 18),
+                              child: Icon(
+                                Icons.play_arrow_rounded,
+                                color: Colors.white70,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ],
@@ -926,7 +1040,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   List<Widget> _buildVRGridSlivers() {
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverGrid(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
@@ -934,28 +1051,25 @@ class _ProfileScreenState extends State<ProfileScreen>
             crossAxisSpacing: 12,
             childAspectRatio: 0.65,
           ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final item = _profileMockVRItems[index];
-              return _ProfileVRCard(
-                item: item,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => VRDetailScreen(
-                      payload: VRDetailPayload(
-                        creatorName: item.creatorName,
-                        creatorHandle: item.creatorHandle,
-                        avatarUrl: item.avatarUrl,
-                        thumbnailUrl: item.thumbnailUrl,
-                        likeCount: item.viewCount * 1000,
-                      ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = _profileMockVRItems[index];
+            return _ProfileVRCard(
+              item: item,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => VRDetailScreen(
+                    payload: VRDetailPayload(
+                      creatorName: item.creatorName,
+                      creatorHandle: item.creatorHandle,
+                      avatarUrl: item.avatarUrl,
+                      thumbnailUrl: item.thumbnailUrl,
+                      likeCount: item.viewCount * 1000,
                     ),
                   ),
                 ),
-              );
-            },
-            childCount: _profileMockVRItems.length,
-          ),
+              ),
+            );
+          }, childCount: _profileMockVRItems.length),
         ),
       ),
     ];
@@ -964,247 +1078,322 @@ class _ProfileScreenState extends State<ProfileScreen>
   List<Widget> _buildStreamsListSlivers() {
     return [
       SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
         sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              if (index.isOdd) return const SizedBox(height: AppSpacing.md);
-              final itemIndex = index ~/ 2;
-              final item = _profileMockStreamItems[itemIndex];
-              return SizedBox(
-                height: 200,
-                child: _ProfileStreamCard(
-                  item: item,
-                  onTap: () => openLiveStreamScreen(
-                    context,
-                    LiveStreamModel(
-                      id: item.title,
-                      hostId: '',
-                      hostUsername: 'Host',
-                      title: item.title,
-                      description: item.subtitle,
-                      status: LiveStreamStatus.live,
-                      likeCount: item.viewCount,
-                      agoraChannelName: item.title,
-                      createdAt: Timestamp.now(),
-                    ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            if (index.isOdd) return const SizedBox(height: AppSpacing.md);
+            final itemIndex = index ~/ 2;
+            final item = _profileMockStreamItems[itemIndex];
+            return SizedBox(
+              height: 200,
+              child: _ProfileStreamCard(
+                item: item,
+                onTap: () => openLiveStreamScreen(
+                  context,
+                  LiveStreamModel(
+                    id: item.title,
+                    hostId: '',
+                    hostUsername: 'Host',
+                    title: item.title,
+                    description: item.subtitle,
+                    status: LiveStreamStatus.live,
+                    likeCount: item.viewCount,
+                    agoraChannelName: item.title,
+                    createdAt: Timestamp.now(),
                   ),
                 ),
-              );
-            },
-            childCount: _profileMockStreamItems.length * 2 - 1,
-          ),
+              ),
+            );
+          }, childCount: _profileMockStreamItems.length * 2 - 1),
         ),
       ),
     ];
   }
 
   Widget _buildTabs() {
-    return Row(
-      children: [
-        ...List.generate(_tabs.length, (index) {
-          final isSelected = index == _selectedTabIndex;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: index < _tabs.length - 1 ? AppSpacing.xs : 0),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _selectedTabIndex = index),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-                            )
-                          : null,
-                      color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _tabs[index],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: List.generate(_tabs.length, (index) {
+                final isSelected = index == _selectedTabIndex;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedTabIndex = index),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: isSelected
+                                ? const LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: [
+                                      Color(0xFFDE106B),
+                                      Color(0xFFF81945),
+                                    ],
+                                  )
+                                : null,
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _tabs[index],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(
+            height: 20,
+            child: VerticalDivider(
+              color: Colors.white24,
+              width: 1,
+              thickness: 1,
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Icon(
+                  _selectedTabIndex == _savedTabIndex
+                      ? Icons.star_rounded
+                      : Icons.star_border_rounded,
+                  color: _selectedTabIndex == _savedTabIndex
+                      ? const Color(0xFFF81945)
+                      : Colors.white.withValues(alpha: 0.8),
+                  size: 20,
                 ),
               ),
             ),
-          );
-        }),
-        const SizedBox(width: AppSpacing.sm),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Icon(
-                _selectedTabIndex == _savedTabIndex
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                color: _selectedTabIndex == _savedTabIndex
-                    ? const Color(0xFFF81945)
-                    : Colors.white.withValues(alpha: 0.8),
-                size: 22,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyPostsPrompt() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_photo_alternate_outlined,
-            size: 80,
-            color: Colors.white.withValues(alpha: 0.4),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            'Tap the "+" button below to post!',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
-              fontSize: 16,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildBecomeMemberPrompt(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.input * 1.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+  Widget _buildEmptyPostsPrompt(
+    BuildContext context, {
+    bool showModalOnTap = false,
+  }) {
+    return InkWell(
+      onTap: showModalOnTap ? () => _showBecomeMemberSheet(context) : null,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: 40,
+              color: Colors.white.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'Tap the "+" button below to post!',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 14,
               ),
-              Text.rich(
-                TextSpan(
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.95),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  children: const [
-                    TextSpan(text: 'Ready to post? '),
-                    TextSpan(
-                      text: 'Become a Member!',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ],
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'Become our member to start posting your content. Unlock full access and showcase your creativity today and you can also "monetize your content"',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xl),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const SubscriptionScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Color(0xFFE8C547), Color(0xFFD4A84B), Color(0xFFB8862E)],
-                      ),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(FontAwesomeIcons.crown, size: 18, color: Colors.white.withValues(alpha: 0.95)),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Become Member',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildEmptyTabPlaceholder() {
-    return Center(
-      child: Text(
-        'No content yet',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
-      ),
+  void _showBecomeMemberSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _buildBecomeMemberPrompt(context, isModal: true),
     );
   }
+
+  Widget _buildBecomeMemberPrompt(
+    BuildContext context, {
+    bool isModal = false,
+  }) {
+    final content = Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E0025),
+        borderRadius: isModal
+            ? const BorderRadius.vertical(top: Radius.circular(24))
+            : BorderRadius.circular(AppRadius.input * 1.5),
+        gradient: isModal
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF2A002E), Color(0xFF14001F)],
+              )
+            : null,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 32),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Text.rich(
+            TextSpan(
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+              children: const [
+                TextSpan(text: 'Ready to post? '),
+                TextSpan(
+                  text: 'Become a Member!',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Become our member to start posting your content. Unlock full access and showcase your creativity today and you can also "monetize your content"',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 14,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                if (isModal) Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SubscriptionScreen(),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFFF7D781), Color(0xFFD4A84B)],
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFD4A84B).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      FontAwesomeIcons.crown,
+                      size: 16,
+                      color: Colors.black,
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Become Member',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+
+    if (isModal) return content;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Center(child: content),
+    );
+  }
+
+  // Widget _buildEmptyTabPlaceholder() {
+  //   return Center(
+  //     child: Text(
+  //       'No content yet',
+  //       style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
+  //     ),
+  //   );
+  // }
 
   Widget _buildEmptySavedPlaceholder() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.bookmark_border_rounded, size: 48, color: Colors.white.withValues(alpha: 0.5)),
+          Icon(
+            Icons.bookmark_border_rounded,
+            size: 48,
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'No saved posts yet',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 16),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 16,
+            ),
           ),
         ],
       ),
@@ -1213,19 +1402,19 @@ class _ProfileScreenState extends State<ProfileScreen>
 }
 
 // Mock saved items (same grid design as Posts).
-const List<String> _profileMockSavedUrls = [
-  'https://picsum.photos/400/400?random=s1',
-  'https://picsum.photos/400/400?random=s2',
-  'https://picsum.photos/400/400?random=s3',
-  'https://picsum.photos/400/400?random=s4',
-  'https://picsum.photos/400/400?random=s5',
-  'https://picsum.photos/400/400?random=s6',
-  'https://picsum.photos/400/400?random=s7',
-  'https://picsum.photos/400/400?random=s8',
-  'https://picsum.photos/400/400?random=s9',
-  'https://picsum.photos/400/400?random=s10',
-  'https://picsum.photos/400/400?random=s11',
-];
+// const List<String> _profileMockSavedUrls = [
+//   'https://picsum.photos/400/400?random=s1',
+//   'https://picsum.photos/400/400?random=s2',
+//   'https://picsum.photos/400/400?random=s3',
+//   'https://picsum.photos/400/400?random=s4',
+//   'https://picsum.photos/400/400?random=s5',
+//   'https://picsum.photos/400/400?random=s6',
+//   'https://picsum.photos/400/400?random=s7',
+//   'https://picsum.photos/400/400?random=s8',
+//   'https://picsum.photos/400/400?random=s9',
+//   'https://picsum.photos/400/400?random=s10',
+//   'https://picsum.photos/400/400?random=s11',
+// ];
 
 class _ProfileVRItem {
   const _ProfileVRItem({
@@ -1343,11 +1532,12 @@ class _ProfileVRCard extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.85),
+                    Color(0xFF020109),
+                    Color(0xFF21002B),
+                    Color(0xFFDE106B),
+                    Color(0xFFF81945),
                   ],
-                  stops: const [0.0, 0.35, 1.0],
+                  stops: const [0.0, 0.20, 0.60, 1.0],
                 ),
               ),
             ),
@@ -1376,11 +1566,18 @@ class _ProfileVRCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.visibility_outlined, size: 12, color: Colors.white.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 2),
                   Text(
                     _formatCount(item.viewCount),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -1418,13 +1615,20 @@ class _ProfileVRCard extends StatelessWidget {
                             ),
                             if (item.isVerified) ...[
                               const SizedBox(width: 4),
-                              Icon(Icons.check_circle_rounded, size: 14, color: AppColors.deleteRed),
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 14,
+                                color: AppColors.deleteRed,
+                              ),
                             ],
                           ],
                         ),
                         Text(
                           item.creatorHandle,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 11,
+                          ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
@@ -1481,7 +1685,10 @@ class _ProfileStreamCard extends StatelessWidget {
                 top: AppSpacing.sm,
                 left: AppSpacing.sm,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.deleteRed,
                     borderRadius: BorderRadius.circular(4),
@@ -1502,11 +1709,18 @@ class _ProfileStreamCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.visibility_outlined, size: 12, color: Colors.white.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.visibility_outlined,
+                    size: 12,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                   const SizedBox(width: 2),
                   Text(
                     _formatCount(item.viewCount),
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
@@ -1532,7 +1746,10 @@ class _ProfileStreamCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     item.subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -1558,8 +1775,13 @@ class _StatChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Container(
+          width: 80,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1567,17 +1789,17 @@ class _StatChip extends StatelessWidget {
                 value,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -1588,36 +1810,51 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-/// Dark semi-transparent pill button — matches Figma "Edit Profile" / "Share" style.
 class _OutlineButton extends StatelessWidget {
-  const _OutlineButton({required this.label, required this.onPressed});
+  const _OutlineButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
 
   final String label;
   final VoidCallback onPressed;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.15),
+              width: 1.2,
             ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (icon != null) ...[
+                const SizedBox(width: 8),
+                Icon(icon, size: 18, color: Colors.white),
+              ],
+            ],
           ),
         ),
       ),
@@ -1627,7 +1864,10 @@ class _OutlineButton extends StatelessWidget {
 
 /// Full-screen vertical PageView of the user's own reels, opened from the profile Posts grid.
 class _ProfileReelFeedScreen extends StatefulWidget {
-  const _ProfileReelFeedScreen({required this.reels, required this.initialIndex});
+  const _ProfileReelFeedScreen({
+    required this.reels,
+    required this.initialIndex,
+  });
 
   final List<Map<String, dynamic>> reels;
   final int initialIndex;
@@ -1674,7 +1914,10 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
           ),
           SafeArea(
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),

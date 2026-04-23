@@ -7,7 +7,6 @@ import '../../core/config/deep_link_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
-import '../../core/widgets/app_gradient_background.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
@@ -240,46 +239,45 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final p = widget.payload;
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: AppGradientBackground(
-        type: GradientType.profile,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF14001F), Color(0xFF1A0022), Color(0xFF2A002E)],
+          ),
+        ),
         child: CustomScrollView(
           slivers: [
             SliverAppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              leading: GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Image.asset(
-                    'assets/vyooO_icons/Home/chevron_left.png',
-                    color: Colors.white,
-                    width: 22,
-                    height: 22,
-                  ),
+              leading: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
               title: Text(
-                p.username,
+                '@${p.username}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               centerTitle: true,
               actions: [
-                GestureDetector(
-                  onTap: () => _showProfileMenu(context),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: Image.asset(
-                      'assets/vyooO_icons/Home/three_dots.png',
-                      color: Colors.white,
-                      width: 24,
-                      height: 24,
-                    ),
+                IconButton(
+                  onPressed: () => _showProfileMenu(context),
+                  icon: const Icon(
+                    Icons.menu_rounded,
+                    color: Colors.white,
+                    size: 28,
                   ),
                 ),
               ],
@@ -299,75 +297,100 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           p.displayName,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.1,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (p.isVerified) ...[
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           Container(
-                            width: 16,
-                            height: 16,
+                            width: 18,
+                            height: 18,
                             decoration: const BoxDecoration(
                               color: Color(0xFFF81945),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
                               Icons.check_rounded,
-                              size: 10,
+                              size: 12,
                               color: Colors.white,
                             ),
                           ),
                         ],
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '@${p.username}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _UserStatChip(
-                          label: 'Following',
-                          value: _formatCount(
-                            _liveFollowingCount ?? p.followingCount,
-                          ),
-                          onTap: () {},
+                          label: 'Posts',
+                          value: _formatCount(_livePostCount ?? p.postCount),
                         ),
-                        const SizedBox(width: 32),
+                        const SizedBox(width: 12),
                         _UserStatChip(
                           label: 'Followers',
                           value: _formatCount(
                             _liveFollowerCount ?? p.followerCount,
                           ),
-                          onTap: () {},
                         ),
-                        const SizedBox(width: 32),
+                        const SizedBox(width: 12),
                         _UserStatChip(
-                          label: 'Posts',
-                          value: _formatCount(_livePostCount ?? p.postCount),
-                          onTap: () {},
+                          label: 'Following',
+                          value: _formatCount(
+                            _liveFollowingCount ?? p.followingCount,
+                          ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    if (p.bio.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(
+                          p.bio,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     const SizedBox(height: 24),
                     _buildActionButtons(p),
-                    const SizedBox(height: 24),
-                    _buildTabs(),
                     const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
-            ..._buildContentSlivers(p),
+            SliverFillRemaining(
+              hasScrollBody: true,
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF120015),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      child: _buildTabs(),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: CustomScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        slivers: _buildContentSlivers(p),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -376,86 +399,100 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Widget _buildAvatar(String avatarUrl) {
     return Container(
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+        ),
       ),
-      child: CircleAvatar(
-        radius: 56,
-        backgroundColor: Colors.white.withValues(alpha: 0.1),
-        backgroundImage: _isValidNetworkUrl(avatarUrl)
-            ? NetworkImage(avatarUrl)
-            : null,
-        child: !_isValidNetworkUrl(avatarUrl)
-            ? Icon(
-                Icons.person_rounded,
-                size: 56,
-                color: Colors.white.withValues(alpha: 0.6),
-              )
-            : null,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          color: Color(0xFF14001F),
+          shape: BoxShape.circle,
+        ),
+        child: CircleAvatar(
+          radius: 56,
+          backgroundColor: Colors.white.withValues(alpha: 0.1),
+          backgroundImage: _isValidNetworkUrl(avatarUrl)
+              ? NetworkImage(avatarUrl)
+              : null,
+          child: !_isValidNetworkUrl(avatarUrl)
+              ? Icon(
+                  Icons.person_rounded,
+                  size: 56,
+                  color: Colors.white.withValues(alpha: 0.4),
+                )
+              : null,
+        ),
       ),
     );
   }
 
   Widget _buildActionButtons(UserProfilePayload p) {
-    return Row(
-      children: [
-        Expanded(
-          child: _PinkButton(
-            label: _followActionBusy
-                ? '…'
-                : (_isFollowing ? 'Following' : 'Follow'),
-            onPressed: _followActionBusy ? () {} : _onFollowTap,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        if (p.isCreator) ...[
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Row(
+        children: [
           Expanded(
-            child: _GradientButton(
-              label: _isSubscribed ? 'Subscribed' : 'Subscribe',
-              icon: FontAwesomeIcons.crown,
-              onPressed: () {
-                if (!_isSubscribed) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CreatorSubscriptionScreen(
-                        name: p.displayName,
-                        handle: '@${p.username}',
-                        avatarUrl: p.avatarUrl,
-                        isVerified: p.isVerified,
+            child: _PinkButton(
+              label: _followActionBusy
+                  ? '…'
+                  : (_isFollowing ? 'Following' : 'Follow'),
+              onPressed: _followActionBusy ? () {} : _onFollowTap,
+            ),
+          ),
+          const SizedBox(width: 12),
+          if (p.isCreator) ...[
+            Expanded(
+              child: _GradientButton(
+                label: _isSubscribed ? 'Subscribed' : 'Subscribe',
+                icon: FontAwesomeIcons.crown,
+                onPressed: () {
+                  if (!_isSubscribed) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => CreatorSubscriptionScreen(
+                          name: p.displayName,
+                          handle: '@${p.username}',
+                          avatarUrl: p.avatarUrl,
+                          isVerified: p.isVerified,
+                        ),
                       ),
-                    ),
-                  );
-                } else {
-                  setState(() => _isSubscribed = false);
-                }
-              },
+                    );
+                  } else {
+                    setState(() => _isSubscribed = false);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.08),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+                width: 1,
+              ),
+            ),
+            child: IconButton(
+              onPressed: _shareProfile,
+              icon: const Icon(
+                Icons.share_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
         ],
-        Material(
-          color: p.isCreator
-              ? Colors.white.withValues(alpha: 0.15)
-              : const Color(0xFF1a2e1a),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: IconButton(
-            onPressed: _shareProfile,
-            icon: const Icon(
-              Icons.share_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -512,72 +549,74 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildTabs() {
-    return Row(
-      children: [
-        ...List.generate(_tabs.length, (index) {
-          final isSelected = index == _selectedTabIndex;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: index < _tabs.length - 1 ? AppSpacing.xs : 0,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => setState(() => _selectedTabIndex = index),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: isSelected
-                          ? const LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-                            )
-                          : null,
-                      color: isSelected
-                          ? null
-                          : Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _tabs[index],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Row(
+        children: [
+          ...List.generate(_tabs.length, (index) {
+            final isSelected = index == _selectedTabIndex;
+            return Expanded(
+              child: InkWell(
+                onTap: () => setState(() => _selectedTabIndex = index),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    gradient: isSelected
+                        ? const LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+                          )
+                        : null,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _tabs[index],
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
-        const SizedBox(width: AppSpacing.sm),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
+            );
+          }),
+          Container(
+            height: 20,
+            width: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            color: Colors.white.withValues(alpha: 0.1),
+          ),
+          InkWell(
             onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: Container(
               padding: const EdgeInsets.all(8),
               child: Icon(
                 _selectedTabIndex == _savedTabIndex
                     ? Icons.star_rounded
-                    : Icons.star_outline_rounded,
+                    : Icons.star_border_rounded,
                 color: _selectedTabIndex == _savedTabIndex
                     ? const Color(0xFFF81945)
                     : Colors.white.withValues(alpha: 0.8),
-                size: 22,
+                size: 20,
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -891,8 +930,13 @@ class _UserStatChip extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Container(
+          width: 80,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -900,17 +944,17 @@ class _UserStatChip extends StatelessWidget {
                 value,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -929,23 +973,34 @@ class _PinkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: label == 'Following'
-          ? Colors.white.withValues(alpha: 0.2)
-          : AppColors.brandPink,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: InkWell(
-        onTap: onPressed,
+    final isFollowing = label == 'Following';
+    return Container(
+      decoration: BoxDecoration(
+        gradient: isFollowing
+            ? null
+            : const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xFFDE106B), Color(0xFFF81945)],
+              ),
+        color: isFollowing ? Colors.white.withValues(alpha: 0.1) : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -993,16 +1048,12 @@ class _GradientButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  size: 14,
-                  color: Colors.white.withValues(alpha: 0.95),
-                ),
+                Icon(icon, size: 14, color: Colors.black),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
