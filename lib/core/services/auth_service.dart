@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -287,6 +289,122 @@ class AuthService {
       await PushMessagingService.instance.clearForSignOut(uid);
     }
     await _auth.signOut();
+  }
+
+  /// Permanently deletes current user's app data and then their auth account.
+  ///
+  /// Note: Firebase may require recent login for the final auth delete step.
+  Future<AuthResult> deleteCurrentAccount() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return const AuthResult(success: false, message: 'No user signed in.');
+    }
+    final uid = user.uid;
+    final db = FirebaseFirestore.instance;
+
+    try {
+      // 1) Delete user-owned reels + nested comments.
+      final reels = await db.collection('reels').where('userId', isEqualTo: uid).get();
+      for (final reel in reels.docs) {
+        await _deleteSubcollection(
+          db.collection('reels').doc(reel.id).collection('comments'),
+        );
+        await reel.reference.delete();
+      }
+
+      // 2) Delete supporting docs created by this user.
+      await _deleteQueryDocs(db.collection('verification_requests').where('uid', isEqualTo: uid));
+      await _deleteQueryDocs(db.collection('cloudflare_upload_requests').where('userId', isEqualTo: uid));
+      await _deleteQueryDocs(db.collection('token_requests').where('userId', isEqualTo: uid));
+      await _deleteQueryDocs(db.collection('email_otp_send_requests').where('userId', isEqualTo: uid));
+      await _deleteQueryDocs(db.collection('email_otp_verify_requests').where('userId', isEqualTo: uid));
+      await db.collection('email_otp_challenges').doc(uid).delete().catchError((_) {});
+
+      // 3) Remove this uid from other users' arrays.
+      await _removeUidFromUserArray('following', uid);
+      await _removeUidFromUserArray('blockedUsers', uid);
+
+      // 4) Delete user profile doc.
+      await db.collection('users').doc(uid).delete().catchError((_) {});
+
+      // 5) Best-effort delete user storage folder.
+      await FirebaseStorage.instance.ref().child('users/$uid').listAll().then((root) async {
+        for (final item in root.items) {
+          await item.delete().catchError((_) {});
+        }
+        for (final prefix in root.prefixes) {
+          await _deleteStorageFolder(prefix);
+        }
+      }).catchError((_) {});
+
+      // 6) Clear push token + auth account.
+      await PushMessagingService.instance.clearForSignOut(uid);
+      await user.delete();
+
+      return const AuthResult(success: true);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return const AuthResult(
+          success: false,
+          message: 'For security, please log in again and then delete your account.',
+        );
+      }
+      return AuthResult(success: false, message: _mapAuthException(e.code));
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
+  Future<void> _deleteSubcollection(CollectionReference<Map<String, dynamic>> ref) async {
+    while (true) {
+      final snap = await ref.limit(200).get();
+      if (snap.docs.isEmpty) break;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  Future<void> _deleteQueryDocs(Query<Map<String, dynamic>> query) async {
+    while (true) {
+      final snap = await query.limit(200).get();
+      if (snap.docs.isEmpty) break;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+  }
+
+  Future<void> _removeUidFromUserArray(String field, String uid) async {
+    while (true) {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where(field, arrayContains: uid)
+          .limit(200)
+          .get();
+      if (snap.docs.isEmpty) break;
+      final batch = FirebaseFirestore.instance.batch();
+      for (final doc in snap.docs) {
+        batch.update(doc.reference, {
+          field: FieldValue.arrayRemove([uid]),
+        });
+      }
+      await batch.commit();
+    }
+  }
+
+  Future<void> _deleteStorageFolder(Reference folderRef) async {
+    final list = await folderRef.listAll();
+    for (final item in list.items) {
+      await item.delete().catchError((_) {});
+    }
+    for (final nested in list.prefixes) {
+      await _deleteStorageFolder(nested);
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -3,8 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 
-class DeleteAccountScreen extends StatelessWidget {
+class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
+
+  @override
+  State<DeleteAccountScreen> createState() => _DeleteAccountScreenState();
+}
+
+class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
+  bool _isDeleting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +122,7 @@ class DeleteAccountScreen extends StatelessWidget {
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: () => _confirmDelete(context),
+                            onPressed: _isDeleting ? null : _confirmDelete,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFF81945), // Pink
                               foregroundColor: Colors.white,
@@ -128,8 +135,8 @@ class DeleteAccountScreen extends StatelessWidget {
                               ),
                               elevation: 0,
                             ),
-                            child: const Text(
-                              'Confirm',
+                            child: Text(
+                              _isDeleting ? 'Deleting...' : 'Confirm',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
@@ -138,7 +145,7 @@ class DeleteAccountScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: _isDeleting ? null : () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
                               side: BorderSide(
@@ -217,9 +224,20 @@ class DeleteAccountScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context) async {
-    await AuthService().signOut();
-    if (!context.mounted) return;
+  Future<void> _confirmDelete() async {
+    setState(() => _isDeleting = true);
+    final res = await AuthService().deleteCurrentAccount();
+    if (!mounted) return;
+    setState(() => _isDeleting = false);
+    if (!res.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res.message ?? 'Could not delete account. Please try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const AuthWrapper()),
       (route) => false,
