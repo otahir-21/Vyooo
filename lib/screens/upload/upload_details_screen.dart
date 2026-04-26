@@ -313,15 +313,15 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF1E0A1E),
       resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFDE106B), Color(0xFF1E0A1E)],
-            stops: [0.0, 0.6],
+            colors: [Color(0xFF490038), Color(0xFF1E0A1E)],
+            stops: [0.0, 0.4],
           ),
         ),
         child: SafeArea(
@@ -341,34 +341,38 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: _isUploading ? null : () => Navigator.of(context).pop(),
-            child: const Row(
-              children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Add details',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-              ],
+          IconButton(
+            onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 4),
+          const Text(
+            'Add details',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const Spacer(),
           GestureDetector(
             onTap: _isUploading ? null : _post,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
               decoration: BoxDecoration(
                 color: _pink,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Text(
                 'Upload',
-                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -447,66 +451,54 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildThumbnail() {
     return Center(
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: _isUploading ? null : _pickCustomThumbnail,
-            child: Container(
-              width: 140,
-              height: 190,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: FutureBuilder<File?>(
-                future: widget.asset.file,
-                builder: (context, snapshot) {
-                  if (_customThumbnailFile != null) {
-                    return Image.file(_customThumbnailFile!, fit: BoxFit.cover);
-                  }
-                  if (_isVideoAsset) {
-                    return FutureBuilder<Uint8List?>(
-                      future: widget.asset.thumbnailDataWithSize(
-                        const ThumbnailSize(400, 700),
+      child: GestureDetector(
+        onTap: _isUploading ? null : _pickCustomThumbnail,
+        child: Container(
+          width: 160,
+          height: 220,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: Colors.white.withValues(alpha: 0.1),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: FutureBuilder<File?>(
+            future: widget.asset.file,
+            builder: (context, snapshot) {
+              if (_customThumbnailFile != null) {
+                return Image.file(_customThumbnailFile!, fit: BoxFit.cover);
+              }
+              if (_isVideoAsset) {
+                return FutureBuilder<Uint8List?>(
+                  future: widget.asset.thumbnailDataWithSize(
+                    const ThumbnailSize(500, 800),
+                  ),
+                  builder: (context, thumbSnap) {
+                    final bytes = thumbSnap.data;
+                    if (bytes != null && bytes.isNotEmpty) {
+                      return Image.memory(bytes, fit: BoxFit.cover);
+                    }
+                    return Container(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white70,
+                          size: 44,
+                        ),
                       ),
-                      builder: (context, thumbSnap) {
-                        final bytes = thumbSnap.data;
-                        if (bytes != null && bytes.isNotEmpty) {
-                          return Image.memory(bytes, fit: BoxFit.cover);
-                        }
-                        return Container(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          child: const Center(
-                            child: Icon(
-                              Icons.play_circle_fill_rounded,
-                              color: Colors.white70,
-                              size: 44,
-                            ),
-                          ),
-                        );
-                      },
                     );
-                  }
-                  if (snapshot.hasData && snapshot.data != null) {
-                    return Image.file(snapshot.data!, fit: BoxFit.cover);
-                  }
-                  return const Center(
-                    child: CircularProgressIndicator(color: Colors.white24),
-                  );
-                },
-              ),
-            ),
+                  },
+                );
+              }
+              if (snapshot.hasData && snapshot.data != null) {
+                return Image.file(snapshot.data!, fit: BoxFit.cover);
+              }
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white24),
+              );
+            },
           ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: _isUploading ? null : _pickCustomThumbnail,
-            child: Text(
-              _customThumbnailFile == null ? 'Upload thumbnail image' : 'Change thumbnail image',
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -581,11 +573,27 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       runSpacing: 8,
       children: _selectedTags
           .map(
-            (tag) => Chip(
-              label: Text('#$tag', style: const TextStyle(color: Colors.white)),
-              backgroundColor: Colors.white.withValues(alpha: 0.12),
-              deleteIconColor: Colors.white70,
-              onDeleted: () => _removeTag(tag),
+            (tag) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white24, width: 0.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    tag,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _removeTag(tag),
+                    child: const Icon(Icons.close, color: Colors.white70, size: 14),
+                  ),
+                ],
+              ),
             ),
           )
           .toList(),
@@ -598,38 +606,41 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       children: [
         const Text(
           'Category',
-          style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 12),
         GestureDetector(
           onTap: _showCategoryPickerSheet,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white10),
             ),
             child: Row(
               children: [
                 Text(
                   _selectedCategory ?? 'Select your category',
                   style: TextStyle(
-                    color: _selectedCategory == null
-                        ? Colors.white.withValues(alpha: 0.4)
-                        : Colors.white,
-                    fontSize: 13,
+                    color: _selectedCategory == null ? Colors.white38 : Colors.white,
+                    fontSize: 14,
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white.withValues(alpha: 0.6), size: 20),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white38, size: 22),
               ],
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        const Text(
           'All content must be categorized for better search experience.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
+          style: TextStyle(color: Colors.white38, fontSize: 11),
         ),
       ],
     );
@@ -644,20 +655,27 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           children: [
             const Text(
               'Tags',
-              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             Text(
               '${_selectedTags.length}/$_maxTags',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              style: const TextStyle(color: Colors.white38, fontSize: 13),
             ),
           ],
         ),
         const SizedBox(height: 12),
+        _buildTagChips(),
+        const SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white10),
           ),
           child: Row(
             children: [
@@ -665,38 +683,36 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                 child: TextField(
                   controller: _tagsController,
                   onSubmitted: _addTag,
-                  textAlignVertical: TextAlignVertical.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                  decoration: InputDecoration(
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: const InputDecoration(
                     hintText: 'Enter your own tags',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
+                    hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
                     border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                    errorBorder: InputBorder.none,
-                    focusedErrorBorder: InputBorder.none,
                   ),
                 ),
               ),
+              const SizedBox(
+                height: 24,
+                child: VerticalDivider(color: Colors.white10, width: 24),
+              ),
               GestureDetector(
                 onTap: () => _addTag(_tagsController.text),
-                child: Text(
+                child: const Text(
                   'Add',
-                  style: TextStyle(color: _pink.withValues(alpha: 0.8), fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: _pink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        _buildTagChips(),
-        const SizedBox(height: 12),
-        Text(
+        const Text(
           'Tags are visible by others and are used to make you discoverable on vyoo.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 10),
+          style: TextStyle(color: Colors.white38, fontSize: 11),
         ),
       ],
     );
@@ -717,7 +733,11 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             Text(
               '${controller.text.length}/$maxLength',
