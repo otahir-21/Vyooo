@@ -26,34 +26,31 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.feedGradient),
+        decoration: BoxDecoration(gradient: AppGradients.mainBackgroundGradient),
         child: SafeArea(
           child: Column(
             children: [
               _buildHeader(context),
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  children: [
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: AppSpacing.md,
-                        crossAxisSpacing: AppSpacing.md,
-                        childAspectRatio: 0.85,
-                      ),
-                      itemCount: widget.paths.length,
-                      itemBuilder: (context, index) {
-                        final path = widget.paths[index];
-                        return _AlbumTile(
-                          path: path,
-                          onTap: () => Navigator.of(context).pop(path),
-                        );
-                      },
-                    ),
-                  ],
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.md,
+                  ),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: AppSpacing.lg,
+                    crossAxisSpacing: AppSpacing.md,
+                    childAspectRatio: 0.78,
+                  ),
+                  itemCount: widget.paths.length,
+                  itemBuilder: (context, index) {
+                    final path = widget.paths[index];
+                    return _AlbumTile(
+                      path: path,
+                      onTap: () => Navigator.of(context).pop(path),
+                    );
+                  },
                 ),
               ),
             ],
@@ -65,32 +62,44 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-      child: Row(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.sm,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.close, color: Colors.white, size: 28),
-          ),
-          const Expanded(
-            child: Text(
-              'All Albums',
-              style: TextStyle(
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Image.asset(
+                'assets/vyooO_icons/Search/close.png',
+                width: 24,
+                height: 24,
                 color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Next',
-              style: TextStyle(
-                color: Color(0xFFDE106B),
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+          const Text(
+            'All Albums',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Next',
+                style: TextStyle(
+                  color: Color(0xFFDE106B),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -113,31 +122,39 @@ class _AlbumTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: FutureBuilder<Uint8List?>(
-              future: _thumbnailFuture(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data != null) {
-                  return Image.memory(
-                    snapshot.data!,
-                    fit: BoxFit.cover,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: FutureBuilder<Uint8List?>(
+                future: _thumbnailFuture(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    return Image.memory(
+                      snapshot.data!,
+                      fit: BoxFit.cover,
+                    );
+                  }
+                  return Container(
+                    color: Colors.white.withValues(alpha: 0.1),
+                    child: const Center(
+                      child: Icon(
+                        Icons.photo_library_outlined,
+                        color: Colors.white24,
+                        size: 40,
+                      ),
+                    ),
                   );
-                }
-                return Container(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  child: const Center(
-                    child: Icon(Icons.photo_library_rounded, color: Colors.white38, size: 40),
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             path.name,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
             maxLines: 1,

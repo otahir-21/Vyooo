@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../../core/mock/mock_music_data.dart';
-import '../../core/theme/app_radius.dart';
-import '../../core/theme/app_spacing.dart';
 
 /// Bottom sheet to pick a music track for profile. Same list as Music library; selection preview with Done/Cancel.
 void showMusicPickerSheet(
@@ -15,10 +12,8 @@ void showMusicPickerSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => _MusicPickerSheet(
-      onDone: onDone,
-      currentDisplay: currentDisplay,
-    ),
+    builder: (ctx) =>
+        _MusicPickerSheet(onDone: onDone, currentDisplay: currentDisplay),
   );
 }
 
@@ -34,6 +29,8 @@ class _MusicPickerSheet extends StatefulWidget {
 
 class _MusicPickerSheetState extends State<_MusicPickerSheet> {
   MusicTrack? _selectedTrack;
+  bool _isTrimming = false;
+  int _activeTab = 0; // 0 For you, 1 Trending, 2 Saved
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -44,81 +41,153 @@ class _MusicPickerSheetState extends State<_MusicPickerSheet> {
 
   List<MusicTrack> get _filteredTracks {
     final q = _searchController.text.trim().toLowerCase();
-    if (q.isEmpty) return mockMusicTracks;
-    return mockMusicTracks.where((t) =>
-        t.title.toLowerCase().contains(q) ||
-        t.artist.toLowerCase().contains(q)).toList();
+    var list = mockMusicTracks;
+    if (_activeTab == 2) {
+      list = mockMusicTracks.where((t) => t.isSaved).toList();
+    }
+    if (q.isEmpty) return list;
+    return list
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(q) ||
+              t.artist.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final keyboardInset = media.viewInsets.bottom;
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: FractionallySizedBox(
-        heightFactor: 0.96,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xFF1A0020),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.sm),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+    if (_isTrimming && _selectedTrack != null) {
+      return _buildTrimmingView();
+    }
+
+    return FractionallySizedBox(
+      heightFactor: 0.94,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E0A1E),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                    decoration: InputDecoration(
-                      hintText: 'Search Music',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                      prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.input),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+              ),
+              const SizedBox(height: 16),
+              // Search
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Search Music',
+                    hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: Colors.white38,
+                      size: 20,
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                Expanded(
-                  child: ListView.builder(
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                    itemCount: _filteredTracks.length,
-                    itemBuilder: (context, index) {
-                      final track = _filteredTracks[index];
-                      final isSelected = _selectedTrack?.id == track.id;
-                      return _PickerMusicTile(
-                        track: track,
-                        isSelected: isSelected,
-                        onTap: () => setState(() => _selectedTrack = track),
-                      );
-                    },
-                  ),
+              ),
+              const SizedBox(height: 16),
+              // Tabs
+              _buildTabs(),
+              const SizedBox(height: 8),
+              // List
+              Expanded(
+                child: Stack(
+                  children: [
+                    ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 100,
+                      ),
+                      itemCount: _filteredTracks.length,
+                      itemBuilder: (context, index) {
+                        final track = _filteredTracks[index];
+                        final isSelected = _selectedTrack?.id == track.id;
+                        return _PickerMusicTile(
+                          track: track,
+                          isSelected: isSelected,
+                          onTap: () => setState(() => _selectedTrack = track),
+                        );
+                      },
+                    ),
+                    if (_selectedTrack != null)
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 24,
+                        child: _buildFloatingPlaybackBar(),
+                      ),
+                  ],
                 ),
-                if (_selectedTrack != null) _buildSelectionPreview(),
-                _buildActions(),
-              ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabs() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            _buildTabItem('For you', 0),
+            _buildTabItem('Trending', 1),
+            _buildTabItem('Saved', 2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabItem(String label, int index) {
+    final active = _activeTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _activeTab = index),
+        child: Container(
+          decoration: BoxDecoration(
+            color: active ? const Color(0xFFDE106B) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: active ? Colors.white : Colors.white60,
+              fontSize: 13,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ),
@@ -126,43 +195,71 @@ class _MusicPickerSheetState extends State<_MusicPickerSheet> {
     );
   }
 
-  Widget _buildSelectionPreview() {
+  Widget _buildFloatingPlaybackBar() {
     final t = _selectedTrack!;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.input),
+        color: const Color(0xFFDE106B),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(t.albumArtUrl, width: 64, height: 64, fit: BoxFit.cover),
+            borderRadius: BorderRadius.circular(6),
+            child: Image.network(
+              t.albumArtUrl,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+            ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   t.title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   t.artist,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                _buildWaveformPlaceholder(),
               ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.pause_circle_filled_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _isTrimming = true),
+            icon: const Icon(
+              Icons.arrow_forward_rounded,
+              color: Colors.white,
+              size: 24,
             ),
           ),
         ],
@@ -170,51 +267,104 @@ class _MusicPickerSheetState extends State<_MusicPickerSheet> {
     );
   }
 
-  Widget _buildWaveformPlaceholder() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(24, (i) => Container(
-        margin: const EdgeInsets.symmetric(horizontal: 1),
-        width: 3,
-        height: 12 + (i % 5) * 4.0,
-        decoration: BoxDecoration(
-          color: (i % 3 == 0) ? const Color(0xFFDE106B) : Colors.white.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(1),
+  Widget _buildTrimmingView() {
+    final t = _selectedTrack!;
+    return FractionallySizedBox(
+      heightFactor: 0.45,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E0A1E),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-      )),
-    );
-  }
-
-  Widget _buildActions() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.lg),
-      child: Row(
-        children: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          const Spacer(),
-          TextButton(
-            onPressed: _selectedTrack == null
-                ? null
-                : () {
-                    widget.onDone(_selectedTrack!);
-                    Navigator.of(context).pop();
-                  },
-            child: Text(
-              'Done',
-              style: TextStyle(
-                color: _selectedTrack == null ? Colors.white38 : const Color(0xFFDE106B),
-                fontSize: 16,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _isTrimming = false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Color(0xFFDE106B), fontSize: 15),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      widget.onDone(t);
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Color(0xFFDE106B),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                t.albumArtUrl,
+                width: 70,
+                height: 70,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              t.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        ],
+            Text(
+              t.artist,
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const Spacer(),
+            _buildWaveformTrimmer(),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWaveformTrimmer() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: List.generate(40, (i) {
+          final active = i > 10 && i < 30;
+          return Expanded(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              height: 20 + (i % 7) * 4.0,
+              decoration: BoxDecoration(
+                color: active ? const Color(0xFFDE106B) : Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -233,49 +383,66 @@ class _PickerMusicTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isSelected ? const Color(0xFFDE106B).withValues(alpha: 0.35) : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.input),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.network(track.albumArtUrl, width: 52, height: 52, fit: BoxFit.cover),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.network(
+                track.albumArtUrl,
+                width: 56,
+                height: 56,
+                fit: BoxFit.cover,
               ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.title,
+                    style: TextStyle(
+                      color: isSelected
+                          ? const Color(0xFFDE106B)
+                          : Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Text(
-                      '${track.artist} • ${track.duration}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 13,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.north_east_rounded,
+                        color: Colors.white38,
+                        size: 12,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${track.artist} • ${track.duration}',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              if (track.isSaved)
-                Icon(Icons.bookmark_rounded, color: AppColors.deleteRed, size: 22),
-            ],
-          ),
+            ),
+            Icon(
+              track.isSaved
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: Colors.white70,
+              size: 22,
+            ),
+          ],
         ),
       ),
     );

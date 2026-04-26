@@ -129,7 +129,7 @@ class _UploadScreenState extends State<UploadScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(gradient: AppGradients.feedGradient),
+        decoration: BoxDecoration(gradient: AppGradients.mainBackgroundGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -146,109 +146,99 @@ class _UploadScreenState extends State<UploadScreen> {
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
+        horizontal: AppSpacing.xs,
         vertical: AppSpacing.sm,
       ),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Image.asset(
-              'assets/vyooO_icons/Search/close.png',
-              width: 26,
-              height: 26,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          const Text(
-            'Gallery',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Center(
-              child: _AlbumDropdown(
-                value: _selectedAlbum,
-                paths: _paths,
-                onChanged: (v) async {
-                  if (v == null) return;
-                  if (v == 'All Albums') {
-                    if (_paths.isEmpty) return;
-                    final path = await Navigator.of(context)
-                        .push<AssetPathEntity>(
-                          MaterialPageRoute<AssetPathEntity>(
-                            builder: (_) => AllAlbumsScreen(paths: _paths),
-                          ),
-                        );
-                    if (!mounted) return;
-                    if (path != null) {
-                      setState(() {
-                        _pathOverride = path;
-                        _selectedAlbum = path.name;
-                      });
-                      await _loadAssetsForCurrentPath();
-                    }
-                    return;
-                  }
-                  setState(() {
-                    _pathOverride = null;
-                    _selectedAlbum = v;
-                  });
-                  await _loadAssetsForCurrentPath();
-                },
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Image.asset(
+                'assets/vyooO_icons/Search/close.png',
+                width: 24,
+                height: 24,
+                color: Colors.white,
               ),
             ),
           ),
-          TextButton(
-            onPressed: () {
-              if (_selectedIndex != null && _selectedIndex! < _assets.length) {
-                final selected = _assets[_selectedIndex!];
-                if (selected.type == AssetType.video) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => UploadVideoPreviewScreen(
-                        asset: selected,
+          _AlbumDropdown(
+            value: _selectedAlbum,
+            paths: _paths,
+            onChanged: (v) async {
+              if (v == null) return;
+              if (v == 'All Albums') {
+                if (_paths.isEmpty) return;
+                final path = await Navigator.of(context).push<AssetPathEntity>(
+                  MaterialPageRoute<AssetPathEntity>(
+                    builder: (_) => AllAlbumsScreen(paths: _paths),
+                  ),
+                );
+                if (!mounted) return;
+                if (path != null) {
+                  setState(() {
+                    _pathOverride = path;
+                    _selectedAlbum = path.name;
+                  });
+                  await _loadAssetsForCurrentPath();
+                }
+                return;
+              }
+              setState(() {
+                _pathOverride = null;
+                _selectedAlbum = v;
+              });
+              await _loadAssetsForCurrentPath();
+            },
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                if (_selectedIndex != null && _selectedIndex! < _assets.length) {
+                  final selected = _assets[_selectedIndex!];
+                  if (selected.type == AssetType.video) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => UploadVideoPreviewScreen(
+                          asset: selected,
+                        ),
                       ),
-                    ),
-                  );
-                } else if (selected.type == AssetType.image) {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => UploadPhotoPreviewScreen(
-                        asset: selected,
+                    );
+                  } else if (selected.type == AssetType.image) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => UploadPhotoPreviewScreen(
+                          asset: selected,
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Unsupported media selected.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                        'Unsupported media selected.',
-                      ),
+                      content: Text('Select photo or video'),
                       behavior: SnackBarBehavior.floating,
                     ),
                   );
                 }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Select photo or video'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            child: const Text(
-              'Next',
-              style: TextStyle(
-                color: Color(0xFFDE106B),
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+              },
+              child: const Text(
+                'Next',
+                style: TextStyle(
+                  color: Color(0xFFDE106B),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
               ),
             ),
           ),
@@ -306,9 +296,9 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Widget _buildGrid() {
-    const spacing = 2.0;
+    const spacing = 1.0;
     return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      padding: EdgeInsets.zero,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         mainAxisSpacing: spacing,
@@ -337,10 +327,15 @@ class _UploadScreenState extends State<UploadScreen> {
 
   Widget _buildBottomBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      color: Colors.black.withValues(alpha: 0.12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E0A1E).withValues(alpha: 0.4),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _BottomSegmentButton(
             label: 'Story',
@@ -353,14 +348,12 @@ class _UploadScreenState extends State<UploadScreen> {
               );
             },
           ),
-          const SizedBox(width: 6),
           _BottomSegmentButton(
             label: 'Gallery',
             iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png',
             selected: _bottomSegment == 1,
             onTap: () => setState(() => _bottomSegment = 1),
           ),
-          const SizedBox(width: 6),
           _BottomSegmentButton(
             label: 'Live',
             iconPath: 'assets/vyooO_icons/Upload_Story_Live/live.png',
@@ -423,14 +416,15 @@ class _VideoDuration extends StatelessWidget {
         ? '$h:${mm.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}'
         : '$mm:${s.toString().padLeft(2, '0')}';
     return Positioned(
-      right: 4,
-      bottom: 4,
+      right: 6,
+      bottom: 6,
       child: Text(
         str,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 11,
-          shadows: [Shadow(color: Colors.black54, blurRadius: 2)],
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
         ),
       ),
     );
@@ -441,21 +435,18 @@ class _SelectedBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: 6,
-      right: 6,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Color(0xFFDE106B),
+      top: 8,
+      right: 8,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          color: Color(0xFF27AE60),
           shape: BoxShape.circle,
         ),
-        child: Padding(
-          padding: EdgeInsets.all(2),
-          child: Image.asset(
-            'assets/vyooO_icons/Membership_Notify/Tick.png',
-            width: 16,
-            height: 16,
-            color: Colors.white,
-          ),
+        child: const Icon(
+          Icons.check,
+          size: 16,
+          color: Colors.white,
         ),
       ),
     );
@@ -476,93 +467,74 @@ class _AlbumDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
-      offset: const Offset(0, 40),
-      color: const Color(0xFF1E0A1E).withValues(alpha: 0.95),
-      elevation: 0,
+      offset: const Offset(0, 44),
+      color: const Color(0xFF1E0A1E).withValues(alpha: 0.98),
+      elevation: 4,
+      shadowColor: Colors.black54,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'Recents',
-          child: Row(
-            children: [
-              Icon(
-                Icons.photo_library_rounded,
-                size: 20,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Recents',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+        _buildPopupItem(
+          'Recents',
+          Icons.photo_library_outlined,
         ),
-        PopupMenuItem<String>(
-          value: 'Favourites',
-          child: Row(
-            children: [
-              Icon(
-                Icons.favorite_rounded,
-                size: 20,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Favourites',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+        _buildPopupItem(
+          'Favourites',
+          Icons.favorite_border_rounded,
         ),
-        PopupMenuItem<String>(
-          value: 'All Albums',
-          child: Row(
-            children: [
-              Icon(
-                Icons.grid_view_rounded,
-                size: 20,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'All Albums',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+        _buildPopupItem(
+          'All Albums',
+          Icons.grid_view_outlined,
         ),
       ],
       onSelected: onChanged,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildPopupItem(String label, IconData icon) {
+    return PopupMenuItem<String>(
+      value: label,
+      height: 48,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Colors.white.withValues(alpha: 0.9),
+          ),
+          const SizedBox(width: 14),
           Text(
-            value,
+            label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
             ),
-          ),
-          const SizedBox(width: 4),
-          Image.asset(
-            'assets/vyooO_icons/Home/chevron_right.png',
-            width: 20,
-            height: 20,
-            color: Colors.white.withValues(alpha: 0.9),
           ),
         ],
       ),
@@ -585,30 +557,24 @@ class _BottomSegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.72);
+    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.6);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFF71866), Color(0xFFDE106B)],
-                )
-              : null,
-          color: selected ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          color: selected ? const Color(0xFFDE106B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
               iconPath,
-              width: label == 'Live' ? 19 : 18,
-              height: label == 'Live' ? 19 : 18,
+              width: 20,
+              height: 20,
               color: color,
               errorBuilder: (_, _, _) => Icon(
                 label == 'Story'
@@ -617,16 +583,16 @@ class _BottomSegmentButton extends StatelessWidget {
                         ? Icons.grid_view_rounded
                         : Icons.wifi_tethering_rounded,
                 color: color,
-                size: 18,
+                size: 20,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 15,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 16,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ],
