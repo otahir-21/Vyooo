@@ -1,7 +1,6 @@
 import 'package:photo_manager/photo_manager.dart';
 
 enum VideoValidationIssue {
-  tooShort,
   tooLong,
   invalidAspectRatio,
   tooLarge,
@@ -26,18 +25,10 @@ class VideoValidationResult {
 class VideoUploadPolicy {
   VideoUploadPolicy._();
 
-  static const Duration minDuration = Duration(seconds: 3);
   static const double minAspectRatio = 0.55; // around 9:16
   static const double maxAspectRatio = 0.60;
 
   static Future<VideoValidationResult?> validateAsset(AssetEntity asset) async {
-    final duration = asset.videoDuration;
-    if (duration < minDuration) {
-      return VideoValidationResult(
-        issue: VideoValidationIssue.tooShort,
-        message: 'Video is too short. Minimum is ${minDuration.inSeconds}s.',
-      );
-    }
     final width = asset.width;
     final height = asset.height;
     if (width <= 0 || height <= 0) {

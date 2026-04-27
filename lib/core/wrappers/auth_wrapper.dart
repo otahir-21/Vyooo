@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import '../config/app_config.dart';
 import '../models/app_user_model.dart';
+import '../utils/account_message.dart';
+import '../services/auth_service.dart';
 import '../services/user_service.dart';
 import '../services/otp_session_service.dart';
 import '../services/push_messaging_service.dart';
@@ -29,6 +31,7 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> {
   String? _purchasesBoundUid;
   String? _fcmBoundUid;
+  String? _lastSeenUid;
 
   @override
   Widget build(BuildContext context) {
@@ -37,6 +40,17 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, authSnapshot) {
         final user = authSnapshot.data;
         final uid = user?.uid;
+        if (uid == null && _lastSeenUid != null) {
+          final expected = AuthService.consumeExpectedSignOut();
+          if (!expected) {
+            AuthService.markForceLogoutDetected();
+          }
+        }
+        if (uid != null && uid.isNotEmpty) {
+          _lastSeenUid = uid;
+        } else {
+          _lastSeenUid = null;
+        }
         if (_purchasesBoundUid != uid) {
           _purchasesBoundUid = uid;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -79,6 +93,13 @@ String _maskEmailForDisplay(String email) {
   return '${local[0]}${'*' * (local.length - 1)}@$domain';
 }
 
+String _maskPhoneForDisplay(String phone) {
+  final t = phone.trim();
+  if (t.length <= 4) return t;
+  final visible = t.substring(t.length - 4);
+  return '${'*' * (t.length - 4)}$visible';
+}
+
 class _UserDocGate extends StatefulWidget {
   const _UserDocGate({
     required this.uid,
@@ -96,6 +117,7 @@ class _UserDocGate extends StatefulWidget {
 
 class _UserDocGateState extends State<_UserDocGate> {
   late Future<void> _readyFuture;
+  String _lastAccountNotice = '';
 
   @override
   void initState() {
@@ -155,9 +177,13 @@ class _UserDocGateState extends State<_UserDocGate> {
             if (appUser == null) {
               return const CreateUsernameScreen();
             }
-            return ValueListenableBuilder<int>(
-              valueListenable: OtpSessionService.sessionRevision,
-              builder: (context, revision, _) {
+            return ListenableBuilder(
+              listenable: Listenable.merge([
+                OtpSessionService.sessionRevision,
+                AuthService.authNoticeRevision,
+              ]),
+              builder: (context, _) {
+                _maybeShowAccountNotice(appUser);
                 final handshake = OtpSessionService().emailLoginHandshakeActive;
                 if (widget.isPasswordAccount &&
                     appUser.emailOtpVerified &&
@@ -172,7 +198,9 @@ class _UserDocGateState extends State<_UserDocGate> {
                   );
                 }
                 return FutureBuilder<bool>(
-                  key: ValueKey<String>('otp_${widget.uid}_$revision'),
+                  key: ValueKey<String>(
+                    'otp_${widget.uid}_${OtpSessionService.sessionRevision.value}_${AuthService.authNoticeRevision.value}',
+                  ),
                   future: OtpSessionService().isOtpRequiredForUid(widget.uid),
                   builder: (context, otpSnapshot) {
                     if (otpSnapshot.connectionState != ConnectionState.done) {
@@ -188,9 +216,24 @@ class _UserDocGateState extends State<_UserDocGate> {
                     final sessionOtpRequired = otpSnapshot.data ?? false;
                     if (widget.isPasswordAccount &&
                         (sessionOtpRequired || !appUser.emailOtpVerified)) {
-                      return VerifyCodeScreen(
-                        maskedEmail: _maskEmailForDisplay(widget.email),
-                        autoSendOnOpen: !sessionOtpRequired,
+                      return FutureBuilder<(String channel, String destination)>(
+                        future: OtpSessionService().getSignupOtpPreference(),
+                        builder: (context, prefSnapshot) {
+                          final pref = prefSnapshot.data;
+                          final channel = (pref?.$1 ?? 'email').toLowerCase();
+                          final destination = pref?.$2 ?? '';
+                          final useWhatsApp = channel == 'whatsapp' &&
+                              destination.trim().isNotEmpty;
+                          return VerifyCodeScreen(
+                            channel: useWhatsApp ? 'whatsapp' : 'email',
+                            phoneNumber: useWhatsApp ? destination : '',
+                            maskedPhone: useWhatsApp
+                                ? _maskPhoneForDisplay(destination)
+                                : '',
+                            maskedEmail: _maskEmailForDisplay(widget.email),
+                            autoSendOnOpen: !sessionOtpRequired && !useWhatsApp,
+                          );
+                        },
                       );
                     }
                     if (appUser.onboardingCompleted) {
@@ -215,5 +258,25 @@ class _UserDocGateState extends State<_UserDocGate> {
         );
       },
     );
+  }
+
+  void _maybeShowAccountNotice(AppUserModel appUser) {
+    final forceLogoutDetected = AuthService.forceLogoutDetected;
+    final notice = accountMessage(
+      status: appUser.verificationStatus,
+      restricted: appUser.accountType.trim().toLowerCase() == 'restricted',
+      forceLogoutDetected: forceLogoutDetected,
+      creatorVerified: appUser.vipVerified || appUser.isVerified,
+    );
+    if (notice.isEmpty || notice == _lastAccountNotice) return;
+    _lastAccountNotice = notice;
+    if (forceLogoutDetected) {
+      AuthService.clearForceLogoutDetected();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(SnackBar(content: Text(notice)));
+    });
   }
 }

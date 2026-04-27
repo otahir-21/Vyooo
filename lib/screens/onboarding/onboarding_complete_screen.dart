@@ -95,6 +95,20 @@ class OnboardingCompleteScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: AppSpacing.xl - AppSpacing.xs),
+                IconButton(
+                  onPressed: () => _onBack(context),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                  tooltip: 'Back',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                ),
                 _buildLogo(),
                 AppPadding.itemGap,
                 const OnboardingProgressBar(progress: 1.0),
@@ -225,5 +239,14 @@ class OnboardingCompleteScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _onBack(BuildContext context) async {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    await AuthService().signOut();
   }
 }

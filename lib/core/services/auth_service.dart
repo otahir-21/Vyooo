@@ -11,6 +11,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import 'email_otp_service.dart';
 import 'push_messaging_service.dart';
+import 'whatsapp_otp_service.dart';
 
 /// Result of an auth operation. No raw Firebase exceptions exposed to UI.
 class AuthResult {
@@ -30,6 +31,36 @@ class AuthService {
   factory AuthService() => _instance;
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
+  static final ValueNotifier<int> authNoticeRevision = ValueNotifier(0);
+  static bool _expectedSignOut = false;
+  static bool _forceLogoutDetected = false;
+
+  static void _bumpAuthNoticeRevision() {
+    authNoticeRevision.value = authNoticeRevision.value + 1;
+  }
+
+  static void markExpectedSignOut() {
+    _expectedSignOut = true;
+  }
+
+  static bool consumeExpectedSignOut() {
+    final expected = _expectedSignOut;
+    _expectedSignOut = false;
+    return expected;
+  }
+
+  static void markForceLogoutDetected() {
+    _forceLogoutDetected = true;
+    _bumpAuthNoticeRevision();
+  }
+
+  static bool get forceLogoutDetected => _forceLogoutDetected;
+
+  static void clearForceLogoutDetected() {
+    if (!_forceLogoutDetected) return;
+    _forceLogoutDetected = false;
+    _bumpAuthNoticeRevision();
+  }
 
   /// Current signed-in user, or null.
   User? get currentUser => _auth.currentUser;
@@ -112,6 +143,22 @@ class AuthService {
     }
   }
 
+  /// Sends a 4-digit OTP to WhatsApp number via Twilio trigger.
+  Future<AuthResult> sendSignupWhatsAppOtp({
+    required String phoneNumber,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult(success: false, message: 'No user signed in.');
+      }
+      await WhatsAppOtpService().requestSendOtp(phoneNumber: phoneNumber);
+      return AuthResult(success: true, user: user);
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
   /// Verifies the email OTP and sets [emailOtpVerified] on the user profile (server).
   Future<AuthResult> verifySignupEmailOtp(String code) async {
     try {
@@ -120,6 +167,23 @@ class AuthService {
         return const AuthResult(success: false, message: 'No user signed in.');
       }
       await EmailOtpService().verifyOtp(code);
+      return AuthResult(success: true, user: user);
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
+  /// Verifies WhatsApp OTP and marks [emailOtpVerified] true for app entry.
+  Future<AuthResult> verifySignupWhatsAppOtp({
+    required String code,
+    required String phoneNumber,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult(success: false, message: 'No user signed in.');
+      }
+      await WhatsAppOtpService().verifyOtp(code: code, phoneNumber: phoneNumber);
       return AuthResult(success: true, user: user);
     } catch (e) {
       return AuthResult(success: false, message: _genericMessage(e));
@@ -284,6 +348,7 @@ class AuthService {
 
   /// Sign out the current user.
   Future<void> signOut() async {
+    markExpectedSignOut();
     final uid = _auth.currentUser?.uid;
     if (uid != null && uid.isNotEmpty) {
       await PushMessagingService.instance.clearForSignOut(uid);
@@ -339,6 +404,7 @@ class AuthService {
 
       // 6) Clear push token + auth account.
       await PushMessagingService.instance.clearForSignOut(uid);
+      markExpectedSignOut();
       await user.delete();
 
       return const AuthResult(success: true);

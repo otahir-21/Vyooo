@@ -162,6 +162,26 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    match /whatsapp_otp_send_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.phoneNumber is string;
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /whatsapp_otp_verify_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.phoneNumber is string
+                    && request.resource.data.code is string
+                    && request.resource.data.code.matches('^[0-9]{4}$');
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
     // Deny everything not explicitly allowed above.
     match /{document=**} {
       allow read, write: if false;

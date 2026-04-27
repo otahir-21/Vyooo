@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/otp_session_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
@@ -15,9 +17,13 @@ class CreateAccountScreen extends StatefulWidget {
 }
 
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  static const String _otpChannelEmail = 'email';
+  static const String _otpChannelWhatsApp = 'whatsapp';
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
@@ -26,6 +32,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
+  String _selectedCountryCode = 'GB';
+  String _selectedCountryDialCode = '44';
+  String _selectedCountryFlag = '🇬🇧';
 
   final AuthService _auth = AuthService();
 
@@ -49,6 +58,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -102,6 +112,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         hint: 'Email',
                         keyboardType: TextInputType.emailAddress,
                       ),
+                      const SizedBox(height: _spacingBetweenFields),
+                      _buildPhoneField(),
                       const SizedBox(height: _spacingBetweenFields),
                       _buildUnderlineField(
                         controller: _passwordController,
@@ -272,6 +284,37 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
+  Widget _buildPhoneField() {
+    final dialCode = '+$_selectedCountryDialCode';
+    return TextFormField(
+      controller: _phoneController,
+      style: const TextStyle(
+        color: AppTheme.defaultTextColor,
+        fontSize: _inputFontSize,
+        fontWeight: FontWeight.w400,
+      ),
+      keyboardType: TextInputType.phone,
+      decoration: InputDecoration(
+        hintText: 'Phone Number',
+        prefixIcon: GestureDetector(
+          onTap: _pickCountry,
+          child: Container(
+            width: 98,
+            alignment: Alignment.center,
+            child: Text(
+              '$_selectedCountryFlag $dialCode',
+              style: const TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
@@ -380,10 +423,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Future<void> _onRegister() async {
     final email = _emailController.text.trim();
+    final name = _nameController.text.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
+    final phone = _normalizedPhone();
 
     setState(() => _errorMessage = null);
+    if (name.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your name.');
+      return;
+    }
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'Please fill in email and password.');
       return;
@@ -394,6 +443,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
     if (password.length < 8) {
       setState(() => _errorMessage = 'Password must be at least 8 characters.');
+      return;
+    }
+    final otpChannel = await _showVerificationMethodDialog();
+    if (!mounted || otpChannel == null) return;
+    if (otpChannel == _otpChannelWhatsApp &&
+        (phone.isEmpty || !phone.startsWith('+') || phone.length < 8)) {
+      setState(() {
+        _errorMessage = 'Please enter a valid phone number for WhatsApp OTP.';
+      });
       return;
     }
 
@@ -426,8 +484,164 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
     if (!mounted) return;
+    if (otpChannel == _otpChannelWhatsApp) {
+      final otpResult = await _auth.sendSignupWhatsAppOtp(phoneNumber: phone);
+      if (!mounted) return;
+      if (!otpResult.success) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = otpResult.message ?? 'Could not send WhatsApp OTP.';
+        });
+        return;
+      }
+    }
+    await OtpSessionService().setSignupOtpPreference(
+      channel: otpChannel,
+      destination: otpChannel == _otpChannelWhatsApp ? phone : email,
+    );
     setState(() => _isLoading = false);
     // AuthWrapper shows VerifyCodeScreen until email OTP is verified.
+  }
+
+  Future<String?> _showVerificationMethodDialog() {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1A0A24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Verify your account',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Choose how you want to receive OTP.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.74),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _verificationMethodTile(
+                icon: Icons.mark_email_unread_outlined,
+                title: 'Email OTP',
+                subtitle: _emailController.text.trim().isEmpty
+                    ? 'Use your email address'
+                    : _emailController.text.trim(),
+                onTap: () => Navigator.of(ctx).pop(_otpChannelEmail),
+              ),
+              const SizedBox(height: 10),
+              _verificationMethodTile(
+                icon: FontAwesomeIcons.whatsapp,
+                title: 'WhatsApp OTP',
+                subtitle: _normalizedPhone().isEmpty
+                    ? 'Use your phone number'
+                    : _normalizedPhone(),
+                onTap: () => Navigator.of(ctx).pop(_otpChannelWhatsApp),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _verificationMethodTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: White24.value),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.primary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _pickCountry() {
+    showCountryPicker(
+      context: context,
+      showPhoneCode: true,
+      favorite: const ['GB', 'AE'],
+      countryListTheme: CountryListThemeData(
+        backgroundColor: const Color(0xFF12081C),
+        textStyle: const TextStyle(color: Colors.white),
+        inputDecoration: InputDecoration(
+          labelText: 'Search country',
+          labelStyle: TextStyle(color: AppTheme.secondaryTextColor),
+          enabledBorder: UnderlineInputBorder(
+            borderSide: BorderSide(color: White24.value),
+          ),
+          focusedBorder: const UnderlineInputBorder(
+            borderSide: BorderSide(color: AppTheme.primary),
+          ),
+        ),
+      ),
+      onSelect: (Country c) {
+        if (!mounted) return;
+        setState(() {
+          _selectedCountryCode = c.countryCode;
+          _selectedCountryDialCode = c.phoneCode;
+          _selectedCountryFlag = c.flagEmoji;
+        });
+      },
+    );
+  }
+
+  String _normalizedPhone() {
+    final raw = _phoneController.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (raw.isEmpty) return '';
+    final local = raw.startsWith('0') ? raw.substring(1) : raw;
+    return '+$_selectedCountryDialCode$local';
   }
 
   void _onSignIn() {

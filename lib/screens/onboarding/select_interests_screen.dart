@@ -145,6 +145,23 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 20),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              onPressed: _onBack,
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.white,
+                                size: 19,
+                              ),
+                              tooltip: 'Back',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
+                            ),
+                          ),
                         _buildLogo(),
                         const SizedBox(height: 16),
                         const OnboardingProgressBar(progress: 0.85),
@@ -353,5 +370,14 @@ class _SelectInterestsScreenState extends State<SelectInterestsScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _onBack() async {
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    await AuthService().signOut();
   }
 }

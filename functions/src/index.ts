@@ -60,12 +60,34 @@ function parseResendFailureMessage(status: number, body: string): string {
 const EMAIL_OTP_TTL_MS = 10 * 60 * 1000;
 const EMAIL_OTP_MAX_ATTEMPTS = 8;
 const EMAIL_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const WHATSAPP_OTP_TTL_MS = 10 * 60 * 1000;
+const WHATSAPP_OTP_MAX_ATTEMPTS = 8;
+const WHATSAPP_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
+const TWILIO_ACCOUNT_SID = (process.env.TWILIO_ACCOUNT_SID ?? '').trim();
+const TWILIO_AUTH_TOKEN = (process.env.TWILIO_AUTH_TOKEN ?? '').trim();
+const TWILIO_WHATSAPP_FROM = (process.env.TWILIO_WHATSAPP_FROM ?? '').trim();
 
 function hashEmailOtp(uid: string, plain: string): string {
   return crypto
     .createHash('sha256')
     .update(`vyooo-otp-v1:${RESEND_API_KEY}:${uid}:${plain}`, 'utf8')
     .digest('hex');
+}
+
+function hashWhatsAppOtp(uid: string, phone: string, plain: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`vyooo-wa-otp-v1:${TWILIO_ACCOUNT_SID}:${uid}:${phone}:${plain}`, 'utf8')
+    .digest('hex');
+}
+
+function normalizePhone(raw: unknown): string {
+  const asString = typeof raw === 'string' ? raw.trim() : '';
+  if (!asString) return '';
+  const normalized = asString.replace(/[^\d+]/g, '');
+  if (!normalized.startsWith('+')) return '';
+  if (!/^\+\d{8,16}$/.test(normalized)) return '';
+  return normalized;
 }
 
 // ── generateAgoraTokenOnRequest ────────────────────────────────────────────────
@@ -826,6 +848,162 @@ export const processEmailOtpVerifyRequest = onDocumentCreated(
 
     const expectedHash = data.codeHash as string;
     if (hashEmailOtp(uid, code) !== expectedHash) {
+      attempts += 1;
+      await challengeRef.update({ attempts });
+      await markError('Invalid code.');
+      return;
+    }
+
+    await userRef.set({ emailOtpVerified: true }, { merge: true });
+    await challengeRef.delete();
+    await snap.ref.update({ status: 'done' });
+  },
+);
+
+/**
+ * Client creates: whatsapp_otp_send_requests/{id}
+ * { userId, phoneNumber, status: 'pending', createdAt }
+ */
+export const processWhatsAppOtpSendRequest = onDocumentCreated(
+  {
+    document: 'whatsapp_otp_send_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const markError = async (msg: string) => {
+      await snap.ref.update({ status: 'error', error: msg });
+    };
+
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM) {
+      await markError('WhatsApp delivery is not configured.');
+      return;
+    }
+
+    const raw = snap.data() as { userId?: unknown; phoneNumber?: unknown };
+    const uid =
+      typeof raw.userId === 'string'
+        ? raw.userId.trim()
+        : typeof raw.userId === 'number'
+          ? String(raw.userId)
+          : '';
+    const phoneNumber = normalizePhone(raw.phoneNumber);
+    if (!uid || !phoneNumber) {
+      await markError('Invalid request.');
+      return;
+    }
+
+    const db = admin.firestore();
+    const challengeRef = db.collection('whatsapp_otp_challenges').doc(uid);
+    const challengeSnap = await challengeRef.get();
+    const now = Date.now();
+    if (challengeSnap.exists) {
+      const last = challengeSnap.data()?.lastSentAt as admin.firestore.Timestamp | undefined;
+      if (last && now - last.toMillis() < WHATSAPP_OTP_RESEND_COOLDOWN_MS) {
+        await markError('Please wait a moment before requesting a new code.');
+        return;
+      }
+    }
+
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const codeHash = hashWhatsAppOtp(uid, phoneNumber, code);
+    await challengeRef.set({
+      phoneNumber,
+      codeHash,
+      expiresAt: admin.firestore.Timestamp.fromMillis(now + WHATSAPP_OTP_TTL_MS),
+      attempts: 0,
+      lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const body = new URLSearchParams({
+      To: `whatsapp:${phoneNumber}`,
+      From: TWILIO_WHATSAPP_FROM,
+      Body: `Your VyooO verification code is ${code}. It expires in 10 minutes.`,
+    });
+    const twilioRes = await fetch(
+      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      },
+    );
+    if (!twilioRes.ok) {
+      const errBody = await twilioRes.text();
+      logger.error('Twilio WhatsApp send failed', { status: twilioRes.status, body: errBody.slice(0, 500) });
+      await challengeRef.delete();
+      await markError(`Could not send WhatsApp code (HTTP ${twilioRes.status}).`);
+      return;
+    }
+
+    await snap.ref.update({ status: 'done' });
+  },
+);
+
+/**
+ * Client creates: whatsapp_otp_verify_requests/{id}
+ * { userId, phoneNumber, code, status: 'pending', createdAt }
+ */
+export const processWhatsAppOtpVerifyRequest = onDocumentCreated(
+  {
+    document: 'whatsapp_otp_verify_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const markError = async (msg: string) => {
+      await snap.ref.update({ status: 'error', error: msg });
+    };
+
+    const raw = snap.data() as { userId?: unknown; phoneNumber?: unknown; code?: unknown };
+    const uid = typeof raw.userId === 'string' ? raw.userId.trim() : '';
+    const code = typeof raw.code === 'string' ? raw.code.replace(/\D/g, '').slice(0, 4) : '';
+    const phoneNumber = normalizePhone(raw.phoneNumber);
+    if (!uid || !phoneNumber || code.length !== 4) {
+      await markError('Enter the 4-digit code.');
+      return;
+    }
+
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(uid);
+    const challengeRef = db.collection('whatsapp_otp_challenges').doc(uid);
+    const challengeSnap = await challengeRef.get();
+    if (!challengeSnap.exists) {
+      await markError('No active code. Request a new one.');
+      return;
+    }
+
+    const data = challengeSnap.data()!;
+    const expectedPhone = normalizePhone(data.phoneNumber);
+    if (!expectedPhone || expectedPhone !== phoneNumber) {
+      await markError('This code does not match the selected phone number.');
+      return;
+    }
+    const expiresAt = data.expiresAt as admin.firestore.Timestamp;
+    if (expiresAt.toMillis() < Date.now()) {
+      await challengeRef.delete();
+      await markError('Code expired. Request a new one.');
+      return;
+    }
+
+    let attempts = (data.attempts as number) ?? 0;
+    if (attempts >= WHATSAPP_OTP_MAX_ATTEMPTS) {
+      await challengeRef.delete();
+      await markError('Too many attempts. Request a new code.');
+      return;
+    }
+
+    const expectedHash = data.codeHash as string;
+    if (hashWhatsAppOtp(uid, phoneNumber, code) !== expectedHash) {
       attempts += 1;
       await challengeRef.update({ attempts });
       await markError('Invalid code.');

@@ -8,11 +8,17 @@ import '../../core/widgets/app_gradient_background.dart';
 class VerifyCodeScreen extends StatefulWidget {
   const VerifyCodeScreen({
     super.key,
+    this.channel = 'email',
     this.maskedEmail = '',
+    this.maskedPhone = '',
+    this.phoneNumber = '',
     this.autoSendOnOpen = true,
   });
 
+  final String channel;
   final String maskedEmail;
+  final String maskedPhone;
+  final String phoneNumber;
   final bool autoSendOnOpen;
 
   @override
@@ -27,10 +33,16 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   bool _sendInFlight = false;
   bool _verifyInFlight = false;
   String? _errorMessage;
+  late String _activeChannel;
+  late String _activePhoneNumber;
+
+  bool get _useWhatsApp => _activeChannel == 'whatsapp';
 
   @override
   void initState() {
     super.initState();
+    _activeChannel = widget.channel.trim().toLowerCase();
+    _activePhoneNumber = widget.phoneNumber.trim();
     _controllers = List.generate(_otpLength, (_) => TextEditingController());
     _focusNodes = List.generate(_otpLength, (_) => FocusNode());
     if (widget.autoSendOnOpen) {
@@ -62,7 +74,25 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IconButton(
+                      onPressed: _onBack,
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 19,
+                      ),
+                      tooltip: 'Back',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 40,
+                        minHeight: 40,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   _buildLogo(),
                   const SizedBox(height: 60),
                   const Text(
@@ -75,8 +105,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    "Please enter the code we've just sent to email",
+                  Text(
+                    _useWhatsApp
+                        ? "Please enter the code we've just sent to WhatsApp"
+                        : "Please enter the code we've just sent to email",
                     style: TextStyle(
                       fontSize: 14,
                       color: AppTheme.secondaryTextColor,
@@ -86,7 +118,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    widget.maskedEmail.isEmpty ? 'your email' : widget.maskedEmail,
+                    _useWhatsApp
+                        ? (widget.maskedPhone.isEmpty
+                              ? 'your WhatsApp number'
+                              : widget.maskedPhone)
+                        : (widget.maskedEmail.isEmpty
+                              ? 'your email'
+                              : widget.maskedEmail),
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFFD10057),
@@ -183,7 +221,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                   const SizedBox(height: 20),
                   Center(
                     child: GestureDetector(
-                      onTap: _onTryAnotherWay,
+                      onTap: _onSwitchVerificationMethod,
                       child: const Text(
                         'Try Another Way',
                         style: TextStyle(
@@ -300,12 +338,17 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _sendInFlight = true;
       _errorMessage = null;
     });
-    final result = await _auth.sendSignupEmailOtp();
+    final result = _useWhatsApp
+        ? await _auth.sendSignupWhatsAppOtp(phoneNumber: _activePhoneNumber)
+        : await _auth.sendSignupEmailOtp();
     if (!mounted) return;
     setState(() {
       _sendInFlight = false;
       if (!result.success) {
-        _errorMessage = result.message ?? 'Could not send code.';
+        _errorMessage = result.message ??
+            (_useWhatsApp
+                ? 'Could not send WhatsApp code.'
+                : 'Could not send code.');
       }
     });
   }
@@ -322,7 +365,12 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _verifyInFlight = true;
       _errorMessage = null;
     });
-    final result = await _auth.verifySignupEmailOtp(code);
+    final result = _useWhatsApp
+        ? await _auth.verifySignupWhatsAppOtp(
+            code: code,
+            phoneNumber: _activePhoneNumber,
+          )
+        : await _auth.verifySignupEmailOtp(code);
     if (!mounted) return;
     if (!result.success) {
       setState(() {
@@ -332,14 +380,51 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       return;
     }
     await OtpSessionService().clearOtpRequirement();
+    await OtpSessionService().clearSignupOtpPreference();
     setState(() => _verifyInFlight = false);
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
-  Future<void> _onTryAnotherWay() async {
-    if (_verifyInFlight) return;
+  Future<void> _onSwitchVerificationMethod() async {
+    if (_verifyInFlight || _sendInFlight) return;
+    final target = _useWhatsApp ? 'email' : 'whatsapp';
+    if (target == 'whatsapp' && _activePhoneNumber.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No WhatsApp number found for this signup. Continue with email or register again with WhatsApp OTP.',
+          ),
+        ),
+      );
+      return;
+    }
+    final prefs = OtpSessionService();
+    final destination = target == 'whatsapp'
+        ? _activePhoneNumber
+        : (_auth.currentUser?.email ?? '');
+    await prefs.setSignupOtpPreference(channel: target, destination: destination);
+    if (!mounted) return;
+    setState(() {
+      _activeChannel = target;
+      _errorMessage = null;
+      for (final c in _controllers) {
+        c.clear();
+      }
+    });
+    if (target == 'whatsapp') {
+      await _sendOtp();
+    }
+  }
+
+  Future<void> _onBack() async {
+    if (_verifyInFlight || _sendInFlight) return;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) {
+      nav.pop();
+      return;
+    }
     await _auth.signOut();
-    // AuthWrapper shows CreateAccountScreen when signed out.
   }
 }

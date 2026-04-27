@@ -132,8 +132,6 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
         return 'Crop your video to vertical 9:16 (for example 1080x1920).';
       case VideoValidationIssue.tooLarge:
         return 'Export/compress to a smaller file (recommended 1080p, under 100 MB).';
-      case VideoValidationIssue.tooShort:
-        return 'Choose a clip at least 3 seconds long.';
       case VideoValidationIssue.unreadableDimensions:
       case VideoValidationIssue.inaccessibleFile:
         return 'Please pick another video from gallery.';

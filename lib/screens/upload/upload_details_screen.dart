@@ -302,8 +302,6 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         return 'Crop to vertical 9:16 for reels.';
       case VideoValidationIssue.tooLarge:
         return 'Compress/export to under 100 MB.';
-      case VideoValidationIssue.tooShort:
-        return 'Use a clip at least 3 seconds long.';
       case VideoValidationIssue.unreadableDimensions:
       case VideoValidationIssue.inaccessibleFile:
         return 'Pick a different video from gallery.';
