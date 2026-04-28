@@ -205,7 +205,9 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _isOtpComplete && !_verifyInFlight ? _onVerify : null,
+                        onPressed: _isOtpComplete && !_verifyInFlight
+                            ? _onVerify
+                            : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.buttonBackground,
                           foregroundColor: AppTheme.buttonTextColor,
@@ -358,7 +360,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _sendInFlight = true;
       _errorMessage = null;
     });
-    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '').trim();
+    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '')
+        .trim();
     final result = _usePhone
         ? await _auth.requestPhoneSignInOtp(
             phoneNumber: _activePhoneNumber,
@@ -369,8 +372,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             },
           )
         : _useWhatsApp
-            ? await _auth.sendSignupWhatsAppOtp(phoneNumber: _activePhoneNumber)
-            : await _auth.sendSignupEmailOtp(email: fallbackEmail);
+        ? await _auth.sendSignupWhatsAppOtp(phoneNumber: _activePhoneNumber)
+        : await _auth.sendSignupEmailOtp(email: draft?.email ?? '');
     if (!mounted) return;
     if (_usePhone &&
         result.success &&
@@ -383,7 +386,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     setState(() {
       _sendInFlight = false;
       if (!result.success) {
-        _errorMessage = result.message ??
+        _errorMessage =
+            result.message ??
             (_usePhone
                 ? 'Could not send phone code.'
                 : _useWhatsApp
@@ -406,18 +410,19 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _verifyInFlight = true;
       _errorMessage = null;
     });
-    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '').trim();
+    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '')
+        .trim();
     final result = _usePhone
         ? await _auth.verifyPhoneSignInOtp(
             verificationId: _phoneVerificationId,
             smsCode: code,
           )
         : _useWhatsApp
-            ? await _auth.verifySignupWhatsAppOtp(
-                code: code,
-                phoneNumber: _activePhoneNumber,
-              )
-            : await _auth.verifySignupEmailOtp(code, email: fallbackEmail);
+        ? await _auth.verifySignupWhatsAppOtp(
+            code: code,
+            phoneNumber: _activePhoneNumber,
+          )
+        : await _auth.verifySignupEmailOtp(code, email: draft?.email ?? '');
     if (!mounted) return;
     if (!result.success) {
       setState(() {
@@ -467,8 +472,8 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     final target = _usePhone
         ? 'email'
         : _useWhatsApp
-            ? 'email'
-            : 'whatsapp';
+        ? 'email'
+        : 'whatsapp';
     if (target == 'whatsapp' && _activePhoneNumber.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -485,7 +490,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
     final destination = target == 'whatsapp'
         ? _activePhoneNumber
         : (draft?.email ?? _auth.currentUser?.email ?? '');
-    await prefs.setSignupOtpPreference(channel: target, destination: destination);
+    await prefs.setSignupOtpPreference(
+      channel: target,
+      destination: destination,
+    );
     if (!mounted) return;
     setState(() {
       _activeChannel = target;
