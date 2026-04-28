@@ -59,11 +59,12 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   void _onUsernameChanged() {
     final raw = _usernameController.text;
     final normalized = UsernameValidation.normalize(raw);
-    if (normalized != raw) {
+    final withoutSpaces = raw.replaceAll(RegExp(r'\s'), '');
+    if (withoutSpaces != raw) {
       _usernameController
         ..removeListener(_onUsernameChanged)
-        ..text = normalized
-        ..selection = TextSelection.collapsed(offset: normalized.length)
+        ..text = withoutSpaces
+        ..selection = TextSelection.collapsed(offset: withoutSpaces.length)
         ..addListener(_onUsernameChanged);
       return;
     }
@@ -403,13 +404,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                 isDense: true,
               ),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
-                TextInputFormatter.withFunction(
-                  (_, value) => TextEditingValue(
-                    text: value.text.toLowerCase(),
-                    selection: value.selection,
-                  ),
-                ),
+                FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.]')),
               ],
             ),
           ),
@@ -460,7 +455,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter at least 3 characters (letters, numbers, underscore).'),
+          content: Text('Enter at least 3 characters (letters, numbers, underscore, dot).'),
         ),
       );
       return;

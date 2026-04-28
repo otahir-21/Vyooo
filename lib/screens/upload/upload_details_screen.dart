@@ -297,9 +297,9 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   String _fixHintForIssue(VideoValidationIssue issue) {
     switch (issue) {
       case VideoValidationIssue.tooLong:
-        return 'Trim the clip to 60 seconds or less.';
+        return 'Trim the clip to 2 minutes or less.';
       case VideoValidationIssue.invalidAspectRatio:
-        return 'Crop to vertical 9:16 for reels.';
+        return 'Any orientation is supported. Pick another file if this keeps showing.';
       case VideoValidationIssue.tooLarge:
         return 'Compress/export to under 100 MB.';
       case VideoValidationIssue.unreadableDimensions:

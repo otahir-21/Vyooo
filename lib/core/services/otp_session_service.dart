@@ -10,6 +10,7 @@ class OtpSessionService {
 
   static const String _keyOtpPending = 'login_otp_pending';
   static const String _keyOtpPendingUid = 'login_otp_pending_uid';
+  static const String _keyTrustedLoginUids = 'trusted_login_uids';
   static const String _keySignupOtpChannel = 'signup_otp_channel';
   static const String _keySignupOtpDestination = 'signup_otp_destination';
 
@@ -56,6 +57,25 @@ class OtpSessionService {
     await prefs.remove(_keyOtpPending);
     await prefs.remove(_keyOtpPendingUid);
     emailLoginHandshakeActive = false;
+    _bumpRevision();
+  }
+
+  Future<bool> isTrustedDeviceForUid(String uid) async {
+    final normalizedUid = uid.trim();
+    if (normalizedUid.isEmpty) return false;
+    final prefs = await SharedPreferences.getInstance();
+    final trusted = prefs.getStringList(_keyTrustedLoginUids) ?? const <String>[];
+    return trusted.contains(normalizedUid);
+  }
+
+  Future<void> markTrustedDeviceForUid(String uid) async {
+    final normalizedUid = uid.trim();
+    if (normalizedUid.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final trusted = prefs.getStringList(_keyTrustedLoginUids) ?? const <String>[];
+    if (trusted.contains(normalizedUid)) return;
+    final updated = List<String>.from(trusted)..add(normalizedUid);
+    await prefs.setStringList(_keyTrustedLoginUids, updated);
     _bumpRevision();
   }
 

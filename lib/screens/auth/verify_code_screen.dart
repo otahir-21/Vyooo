@@ -358,6 +358,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _sendInFlight = true;
       _errorMessage = null;
     });
+    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '').trim();
     final result = _usePhone
         ? await _auth.requestPhoneSignInOtp(
             phoneNumber: _activePhoneNumber,
@@ -369,7 +370,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
           )
         : _useWhatsApp
             ? await _auth.sendSignupWhatsAppOtp(phoneNumber: _activePhoneNumber)
-            : await _auth.sendSignupEmailOtp(email: draft?.email ?? '');
+            : await _auth.sendSignupEmailOtp(email: fallbackEmail);
     if (!mounted) return;
     if (_usePhone &&
         result.success &&
@@ -405,6 +406,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _verifyInFlight = true;
       _errorMessage = null;
     });
+    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '').trim();
     final result = _usePhone
         ? await _auth.verifyPhoneSignInOtp(
             verificationId: _phoneVerificationId,
@@ -415,7 +417,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 code: code,
                 phoneNumber: _activePhoneNumber,
               )
-            : await _auth.verifySignupEmailOtp(code, email: draft?.email ?? '');
+            : await _auth.verifySignupEmailOtp(code, email: fallbackEmail);
     if (!mounted) return;
     if (!result.success) {
       setState(() {
@@ -445,6 +447,10 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
         return;
       }
       SignupDraftService().clear();
+    }
+    final currentUid = _auth.currentUser?.uid ?? '';
+    if (currentUid.isNotEmpty) {
+      await OtpSessionService().markTrustedDeviceForUid(currentUid);
     }
     await OtpSessionService().clearOtpRequirement();
     await OtpSessionService().clearSignupOtpPreference();

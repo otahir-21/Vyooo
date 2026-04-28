@@ -24,6 +24,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _phoneFocusNode = FocusNode();
@@ -72,6 +73,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _surnameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _phoneFocusNode.dispose();
@@ -118,6 +120,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         controller: _nameController,
                         icon: Icons.person_outline,
                         hint: 'Name',
+                        keyboardType: TextInputType.name,
+                        textCapitalization: TextCapitalization.words,
+                      ),
+                      const SizedBox(height: _spacingBetweenFields),
+                      _buildUnderlineField(
+                        controller: _surnameController,
+                        icon: Icons.person_outline,
+                        hint: 'Surname',
                         keyboardType: TextInputType.name,
                         textCapitalization: TextCapitalization.words,
                       ),
@@ -462,14 +472,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   Future<void> _onRegister() async {
     final email = _emailController.text.trim();
-    final name = _nameController.text.trim();
+    final firstName = _nameController.text.trim();
+    final surname = _surnameController.text.trim();
+    final name = '$firstName $surname'.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
     final phone = _normalizedPhone();
 
     setState(() => _errorMessage = null);
-    if (name.isEmpty) {
+    if (firstName.isEmpty) {
       setState(() => _errorMessage = 'Please enter your name.');
+      return;
+    }
+    if (surname.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your surname.');
       return;
     }
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {

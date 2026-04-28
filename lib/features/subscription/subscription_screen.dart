@@ -41,11 +41,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (!mounted) return;
     if (isPaid) {
       setState(() => _closingForActivePlan = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('You are already subscribed to ${controller.planDisplayName}.'),
-        ),
-      );
       Navigator.of(context).pop();
       return;
     }
@@ -85,9 +80,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
     final selectedTier = _selectedTierFromIndex(selectedIndex);
     if (controller.currentTier == selectedTier) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You are already on the ${controller.planDisplayName} plan.')),
-      );
       Navigator.of(context).pop();
       return;
     }

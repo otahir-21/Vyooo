@@ -142,9 +142,9 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
   String _fixHintForIssue(VideoValidationIssue issue) {
     switch (issue) {
       case VideoValidationIssue.tooLong:
-        return 'Trim your video to 60 seconds or less.';
+        return 'Trim your video to 2 minutes or less.';
       case VideoValidationIssue.invalidAspectRatio:
-        return 'Crop your video to vertical 9:16 (for example 1080x1920).';
+        return 'Any orientation is supported. Pick another file if this keeps showing.';
       case VideoValidationIssue.tooLarge:
         return 'Export/compress to a smaller file (recommended 1080p, under 100 MB).';
       case VideoValidationIssue.unreadableDimensions:
@@ -325,74 +325,103 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Row(
+    final detectedDuration = (_isInitialized && _controller != null)
+        ? _controller!.value.duration
+        : Duration.zero;
+    final hasDetectedDuration = detectedDuration.inMilliseconds > 0;
+    final maxAllowed = VideoUploadPolicy.maxVideoDuration;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          onPressed: () => _showQuitConfirmation(),
-          icon: const Icon(Icons.close, color: Colors.white, size: 28),
-        ),
-        const Spacer(),
         Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Edit Video',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+            IconButton(
+              onPressed: () => _showQuitConfirmation(),
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
             ),
-            const SizedBox(width: 4),
-            Image.asset(
-              'assets/vyooO_icons/Upload_Story_Live/edit_video.png',
-              width: 16,
-              height: 16,
-              color: Colors.white,
-            ),
-          ],
-        ),
-        const Spacer(),
-        GestureDetector(
-          onTap: () {
-            if (_validationIssue != null) {
-              _showFixPrompt();
-              return;
-            }
-            _controller?.pause();
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => UploadDetailsScreen(asset: widget.asset),
-              ),
-            );
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: _pink,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
+            const Spacer(),
+            Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Next',
+                const Text(
+                  'Edit Video',
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
+                const SizedBox(width: 4),
+                Image.asset(
+                  'assets/vyooO_icons/Upload_Story_Live/edit_video.png',
+                  width: 16,
+                  height: 16,
                   color: Colors.white,
-                  size: 12,
                 ),
               ],
             ),
-          ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                if (_validationIssue != null) {
+                  _showFixPrompt();
+                  return;
+                }
+                _controller?.pause();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => UploadDetailsScreen(asset: widget.asset),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _pink,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Next',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
+        if (hasDetectedDuration) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Text(
+              'Length ${_formatDuration(detectedDuration)} / Max ${_formatDuration(maxAllowed)}',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

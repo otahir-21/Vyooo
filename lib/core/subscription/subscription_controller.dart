@@ -32,6 +32,7 @@ class SubscriptionController extends ChangeNotifier {
   bool _hasAnyStoreSubscription = false;
   bool _hasResolvedStatusOnce = false;
   String? _activeFirebaseUid;
+  DateTime? _lastRestoreAttemptAt;
   bool isLoading = false;
   String? purchaseError; // non-null if last purchase failed (not cancelled)
 
@@ -163,6 +164,12 @@ class SubscriptionController extends ChangeNotifier {
     if (isPaid) return true;
 
     // Recovery path: restore, then refresh again.
+    // Throttle restore calls to avoid repeated restore loops on quick tab taps.
+    final now = DateTime.now();
+    final canRestoreNow = _lastRestoreAttemptAt == null ||
+        now.difference(_lastRestoreAttemptAt!) > const Duration(minutes: 2);
+    if (!canRestoreNow) return isPaid;
+    _lastRestoreAttemptAt = now;
     await restorePurchases();
     await refreshStatus();
     return isPaid;

@@ -7,7 +7,7 @@ import '../../core/theme/app_gradients.dart';
 import '../../core/theme/app_spacing.dart';
 import 'all_albums_screen.dart';
 import 'creator_live_route.dart';
-import 'story_capture_screen.dart';
+import '../../features/story/story_upload_screen.dart';
 import 'upload_photo_preview_screen.dart';
 import 'upload_video_preview_screen.dart';
 
@@ -344,7 +344,7 @@ class _UploadScreenState extends State<UploadScreen> {
             onTap: () {
               setState(() => _bottomSegment = 0);
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const StoryCaptureScreen()),
+                MaterialPageRoute(builder: (_) => const StoryUploadScreen()),
               );
             },
           ),

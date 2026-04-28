@@ -201,6 +201,7 @@ class UserService {
     if (raw.isEmpty) return null;
     if (raw.contains('@')) return raw.toLowerCase();
     final normalizedUsername = raw.toLowerCase().replaceAll('@', '');
+    final normalizedDisplayName = raw.toLowerCase();
     try {
       final byUsername = await _firestore
           .collection(_usersCollection)
@@ -220,6 +221,19 @@ class UserService {
       if (byDisplayName.docs.isNotEmpty) {
         final email = (byDisplayName.docs.first.data()['email'] as String? ?? '')
             .trim();
+        if (email.isNotEmpty) return email;
+      }
+
+      // Case-insensitive fallback for display names (Firestore equality is case-sensitive).
+      final byDisplayNameFallback = await _firestore
+          .collection(_usersCollection)
+          .limit(500)
+          .get();
+      for (final doc in byDisplayNameFallback.docs) {
+        final data = doc.data();
+        final displayName = (data['displayName'] as String? ?? '').trim().toLowerCase();
+        if (displayName != normalizedDisplayName) continue;
+        final email = (data['email'] as String? ?? '').trim();
         if (email.isNotEmpty) return email;
       }
       return null;

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:photo_manager/photo_manager.dart';
+import 'package:video_player/video_player.dart';
 
 enum VideoValidationIssue {
   tooLong,
@@ -17,40 +20,52 @@ class VideoValidationResult {
   final VideoValidationIssue issue;
   final String message;
 
-  bool get canOpenEditorFix =>
-      issue == VideoValidationIssue.tooLong ||
-      issue == VideoValidationIssue.invalidAspectRatio;
+  bool get canOpenEditorFix => issue == VideoValidationIssue.tooLong;
 }
 
 class VideoUploadPolicy {
   VideoUploadPolicy._();
 
-  static const double minAspectRatio = 0.55; // around 9:16
-  static const double maxAspectRatio = 0.60;
+  static const Duration maxVideoDuration = Duration(minutes: 2);
 
   static Future<VideoValidationResult?> validateAsset(AssetEntity asset) async {
-    final width = asset.width;
-    final height = asset.height;
-    if (width <= 0 || height <= 0) {
-      return const VideoValidationResult(
-        issue: VideoValidationIssue.unreadableDimensions,
-        message: 'Unable to read video dimensions. Please pick another video.',
-      );
-    }
-    final ratio = width / height;
-    if (ratio < minAspectRatio || ratio > maxAspectRatio) {
-      return const VideoValidationResult(
-        issue: VideoValidationIssue.invalidAspectRatio,
-        message: 'Use vertical 9:16 video (for example 1080x1920).',
-      );
-    }
-
     final file = await asset.file;
     if (file == null) {
       return const VideoValidationResult(
         issue: VideoValidationIssue.inaccessibleFile,
         message: 'Unable to access selected video file.',
       );
+    }
+
+    final duration = await _resolveDuration(asset, file.path);
+    if (duration == null) {
+      return const VideoValidationResult(
+        issue: VideoValidationIssue.unreadableDimensions,
+        message: 'Unable to read video length. Please pick another video.',
+      );
+    }
+    if (duration > maxVideoDuration) {
+      return const VideoValidationResult(
+        issue: VideoValidationIssue.tooLong,
+        message: 'Video is too long. Maximum allowed length is 2 minutes.',
+      );
+    }
+    return null;
+  }
+
+  static Future<Duration?> _resolveDuration(AssetEntity asset, String filePath) async {
+    final assetDuration = asset.videoDuration;
+    if (assetDuration.inMilliseconds > 0) return assetDuration;
+    late final VideoPlayerController controller;
+    try {
+      controller = VideoPlayerController.file(File(filePath));
+      await controller.initialize();
+      final duration = controller.value.duration;
+      if (duration.inMilliseconds > 0) return duration;
+    } catch (_) {
+      return null;
+    } finally {
+      await controller.dispose();
     }
     return null;
   }

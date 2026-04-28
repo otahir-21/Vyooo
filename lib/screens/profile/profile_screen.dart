@@ -9,8 +9,10 @@ import '../../core/theme/app_gradients.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
+import '../../core/models/story_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/reels_service.dart';
+import '../../core/services/story_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/theme/app_radius.dart';
@@ -18,6 +20,8 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
+import '../../features/story/story_upload_screen.dart';
+import '../../features/story/story_viewer_screen.dart';
 import '../../core/models/live_stream_model.dart';
 import '../content/live_stream_route.dart';
 import '../content/vr_detail_screen.dart';
@@ -349,6 +353,42 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  Future<void> _openMyStoryComposerOrViewer(
+    BuildContext context, {
+    required String userId,
+    required String username,
+    required String avatarUrl,
+  }) async {
+    final activeStories = await StoryService().getMyStories();
+    if (!mounted) return;
+    if (activeStories.isEmpty) {
+      final posted = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(builder: (_) => const StoryUploadScreen()),
+      );
+      if (posted == true && mounted) setState(() {});
+      return;
+    }
+    await Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => StoryViewerScreen(
+          groups: [
+            StoryGroup(
+              userId: userId,
+              username: username,
+              avatarUrl: avatarUrl,
+              stories: activeStories,
+            ),
+          ],
+          initialGroupIndex: 0,
+          initialStoryIndex: 0,
+        ),
+        transitionsBuilder: (_, animation, __, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+
   void _showProfileMenu(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -604,14 +644,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
                     Expanded(
                       child: Text(
                         username,
@@ -634,28 +666,75 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _profileAccentStart,
-                      width: 2,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 54,
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
-                    backgroundImage: _isValidNetworkUrl(avatarUrl)
-                        ? NetworkImage(avatarUrl!)
-                        : null,
-                    child: !_isValidNetworkUrl(avatarUrl)
-                        ? Icon(
-                            Icons.person_rounded,
-                            size: 54,
-                            color: Colors.white.withValues(alpha: 0.4),
-                          )
-                        : null,
-                  ),
+                FutureBuilder<List<StoryModel>>(
+                  future: StoryService().getMyStories(),
+                  builder: (context, snapshot) {
+                    final hasStory =
+                        (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
+                    return GestureDetector(
+                      onTap: () => _openMyStoryComposerOrViewer(
+                        context,
+                        userId: profileUid,
+                        username: user?.username ?? 'you',
+                        avatarUrl: user?.profileImage ?? '',
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: hasStory
+                              ? AppGradients.storyRingGradient
+                              : null,
+                          border: hasStory
+                              ? null
+                              : Border.all(
+                                  color: _profileAccentStart,
+                                  width: 2,
+                                ),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(hasStory ? 2 : 0),
+                          child: CircleAvatar(
+                            radius: 54,
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            backgroundImage: _isValidNetworkUrl(avatarUrl)
+                                ? NetworkImage(avatarUrl!)
+                                : null,
+                            child: !_isValidNetworkUrl(avatarUrl)
+                                ? Icon(
+                                    Icons.person_rounded,
+                                    size: 54,
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                FutureBuilder<List<StoryModel>>(
+                  future: StoryService().getMyStories(),
+                  builder: (context, snapshot) {
+                    final hasStory =
+                        (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
+                    return GestureDetector(
+                      onTap: () => _openMyStoryComposerOrViewer(
+                        context,
+                        userId: profileUid,
+                        username: user?.username ?? 'you',
+                        avatarUrl: user?.profileImage ?? '',
+                      ),
+                      child: Text(
+                        hasStory ? 'View story' : 'Add story',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Row(
@@ -789,6 +868,27 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                FutureBuilder<List<StoryModel>>(
+                  future: StoryService().getMyStories(),
+                  builder: (context, snapshot) {
+                    final hasStory = (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
+                    final storyLabel = hasStory ? 'My Story' : 'Add Story';
+                    final storyIcon = hasStory
+                        ? Icons.auto_stories_rounded
+                        : Icons.add_circle_outline_rounded;
+                    return _OutlineButton(
+                      label: storyLabel,
+                      icon: storyIcon,
+                      onPressed: () => _openMyStoryComposerOrViewer(
+                        context,
+                        userId: profileUid,
+                        username: user?.username ?? 'you',
+                        avatarUrl: user?.profileImage ?? '',
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 32),
               ],

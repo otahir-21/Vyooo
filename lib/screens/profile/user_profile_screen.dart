@@ -15,8 +15,8 @@ import '../../core/services/user_service.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../content/live_stream_route.dart';
-import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
+import '../../widgets/reel_item_widget.dart';
 import '../../features/reel/widgets/block_user_sheet.dart';
 import '../../features/subscription/creator_subscription_screen.dart';
 
@@ -662,7 +662,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   List<Widget> _buildPostsSlivers(UserProfilePayload p) {
-    if (p.postCount == 0) {
+    final targetUid = (p.targetUserId ?? '').trim();
+    if (targetUid.isEmpty) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
@@ -690,46 +691,148 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ];
     }
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 1,
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => PostFeedScreen(
-                    payload: PostFeedPayload(
-                      initialIndex: index,
-                      creatorName: p.displayName,
-                      creatorHandle: '@${p.username}',
-                      avatarUrl: p.avatarUrl,
-                      isVerified: p.isVerified,
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance
+              .collection('reels')
+              .where('userId', isEqualTo: targetUid)
+              .get()
+              .then((q) {
+                final docs = q.docs.map((d) {
+                  final data = d.data();
+                  return {
+                    'id': d.id,
+                    'videoUrl': data['videoUrl'] as String? ?? '',
+                    'imageUrl': data['imageUrl'] as String? ?? '',
+                    'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
+                    'mediaType': data['mediaType'] as String? ?? '',
+                    'caption': data['caption'] as String? ?? '',
+                    'createdAt': data['createdAt'],
+                  };
+                }).toList();
+                docs.sort((a, b) {
+                  final aTs = a['createdAt'] as Timestamp?;
+                  final bTs = b['createdAt'] as Timestamp?;
+                  if (aTs == null && bTs == null) return 0;
+                  if (aTs == null) return 1;
+                  if (bTs == null) return -1;
+                  return bTs.compareTo(aTs);
+                });
+                return docs;
+              }),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
+              );
+            }
+            final posts = snapshot.data ?? <Map<String, dynamic>>[];
+            if (posts.isEmpty) {
+              return SizedBox(
+                height: 280,
+                child: Center(
+                  child: Text(
+                    'No posts made yet',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 16,
                     ),
                   ),
                 ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  _userProfileMockPostUrls[index],
-                  fit: BoxFit.cover,
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  childAspectRatio: 1,
                 ),
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final reel = posts[index];
+                  final thumb = _thumbnailFromReel(reel);
+                  final mediaType =
+                      ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                  final isVideo = mediaType != 'image';
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => _UserProfileReelFeedScreen(
+                          reels: posts,
+                          initialIndex: index,
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(color: Colors.grey[900]),
+                          if (thumb.isNotEmpty)
+                            Image.network(
+                              thumb,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          if (isVideo)
+                            const Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white70,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
-            childCount: _userProfileMockPostUrls.length,
-          ),
+            );
+          },
         ),
       ),
     ];
+  }
+
+  static String _thumbnailFromReel(Map<String, dynamic> reel) {
+    final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
+    final imageUrl = (reel['imageUrl'] as String?)?.trim() ?? '';
+    final explicitThumb = (reel['thumbnailUrl'] as String?)?.trim() ?? '';
+    final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+    if (mediaType == 'image') {
+      if (imageUrl.isNotEmpty) return imageUrl;
+      if (explicitThumb.isNotEmpty) return explicitThumb;
+      return '';
+    }
+    if (explicitThumb.isNotEmpty) return explicitThumb;
+    if (imageUrl.isNotEmpty) return imageUrl;
+    if (videoUrl.isEmpty) return '';
+    try {
+      final uri = Uri.parse(videoUrl);
+      final videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
+      if (videoId.isEmpty) return '';
+      return 'https://videodelivery.net/$videoId/thumbnails/thumbnail.jpg';
+    } catch (_) {
+      return '';
+    }
   }
 
   List<Widget> _buildVRGridSlivers(UserProfilePayload p) {
@@ -851,18 +954,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 }
 
 // Mock data for other user profile (design only).
-const List<String> _userProfileMockPostUrls = [
-  'https://picsum.photos/400/400?random=u1',
-  'https://picsum.photos/400/400?random=u2',
-  'https://picsum.photos/400/400?random=u3',
-  'https://picsum.photos/400/400?random=u4',
-  'https://picsum.photos/400/400?random=u5',
-  'https://picsum.photos/400/400?random=u6',
-  'https://picsum.photos/400/400?random=u7',
-  'https://picsum.photos/400/400?random=u8',
-  'https://picsum.photos/400/400?random=u9',
-];
-
 const List<String> _userProfileMockSavedUrls = [
   'https://picsum.photos/400/400?random=us1',
   'https://picsum.photos/400/400?random=us2',
@@ -940,18 +1031,17 @@ final List<_UserProfileStreamItem> _userProfileMockStreamItems = [
 ];
 
 class _UserStatChip extends StatelessWidget {
-  const _UserStatChip({required this.label, required this.value, this.onTap});
+  const _UserStatChip({required this.label, required this.value});
 
   final String label;
   final String value;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: null,
         borderRadius: BorderRadius.circular(8),
         child: Container(
           width: 80,
@@ -1335,6 +1425,98 @@ class _UserProfileStreamCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UserProfileReelFeedScreen extends StatefulWidget {
+  const _UserProfileReelFeedScreen({
+    required this.reels,
+    required this.initialIndex,
+  });
+
+  final List<Map<String, dynamic>> reels;
+  final int initialIndex;
+
+  @override
+  State<_UserProfileReelFeedScreen> createState() =>
+      _UserProfileReelFeedScreenState();
+}
+
+class _UserProfileReelFeedScreenState extends State<_UserProfileReelFeedScreen> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            onPageChanged: (i) => setState(() => _currentIndex = i),
+            itemCount: widget.reels.length,
+            itemBuilder: (context, index) {
+              final reel = widget.reels[index];
+              final mediaType =
+                  ((reel['mediaType'] as String?) ?? '').toLowerCase();
+              if (mediaType == 'image') {
+                final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+                final thumbnailUrl =
+                    ((reel['thumbnailUrl'] as String?) ?? '').trim();
+                final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
+                if (displayUrl.isNotEmpty) {
+                  return SizedBox.expand(
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: Image.network(
+                        displayUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const SizedBox.shrink(),
+                      ),
+                    ),
+                  );
+                }
+              }
+              final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+              if (videoUrl.isEmpty) {
+                return const SizedBox.expand(
+                  child: ColoredBox(color: Colors.black),
+                );
+              }
+              return ReelItemWidget(
+                videoUrl: videoUrl,
+                isVisible: index == _currentIndex,
+              );
+            },
+          ),
+          SafeArea(
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -37,7 +37,8 @@ class StoryService {
     final filename = '${uid}_${now.millisecondsSinceEpoch}.jpg';
 
     // Upload image
-    final ref = _storage.ref().child('stories/$uid/$filename');
+    // Storage rules allow writes only under users/{uid}/...
+    final ref = _storage.ref().child('users/$uid/stories/$filename');
     await ref.putFile(image);
     final mediaUrl = await ref.getDownloadURL();
 

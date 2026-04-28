@@ -10,6 +10,7 @@ class AppUserModel {
     this.bio,
     this.dob,
     this.profileImage,
+    this.phoneNumber,
     this.interests = const [],
     this.onboardingCompleted = false,
     this.emailOtpVerified = true,
@@ -32,6 +33,7 @@ class AppUserModel {
   final String? bio;
   final String? dob;
   final String? profileImage;
+  final String? phoneNumber;
   final List<String> interests;
   final bool onboardingCompleted;
   /// False until email OTP is confirmed (email/password signups). Missing in Firestore = treated verified (legacy).
@@ -57,6 +59,7 @@ class AppUserModel {
       'bio': bio ?? '',
       'dob': dob ?? '',
       'profileImage': profileImage ?? '',
+      'phoneNumber': phoneNumber ?? '',
       'interests': interests,
       'onboardingCompleted': onboardingCompleted,
       'emailOtpVerified': emailOtpVerified,
@@ -93,6 +96,7 @@ class AppUserModel {
       bio: json['bio'] as String?,
       dob: json['dob'] as String?,
       profileImage: json['profileImage'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
       interests: interestsList,
       onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
       emailOtpVerified: json['emailOtpVerified'] as bool? ?? true,
@@ -121,6 +125,7 @@ class AppUserModel {
     String? bio,
     String? dob,
     String? profileImage,
+    String? phoneNumber,
     List<String>? interests,
     bool? onboardingCompleted,
     bool? emailOtpVerified,
@@ -143,6 +148,7 @@ class AppUserModel {
       bio: bio ?? this.bio,
       dob: dob ?? this.dob,
       profileImage: profileImage ?? this.profileImage,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       interests: interests ?? this.interests,
       onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       emailOtpVerified: emailOtpVerified ?? this.emailOtpVerified,

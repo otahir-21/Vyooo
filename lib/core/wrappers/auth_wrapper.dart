@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -157,6 +158,9 @@ class _UserDocGate extends StatefulWidget {
 class _UserDocGateState extends State<_UserDocGate> {
   late Future<void> _readyFuture;
   String _lastAccountNotice = '';
+  String? _selectedLoginOtpChannel;
+  String _selectedLoginOtpPhone = '';
+  bool _otpDialogInFlight = false;
 
   @override
   void initState() {
@@ -169,6 +173,9 @@ class _UserDocGateState extends State<_UserDocGate> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.uid != widget.uid) {
       _readyFuture = _bootstrapUserDoc();
+      _selectedLoginOtpChannel = null;
+      _selectedLoginOtpPhone = '';
+      _otpDialogInFlight = false;
     }
   }
 
@@ -218,28 +225,194 @@ class _UserDocGateState extends State<_UserDocGate> {
               return const CreateUsernameScreen();
             }
             return ListenableBuilder(
-              listenable: AuthService.authNoticeRevision,
+              listenable: Listenable.merge([
+                AuthService.authNoticeRevision,
+                OtpSessionService.sessionRevision,
+              ]),
               builder: (context, _) {
                 _maybeShowAccountNotice(appUser);
-                if (appUser.onboardingCompleted) {
-                  if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
-                    return TierPickerScreen(
-                      onContinue: () {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const MainNavWrapper()),
-                          (route) => false,
+                return FutureBuilder<bool>(
+                  future: _isPasswordOtpRequired(),
+                  builder: (context, otpSnapshot) {
+                    if (otpSnapshot.connectionState != ConnectionState.done) {
+                      return const Scaffold(
+                        backgroundColor: Color(0xFF0D0015),
+                        body: Center(
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                      );
+                    }
+                    if (otpSnapshot.data == true) {
+                      if (_selectedLoginOtpChannel == null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _showLoginOtpMethodDialog(appUser);
+                        });
+                        return const Scaffold(
+                          backgroundColor: Color(0xFF0D0015),
+                          body: Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
                         );
-                      },
-                    );
-                  }
-                  return const MainNavWrapper();
-                }
-                return const CreateUsernameScreen();
+                      }
+                      return VerifyCodeScreen(
+                        channel: _selectedLoginOtpChannel!,
+                        maskedEmail: _maskEmailForDisplay(widget.email),
+                        phoneNumber: _selectedLoginOtpPhone,
+                        maskedPhone: _selectedLoginOtpPhone.isNotEmpty
+                            ? _maskPhoneForDisplay(_selectedLoginOtpPhone)
+                            : '',
+                      );
+                    }
+                    _selectedLoginOtpChannel = null;
+                    _selectedLoginOtpPhone = '';
+                    if (appUser.onboardingCompleted) {
+                      if (kDebugMode && AppConfig.enableSubscriptionTierTesting) {
+                        return TierPickerScreen(
+                          onContinue: () {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const MainNavWrapper()),
+                              (route) => false,
+                            );
+                          },
+                        );
+                      }
+                      return const MainNavWrapper();
+                    }
+                    return const CreateUsernameScreen();
+                  },
+                );
               },
             );
           },
         );
       },
+    );
+  }
+
+  Future<bool> _isPasswordOtpRequired() async {
+    if (!widget.isPasswordAccount) return false;
+    final otpSession = OtpSessionService();
+    if (otpSession.emailLoginHandshakeActive) return true;
+    return otpSession.isOtpRequiredForUid(widget.uid);
+  }
+
+  Future<void> _showLoginOtpMethodDialog(AppUserModel appUser) async {
+    if (!mounted || _otpDialogInFlight || _selectedLoginOtpChannel != null) return;
+    _otpDialogInFlight = true;
+    final normalizedPhone = UserService.normalizePhone(appUser.phoneNumber ?? '');
+    final hasPhone = normalizedPhone.startsWith('+') && normalizedPhone.length >= 8;
+    final selected = await _showOtpMethodDialog(
+      email: widget.email,
+      phoneNumber: hasPhone ? normalizedPhone : '',
+    );
+    if (!mounted) {
+      _otpDialogInFlight = false;
+      return;
+    }
+    _otpDialogInFlight = false;
+    if (selected == null) return;
+    setState(() {
+      _selectedLoginOtpChannel = selected;
+      _selectedLoginOtpPhone =
+          (selected == 'phone' || selected == 'whatsapp') && hasPhone
+          ? normalizedPhone
+          : '';
+    });
+  }
+
+  Future<String?> _showOtpMethodDialog({
+    required String email,
+    required String phoneNumber,
+  }) {
+    final platform = Theme.of(context).platform;
+    final isCupertino =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
+    if (isCupertino) {
+      return _showCupertinoOtpMethodDialog(email: email, phoneNumber: phoneNumber);
+    }
+    return _showMaterialOtpMethodDialog(email: email, phoneNumber: phoneNumber);
+  }
+
+  Future<String?> _showCupertinoOtpMethodDialog({
+    required String email,
+    required String phoneNumber,
+  }) {
+    final hasPhone = phoneNumber.isNotEmpty;
+    return showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Verify login'),
+        message: const Text('Choose how you want to receive OTP.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(ctx).pop('email'),
+            child: Text(
+              email.isEmpty ? 'Email OTP' : 'Email OTP\n$email',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          if (hasPhone)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(ctx).pop('whatsapp'),
+              child: Text(
+                'WhatsApp OTP\n$phoneNumber',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          if (hasPhone)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(ctx).pop('phone'),
+              child: Text(
+                'Number OTP\n$phoneNumber',
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showMaterialOtpMethodDialog({
+    required String email,
+    required String phoneNumber,
+  }) {
+    final hasPhone = phoneNumber.isNotEmpty;
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verify login'),
+        content: const Text('Choose how you want to receive OTP.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('email'),
+            child: Text(email.isEmpty ? 'Email OTP' : 'Email OTP ($email)'),
+          ),
+          if (hasPhone)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('whatsapp'),
+              child: Text('WhatsApp OTP ($phoneNumber)'),
+            ),
+          if (hasPhone)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('phone'),
+              child: Text('Number OTP ($phoneNumber)'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 

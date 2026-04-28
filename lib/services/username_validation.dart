@@ -6,8 +6,8 @@ class UsernameValidation {
   /// Minimum length to trigger API check.
   static const int minLengthForCheck = 3;
 
-  /// Allowed pattern: letters, numbers, underscore only.
-  static final RegExp _allowedPattern = RegExp(r'^[a-z0-9_]*$');
+  /// Allowed pattern: letters, numbers, underscore, dot.
+  static final RegExp _allowedPattern = RegExp(r'^[a-z0-9_.]*$');
 
   /// Normalizes input: lowercase, no spaces.
   static String normalize(String input) {
@@ -17,7 +17,12 @@ class UsernameValidation {
   /// Whether [input] is valid for display/API (length and pattern).
   static bool isValidFormat(String input) {
     final normalized = normalize(input);
-    return normalized.length >= minLengthForCheck && _allowedPattern.hasMatch(normalized);
+    if (normalized.length < minLengthForCheck) return false;
+    if (!_allowedPattern.hasMatch(normalized)) return false;
+    // Instagram-style dot rules.
+    if (normalized.startsWith('.') || normalized.endsWith('.')) return false;
+    if (normalized.contains('..')) return false;
+    return true;
   }
 
   /// Whether [input] has at least [minLengthForCheck] chars and valid pattern.

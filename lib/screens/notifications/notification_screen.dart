@@ -254,17 +254,19 @@ class _NotifTile extends StatelessWidget {
     }
 
     return ClipOval(
-      child: CircleAvatar(
-      radius: 23,
-      backgroundColor: Colors.white.withValues(alpha: 0.15),
-      backgroundImage: NetworkImage(item.actorAvatarUrl),
-      child: item.actorAvatarUrl.isEmpty
-          ? Icon(
-              Icons.person_rounded,
-              color: Colors.white.withValues(alpha: 0.6),
-              size: 24,
-            )
-          : null,
+      child: Container(
+        width: 46,
+        height: 46,
+        color: Colors.white.withValues(alpha: 0.15),
+        child: Image.network(
+          item.actorAvatarUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Icon(
+            Icons.person_rounded,
+            color: Colors.white.withValues(alpha: 0.6),
+            size: 24,
+          ),
+        ),
       ),
     );
   }

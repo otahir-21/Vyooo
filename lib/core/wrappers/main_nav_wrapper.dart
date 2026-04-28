@@ -110,6 +110,20 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     if (index == 2) {
       final subscriptionController = context.read<SubscriptionController>();
       final uid = FirebaseAuth.instance.currentUser?.uid;
+      // Fast path: allow known paid users immediately; reconcile in background.
+      if (subscriptionController.isPaid) {
+        unawaited(subscriptionController.reconcilePaidStatus(firebaseUid: uid));
+        Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
+            .then((_) {
+          if (!mounted) return;
+          setState(() {
+            _currentIndex = 0;
+            _feedRefreshToken++;
+          });
+        });
+        return;
+      }
       final canUpload = await subscriptionController.reconcilePaidStatus(
         firebaseUid: uid,
       );

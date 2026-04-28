@@ -43,8 +43,8 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _onLogin() async {
     if (!_canLogin || _isLoading) return;
-    OtpSessionService().abortEmailLoginHandshake();
-    await OtpSessionService().clearOtpRequirement();
+    final otpSession = OtpSessionService();
+    otpSession.startEmailLoginHandshake();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -55,6 +55,7 @@ class _SignInScreenState extends State<SignInScreen> {
     );
     if (!mounted) return;
     if (resolvedEmail == null || resolvedEmail.isEmpty) {
+      otpSession.abortEmailLoginHandshake();
       setState(() {
         _isLoading = false;
         _errorMessage = 'No account found with this email/username/name.';
@@ -68,10 +69,25 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (result.success) {
+      final uid = result.user?.uid ?? '';
+      final trusted = uid.isNotEmpty
+          ? await otpSession.isTrustedDeviceForUid(uid)
+          : false;
+      if (uid.isNotEmpty && !trusted) {
+        await otpSession.requireOtpForUid(uid);
+      } else {
+        await otpSession.clearOtpRequirement();
+        if (uid.isNotEmpty) {
+          await otpSession.markTrustedDeviceForUid(uid);
+        } else {
+          otpSession.abortEmailLoginHandshake();
+        }
+      }
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     } else {
+      otpSession.abortEmailLoginHandshake();
       setState(() => _errorMessage = result.message ?? 'Login failed');
     }
   }
@@ -205,7 +221,7 @@ class _SignInScreenState extends State<SignInScreen> {
         fontWeight: FontWeight.w400,
       ),
       decoration: const InputDecoration(
-        hintText: 'Email, username or name',
+        hintText: 'Email, Username or Name',
         prefixIcon: Icon(Icons.mail_outline, color: AppTheme.primary, size: 22),
         suffixIconConstraints: BoxConstraints(minWidth: 40, minHeight: 40),
       ),
