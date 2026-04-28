@@ -4,7 +4,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "deploy": "npm run build && firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "cleanup:reels-media": "node scripts/normalize-reels-media-type.js"
   },
   "engines": {
     "node": "20"
