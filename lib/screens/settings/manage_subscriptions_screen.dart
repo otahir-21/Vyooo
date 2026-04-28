@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_gradients.dart';
+import '../../core/subscription/subscription_controller.dart';
 import 'wallet/change_plan_screen.dart';
 
 class ManageSubscriptionsScreen extends StatefulWidget {
@@ -28,44 +30,26 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
               _buildTabs(),
               const SizedBox(height: 24),
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _buildSubscriptionCard(
-                      name: 'Dana Kim',
-                      handle: '@DanaKim001_',
-                      status: 'Active',
-                      plan: 'Quaterly',
-                      rate: '€ 7.99',
-                      nextBilling: '21 June, 26',
-                      image: 'https://i.pravatar.cc/150?u=dana',
-                      statusColor: const Color(0xFFF81945),
-                    ),
-                    _buildSubscriptionCard(
-                      name: 'Liam O’Connor',
-                      handle: '@LiamO_92',
-                      status: 'Paused',
-                      plan: 'Monthly',
-                      rate: '€ 4.99',
-                      nextBilling: '15 July, 26',
-                      image: 'https://i.pravatar.cc/150?u=liam',
-                      statusColor: Colors.white.withValues(alpha: 0.2),
-                      isPaused: true,
-                    ),
-                    _buildSubscriptionCard(
-                      name: 'Sofia Martinez',
-                      handle: '@SofiaM_88',
-                      status: 'Cancelled',
-                      plan: 'Annual',
-                      rate: '€ 79.99',
-                      image: 'https://i.pravatar.cc/150?u=sofia',
-                      statusColor: const Color(
-                        0xFFF81945,
-                      ).withValues(alpha: 0.2),
-                      isCancelled: true,
-                    ),
-                    const SizedBox(height: 40),
-                  ],
+                child: Consumer<SubscriptionController>(
+                  builder: (context, subscription, _) => ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    children: [
+                      _buildSubscriptionCard(
+                        name: 'Your account',
+                        handle: '@you',
+                        status: subscription.isPaid ? 'Active' : 'Inactive',
+                        plan: subscription.planDisplayName,
+                        rate: subscription.isPaid ? 'Auto-renewing' : 'No active plan',
+                        nextBilling: subscription.isPaid ? 'Managed by app store' : null,
+                        image: 'https://i.pravatar.cc/150?u=account',
+                        statusColor: subscription.isPaid
+                            ? const Color(0xFFF81945)
+                            : Colors.white.withValues(alpha: 0.2),
+                        isCancelled: !subscription.isPaid,
+                      ),
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
               ),
             ],

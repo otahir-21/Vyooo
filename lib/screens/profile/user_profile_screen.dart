@@ -11,6 +11,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/live_stream_service.dart';
+import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
@@ -85,6 +87,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   StreamSubscription<int>? _followerCountSub;
   StreamSubscription<int>? _postCountSub;
   StreamSubscription<AppUserModel?>? _targetUserSub;
+  final LiveStreamService _liveStreamService = LiveStreamService();
 
   @override
   void initState() {
@@ -836,76 +839,123 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   List<Widget> _buildVRGridSlivers(UserProfilePayload p) {
+    final targetUid = (p.targetUserId ?? '').trim();
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.65,
-          ),
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final item = _userProfileMockVRItems[index];
-            return _UserProfileVRCard(
-              item: item,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => VRDetailScreen(
-                    payload: VRDetailPayload(
-                      creatorName: item.creatorName,
-                      creatorHandle: item.creatorHandle,
-                      avatarUrl: item.avatarUrl,
-                      thumbnailUrl: item.thumbnailUrl,
-                      likeCount: item.viewCount * 1000,
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: ReelsService().getReelsVR(limit: 120),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+              );
+            }
+            final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((r) => (r['userId']?.toString() ?? '') == targetUid)
+                .toList(growable: false);
+            if (reels.isEmpty) {
+              return _buildEmptyTab();
+            }
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.65,
+              ),
+              itemCount: reels.length,
+              itemBuilder: (context, index) {
+                final item = reels[index];
+                final creatorName = (item['username']?.toString() ?? '').trim();
+                final creatorHandle = (item['handle']?.toString() ?? '').trim();
+                final avatar = (item['avatarUrl']?.toString() ?? '').trim();
+                final thumb = _thumbnailFromReel(item);
+                return _UserProfileVRCard(
+                  item: _UserProfileVRItem(
+                    thumbnailUrl: thumb,
+                    creatorName: creatorName.isNotEmpty ? creatorName : 'Creator',
+                    creatorHandle: creatorHandle.isNotEmpty ? creatorHandle : '@creator',
+                    avatarUrl: avatar,
+                    viewCount: (item['views'] as num?)?.toInt() ?? 0,
+                    isVerified: false,
+                  ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VRDetailScreen(
+                        payload: VRDetailPayload(
+                          creatorName: creatorName.isNotEmpty ? creatorName : 'Creator',
+                          creatorHandle: creatorHandle.isNotEmpty
+                              ? creatorHandle
+                              : '@creator',
+                          avatarUrl: avatar,
+                          thumbnailUrl: thumb,
+                          likeCount: (item['likes'] as num?)?.toInt() ?? 0,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
-          }, childCount: _userProfileMockVRItems.length),
+          },
         ),
       ),
     ];
   }
 
   List<Widget> _buildStreamsListSlivers(UserProfilePayload p) {
+    final targetUid = (p.targetUserId ?? '').trim();
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            if (index.isOdd) return const SizedBox(height: AppSpacing.md);
-            final itemIndex = index ~/ 2;
-            final item = _userProfileMockStreamItems[itemIndex];
-            return SizedBox(
-              height: 200,
-              child: _UserProfileStreamCard(
-                item: item,
-                onTap: () => openLiveStreamScreen(
-                  context,
-                  LiveStreamModel(
-                    id: item.title,
-                    hostId: '',
-                    hostUsername: 'Host',
-                    title: item.title,
-                    description: item.subtitle,
-                    status: LiveStreamStatus.live,
-                    likeCount: item.viewCount,
-                    agoraChannelName: item.title,
-                    createdAt: Timestamp.now(),
-                  ),
-                ),
+      SliverToBoxAdapter(
+        child: StreamBuilder<List<LiveStreamModel>>(
+          stream: _liveStreamService.savedStreams(targetUid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+              );
+            }
+            final streams = snapshot.data ?? const <LiveStreamModel>[];
+            if (streams.isEmpty) return _buildEmptyTab();
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
+              itemCount: streams.length,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final stream = streams[index];
+                return SizedBox(
+                  height: 200,
+                  child: _UserProfileStreamCard(
+                    item: _UserProfileStreamItem(
+                      thumbnailUrl: (stream.hostProfileImage ?? '').isNotEmpty
+                          ? stream.hostProfileImage!
+                          : 'https://i.pravatar.cc/240?u=${stream.hostId}',
+                      title: stream.title,
+                      subtitle: stream.status == LiveStreamStatus.live
+                          ? 'Streaming now'
+                          : 'Saved stream',
+                      isLive: stream.status == LiveStreamStatus.live,
+                      viewCount: stream.viewerCount,
+                    ),
+                    onTap: () => openLiveStreamScreen(context, stream),
+                  ),
+                );
+              },
             );
-          }, childCount: _userProfileMockStreamItems.length * 2 - 1),
+          },
         ),
       ),
     ];
@@ -980,23 +1030,6 @@ class _UserProfileVRItem {
   final bool isVerified;
 }
 
-final List<_UserProfileVRItem> _userProfileMockVRItems = [
-  _UserProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=uvr1',
-    creatorName: 'Sofia Vergara',
-    creatorHandle: '@Soffv33',
-    avatarUrl: 'https://i.pravatar.cc/80?img=32',
-    viewCount: 100,
-  ),
-  _UserProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=uvr2',
-    creatorName: 'Selena Gomet',
-    creatorHandle: '@GometnoComet',
-    avatarUrl: 'https://i.pravatar.cc/80?img=28',
-    viewCount: 102,
-    isVerified: true,
-  ),
-];
 
 class _UserProfileStreamItem {
   const _UserProfileStreamItem({
@@ -1013,22 +1046,6 @@ class _UserProfileStreamItem {
   final int viewCount;
 }
 
-final List<_UserProfileStreamItem> _userProfileMockStreamItems = [
-  _UserProfileStreamItem(
-    thumbnailUrl: 'https://picsum.photos/400/240?random=ulive1',
-    title: 'Live Show @standupcomedy roasting our very...',
-    subtitle: 'Streaming now',
-    isLive: true,
-    viewCount: 22500,
-  ),
-  _UserProfileStreamItem(
-    thumbnailUrl: 'https://picsum.photos/400/240?random=ulive2',
-    title: 'Q&A and behind the scenes',
-    subtitle: 'Streamed 2 months ago',
-    isLive: false,
-    viewCount: 22500,
-  ),
-];
 
 class _UserStatChip extends StatelessWidget {
   const _UserStatChip({required this.label, required this.value});

@@ -8,6 +8,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
+import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/verification_badge.dart';
@@ -44,18 +45,15 @@ class _SearchScreenState extends State<SearchScreen>
   StreamSubscription<List<LiveStreamModel>>? _liveStreamsSub;
   Map<String, AppUserModel> _liveHostProfiles = const {};
   final UserService _userService = UserService();
+  final ReelsService _reelsService = ReelsService();
   final List<_UserSearchItem> _allUsers = [];
   bool _usersLoading = false;
   String? _usersError;
   Set<String> _myFollowingIds = <String>{};
   bool _usersLoadAttempted = false;
-  List<String> _recentSearches = const [
-    'Live concerts happening',
-    'Cricket match IND vs AUS',
-    'Best VR experiences on the internet',
-    'Dance videos',
-    'Travel vlogs',
-  ].toList();
+  List<String> _recentSearches = <String>[];
+  List<_VRSearchItem> _vrSearchItems = <_VRSearchItem>[];
+  bool _vrLoading = false;
 
   static const List<String> _tabs = ['Live', 'VR', 'Users'];
 
@@ -73,6 +71,49 @@ class _SearchScreenState extends State<SearchScreen>
     // Keep Live as the default tab (matches new segmented control design).
     _selectedTabIndex = 0;
     _loadUsers();
+    _loadVrItems();
+  }
+
+  Future<void> _loadVrItems() async {
+    if (mounted) {
+      setState(() {
+        _vrLoading = true;
+      });
+    }
+    try {
+      final reels = await _reelsService.getReelsVR(limit: 120);
+      final mapped = reels.map((r) {
+        final username = (r['username']?.toString() ?? '').trim();
+        final handleCore = username.isNotEmpty
+            ? username.toLowerCase().replaceAll(' ', '_')
+            : (r['handle']?.toString() ?? '').replaceFirst('@', '').trim();
+        final creatorHandle = handleCore.isEmpty ? '@creator' : '@$handleCore';
+        final thumb = (r['thumbnailUrl']?.toString() ?? '').trim();
+        final avatar = (r['avatarUrl']?.toString() ?? '').trim();
+        final video = (r['videoUrl']?.toString() ?? '').trim();
+        final views = (r['views'] as num?)?.toInt() ?? 0;
+        return _VRSearchItem(
+          thumbnailUrl: thumb.isNotEmpty ? thumb : avatar,
+          creatorName: username.isNotEmpty ? username : 'Creator',
+          creatorHandle: creatorHandle,
+          avatarUrl: avatar.isNotEmpty ? avatar : thumb,
+          viewerCount: views,
+          isVerified: (r['isVerified'] as bool?) ?? false,
+          videoUrl: video.isNotEmpty ? video : null,
+        );
+      }).where((item) => item.thumbnailUrl.isNotEmpty).toList(growable: false);
+      if (!mounted) return;
+      setState(() {
+        _vrSearchItems = mapped;
+        _vrLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _vrSearchItems = <_VRSearchItem>[];
+        _vrLoading = false;
+      });
+    }
   }
 
   Future<void> _refreshLiveHostProfiles(List<LiveStreamModel> streams) async {
@@ -297,8 +338,9 @@ class _SearchScreenState extends State<SearchScreen>
   static IconData _categoryIconFor(String category) {
     final c = category.toLowerCase();
     if (c.contains('game')) return Icons.sports_esports_rounded;
-    if (c.contains('music') || c.contains('concert'))
+    if (c.contains('music') || c.contains('concert')) {
       return Icons.music_note_rounded;
+    }
     if (c.contains('sport')) return Icons.sports_soccer_rounded;
     if (c.contains('news')) return Icons.newspaper_rounded;
     if (c.contains('travel')) return Icons.travel_explore_rounded;
@@ -346,7 +388,10 @@ class _SearchScreenState extends State<SearchScreen>
 
   static String _normalizeTag(String tag) {
     final t = tag.trim().toLowerCase();
-    return t.startsWith('#') ? t.substring(1) : t;
+    if (t.startsWith('#')) {
+      return t.substring(1);
+    }
+    return t;
   }
 
   void _activateHashtagSearch() {
@@ -459,6 +504,22 @@ class _SearchScreenState extends State<SearchScreen>
         if (!subscriptionController.hasVRAccess) {
           return const VrLockedView();
         }
+        if (_vrLoading) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white54),
+          );
+        }
+        if (_vrSearchItems.isEmpty) {
+          return Center(
+            child: Text(
+              'No VR content yet',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 14,
+              ),
+            ),
+          );
+        }
         return GridView.builder(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -470,9 +531,9 @@ class _SearchScreenState extends State<SearchScreen>
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: _vrSearchResultItems.length,
+          itemCount: _vrSearchItems.length,
           itemBuilder: (context, index) =>
-              _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+              _VRSearchResultGridCard(item: _vrSearchItems[index]),
         );
       },
     );
@@ -584,6 +645,16 @@ class _SearchScreenState extends State<SearchScreen>
         if (!subscriptionController.hasVRAccess) {
           return const VrLockedView();
         }
+        if (_vrLoading) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white54),
+          );
+        }
+        if (_vrSearchItems.isEmpty) {
+          return const Center(
+            child: Text('No VR results found', style: TextStyle(color: Colors.white70)),
+          );
+        }
         return GridView.builder(
           padding: const EdgeInsets.symmetric(
             horizontal: 16,
@@ -595,9 +666,9 @@ class _SearchScreenState extends State<SearchScreen>
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: _vrSearchResultItems.length,
+          itemCount: _vrSearchItems.length,
           itemBuilder: (context, index) =>
-              _VRSearchResultGridCard(item: _vrSearchResultItems[index]),
+              _VRSearchResultGridCard(item: _vrSearchItems[index]),
         );
       },
     );
@@ -692,24 +763,34 @@ class _SearchScreenState extends State<SearchScreen>
         ),
         const SizedBox(height: AppSpacing.sm),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: AppSpacing.xs,
-            ),
-            itemCount: _recentSearches.length,
-            separatorBuilder: (context, index) =>
-                const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (context, index) => _RecentSearchTile(
-              query: _recentSearches[index],
-              onTap: () {
-                _searchController.text = _recentSearches[index];
-                _searchFocusNode.unfocus();
-                setState(() => _isSearchActive = false);
-              },
-              onRemove: () => _removeRecentSearch(index),
-            ),
-          ),
+          child: _recentSearches.isEmpty
+              ? Center(
+                  child: Text(
+                    'No recent searches yet',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 14,
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: AppSpacing.xs,
+                  ),
+                  itemCount: _recentSearches.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  itemBuilder: (context, index) => _RecentSearchTile(
+                    query: _recentSearches[index],
+                    onTap: () {
+                      _searchController.text = _recentSearches[index];
+                      _searchFocusNode.unfocus();
+                      setState(() => _isSearchActive = false);
+                    },
+                    onRemove: () => _removeRecentSearch(index),
+                  ),
+                ),
         ),
       ],
     );
@@ -1661,7 +1742,7 @@ class _VRSearchItem {
     required this.creatorHandle,
     required this.avatarUrl,
     this.viewerCount = 102,
-    this.isVerified = false,
+    required this.isVerified,
     this.videoUrl,
   });
   final String thumbnailUrl;
@@ -1673,46 +1754,6 @@ class _VRSearchItem {
   final String? videoUrl;
 }
 
-final List<_VRSearchItem> _vrSearchResultItems = [
-  _VRSearchItem(
-    thumbnailUrl:
-        'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop',
-    creatorName: 'Sofia Vergara',
-    creatorHandle: '@Soffy33',
-    avatarUrl: 'https://i.pravatar.cc/80?img=32',
-    viewerCount: 102,
-    videoUrl: VrPlayerScreen.testVideoUrls[0],
-  ),
-  _VRSearchItem(
-    thumbnailUrl:
-        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
-    creatorName: 'Selena Gomet',
-    creatorHandle: '@GomethoComet',
-    avatarUrl: 'https://i.pravatar.cc/80?img=28',
-    isVerified: true,
-    viewerCount: 102,
-    videoUrl: VrPlayerScreen.testVideoUrls[1],
-  ),
-  _VRSearchItem(
-    thumbnailUrl:
-        'https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=1200&auto=format&fit=crop',
-    creatorName: 'Sofia Vergara',
-    creatorHandle: '@Soffy33',
-    avatarUrl: 'https://i.pravatar.cc/80?img=32',
-    viewerCount: 102,
-    videoUrl: VrPlayerScreen.testVideoUrls[2],
-  ),
-  _VRSearchItem(
-    thumbnailUrl:
-        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
-    creatorName: 'Selena Gomet',
-    creatorHandle: '@GomethoComet',
-    avatarUrl: 'https://i.pravatar.cc/80?img=28',
-    isVerified: true,
-    viewerCount: 102,
-    videoUrl: VrPlayerScreen.testVideoUrls[0],
-  ),
-];
 
 class _CategoryItem {
   const _CategoryItem({required this.label, required this.icon});

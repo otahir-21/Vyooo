@@ -515,13 +515,12 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      Navigator.of(context).pushAndRemoveUntil(
+      Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => selectedType == _OnboardingAccountType.personal
               ? const SelectDobScreen()
               : OrganizationDetailsScreen(accountType: selectedType.name),
         ),
-        (route) => false,
       );
     } catch (_) {
       if (!mounted) return;

@@ -121,7 +121,7 @@ class WalletScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Text(
-              '€ 24000',
+              '€ 0.00',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 36,
@@ -223,143 +223,26 @@ class WalletScreen extends StatelessWidget {
   }
 
   Widget _buildActivityList(BuildContext context) {
-    final activities = [
-      {
-        'name': 'Dana Kim',
-        'type': 'Subscription',
-        'amount': '€ 14.99',
-        'status': 'Settled',
-        'image': 'https://i.pravatar.cc/150?u=dana',
-      },
-      {
-        'name': 'Samuel Jackson',
-        'type': 'Live Stream',
-        'amount': '€ 5.99',
-        'status': 'Settled',
-        'image': 'https://i.pravatar.cc/150?u=samuel',
-      },
-      {
-        'name': 'Wallet Top off',
-        'type': 'Apple pay',
-        'amount': '+ € 1000',
-        'status': 'Settled',
-        'icon': Icons.apple,
-        'isTopUp': true,
-      },
-    ];
-
-    return Column(
-      children: activities.map((activity) {
-        return GestureDetector(
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (context) => const ReceiptDialog(),
-            );
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                if (activity['image'] != null)
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundImage: NetworkImage(
-                        activity['image'] as String,
-                      ),
-                      backgroundColor: Colors.white10,
-                    ),
-                  )
-                else if (activity['icon'] != null)
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: Icon(
-                      activity['icon'] as IconData,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        activity['name'] as String,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        activity['type'] as String,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.5),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      activity['amount'] as String,
-                      style: TextStyle(
-                        color: activity['isTopUp'] == true
-                            ? const Color(0xFF4ADE80)
-                            : Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      activity['status'] as String,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        'No wallet activity yet',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.6),
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }

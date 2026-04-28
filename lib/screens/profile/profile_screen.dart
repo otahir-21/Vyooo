@@ -23,6 +23,7 @@ import '../../features/subscription/subscription_screen.dart';
 import '../../features/story/story_upload_screen.dart';
 import '../../features/story/story_viewer_screen.dart';
 import '../../core/models/live_stream_model.dart';
+import '../../core/services/live_stream_service.dart';
 import '../content/live_stream_route.dart';
 import '../content/vr_detail_screen.dart';
 import '../music/music_library_screen.dart';
@@ -67,6 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     'restricted': 'Restricted',
   };
   int _selectedTabIndex = 0;
+  final LiveStreamService _liveStreamService = LiveStreamService();
 
   static String _accountTypeLabel(String? raw) {
     final key = (raw ?? '').trim().toLowerCase();
@@ -1286,76 +1288,140 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   List<Widget> _buildVRGridSlivers() {
+    final uid = AuthService().currentUser?.uid ?? '';
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.65,
-          ),
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final item = _profileMockVRItems[index];
-            return _ProfileVRCard(
-              item: item,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => VRDetailScreen(
-                    payload: VRDetailPayload(
-                      creatorName: item.creatorName,
-                      creatorHandle: item.creatorHandle,
-                      avatarUrl: item.avatarUrl,
-                      thumbnailUrl: item.thumbnailUrl,
-                      likeCount: item.viewCount * 1000,
-                    ),
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: ReelsService().getReelsVR(limit: 120),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+              );
+            }
+            final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((r) => (r['userId']?.toString() ?? '') == uid)
+                .toList(growable: false);
+            if (reels.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No VR posts yet',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                   ),
                 ),
+              );
+            }
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.65,
+              ),
+              itemCount: reels.length,
+              itemBuilder: (context, index) {
+                final item = reels[index];
+                final username = (item['username']?.toString() ?? '').trim();
+                final handle = (item['handle']?.toString() ?? '').trim();
+                final avatar = (item['avatarUrl']?.toString() ?? '').trim();
+                final thumb = _thumbnailFromReel(item);
+                final likes = (item['likes'] as num?)?.toInt() ?? 0;
+                return _ProfileVRCard(
+                  item: _ProfileVRItem(
+                    thumbnailUrl: thumb,
+                    creatorName: username.isNotEmpty ? username : 'Creator',
+                    creatorHandle: handle.isNotEmpty ? handle : '@creator',
+                    avatarUrl: avatar,
+                    viewCount: (item['views'] as num?)?.toInt() ?? 0,
+                    isVerified: false,
+                  ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VRDetailScreen(
+                        payload: VRDetailPayload(
+                          creatorName: username.isNotEmpty ? username : 'Creator',
+                          creatorHandle: handle.isNotEmpty ? handle : '@creator',
+                          avatarUrl: avatar,
+                          thumbnailUrl: thumb,
+                          likeCount: likes,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             );
-          }, childCount: _profileMockVRItems.length),
+          },
         ),
       ),
     ];
   }
 
   List<Widget> _buildStreamsListSlivers() {
+    final uid = AuthService().currentUser?.uid ?? '';
     return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            if (index.isOdd) return const SizedBox(height: AppSpacing.md);
-            final itemIndex = index ~/ 2;
-            final item = _profileMockStreamItems[itemIndex];
-            return SizedBox(
-              height: 200,
-              child: _ProfileStreamCard(
-                item: item,
-                onTap: () => openLiveStreamScreen(
-                  context,
-                  LiveStreamModel(
-                    id: item.title,
-                    hostId: '',
-                    hostUsername: 'Host',
-                    title: item.title,
-                    description: item.subtitle,
-                    status: LiveStreamStatus.live,
-                    likeCount: item.viewCount,
-                    agoraChannelName: item.title,
-                    createdAt: Timestamp.now(),
+      SliverToBoxAdapter(
+        child: StreamBuilder<List<LiveStreamModel>>(
+          stream: _liveStreamService.savedStreams(uid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+              );
+            }
+            final streams = snapshot.data ?? const <LiveStreamModel>[];
+            if (streams.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No saved streams yet',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                   ),
                 ),
+              );
+            }
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
+              itemCount: streams.length,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final stream = streams[index];
+                return SizedBox(
+                  height: 200,
+                  child: _ProfileStreamCard(
+                    item: _ProfileStreamItem(
+                      thumbnailUrl: (stream.hostProfileImage ?? '').isNotEmpty
+                          ? stream.hostProfileImage!
+                          : 'https://i.pravatar.cc/240?u=${stream.hostId}',
+                      title: stream.title,
+                      subtitle: stream.status == LiveStreamStatus.live
+                          ? 'Streaming now'
+                          : 'Saved stream',
+                      isLive: stream.status == LiveStreamStatus.live,
+                      viewCount: stream.viewerCount,
+                    ),
+                    onTap: () => openLiveStreamScreen(context, stream),
+                  ),
+                );
+              },
             );
-          }, childCount: _profileMockStreamItems.length * 2 - 1),
+          },
         ),
       ),
     ];
@@ -1681,37 +1747,6 @@ class _ProfileVRItem {
   final bool isVerified;
 }
 
-final List<_ProfileVRItem> _profileMockVRItems = [
-  _ProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr1',
-    creatorName: 'Sofia Vergara',
-    creatorHandle: '@Soffv33',
-    avatarUrl: 'https://i.pravatar.cc/80?img=32',
-    viewCount: 102,
-  ),
-  _ProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr2',
-    creatorName: 'Selena Gomet',
-    creatorHandle: '@GometnoComet',
-    avatarUrl: 'https://i.pravatar.cc/80?img=28',
-    viewCount: 102,
-    isVerified: true,
-  ),
-  _ProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr3',
-    creatorName: 'Caroline Hade',
-    creatorHandle: '@Carryhune',
-    avatarUrl: 'https://i.pravatar.cc/80?img=41',
-    viewCount: 102,
-  ),
-  _ProfileVRItem(
-    thumbnailUrl: 'https://picsum.photos/400/600?random=vr4',
-    creatorName: 'Alena Joy',
-    creatorHandle: '@alenajoyt23',
-    avatarUrl: 'https://i.pravatar.cc/80?img=38',
-    viewCount: 102,
-  ),
-];
 
 class _ProfileStreamItem {
   const _ProfileStreamItem({
@@ -1728,29 +1763,6 @@ class _ProfileStreamItem {
   final int viewCount;
 }
 
-final List<_ProfileStreamItem> _profileMockStreamItems = [
-  _ProfileStreamItem(
-    thumbnailUrl: 'https://picsum.photos/400/240?random=live1',
-    title: 'Slaughter to Prevail - K.O.D. live Drumcam fro...',
-    subtitle: 'Streaming now',
-    isLive: true,
-    viewCount: 22500,
-  ),
-  _ProfileStreamItem(
-    thumbnailUrl: 'https://picsum.photos/400/240?random=live2',
-    title: 'Live Show @standupcomedy roasting our very...',
-    subtitle: 'Streamed 2 months ago',
-    isLive: false,
-    viewCount: 22500,
-  ),
-  _ProfileStreamItem(
-    thumbnailUrl: 'https://picsum.photos/400/240?random=vr5',
-    title: 'Hot air balloon 360°',
-    subtitle: 'Streamed 1 week ago',
-    isLive: false,
-    viewCount: 102,
-  ),
-];
 
 class _ProfileVRCard extends StatelessWidget {
   const _ProfileVRCard({required this.item, this.onTap});
