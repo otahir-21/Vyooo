@@ -25,6 +25,7 @@ class PushMessagingService {
   static final PushMessagingService instance = PushMessagingService._();
 
   static const String _tokenDocId = 'default';
+  static const String _debugCollection = 'notification_debug';
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   bool _listenersAttached = false;
@@ -196,12 +197,24 @@ class PushMessagingService {
     final title = message.notification?.title?.trim() ?? 'Vyooo';
     final text = body.isNotEmpty ? body : 'You have a new notification.';
     LocalNotificationService.instance.show(title: title, body: text);
+    unawaited(
+      _logDeliveryEvent(
+        eventType: 'foreground_received',
+        message: message,
+      ),
+    );
   }
 
   void _onMessageOpened(RemoteMessage message) {
     if (kDebugMode) {
       debugPrint('FCM opened from background: ${message.data}');
     }
+    unawaited(
+      _logDeliveryEvent(
+        eventType: 'opened_from_notification',
+        message: message,
+      ),
+    );
   }
 
   /// Optional: handle cold start from notification tap.
@@ -209,6 +222,42 @@ class PushMessagingService {
     final initial = await _messaging.getInitialMessage();
     if (initial != null && kDebugMode) {
       debugPrint('FCM initial message: ${initial.data}');
+    }
+    if (initial != null) {
+      unawaited(
+        _logDeliveryEvent(
+          eventType: 'cold_start_open',
+          message: initial,
+        ),
+      );
+    }
+  }
+
+  Future<void> _logDeliveryEvent({
+    required String eventType,
+    required RemoteMessage message,
+  }) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection(_debugCollection)
+          .add({
+        'eventType': eventType,
+        'messageId': message.messageId ?? '',
+        'notificationId': (message.data['notificationId'] ?? '').toString(),
+        'type': (message.data['type'] ?? '').toString(),
+        'title': (message.notification?.title ?? '').trim(),
+        'body': (message.notification?.body ?? '').trim(),
+        'data': Map<String, dynamic>.from(message.data),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('FCM debug log write failed: $e');
+      }
     }
   }
 }

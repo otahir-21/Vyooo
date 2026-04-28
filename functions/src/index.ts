@@ -1118,27 +1118,74 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
         return typeof token === 'string' ? token.trim() : '';
       })
       .filter((t) => t.length > 0);
-    if (tokens.length === 0) return;
+    if (tokens.length === 0) {
+      await snap.ref.set(
+        {
+          pushDelivery: {
+            status: 'no_tokens',
+            tokenCount: 0,
+            attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+      return;
+    }
 
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title: 'Vyooo',
-        body,
-      },
-      data: {
-        type,
-        recipientId,
-        notificationId: snap.id,
-      },
-    });
-
-    if (response.failureCount > 0) {
-      logger.warn('sendPushOnNotificationCreate partial failure', {
-        notificationId: snap.id,
-        successCount: response.successCount,
-        failureCount: response.failureCount,
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: {
+          title: 'Vyooo',
+          body,
+        },
+        data: {
+          type,
+          recipientId,
+          notificationId: snap.id,
+        },
       });
+
+      const errorCodes = new Set<string>();
+      for (const r of response.responses) {
+        const code = r.error?.code?.trim();
+        if (code) errorCodes.add(code);
+      }
+
+      await snap.ref.set(
+        {
+          pushDelivery: {
+            status: response.failureCount == 0 ? 'sent' : 'partial_failure',
+            tokenCount: tokens.length,
+            successCount: response.successCount,
+            failureCount: response.failureCount,
+            errorCodes: Array.from(errorCodes),
+            attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+
+      if (response.failureCount > 0) {
+        logger.warn('sendPushOnNotificationCreate partial failure', {
+          notificationId: snap.id,
+          successCount: response.successCount,
+          failureCount: response.failureCount,
+        });
+      }
+    } catch (e) {
+      await snap.ref.set(
+        {
+          pushDelivery: {
+            status: 'error',
+            tokenCount: tokens.length,
+            attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+            error: String(e),
+          },
+        },
+        { merge: true },
+      );
+      throw e;
     }
   },
 );
