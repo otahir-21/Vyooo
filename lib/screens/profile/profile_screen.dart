@@ -915,6 +915,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final reel = savedReels[index];
                   final thumb = _thumbnailFromSavedReel(reel);
+                  final mediaType =
+                      ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                  final isVideo = mediaType != 'image';
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -937,17 +940,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                               errorBuilder: (_, _, _) =>
                                   const SizedBox.shrink(),
                             ),
-                          const Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.play_arrow_rounded,
-                                color: Colors.white70,
-                                size: 18,
+                          if (isVideo)
+                            const Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white70,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -1000,6 +1004,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             'caption': data['caption'] as String? ?? '',
             'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
             'imageUrl': data['imageUrl'] as String? ?? '',
+            'mediaType': data['mediaType'] as String? ?? '',
             'createdAt': data['createdAt'],
           };
         }
@@ -1032,6 +1037,22 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _thumbnailFromVideoUrl(videoUrl);
   }
 
+  static String _thumbnailFromReel(Map<String, dynamic> reel) {
+    final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
+    final imageUrl = (reel['imageUrl'] as String?)?.trim() ?? '';
+    final explicitThumb = (reel['thumbnailUrl'] as String?)?.trim() ?? '';
+    final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+    if (mediaType == 'image') {
+      if (imageUrl.isNotEmpty) return imageUrl;
+      if (explicitThumb.isNotEmpty) return explicitThumb;
+      return '';
+    }
+    if (explicitThumb.isNotEmpty) return explicitThumb;
+    if (imageUrl.isNotEmpty) return imageUrl;
+    if (videoUrl.isEmpty) return '';
+    return _thumbnailFromVideoUrl(videoUrl);
+  }
+
   List<Widget> _buildPostsGridSlivers({required String uid}) {
     if (uid.isEmpty) {
       return [
@@ -1054,6 +1075,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   return {
                     'id': d.id,
                     'videoUrl': data['videoUrl'] as String? ?? '',
+                    'imageUrl': data['imageUrl'] as String? ?? '',
+                    'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
+                    'mediaType': data['mediaType'] as String? ?? '',
                     'caption': data['caption'] as String? ?? '',
                     'createdAt': data['createdAt'],
                   };
@@ -1098,8 +1122,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
-                  final videoUrl = posts[index]['videoUrl'] as String;
-                  final thumbnailUrl = _thumbnailFromVideoUrl(videoUrl);
+                  final reel = posts[index];
+                  final thumbnailUrl = _thumbnailFromReel(reel);
+                  final mediaType =
+                      ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                  final isVideo = mediaType != 'image';
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -1122,17 +1149,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                               errorBuilder: (_, _, _) =>
                                   const SizedBox.shrink(),
                             ),
-                          const Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: EdgeInsets.all(4),
-                              child: Icon(
-                                Icons.play_arrow_rounded,
-                                color: Colors.white70,
-                                size: 18,
+                          if (isVideo)
+                            const Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white70,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -2059,7 +2087,34 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
             },
             itemCount: _loopedReels.length,
             itemBuilder: (context, index) {
-              final videoUrl = _loopedReels[index]['videoUrl'] as String;
+              final reel = _loopedReels[index];
+              final mediaType =
+                  ((reel['mediaType'] as String?) ?? '').toLowerCase();
+              if (mediaType == 'image') {
+                final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+                final thumbnailUrl =
+                    ((reel['thumbnailUrl'] as String?) ?? '').trim();
+                final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
+                if (displayUrl.isNotEmpty) {
+                  return SizedBox.expand(
+                    child: ColoredBox(
+                      color: Colors.black,
+                      child: Image.network(
+                        displayUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            const SizedBox.shrink(),
+                      ),
+                    ),
+                  );
+                }
+              }
+              final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+              if (videoUrl.isEmpty) {
+                return const SizedBox.expand(
+                  child: ColoredBox(color: Colors.black),
+                );
+              }
               return ReelItemWidget(
                 videoUrl: videoUrl,
                 isVisible: index == _currentIndex,

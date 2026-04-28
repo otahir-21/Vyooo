@@ -224,7 +224,7 @@ class ReelsService {
   }
 
   static bool _isPlayableReel(Map<String, dynamic> data) {
-    final mediaType = ((data['mediaType'] as String?) ?? '').toLowerCase();
+    final mediaType = _resolveMediaType(data);
     if (mediaType == 'image') {
       final imageUrl = ((data['imageUrl'] as String?) ?? '').trim();
       if (imageUrl.isNotEmpty) return Uri.tryParse(imageUrl)?.isAbsolute == true;
@@ -243,9 +243,10 @@ class ReelsService {
     String id,
     Map<String, dynamic> data,
   ) {
+    final mediaType = _resolveMediaType(data);
     return {
       'id': id,
-      'mediaType': data['mediaType'] ?? 'video',
+      'mediaType': mediaType,
       'videoUrl': data['videoUrl'] ?? '',
       'imageUrl': data['imageUrl'] ?? '',
       'thumbnailUrl': data['thumbnailUrl'] ?? data['imageUrl'] ?? '',
@@ -261,5 +262,14 @@ class ReelsService {
       'userId': data['userId'] ?? '',
       'moderation': data['moderation'],
     };
+  }
+
+  static String _resolveMediaType(Map<String, dynamic> data) {
+    final rawMediaType = ((data['mediaType'] as String?) ?? '').toLowerCase();
+    if (rawMediaType == 'image' || rawMediaType == 'video') return rawMediaType;
+    final imageUrl = ((data['imageUrl'] as String?) ?? '').trim();
+    final videoUrl = ((data['videoUrl'] as String?) ?? '').trim();
+    if (imageUrl.isNotEmpty && videoUrl.isEmpty) return 'image';
+    return 'video';
   }
 }
