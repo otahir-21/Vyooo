@@ -5,7 +5,8 @@
     "watch": "tsc --watch",
     "deploy": "npm run build && firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "cleanup:reels-media": "node scripts/normalize-reels-media-type.js"
+    "cleanup:reels-media": "node scripts/normalize-reels-media-type.js",
+    "seed:test-notifications": "node scripts/seed-test-notifications.js"
   },
   "engines": {
     "node": "20"

@@ -1,7 +1,7 @@
 "use strict";
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
+exports.sendPushOnNotificationCreate = exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const auth_1 = require("firebase-admin/auth");
@@ -904,5 +904,59 @@ exports.processWhatsAppOtpVerifyRequest = (0, firestore_1.onDocumentCreated)({
     await userRef.set({ emailOtpVerified: true }, { merge: true });
     await challengeRef.delete();
     await snap.ref.update({ status: 'done' });
+});
+// ── sendPushOnNotificationCreate ───────────────────────────────────────────────
+exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)({
+    document: 'notifications/{notificationId}',
+    timeoutSeconds: 20,
+    memory: '256MiB',
+}, async (event) => {
+    const snap = event.data;
+    if (!snap)
+        return;
+    const data = snap.data();
+    const recipientId = typeof data.recipientId === 'string' ? data.recipientId.trim() : '';
+    if (!recipientId)
+        return;
+    const actor = typeof data.actorUsername === 'string' && data.actorUsername.trim().length > 0
+        ? data.actorUsername.trim()
+        : 'Someone';
+    const body = typeof data.message === 'string' && data.message.trim().length > 0
+        ? `${actor} ${data.message.trim()}`
+        : `${actor} sent you a notification`;
+    const type = typeof data.type === 'string' ? data.type.trim() : 'notification';
+    const tokenSnap = await admin
+        .firestore()
+        .collection('users')
+        .doc(recipientId)
+        .collection('push_tokens')
+        .get();
+    const tokens = tokenSnap.docs
+        .map((d) => {
+        const token = d.data().token;
+        return typeof token === 'string' ? token.trim() : '';
+    })
+        .filter((t) => t.length > 0);
+    if (tokens.length === 0)
+        return;
+    const response = await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: {
+            title: 'Vyooo',
+            body,
+        },
+        data: {
+            type,
+            recipientId,
+            notificationId: snap.id,
+        },
+    });
+    if (response.failureCount > 0) {
+        firebase_functions_1.logger.warn('sendPushOnNotificationCreate partial failure', {
+            notificationId: snap.id,
+            successCount: response.successCount,
+            failureCount: response.failureCount,
+        });
+    }
 });
 //# sourceMappingURL=index.js.map

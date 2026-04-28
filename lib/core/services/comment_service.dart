@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../features/comments/models/comment.dart';
 import 'auth_service.dart';
+import 'notification_service.dart';
 import 'user_service.dart';
 
 /// Firestore: `reels/{reelId}/comments/{commentId}` (+ `likes/{userId}` per comment).
@@ -219,6 +220,8 @@ class CommentService {
     });
 
     final reelRef = _firestore.collection('reels').doc(reelId);
+    final reelSnap = await reelRef.get();
+    final reelOwnerId = (reelSnap.data()?['userId'] as String?) ?? '';
     batch.set(
       reelRef,
       {'comments': FieldValue.increment(1)},
@@ -226,6 +229,12 @@ class CommentService {
     );
 
     await batch.commit();
+    await NotificationService().create(
+      recipientId: reelOwnerId,
+      type: AppNotificationType.comment,
+      message: 'commented on your post.',
+      extra: {'reelId': reelId, 'commentId': commentRef.id},
+    );
   }
 
   /// Deletes subtree; returns number of comment documents removed (for feed count).

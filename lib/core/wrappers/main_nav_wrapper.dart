@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 import '../services/deep_link_service.dart';
+import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../subscription/subscription_controller.dart';
 import '../widgets/app_bottom_navigation.dart';
@@ -152,14 +153,21 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: StreamBuilder(
-        stream: uid.isEmpty ? null : _userService.userStream(uid),
-        builder: (context, snapshot) {
-          final profileImageUrl = snapshot.data?.profileImage;
-          return AppBottomNavigation(
-            currentIndex: _currentIndex,
-            onTap: _onNavTap,
-            profileImageUrl: profileImageUrl,
+      bottomNavigationBar: StreamBuilder<int>(
+        stream: NotificationService().watchUnreadCount(),
+        builder: (context, unreadSnapshot) {
+          final unreadCount = unreadSnapshot.data ?? 0;
+          return StreamBuilder(
+            stream: uid.isEmpty ? null : _userService.userStream(uid),
+            builder: (context, snapshot) {
+              final profileImageUrl = snapshot.data?.profileImage;
+              return AppBottomNavigation(
+                currentIndex: _currentIndex,
+                onTap: _onNavTap,
+                profileImageUrl: profileImageUrl,
+                unreadNotificationCount: unreadCount,
+              );
+            },
           );
         },
       ),

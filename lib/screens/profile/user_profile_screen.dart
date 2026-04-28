@@ -481,6 +481,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           name: p.displayName,
                           handle: '@${p.username}',
                           avatarUrl: p.avatarUrl,
+                          creatorUserId: p.targetUserId,
                           isVerified: p.isVerified,
                         ),
                       ),

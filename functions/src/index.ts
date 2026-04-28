@@ -1075,3 +1075,70 @@ export const processWhatsAppOtpVerifyRequest = onDocumentCreated(
     await snap.ref.update({ status: 'done' });
   },
 );
+
+// ── sendPushOnNotificationCreate ───────────────────────────────────────────────
+export const sendPushOnNotificationCreate = onDocumentCreated(
+  {
+    document: 'notifications/{notificationId}',
+    timeoutSeconds: 20,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data() as {
+      recipientId?: unknown;
+      actorUsername?: unknown;
+      message?: unknown;
+      type?: unknown;
+    };
+    const recipientId =
+      typeof data.recipientId === 'string' ? data.recipientId.trim() : '';
+    if (!recipientId) return;
+
+    const actor =
+      typeof data.actorUsername === 'string' && data.actorUsername.trim().length > 0
+        ? data.actorUsername.trim()
+        : 'Someone';
+    const body =
+      typeof data.message === 'string' && data.message.trim().length > 0
+        ? `${actor} ${data.message.trim()}`
+        : `${actor} sent you a notification`;
+    const type = typeof data.type === 'string' ? data.type.trim() : 'notification';
+
+    const tokenSnap = await admin
+      .firestore()
+      .collection('users')
+      .doc(recipientId)
+      .collection('push_tokens')
+      .get();
+    const tokens = tokenSnap.docs
+      .map((d) => {
+        const token = d.data().token;
+        return typeof token === 'string' ? token.trim() : '';
+      })
+      .filter((t) => t.length > 0);
+    if (tokens.length === 0) return;
+
+    const response = await admin.messaging().sendEachForMulticast({
+      tokens,
+      notification: {
+        title: 'Vyooo',
+        body,
+      },
+      data: {
+        type,
+        recipientId,
+        notificationId: snap.id,
+      },
+    });
+
+    if (response.failureCount > 0) {
+      logger.warn('sendPushOnNotificationCreate partial failure', {
+        notificationId: snap.id,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+      });
+    }
+  },
+);

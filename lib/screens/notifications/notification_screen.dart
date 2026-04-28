@@ -1,34 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/widgets/app_gradient_background.dart';
 
-/// Notification types that drive avatar and action button rendering.
-enum _NotifType { follow, like, comment, system, live, post }
-
-/// Follow-back state for follow notifications.
-enum _FollowState { none, canFollowBack, alreadyFollowing }
-
-class _NotifItem {
-  const _NotifItem({
-    required this.type,
-    required this.message,
-    required this.timeAgo,
-    this.avatarUrl,
-    this.followState = _FollowState.none,
-    this.isSystem = false,
-  });
-
-  final _NotifType type;
-  final String message;
-  final String timeAgo;
-  final String? avatarUrl;
-  final _FollowState followState;
-  final bool isSystem;
-}
-
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
-/// Matches Figma: action buttons (Follow back, Following, Reply), VyooO system avatar.
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
@@ -38,75 +14,10 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen>
     with AutomaticKeepAliveClientMixin {
+  bool _isMarkingVisibleAsRead = false;
+
   @override
   bool get wantKeepAlive => true;
-
-  final Map<int, bool> _followedBack = {};
-
-  static const List<_NotifItem> _today = [
-    _NotifItem(
-      type: _NotifType.follow,
-      avatarUrl: 'https://i.pravatar.cc/80?img=33',
-      message: 'Dennis_Nedry followed you.',
-      timeAgo: '2h',
-      followState: _FollowState.canFollowBack,
-    ),
-    _NotifItem(
-      type: _NotifType.like,
-      avatarUrl: 'https://i.pravatar.cc/80?img=24',
-      message: 'Lexilongbottom liked your post.',
-      timeAgo: '2h',
-    ),
-    _NotifItem(
-      type: _NotifType.comment,
-      avatarUrl: 'https://i.pravatar.cc/80?img=12',
-      message: 'Haridesigno commented: Nicce🔥 on your post.',
-      timeAgo: '2h',
-    ),
-  ];
-
-  static const List<_NotifItem> _yesterday = [
-    _NotifItem(
-      type: _NotifType.follow,
-      avatarUrl: 'https://i.pravatar.cc/80?img=47',
-      message: '__sath__ followed you.',
-      timeAgo: '1d',
-      followState: _FollowState.alreadyFollowing,
-    ),
-    _NotifItem(
-      type: _NotifType.like,
-      avatarUrl: 'https://i.pravatar.cc/80?img=5',
-      message: 'chilly liked your post.',
-      timeAgo: '1d',
-    ),
-    _NotifItem(
-      type: _NotifType.system,
-      message: 'You received 1k likes on your post.',
-      timeAgo: '3d',
-      isSystem: true,
-    ),
-  ];
-
-  static const List<_NotifItem> _lastWeek = [
-    _NotifItem(
-      type: _NotifType.live,
-      avatarUrl: 'https://i.pravatar.cc/80?img=62',
-      message: 'mattrife_x has started his live now. Check it out!',
-      timeAgo: '4d',
-    ),
-    _NotifItem(
-      type: _NotifType.post,
-      avatarUrl: 'https://i.pravatar.cc/80?img=41',
-      message: 'Samay Raina added a new post.',
-      timeAgo: '5d',
-    ),
-    _NotifItem(
-      type: _NotifType.system,
-      message: 'You received 1k likes on your post.',
-      timeAgo: '6d',
-      isSystem: true,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -160,40 +71,75 @@ class _NotificationScreenState extends State<NotificationScreen>
   }
 
   Widget _buildList() {
-    // Assign each item a global index for follow-back state tracking
-    int globalIndex = 0;
-    final List<Widget> rows = [];
-
-    for (final section in [
-      ('Today', _today),
-      ('Yesterday', _yesterday),
-      ('Last 7 days', _lastWeek),
-    ]) {
-      final label = section.$1;
-      final items = section.$2;
-
-      rows.add(_buildSectionHeader(label));
-      rows.add(const SizedBox(height: 12));
-
-      for (final item in items) {
-        final idx = globalIndex++;
-        rows.add(
-          _NotifTile(
-            item: item,
-            followedBack: _followedBack[idx] ?? false,
-            onFollowBack: () => setState(() => _followedBack[idx] = true),
-          ),
+    return StreamBuilder<List<AppNotification>>(
+      stream: NotificationService().watchMyNotifications(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Could not load notifications.\nCheck Firestore rules/deploy and try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          );
+        }
+        final list = snapshot.data ?? const <AppNotification>[];
+        _autoMarkVisibleAsRead(list);
+        if (list.isEmpty) {
+          return Center(
+            child: Text(
+              'No notifications yet',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 15,
+              ),
+            ),
+          );
+        }
+        final sections = <String, List<AppNotification>>{};
+        for (final n in list) {
+          final key = _sectionFor(n.createdAt);
+          sections.putIfAbsent(key, () => <AppNotification>[]).add(n);
+        }
+        final rows = <Widget>[];
+        for (final key in ['Today', 'Yesterday', 'Last 7 days', 'Earlier']) {
+          final items = sections[key];
+          if (items == null || items.isEmpty) continue;
+          rows.add(_buildSectionHeader(key));
+          rows.add(const SizedBox(height: 12));
+          for (final item in items) {
+            rows.add(
+              _NotifTile(
+                item: item,
+                onTap: () => NotificationService().markAsRead(item.id),
+              ),
+            );
+            rows.add(const SizedBox(height: 20));
+          }
+          rows.add(const SizedBox(height: 4));
+        }
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          children: rows,
         );
-        rows.add(const SizedBox(height: 20));
-      }
-
-      rows.add(const SizedBox(height: 4));
-    }
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      children: rows,
+      },
     );
+  }
+
+  String _sectionFor(DateTime createdAt) {
+    final now = DateTime.now();
+    final age = now.difference(createdAt);
+    if (age.inDays == 0) return 'Today';
+    if (age.inDays == 1) return 'Yesterday';
+    if (age.inDays < 7) return 'Last 7 days';
+    return 'Earlier';
   }
 
   Widget _buildSectionHeader(String label) {
@@ -206,58 +152,77 @@ class _NotificationScreenState extends State<NotificationScreen>
       ),
     );
   }
+
+  void _autoMarkVisibleAsRead(List<AppNotification> list) {
+    if (_isMarkingVisibleAsRead || list.isEmpty) return;
+    final unreadIds = list
+        .where((n) => !n.isRead)
+        .map((n) => n.id)
+        .where((id) => id.trim().isNotEmpty)
+        .toList();
+    if (unreadIds.isEmpty) return;
+    _isMarkingVisibleAsRead = true;
+    Future.microtask(() async {
+      try {
+        await NotificationService().markAsReadBulk(unreadIds);
+      } finally {
+        _isMarkingVisibleAsRead = false;
+      }
+    });
+  }
 }
 
 class _NotifTile extends StatelessWidget {
   const _NotifTile({
     required this.item,
-    required this.followedBack,
-    required this.onFollowBack,
+    required this.onTap,
   });
 
-  final _NotifItem item;
-  final bool followedBack;
-  final VoidCallback onFollowBack;
+  final AppNotification item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _buildAvatar(),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                item.message,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white,
-                  height: 1.35,
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildAvatar(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${item.actorUsername.isNotEmpty ? item.actorUsername : 'Someone'} ${item.message}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                    height: 1.35,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                item.timeAgo,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.45),
+                const SizedBox(height: 3),
+                Text(
+                  _timeAgo(item.createdAt),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.45),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        _buildActionButton(),
-      ],
+          const SizedBox(width: 10),
+          _buildActionButton(),
+        ],
+      ),
     );
   }
 
   Widget _buildAvatar() {
-    if (item.isSystem) {
+    if (item.actorAvatarUrl.isEmpty) {
       return Container(
         width: 46,
         height: 46,
@@ -288,39 +253,39 @@ class _NotifTile extends StatelessWidget {
       );
     }
 
-    return CircleAvatar(
+    return ClipOval(
+      child: CircleAvatar(
       radius: 23,
       backgroundColor: Colors.white.withValues(alpha: 0.15),
-      backgroundImage: item.avatarUrl != null
-          ? NetworkImage(item.avatarUrl!)
-          : null,
-      child: item.avatarUrl == null
+      backgroundImage: NetworkImage(item.actorAvatarUrl),
+      child: item.actorAvatarUrl.isEmpty
           ? Icon(
               Icons.person_rounded,
               color: Colors.white.withValues(alpha: 0.6),
               size: 24,
             )
           : null,
+      ),
     );
   }
 
   Widget _buildActionButton() {
-    switch (item.type) {
-      case _NotifType.follow:
-        if (item.followState == _FollowState.canFollowBack) {
-          return followedBack
-              ? _OutlinePillButton(label: 'Following')
-              : _PinkPillButton(label: 'Follow back', onTap: onFollowBack);
-        }
-        if (item.followState == _FollowState.alreadyFollowing) {
-          return _OutlinePillButton(label: 'Following');
-        }
-        return const SizedBox.shrink();
-      case _NotifType.comment:
+    switch (item.type.name) {
+      case 'follow':
+        return _PinkPillButton(label: 'Follow back', onTap: onTap);
+      case 'comment':
         return _OutlinePillButton(label: 'Reply');
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  String _timeAgo(DateTime createdAt) {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 1) return 'Now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inDays < 1) return '${diff.inHours}h';
+    return '${diff.inDays}d';
   }
 }
 

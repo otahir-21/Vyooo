@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/app_user_model.dart';
+import 'notification_service.dart';
 
 class UserDiscoveryItem {
   const UserDiscoveryItem({
@@ -382,6 +383,12 @@ class UserService {
         'blockedUsers': FieldValue.arrayRemove([targetUid]),
       },
       SetOptions(merge: true),
+    );
+    await NotificationService().create(
+      recipientId: targetUid,
+      type: AppNotificationType.follow,
+      message: 'started following you.',
+      extra: {'targetUserId': targetUid},
     );
   }
 

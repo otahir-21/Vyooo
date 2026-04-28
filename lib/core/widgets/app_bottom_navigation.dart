@@ -21,11 +21,13 @@ class AppBottomNavigation extends StatelessWidget {
     required this.currentIndex,
     required this.onTap,
     this.profileImageUrl,
+    this.unreadNotificationCount = 0,
   });
 
   final int currentIndex;
   final void Function(int) onTap;
   final String? profileImageUrl;
+  final int unreadNotificationCount;
 
   static const double _iconSize = 25;
   static const Color _activeIconColor = Colors.white;
@@ -67,7 +69,7 @@ class AppBottomNavigation extends StatelessWidget {
                 errorBuilder: (_, error, stackTrace) => Image.asset(
                   _NavAssets.profileDefault,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _buildIcon(
+                  errorBuilder: (_, error1, stack1) => _buildIcon(
                     _NavAssets.homeUnselected,
                     Icons.person_rounded,
                     isSelected,
@@ -77,7 +79,7 @@ class AppBottomNavigation extends StatelessWidget {
             : Image.asset(
                 _NavAssets.profileDefault,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildIcon(
+                errorBuilder: (_, error2, stack2) => _buildIcon(
                   _NavAssets.homeUnselected,
                   Icons.person_rounded,
                   isSelected,
@@ -106,6 +108,46 @@ class AppBottomNavigation extends StatelessWidget {
           child: Center(child: child),
         ),
       ),
+    );
+  }
+
+  Widget _buildNotificationIcon(bool isSelected) {
+    final count = unreadNotificationCount < 0 ? 0 : unreadNotificationCount;
+    final showBadge = count > 0;
+    final label = count > 99 ? '99+' : '$count';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Image.asset(
+          isSelected ? _NavAssets.settingsSelected : _NavAssets.settingsUnselected,
+          width: 25,
+          height: 25,
+          color: isSelected ? _activeIconColor : _inactiveIconColor,
+        ),
+        if (showBadge)
+          Positioned(
+            right: -10,
+            top: -6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF2D55),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF14001F), width: 1),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -166,11 +208,10 @@ class AppBottomNavigation extends StatelessWidget {
                   splashColor: _splashColor,
                 ),
                 _NavItem(
-                  unselectedAsset: _NavAssets.settingsUnselected,
-                  selectedAsset: _NavAssets.settingsSelected,
                   isSelected: currentIndex == 3,
                   onTap: () => onTap(3),
                   splashColor: _splashColor,
+                  customChild: _buildNotificationIcon(currentIndex == 3),
                 ),
                 _buildNavTap(
                   onPressed: () => onTap(4),
@@ -187,18 +228,20 @@ class AppBottomNavigation extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
-    required this.unselectedAsset,
-    required this.selectedAsset,
+    this.unselectedAsset,
+    this.selectedAsset,
     required this.isSelected,
     required this.onTap,
     required this.splashColor,
+    this.customChild,
   });
 
-  final String unselectedAsset;
-  final String selectedAsset;
+  final String? unselectedAsset;
+  final String? selectedAsset;
   final bool isSelected;
   final VoidCallback onTap;
   final Color splashColor;
+  final Widget? customChild;
 
   @override
   Widget build(BuildContext context) {
@@ -215,14 +258,15 @@ class _NavItem extends StatelessWidget {
           splashColor: splashColor,
           highlightColor: splashColor.withValues(alpha: 0.6),
           child: Center(
-            child: Image.asset(
-              isSelected ? selectedAsset : unselectedAsset,
-              width: 25,
-              height: 25,
-              color: isSelected
-                  ? AppBottomNavigation._activeIconColor
-                  : AppBottomNavigation._inactiveIconColor,
-            ),
+            child: customChild ??
+                Image.asset(
+                  isSelected ? selectedAsset! : unselectedAsset!,
+                  width: 25,
+                  height: 25,
+                  color: isSelected
+                      ? AppBottomNavigation._activeIconColor
+                      : AppBottomNavigation._inactiveIconColor,
+                ),
           ),
         ),
       ),

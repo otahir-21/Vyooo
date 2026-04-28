@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../config/deep_link_config.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 /// Controller for reel interactions. No UI logic here.
 /// UI calls these methods for like, save, share, comment.
@@ -111,6 +112,15 @@ class ReelsController {
               ? FieldValue.increment(1)
               : FieldValue.increment(-1),
         });
+        if (newLikedState) {
+          final ownerId = (reelDoc.data()?['userId'] as String?) ?? '';
+          await NotificationService().create(
+            recipientId: ownerId,
+            type: AppNotificationType.like,
+            message: 'liked your post.',
+            extra: {'reelId': reelId},
+          );
+        }
       }
     } catch (_) {
       return currentlyLiked;
@@ -172,6 +182,14 @@ class ReelsController {
     try {
       final url = reelUrl ?? DeepLinkConfig.reelWebUri(reelId).toString();
       await Share.share(url, subject: 'Check out this reel on Vyooo!');
+      final reelDoc = await _firestore.collection('reels').doc(reelId).get();
+      final ownerId = (reelDoc.data()?['userId'] as String?) ?? '';
+      await NotificationService().create(
+        recipientId: ownerId,
+        type: AppNotificationType.share,
+        message: 'shared your post.',
+        extra: {'reelId': reelId},
+      );
     } on PlatformException catch (_) {
       // Share cancelled or unavailable
     } catch (_) {}

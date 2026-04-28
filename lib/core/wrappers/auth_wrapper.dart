@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../config/app_config.dart';
 import '../models/app_user_model.dart';
 import '../services/auth_service.dart';
+import '../services/in_app_notification_alert_service.dart';
 import '../services/otp_session_service.dart';
 import '../services/push_messaging_service.dart';
 import '../services/signup_draft_service.dart';
@@ -63,10 +64,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             unawaited(PushMessagingService.instance.syncTokenForUser(uid));
             unawaited(PushMessagingService.instance.handleInitialMessage());
+            InAppNotificationAlertService.instance.startForUser(uid);
           });
+        }
+        if (uid != null && uid.isNotEmpty) {
+          // Keep listener alive even after hot-restart/rebuild edge cases.
+          InAppNotificationAlertService.instance.startForUser(uid);
         }
         if (uid == null) {
           _fcmBoundUid = null;
+          InAppNotificationAlertService.instance.stop();
         }
         if (!authSnapshot.hasData || user == null) {
           return const CreateAccountScreen();

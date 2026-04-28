@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/notification_service.dart';
 import '../../core/theme/app_gradients.dart';
 
 class CreatorSubscriptionScreen extends StatefulWidget {
@@ -10,6 +11,7 @@ class CreatorSubscriptionScreen extends StatefulWidget {
     required this.name,
     required this.handle,
     required this.avatarUrl,
+    this.creatorUserId,
     this.isVerified = false,
     this.monthlyPrice = 14.99,
     this.onSubscribe,
@@ -18,6 +20,7 @@ class CreatorSubscriptionScreen extends StatefulWidget {
   final String name;
   final String handle;
   final String avatarUrl;
+  final String? creatorUserId;
   final bool isVerified;
   final VoidCallback? onSubscribe;
 
@@ -51,6 +54,13 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
         backgroundColor: AppColors.brandPink,
       ),
     );
+    await NotificationService().create(
+      recipientId: widget.creatorUserId ?? '',
+      type: AppNotificationType.subscribe,
+      message: 'subscribed to your content.',
+      extra: const {'entity': 'creator_subscription'},
+    );
+    if (!mounted) return;
     Navigator.of(context).pop();
   }
 

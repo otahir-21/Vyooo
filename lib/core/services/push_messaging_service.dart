@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'local_notification_service.dart';
 import '../../firebase_options.dart';
 
 /// Top-level handler required by [FirebaseMessaging.onBackgroundMessage].
@@ -31,6 +32,7 @@ class PushMessagingService {
   /// Call once after [Firebase.initializeApp]. Registers background handler attachment in [main].
   Future<void> configure() async {
     if (kIsWeb) return;
+    await LocalNotificationService.instance.init();
     if (_isApple) {
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: true,
@@ -190,6 +192,10 @@ class PushMessagingService {
     if (kDebugMode) {
       debugPrint('FCM foreground: ${message.notification?.title} ${message.data}');
     }
+    final body = message.notification?.body?.trim() ?? '';
+    final title = message.notification?.title?.trim() ?? 'Vyooo';
+    final text = body.isNotEmpty ? body : 'You have a new notification.';
+    LocalNotificationService.instance.show(title: title, body: text);
   }
 
   void _onMessageOpened(RemoteMessage message) {
