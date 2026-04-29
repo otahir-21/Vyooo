@@ -8,6 +8,9 @@ enum GradientType {
   dob,
   profile,
   feed,
+  main,
+  profileCardBackground,
+  premiumDark,
 }
 
 /// Reusable full-screen gradient background.
@@ -34,6 +37,12 @@ class AppGradientBackground extends StatelessWidget {
         return AppGradients.feedGradient;
       case GradientType.auth:
         return AppGradients.mainBackgroundGradient;
+      case GradientType.main:
+        return AppGradients.mainBackgroundGradient;
+      case GradientType.profileCardBackground:
+        return AppGradients.profileCardBackground;
+      case GradientType.premiumDark:
+        return AppGradients.premiumDarkGradient;
     }
   }
 
@@ -42,12 +51,8 @@ class AppGradientBackground extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: _gradient,
-      ),
-      child: SafeArea(
-        child: child,
-      ),
+      decoration: BoxDecoration(gradient: _gradient),
+      child: SafeArea(child: child),
     );
   }
 }

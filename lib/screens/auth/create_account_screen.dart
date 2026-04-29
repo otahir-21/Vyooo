@@ -36,7 +36,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
-  String _selectedCountryCode = 'GB';
   String _selectedCountryDialCode = '44';
   String _selectedCountryFlag = '🇬🇧';
 
@@ -332,7 +331,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               behavior: HitTestBehavior.opaque,
               onTap: _pickCountry,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 10,
+                ),
                 child: Text(
                   '$_selectedCountryFlag +$_selectedCountryDialCode',
                   style: const TextStyle(
@@ -417,8 +419,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       onTap: isGoogle
           ? _onGoogleSignIn
           : isApple
-              ? _onAppleSignIn
-              : null,
+          ? _onAppleSignIn
+          : null,
       child: SizedBox(
         width: _socialIconContainerSize,
         height: _socialIconContainerSize,
@@ -570,7 +572,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         if (!anonResult.success) {
           setState(() {
             _isLoading = false;
-            _errorMessage = anonResult.message ?? 'Could not start verification.';
+            _errorMessage =
+                anonResult.message ?? 'Could not start verification.';
           });
           return;
         }
@@ -610,7 +613,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         if (!otpResult.success) {
           setState(() {
             _isLoading = false;
-            _errorMessage = otpResult.message ??
+            _errorMessage =
+                otpResult.message ??
                 'Could not send WhatsApp OTP. Please try again.';
           });
           return;
@@ -625,10 +629,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         builder: (_) => VerifyCodeScreen(
           channel: otpChannel,
           maskedEmail: _maskEmailForDisplay(email),
-          phoneNumber: (otpChannel == _otpChannelWhatsApp || otpChannel == _otpChannelPhone)
+          phoneNumber:
+              (otpChannel == _otpChannelWhatsApp ||
+                  otpChannel == _otpChannelPhone)
               ? phone
               : '',
-          maskedPhone: (otpChannel == _otpChannelWhatsApp || otpChannel == _otpChannelPhone)
+          maskedPhone:
+              (otpChannel == _otpChannelWhatsApp ||
+                  otpChannel == _otpChannelPhone)
               ? _maskPhoneForDisplay(phone)
               : '',
           autoSendOnOpen: autoSendOnOpen,
@@ -640,7 +648,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Could not continue verification. ${e.toString().replaceFirst('Exception: ', '')}';
+        _errorMessage =
+            'Could not continue verification. ${e.toString().replaceFirst('Exception: ', '')}';
       });
     }
   }
@@ -711,7 +720,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(_otpChannelEmail),
-            child: Text(emailValue.isEmpty ? 'Email OTP' : 'Email OTP ($emailValue)'),
+            child: Text(
+              emailValue.isEmpty ? 'Email OTP' : 'Email OTP ($emailValue)',
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(_otpChannelWhatsApp),
@@ -736,7 +747,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-
   void _pickCountry() {
     showCountryPicker(
       context: context,
@@ -759,7 +769,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       onSelect: (Country c) {
         if (!mounted) return;
         setState(() {
-          _selectedCountryCode = c.countryCode;
           _selectedCountryDialCode = c.phoneCode;
           _selectedCountryFlag = c.flagEmoji;
         });

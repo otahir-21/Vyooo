@@ -38,9 +38,13 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     var list = mockMusicTracks;
     if (_selectedTabIndex == 2) list = list.where((t) => t.isSaved).toList();
     if (q.isEmpty) return list;
-    return list.where((t) =>
-        t.title.toLowerCase().contains(q) ||
-        t.artist.toLowerCase().contains(q)).toList();
+    return list
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(q) ||
+              t.artist.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   @override
@@ -48,7 +52,7 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppGradientBackground(
-        type: GradientType.profile,
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -62,15 +66,25 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                   style: const TextStyle(color: Colors.white, fontSize: 16),
                   decoration: InputDecoration(
                     hintText: 'Search Music',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 16),
-                    prefixIcon: Icon(Icons.search_rounded, color: Colors.white.withValues(alpha: 0.6), size: 22),
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontSize: 16,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      size: 22,
+                    ),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.12),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.input),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -79,7 +93,10 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
               const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
                   itemCount: _filteredTracks.length,
                   itemBuilder: (context, index) {
                     final track = _filteredTracks[index];
@@ -103,17 +120,28 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
 
   Widget _buildAppBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const Expanded(
             child: Text(
               'Music',
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -131,7 +159,9 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
           final isSelected = index == _selectedTabIndex;
           return Expanded(
             child: Padding(
-              padding: EdgeInsets.only(right: index < _tabs.length - 1 ? AppSpacing.xs : 0),
+              padding: EdgeInsets.only(
+                right: index < _tabs.length - 1 ? AppSpacing.xs : 0,
+              ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -147,13 +177,19 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
                               colors: [Color(0xFFDE106B), Color(0xFFF81945)],
                             )
                           : null,
-                      color: isSelected ? null : Colors.white.withValues(alpha: 0.1),
+                      color: isSelected
+                          ? null
+                          : Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                     ),
                     child: Center(
                       child: Text(
                         _tabs[index],
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -170,7 +206,10 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
     final t = _playingTrack!;
     return Container(
       margin: const EdgeInsets.all(AppSpacing.md),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
@@ -183,7 +222,12 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(t.albumArtUrl, width: 48, height: 48, fit: BoxFit.cover),
+            child: Image.network(
+              t.albumArtUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -193,12 +237,19 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
               children: [
                 Text(
                   t.title,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   t.artist,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -206,11 +257,19 @@ class _MusicLibraryScreenState extends State<MusicLibraryScreen> {
           ),
           IconButton(
             onPressed: () => setState(() => _isPlaying = !_isPlaying),
-            icon: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: Colors.white, size: 28),
+            icon: Icon(
+              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 28),
+            icon: const Icon(
+              Icons.skip_next_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -234,18 +293,28 @@ class _MusicListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSelected ? const Color(0xFFDE106B).withValues(alpha: 0.4) : Colors.transparent,
+      color: isSelected
+          ? const Color(0xFFDE106B).withValues(alpha: 0.4)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.input),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.input),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSpacing.sm,
+            horizontal: AppSpacing.xs,
+          ),
           child: Row(
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(track.albumArtUrl, width: 52, height: 52, fit: BoxFit.cover),
+                child: Image.network(
+                  track.albumArtUrl,
+                  width: 52,
+                  height: 52,
+                  fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -275,8 +344,12 @@ class _MusicListTile extends StatelessWidget {
               IconButton(
                 onPressed: onBookmarkTap,
                 icon: Icon(
-                  track.isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-                  color: track.isSaved ? const Color(0xFFDE106B) : Colors.white.withValues(alpha: 0.7),
+                  track.isSaved
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: track.isSaved
+                      ? const Color(0xFFDE106B)
+                      : Colors.white.withValues(alpha: 0.7),
                   size: 24,
                 ),
               ),

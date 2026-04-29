@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_gradients.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class TermsServiceScreen extends StatelessWidget {
   const TermsServiceScreen({super.key});
@@ -7,8 +7,8 @@ class TermsServiceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

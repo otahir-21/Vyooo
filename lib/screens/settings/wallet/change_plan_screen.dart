@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_gradients.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class ChangePlanScreen extends StatefulWidget {
   const ChangePlanScreen({
@@ -53,8 +53,8 @@ class _ChangePlanScreenState extends State<ChangePlanScreen> {
     }
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
