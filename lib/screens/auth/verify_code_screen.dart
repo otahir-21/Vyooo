@@ -360,8 +360,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _sendInFlight = true;
       _errorMessage = null;
     });
-    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '')
-        .trim();
+    (draft?.email ?? _auth.currentUser?.email ?? '').trim();
     final result = _usePhone
         ? await _auth.requestPhoneSignInOtp(
             phoneNumber: _activePhoneNumber,
@@ -410,8 +409,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _verifyInFlight = true;
       _errorMessage = null;
     });
-    final fallbackEmail = (draft?.email ?? _auth.currentUser?.email ?? '')
-        .trim();
+    (draft?.email ?? _auth.currentUser?.email ?? '').trim();
     final result = _usePhone
         ? await _auth.verifyPhoneSignInOtp(
             verificationId: _phoneVerificationId,

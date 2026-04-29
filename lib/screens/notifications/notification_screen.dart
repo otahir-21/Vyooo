@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/notification_service.dart';
-import '../../core/widgets/app_gradient_background.dart';
 
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
 class NotificationScreen extends StatefulWidget {
@@ -25,7 +25,7 @@ class _NotificationScreenState extends State<NotificationScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppGradientBackground(
-        type: GradientType.feed,
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -48,11 +48,10 @@ class _NotificationScreenState extends State<NotificationScreen>
             onPressed: () {
               if (Navigator.of(context).canPop()) Navigator.of(context).pop();
             },
-            icon: Image.asset(
-              'assets/vyooO_icons/Home/chevron_left.png',
-              width: 22,
-              height: 22,
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
               color: Colors.white,
+              size: 20,
             ),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
@@ -94,12 +93,33 @@ class _NotificationScreenState extends State<NotificationScreen>
         _autoMarkVisibleAsRead(list);
         if (list.isEmpty) {
           return Center(
-            child: Text(
-              'No notifications yet',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 15,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.notifications_none_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No new notifications',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "You're all caught up!",
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
           );
         }
@@ -173,10 +193,7 @@ class _NotificationScreenState extends State<NotificationScreen>
 }
 
 class _NotifTile extends StatelessWidget {
-  const _NotifTile({
-    required this.item,
-    required this.onTap,
-  });
+  const _NotifTile({required this.item, required this.onTap});
 
   final AppNotification item;
   final VoidCallback onTap;

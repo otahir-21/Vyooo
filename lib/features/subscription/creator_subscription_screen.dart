@@ -3,7 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/notification_service.dart';
-import '../../core/theme/app_gradients.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class CreatorSubscriptionScreen extends StatefulWidget {
   const CreatorSubscriptionScreen({
@@ -67,8 +67,8 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,7 +108,10 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            width: 1.5,
+                          ),
                         ),
                         child: CircleAvatar(
                           radius: 50,
@@ -157,7 +160,11 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
                                 color: Color(0xFFF81945),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.check_rounded, size: 9, color: Colors.white),
+                              child: const Icon(
+                                Icons.check_rounded,
+                                size: 9,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ],

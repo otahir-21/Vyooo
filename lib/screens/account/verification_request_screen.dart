@@ -205,6 +205,7 @@ class _VerificationRequestScreenState extends State<VerificationRequestScreen> {
         _status == 'in_review';
     return Scaffold(
       body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

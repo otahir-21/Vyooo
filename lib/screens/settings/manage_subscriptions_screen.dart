@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../core/subscription/subscription_controller.dart';
 import 'wallet/change_plan_screen.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class ManageSubscriptionsScreen extends StatefulWidget {
   const ManageSubscriptionsScreen({super.key});
@@ -19,8 +20,8 @@ class _ManageSubscriptionsScreenState extends State<ManageSubscriptionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

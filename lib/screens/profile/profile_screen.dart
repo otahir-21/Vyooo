@@ -32,14 +32,11 @@ import 'followers_following_screen.dart';
 import '../settings/settings_screen.dart';
 
 // Profile palette tuned to match the provided UI reference.
-const Color _profileBgTop = Color(0xFF090313);
-const Color _profileBgMid = Color(0xFF14051F);
-const Color _profileBgGlow = Color(0xFFA01262);
-const Color _profileBgBottom = Color(0xFF0B0612);
-const Color _profileChipSurface = Color(0xFF2A1632);
-const Color _profileSurface = Color(0xFF15091D);
-const Color _profileAccentStart = Color(0xFFDE106B);
-const Color _profileAccentEnd = Color(0xFFF81945);
+const Color _profileBgTop = Color(0xFF3B0B30);
+const Color _profileBgMid = Color(0xFF190624);
+const Color _profileBgGlow = Color(0xFFE81E57);
+const Color _profileBgBottom = Color(0xFF33092C);
+const Color _profileSurface = Color(0xFF1A0B1E);
 
 /// Own profile tab: header, stats, Edit Profile/Share, Posts/VR/Streams, empty or Become Member.
 class ProfileScreen extends StatefulWidget {
@@ -122,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            gradient: AppGradients.authGradient,
+            gradient: AppGradients.premiumDarkGradient,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.1),
@@ -520,11 +517,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    _profileBgTop,
-                    _profileBgMid,
-                    _profileBgBottom,
-                  ],
+                  colors: [_profileBgTop, _profileBgMid, _profileBgBottom],
                   stops: [0.0, 0.58, 1.0],
                 ),
               ),
@@ -536,14 +529,14 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: const Alignment(0.62, 0.1),
-                    radius: 0.85,
+                    center: const Alignment(-0.8, -0.2),
+                    radius: 1.0,
                     colors: [
-                      _profileBgGlow.withValues(alpha: 0.78),
-                      _profileBgGlow.withValues(alpha: 0.28),
+                      _profileBgGlow.withValues(alpha: 0.4),
+                      _profileBgGlow.withValues(alpha: 0.1),
                       Colors.transparent,
                     ],
-                    stops: const [0.0, 0.52, 1.0],
+                    stops: const [0.0, 0.5, 1.0],
                   ),
                 ),
               ),
@@ -632,7 +625,9 @@ class _ProfileScreenState extends State<ProfileScreen>
       accountType: user?.accountType ?? 'personal',
       vipVerified: user?.vipVerified ?? false,
     );
-    final accountTypeKey = (user?.accountType ?? 'personal').trim().toLowerCase();
+    final accountTypeKey = (user?.accountType ?? 'personal')
+        .trim()
+        .toLowerCase();
     final accountTypeLabel = _accountTypeLabel(accountTypeKey);
     final bio = (user?.bio ?? '').trim();
 
@@ -646,9 +641,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
+                    IconButton(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                    ),
                     Expanded(
                       child: Text(
-                        username,
+                        '@$username',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -664,6 +669,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                         color: Colors.white,
                         size: 28,
                       ),
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerRight,
                     ),
                   ],
                 ),
@@ -686,18 +693,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                           gradient: hasStory
                               ? AppGradients.storyRingGradient
                               : null,
-                          border: hasStory
-                              ? null
-                              : Border.all(
-                                  color: _profileAccentStart,
-                                  width: 2,
-                                ),
+                          border: null,
                         ),
                         child: Padding(
                           padding: EdgeInsets.all(hasStory ? 2 : 0),
                           child: CircleAvatar(
                             radius: 54,
-                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.1,
+                            ),
                             backgroundImage: _isValidNetworkUrl(avatarUrl)
                                 ? NetworkImage(avatarUrl!)
                                 : null,
@@ -762,11 +766,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
                   ),
                   child: Text(
                     accountTypeLabel,
@@ -780,7 +789,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 if (bio.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.sm),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xl,
+                    ),
                     child: Text(
                       bio,
                       textAlign: TextAlign.center,
@@ -875,7 +886,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 FutureBuilder<List<StoryModel>>(
                   future: StoryService().getMyStories(),
                   builder: (context, snapshot) {
-                    final hasStory = (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
+                    final hasStory =
+                        (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
                     final storyLabel = hasStory ? 'My Story' : 'Add Story';
                     final storyIcon = hasStory
                         ? Icons.auto_stories_rounded
@@ -1017,8 +1029,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final reel = savedReels[index];
                   final thumb = _thumbnailFromSavedReel(reel);
-                  final mediaType =
-                      ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                  final mediaType = ((reel['mediaType'] as String?) ?? '')
+                      .toLowerCase();
                   final isVideo = mediaType != 'image';
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
@@ -1226,8 +1238,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 itemBuilder: (context, index) {
                   final reel = posts[index];
                   final thumbnailUrl = _thumbnailFromReel(reel);
-                  final mediaType =
-                      ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                  final mediaType = ((reel['mediaType'] as String?) ?? '')
+                      .toLowerCase();
                   final isVideo = mediaType != 'image';
                   return GestureDetector(
                     onTap: () => Navigator.of(context).push(
@@ -1297,7 +1309,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             if (snapshot.connectionState != ConnectionState.done) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
               );
             }
             final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
@@ -1309,7 +1323,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: Center(
                   child: Text(
                     'No VR posts yet',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               );
@@ -1348,8 +1364,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                     MaterialPageRoute<void>(
                       builder: (_) => VRDetailScreen(
                         payload: VRDetailPayload(
-                          creatorName: username.isNotEmpty ? username : 'Creator',
-                          creatorHandle: handle.isNotEmpty ? handle : '@creator',
+                          creatorName: username.isNotEmpty
+                              ? username
+                              : 'Creator',
+                          creatorHandle: handle.isNotEmpty
+                              ? handle
+                              : '@creator',
                           avatarUrl: avatar,
                           thumbnailUrl: thumb,
                           likeCount: likes,
@@ -1376,7 +1396,9 @@ class _ProfileScreenState extends State<ProfileScreen>
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Padding(
                 padding: EdgeInsets.symmetric(vertical: 40),
-                child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
               );
             }
             final streams = snapshot.data ?? const <LiveStreamModel>[];
@@ -1386,7 +1408,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: Center(
                   child: Text(
                     'No saved streams yet',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               );
@@ -1399,7 +1423,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 vertical: AppSpacing.sm,
               ),
               itemCount: streams.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final stream = streams[index];
                 return SizedBox(
@@ -1428,88 +1453,96 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildTabs() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        children: [
-          Expanded(
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2B1C2D),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
             child: Row(
               children: List.generate(_tabs.length, (index) {
                 final isSelected = index == _selectedTabIndex;
                 return Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedTabIndex = index),
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            gradient: isSelected
-                                ? const LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                    colors: [
-                                      _profileAccentStart,
-                                      _profileAccentEnd,
-                                    ],
-                                  )
-                                : null,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () =>
+                                setState(() => _selectedTabIndex = index),
                             borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _tabs[index],
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFFF1E5E)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.card,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _tabs[index],
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.8),
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                      if (index < _tabs.length - 1 &&
+                          !isSelected &&
+                          _selectedTabIndex != index + 1)
+                        Container(
+                          height: 16,
+                          width: 1,
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
+                    ],
                   ),
                 );
               }),
             ),
           ),
-          const SizedBox(
-            height: 20,
-            child: VerticalDivider(
-              color: Colors.white24,
-              width: 1,
-              thickness: 1,
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Icon(
-                  _selectedTabIndex == _savedTabIndex
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color: _selectedTabIndex == _savedTabIndex
-                      ? _profileAccentEnd
-                      : Colors.white.withValues(alpha: 0.8),
-                  size: 20,
-                ),
+        ),
+        const SizedBox(width: 8),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2B1C2D),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _selectedTabIndex == _savedTabIndex
+                    ? Icons.star_rounded
+                    : Icons.star_border_rounded,
+                color: _selectedTabIndex == _savedTabIndex
+                    ? const Color(0xFFFF1E5E)
+                    : Colors.white.withValues(alpha: 0.8),
+                size: 20,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1519,8 +1552,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }) {
     return InkWell(
       onTap: showModalOnTap ? () => _showBecomeMemberSheet(context) : null,
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: Column(
@@ -1747,7 +1778,6 @@ class _ProfileVRItem {
   final bool isVerified;
 }
 
-
 class _ProfileStreamItem {
   const _ProfileStreamItem({
     required this.thumbnailUrl,
@@ -1762,7 +1792,6 @@ class _ProfileStreamItem {
   final bool isLive;
   final int viewCount;
 }
-
 
 class _ProfileVRCard extends StatelessWidget {
   const _ProfileVRCard({required this.item, this.onTap});
@@ -2036,14 +2065,11 @@ class _StatChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          width: 76,
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: const Color(0xFF3B1D3D),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2053,15 +2079,15 @@ class _StatChip extends StatelessWidget {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 10,
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 9,
                   fontWeight: FontWeight.w400,
                 ),
               ),
@@ -2095,11 +2121,11 @@ class _OutlineButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: _profileChipSurface,
+            color: Colors.black.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 1.2,
+              color: Colors.white.withValues(alpha: 0.15),
+              width: 1.0,
             ),
           ),
           child: Row(
@@ -2109,13 +2135,13 @@ class _OutlineButton extends StatelessWidget {
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               if (icon != null) ...[
                 const SizedBox(width: 8),
-                Icon(icon, size: 18, color: Colors.white),
+                Icon(icon, size: 16, color: Colors.white),
               ],
             ],
           ),
@@ -2200,13 +2226,15 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
             itemCount: _loopedReels.length,
             itemBuilder: (context, index) {
               final reel = _loopedReels[index];
-              final mediaType =
-                  ((reel['mediaType'] as String?) ?? '').toLowerCase();
+              final mediaType = ((reel['mediaType'] as String?) ?? '')
+                  .toLowerCase();
               if (mediaType == 'image') {
                 final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
-                final thumbnailUrl =
-                    ((reel['thumbnailUrl'] as String?) ?? '').trim();
-                final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
+                final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '')
+                    .trim();
+                final displayUrl = imageUrl.isNotEmpty
+                    ? imageUrl
+                    : thumbnailUrl;
                 if (displayUrl.isNotEmpty) {
                   return SizedBox.expand(
                     child: ColoredBox(
@@ -2214,8 +2242,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
                       child: Image.network(
                         displayUrl,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            const SizedBox.shrink(),
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       ),
                     ),
                   );
