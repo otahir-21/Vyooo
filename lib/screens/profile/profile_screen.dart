@@ -641,16 +641,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    IconButton(
-                      onPressed: () => Navigator.maybePop(context),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerLeft,
-                    ),
                     Expanded(
                       child: Text(
                         '@$username',
