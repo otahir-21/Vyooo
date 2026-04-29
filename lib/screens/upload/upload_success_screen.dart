@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:vyooo/core/theme/app_gradients.dart';
 
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -13,7 +14,7 @@ class UploadSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppGradientBackground(
-        type: GradientType.profile,
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Center(
             child: Padding(
@@ -25,9 +26,7 @@ class UploadSuccessScreen extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFDE106B), Color(0xFFF81945)],
-                      ),
+                      gradient: AppGradients.premiumDarkGradient,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -37,7 +36,11 @@ class UploadSuccessScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 52,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   const Text(
@@ -63,7 +66,9 @@ class UploadSuccessScreen extends StatelessWidget {
                     child: InkWell(
                       onTap: () {
                         // Pop all upload screens back to the main nav
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.of(
+                          context,
+                        ).popUntil((route) => route.isFirst);
                       },
                       borderRadius: BorderRadius.circular(AppRadius.pill),
                       child: Ink(
@@ -74,7 +79,10 @@ class UploadSuccessScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 48, vertical: 14),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 48,
+                            vertical: 14,
+                          ),
                           child: Text(
                             'Go to Feed',
                             style: TextStyle(
@@ -89,7 +97,9 @@ class UploadSuccessScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
-                    onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).popUntil((route) => route.isFirst),
                     child: Text(
                       'Back to home',
                       style: TextStyle(

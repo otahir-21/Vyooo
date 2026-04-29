@@ -108,9 +108,7 @@ class _UploadScreenState extends State<UploadScreen> {
     try {
       final list = await path.getAssetListPaged(page: 0, size: 200);
       final media = list
-          .where(
-            (e) => e.type == AssetType.video || e.type == AssetType.image,
-          )
+          .where((e) => e.type == AssetType.video || e.type == AssetType.image)
           .toList();
       if (!mounted) return;
       setState(() {
@@ -133,7 +131,7 @@ class _UploadScreenState extends State<UploadScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.mainBackgroundGradient),
+        decoration: BoxDecoration(gradient: AppGradients.premiumDarkGradient),
         child: SafeArea(
           child: Column(
             children: [
@@ -201,22 +199,21 @@ class _UploadScreenState extends State<UploadScreen> {
             alignment: Alignment.centerRight,
             child: GestureDetector(
               onTap: () {
-                if (_selectedIndex != null && _selectedIndex! < _assets.length) {
+                if (_selectedIndex != null &&
+                    _selectedIndex! < _assets.length) {
                   final selected = _assets[_selectedIndex!];
                   if (_isVideoAsset(selected)) {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => UploadVideoPreviewScreen(
-                          asset: selected,
-                        ),
+                        builder: (_) =>
+                            UploadVideoPreviewScreen(asset: selected),
                       ),
                     );
                   } else if (selected.type == AssetType.image) {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => UploadPhotoPreviewScreen(
-                          asset: selected,
-                        ),
+                        builder: (_) =>
+                            UploadPhotoPreviewScreen(asset: selected),
                       ),
                     );
                   } else {
@@ -237,7 +234,10 @@ class _UploadScreenState extends State<UploadScreen> {
                 }
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -326,8 +326,7 @@ class _UploadScreenState extends State<UploadScreen> {
             fit: StackFit.expand,
             children: [
               _GalleryThumbnail(entity: entity),
-              if (_isVideoAsset(entity))
-                _VideoDuration(entity: entity),
+              if (_isVideoAsset(entity)) _VideoDuration(entity: entity),
               if (selected) _SelectedBadge(),
             ],
           ),
@@ -454,11 +453,7 @@ class _SelectedBadge extends StatelessWidget {
           color: Color(0xFF27AE60),
           shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.check,
-          size: 16,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.check, size: 16, color: Colors.white),
       ),
     );
   }
@@ -488,18 +483,9 @@ class _AlbumDropdown extends StatelessWidget {
         side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
       ),
       itemBuilder: (context) => [
-        _buildPopupItem(
-          'Recents',
-          Icons.photo_library_outlined,
-        ),
-        _buildPopupItem(
-          'Favourites',
-          Icons.favorite_border_rounded,
-        ),
-        _buildPopupItem(
-          'All Albums',
-          Icons.grid_view_outlined,
-        ),
+        _buildPopupItem('Recents', Icons.photo_library_outlined),
+        _buildPopupItem('Favourites', Icons.favorite_border_rounded),
+        _buildPopupItem('All Albums', Icons.grid_view_outlined),
       ],
       onSelected: onChanged,
       child: Padding(
@@ -533,11 +519,7 @@ class _AlbumDropdown extends StatelessWidget {
       height: 48,
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: Colors.white.withValues(alpha: 0.9),
-          ),
+          Icon(icon, size: 20, color: Colors.white.withValues(alpha: 0.9)),
           const SizedBox(width: 14),
           Text(
             label,
@@ -591,8 +573,8 @@ class _BottomSegmentButton extends StatelessWidget {
                 label == 'Story'
                     ? Icons.videocam_outlined
                     : label == 'Gallery'
-                        ? Icons.grid_view_rounded
-                        : Icons.wifi_tethering_rounded,
+                    ? Icons.grid_view_rounded
+                    : Icons.wifi_tethering_rounded,
                 color: color,
                 size: 20,
               ),
