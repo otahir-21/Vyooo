@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../utils/video_upload_policy.dart';
@@ -38,29 +40,35 @@ class ReelsService {
   }
 
   /// Reels from followed users only. Uses users/{uid}/following then reels where userId in that list.
+  /// Does not fall back to third-party demo feeds — empty means no reels from people you follow.
   Future<List<Map<String, dynamic>>> getReelsFollowing({int limit = 20}) async {
     final uid = AuthService().currentUser?.uid;
     if (uid == null) {
-      if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
       return [];
     }
     try {
       final followingIds = await UserService().getFollowing(uid);
       if (followingIds.isEmpty) {
-        if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
         return [];
       }
-      // Avoid requiring a composite Firestore index (userId + createdAt).
-      // We fetch by followed user IDs then sort in-memory by createdAt.
-      final q = await _firestore
-          .collection(_reelsCollection)
-          .where('userId', whereIn: followingIds.take(10).toList())
-          .limit(limit * 2)
-          .get();
-      final list = q.docs
-          .map((d) => _docToReelMap(d))
-          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
-          .toList();
+      // Firestore whereIn supports max 10 IDs — chunk so all followed accounts can contribute.
+      final ids = followingIds.where((id) => id.trim().isNotEmpty).toList();
+      final list = <Map<String, dynamic>>[];
+      const chunkSize = 10;
+      for (var i = 0; i < ids.length; i += chunkSize) {
+        final chunk = ids.sublist(i, min(i + chunkSize, ids.length));
+        final q = await _firestore
+            .collection(_reelsCollection)
+            .where('userId', whereIn: chunk)
+            .limit(limit * 2)
+            .get();
+        for (final d in q.docs) {
+          final r = _docToReelMap(d);
+          if (_isVisibleToCurrentUser(r) && _isPlayableReel(r)) {
+            list.add(r);
+          }
+        }
+      }
       list.sort((a, b) {
         final aTs = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
         final bTs = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
@@ -70,10 +78,8 @@ class ReelsService {
         return list.take(limit).toList(growable: false);
       }
       if (list.isNotEmpty) return list;
-      if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
       return [];
     } catch (_) {
-      if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
       return [];
     }
   }
