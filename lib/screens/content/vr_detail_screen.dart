@@ -7,16 +7,16 @@ class VRDetailPayload {
   const VRDetailPayload({
     this.title = 'VR',
     this.videoUrl,
-    this.thumbnailUrl = 'https://picsum.photos/800/1600?random=vrfull',
-    this.creatorName = 'Matt Rife',
-    this.creatorHandle = '@mattrife_x',
-    this.avatarUrl = 'https://i.pravatar.cc/80?img=33',
-    this.description = 'It\'s the silence that is more beauti...',
-    this.likeCount = 100000,
-    this.commentCount = 1200,
-    this.viewCount = 1500000,
-    this.shareCount = 450,
-    this.saveCount = 3000,
+    this.thumbnailUrl = '',
+    this.creatorName = 'Creator',
+    this.creatorHandle = '',
+    this.avatarUrl = '',
+    this.description = '',
+    this.likeCount = 0,
+    this.commentCount = 0,
+    this.viewCount = 0,
+    this.shareCount = 0,
+    this.saveCount = 0,
   });
 
   final String title;
@@ -81,6 +81,21 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
     );
   }
 
+  Widget _buildMediaFallback() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF1A1A1A), Color(0xFF050505)],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.vrpano_outlined, color: Colors.white38, size: 56),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.payload ?? const VRDetailPayload();
@@ -99,7 +114,14 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
                 });
               }
             },
-            child: Image.network(p.thumbnailUrl, fit: BoxFit.cover),
+            child: p.thumbnailUrl.trim().isNotEmpty
+                ? Image.network(
+                    p.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildMediaFallback(),
+                  )
+                : _buildMediaFallback(),
           ),
           // Gradient
           Container(
@@ -201,7 +223,7 @@ class _VRDetailScreenState extends State<VRDetailScreen> {
             child: Container(
               height: 3,
               width: double.infinity,
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Container(

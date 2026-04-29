@@ -188,7 +188,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               builder: (context, constraints) {
                 final isCompact =
                     constraints.maxWidth < 390 || constraints.maxHeight < 780;
-                final logoSize = isCompact ? 40.0 : 48.0;
                 final titleSize = isCompact ? 28.0 : 32.0;
                 final subtitleSize = isCompact ? 13.0 : 14.0;
                 final sectionGap = isCompact ? 28.0 : 40.0;
@@ -791,11 +790,18 @@ class _FeatureComparisonTable extends StatelessWidget {
           // Intrinsic-height rows: parent [SingleChildScrollView] scrolls the full list
           // (Monetize / Offer subscriptions / Video Quality, etc.).
           _FeatureRow(
-            compact: compact,
             'Watch live content',
-            'Credit card',
-            'After 12 hours',
-            'Watch Instantly',
+            true,
+            true,
+            true,
+            compact: compact,
+          ),
+          _FeatureRow(
+            'Ad-free experience',
+            false,
+            true,
+            true,
+            compact: compact,
           ),
           _FeatureRow('Create Profile', false, true, true, compact: compact),
           _FeatureRow('Verification', false, true, true, compact: compact),
