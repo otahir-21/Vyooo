@@ -450,7 +450,7 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
 
   Widget _buildTextField({
     required String hint,
-    IconData? suffixIcon,
+    Object? suffixIcon,
     int maxLines = 1,
   }) {
     return Container(
@@ -467,15 +467,21 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
           border: InputBorder.none,
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.white24),
-          suffixIcon: suffixIcon != null
-              ? Icon(
-                  suffixIcon,
-                  color: suffixIcon == FontAwesomeIcons.ccMastercard
-                      ? Colors.orange
-                      : Colors.white38,
-                  size: 20,
-                )
-              : null,
+          suffixIcon: suffixIcon == null
+              ? null
+              : suffixIcon is FaIconData
+                  ? FaIcon(
+                      suffixIcon,
+                      color: suffixIcon == FontAwesomeIcons.ccMastercard
+                          ? Colors.orange
+                          : Colors.white38,
+                      size: 20,
+                    )
+                  : Icon(
+                      suffixIcon as IconData,
+                      color: Colors.white38,
+                      size: 20,
+                    ),
         ),
       ),
     );

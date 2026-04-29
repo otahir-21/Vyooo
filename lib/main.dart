@@ -99,9 +99,9 @@ Future<void> _configureFirebaseAppCheck() async {
         'AppCheck(Android): using ${useDebugProvider ? 'debug' : 'playIntegrity'} provider',
       );
       await FirebaseAppCheck.instance.activate(
-        androidProvider: useDebugProvider
-            ? AndroidProvider.debug
-            : AndroidProvider.playIntegrity,
+        providerAndroid: useDebugProvider
+            ? const AndroidDebugProvider()
+            : const AndroidPlayIntegrityProvider(),
       );
       return;
     }
@@ -110,9 +110,9 @@ Future<void> _configureFirebaseAppCheck() async {
         'AppCheck(iOS): using ${useDebugProvider ? 'debug' : 'appAttest/deviceCheck'} provider',
       );
       await FirebaseAppCheck.instance.activate(
-        appleProvider: useDebugProvider
-            ? AppleProvider.debug
-            : AppleProvider.appAttestWithDeviceCheckFallback,
+        providerApple: useDebugProvider
+            ? const AppleDebugProvider()
+            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
       );
     }
   } catch (e, st) {

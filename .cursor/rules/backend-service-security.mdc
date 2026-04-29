@@ -1,0 +1,23 @@
+---
+description: Strict security standards for backend functions and core service layers
+globs: "{functions/src/**/*.ts,lib/core/services/**/*.dart}"
+alwaysApply: false
+---
+
+# Backend and Service Security Rules
+
+- Fail closed: if auth context, required identifiers, or ownership checks are missing, reject the operation.
+- Require explicit validation for every request/document field before processing.
+- Never trust client-provided role, uid, recipientId, price, or entitlement fields without server-side verification.
+- For writes with financial/auth/notification impact, enforce idempotency keys or dedupe guards.
+- For Cloud Functions triggers, guard against retry duplication and partial-write loops.
+- Do not log raw tokens, phone numbers, email OTP codes, payment payloads, or full profile documents.
+- Keep error messages safe for clients; detailed stack traces stay internal logs only.
+- Use least-privilege Firestore access patterns and merge writes intentionally (`SetOptions(merge: true)` only when correct).
+- On schema evolution, support old and new fields during transition windows.
+
+## Required Verification for Changes in Scope
+
+- Add/update tests or a reproducible manual test checklist for auth, OTP, push, or payment flows.
+- Confirm failure-path behavior (invalid input, denied auth, missing docs, network failures).
+- Confirm success-path behavior (single side effect, correct recipient/user targeting, no duplicate writes).

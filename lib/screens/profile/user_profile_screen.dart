@@ -1147,7 +1147,7 @@ class _GradientButton extends StatelessWidget {
   });
 
   final String label;
-  final IconData icon;
+  final Object icon;
   final VoidCallback onPressed;
 
   @override
@@ -1178,7 +1178,9 @@ class _GradientButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 14, color: Colors.black),
+                icon is FaIconData
+                    ? FaIcon(icon as FaIconData, size: 14, color: Colors.black)
+                    : Icon(icon as IconData, size: 14, color: Colors.black),
                 const SizedBox(width: 6),
                 Text(
                   label,

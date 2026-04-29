@@ -427,7 +427,7 @@ class _BenefitItem extends StatelessWidget {
     required this.subtitle,
   });
 
-  final IconData icon;
+  final FaIconData icon;
   final String title;
   final String subtitle;
 
