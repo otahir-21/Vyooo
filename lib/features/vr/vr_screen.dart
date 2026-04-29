@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/services/reels_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../screens/content/vr_detail_screen.dart';
 import '../subscription/subscription_screen.dart';
-import 'vr_player_screen.dart';
 
 Future<void> showVrLockedOverlaySheet(
   BuildContext context, {
@@ -17,9 +17,9 @@ Future<void> showVrLockedOverlaySheet(
       opaque: false,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      pageBuilder: (_, __, ___) =>
+      pageBuilder: (context, animation, secondaryAnimation) =>
           _VrLockedOverlayRoute(backgroundImageUrl: backgroundImageUrl),
-      transitionsBuilder: (_, animation, __, child) {
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
@@ -57,7 +57,8 @@ class _VrLockedOverlayRoute extends StatelessWidget {
             Image.network(
               backgroundImageUrl!.trim(),
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const _VrFallbackBackground(),
+              errorBuilder: (context, error, stackTrace) =>
+                  const _VrFallbackBackground(),
             )
           else
             const _VrFallbackBackground(),
@@ -291,14 +292,7 @@ class VrLockedView extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         // Underwater-style background image
-        Positioned.fill(
-          child: Image.network(
-            'https://images.unsplash.com/photo-1544923246-77307dd654ca?q=80&w=2000&auto=format&fit=crop', // A placeholder that looks like a cave/underwater
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
-                Container(color: const Color(0xFF0A1628)),
-          ),
-        ),
+        const Positioned.fill(child: _VrFallbackBackground()),
         // Dark overlay for better contrast
         Positioned.fill(
           child: Container(
@@ -516,32 +510,27 @@ class VrLockedView extends StatelessWidget {
 }
 
 /// VR grid of thumbnails. Reused in home screen when VR tab is selected.
-class VrGridView extends StatelessWidget {
+class VrGridView extends StatefulWidget {
   const VrGridView({super.key});
 
-  static const _thumbnailUrls = [
-    'https://picsum.photos/400/400?random=11',
-    'https://picsum.photos/400/400?random=12',
-    'https://picsum.photos/400/400?random=13',
-    'https://picsum.photos/400/400?random=14',
-    'https://picsum.photos/400/400?random=15',
-    'https://picsum.photos/400/400?random=16',
-    'https://picsum.photos/400/400?random=17',
-    'https://picsum.photos/400/400?random=18',
-    'https://picsum.photos/400/400?random=19',
-    'https://picsum.photos/400/400?random=20',
-    'https://picsum.photos/400/400?random=21',
-    'https://picsum.photos/400/400?random=22',
-    'https://picsum.photos/400/400?random=23',
-    'https://picsum.photos/400/400?random=24',
-    'https://picsum.photos/400/400?random=25',
-  ];
+  @override
+  State<VrGridView> createState() => _VrGridViewState();
+}
 
-  static final _testVideoUrls = [
-    ...VrPlayerScreen.testVideoUrls,
-    ...VrPlayerScreen.testVideoUrls,
-    ...VrPlayerScreen.testVideoUrls,
-  ];
+class _VrGridViewState extends State<VrGridView> {
+  late Future<List<Map<String, dynamic>>> _vrReelsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _vrReelsFuture = ReelsService().getReelsVR(limit: 60);
+  }
+
+  void _refresh() {
+    setState(() {
+      _vrReelsFuture = ReelsService().getReelsVR(limit: 60);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -563,47 +552,165 @@ class VrGridView extends StatelessWidget {
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 1.5,
-          mainAxisSpacing: 1.5,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: _thumbnailUrls.length,
-        itemBuilder: (context, index) {
-          final videoUrl = _testVideoUrls[index % _testVideoUrls.length];
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => VRDetailScreen(
-                    payload: VRDetailPayload(
-                      title: 'VR ${index + 1}',
-                      videoUrl: videoUrl,
-                      thumbnailUrl: _thumbnailUrls[index],
-                      likeCount: 100000,
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _vrReelsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFFDE106B)),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return _VrGridMessage(
+              icon: Icons.wifi_off_rounded,
+              title: 'Could not load VR content',
+              subtitle: 'Please check your internet and try again.',
+              actionLabel: 'Retry',
+              onAction: _refresh,
+            );
+          }
+
+          final reels = snapshot.data ?? const <Map<String, dynamic>>[];
+          if (reels.isEmpty) {
+            return _VrGridMessage(
+              icon: Icons.video_library_outlined,
+              title: 'No VR videos yet',
+              subtitle: 'VR content will appear here once creators publish it.',
+              actionLabel: 'Refresh',
+              onAction: _refresh,
+            );
+          }
+
+          return GridView.builder(
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 1.5,
+              mainAxisSpacing: 1.5,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: reels.length,
+            itemBuilder: (context, index) {
+              final reel = reels[index];
+              final videoUrl = (reel['videoUrl'] as String? ?? '').trim();
+              final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
+              final caption = (reel['caption'] as String? ?? '').trim();
+              final username = (reel['username'] as String? ?? '').trim();
+              final handle = (reel['handle'] as String? ?? '').trim();
+              final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
+              final resolvedTitle = caption.isNotEmpty
+                  ? caption
+                  : (username.isNotEmpty ? username : 'VR');
+
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VRDetailScreen(
+                        payload: VRDetailPayload(
+                          title: resolvedTitle,
+                          videoUrl: videoUrl.isNotEmpty ? videoUrl : null,
+                          thumbnailUrl: thumbnailUrl,
+                          creatorName: username.isNotEmpty ? username : 'Creator',
+                          creatorHandle: handle,
+                          avatarUrl: avatarUrl,
+                          description: caption,
+                          likeCount: (reel['likes'] as int?) ?? 0,
+                          commentCount: (reel['comments'] as int?) ?? 0,
+                          viewCount: (reel['views'] as int?) ?? 0,
+                          shareCount: (reel['shares'] as int?) ?? 0,
+                          saveCount: (reel['saves'] as int?) ?? 0,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
+                child: thumbnailUrl.isNotEmpty
+                    ? Image.network(
+                        thumbnailUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _buildThumbFallback(),
+                      )
+                    : _buildThumbFallback(),
               );
             },
-            child: Image.network(
-              _thumbnailUrls[index],
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.white12,
-                child: const Icon(
-                  Icons.videocam_off,
-                  color: Colors.white38,
-                  size: 32,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildThumbFallback() {
+    return Container(
+      color: Colors.white12,
+      child: const Icon(
+        Icons.videocam_off,
+        color: Colors.white38,
+        size: 32,
+      ),
+    );
+  }
+}
+
+class _VrGridMessage extends StatelessWidget {
+  const _VrGridMessage({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white70, size: 32),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextButton(
+              onPressed: onAction,
+              child: Text(
+                actionLabel,
+                style: const TextStyle(
+                  color: Color(0xFFDE106B),
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
