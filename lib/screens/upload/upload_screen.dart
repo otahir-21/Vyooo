@@ -56,6 +56,10 @@ class _UploadScreenState extends State<UploadScreen> {
     }
   }
 
+  bool _isVideoAsset(AssetEntity entity) {
+    return entity.type == AssetType.video || entity.videoDuration.inSeconds > 0;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -195,11 +199,11 @@ class _UploadScreenState extends State<UploadScreen> {
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
+            child: GestureDetector(
+              onTap: () {
                 if (_selectedIndex != null && _selectedIndex! < _assets.length) {
                   final selected = _assets[_selectedIndex!];
-                  if (selected.type == AssetType.video) {
+                  if (_isVideoAsset(selected)) {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => UploadVideoPreviewScreen(
@@ -232,12 +236,19 @@ class _UploadScreenState extends State<UploadScreen> {
                   );
                 }
               },
-              child: const Text(
-                'Next',
-                style: TextStyle(
-                  color: Color(0xFFDE106B),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  'Next',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -315,7 +326,7 @@ class _UploadScreenState extends State<UploadScreen> {
             fit: StackFit.expand,
             children: [
               _GalleryThumbnail(entity: entity),
-              if (entity.type == AssetType.video)
+              if (_isVideoAsset(entity))
                 _VideoDuration(entity: entity),
               if (selected) _SelectedBadge(),
             ],

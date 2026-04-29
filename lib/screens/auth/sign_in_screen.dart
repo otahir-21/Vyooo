@@ -193,9 +193,9 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
-        height: 50,
+        height: 100,
         child: Image.asset(
-          'assets/BrandLogo/Vyooo logo (2).png',
+          'assets/BrandLogo/vyooo_white_transparent.png',
           fit: BoxFit.contain,
           errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',

@@ -197,15 +197,15 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
-        height: 45,
+        height: 100,
         child: Image.asset(
-          'assets/BrandLogo/Vyooo logo (2).png',
+          'assets/BrandLogo/vyooo_white_transparent.png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
-              fontSize: 38,
+              fontSize: 42,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
             ),

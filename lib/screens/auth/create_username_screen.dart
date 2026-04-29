@@ -576,49 +576,30 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   }
 
   Future<_OnboardingAccountType?> _showMaterialAccountTypeDialog() {
-    _OnboardingAccountType selected = _OnboardingAccountType.personal;
     return showDialog<_OnboardingAccountType>(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text(
-            'Select account type',
+      barrierDismissible: true,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Select account type'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_OnboardingAccountType.personal),
+            child: const Text('Personal account'),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: _OnboardingAccountType.values.map((type) {
-              final label = switch (type) {
-                _OnboardingAccountType.personal => 'Personal account',
-                _OnboardingAccountType.business => 'Business account',
-                _OnboardingAccountType.government => 'Government account',
-              };
-              return RadioListTile<_OnboardingAccountType>(
-                value: type,
-                groupValue: selected,
-                activeColor: AppTheme.primary,
-                onChanged: (v) {
-                  if (v == null) return;
-                  setDialogState(() => selected = v);
-                },
-                title: Text(label),
-              );
-            }).toList(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(ctx).pop(_OnboardingAccountType.business),
+            child: const Text('Business account'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(ctx).pop(selected),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-              ),
-              child: const Text('Continue'),
-            ),
-          ],
-        ),
+          SimpleDialogOption(
+            onPressed: () =>
+                Navigator.of(ctx).pop(_OnboardingAccountType.government),
+            child: const Text('Government account'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
       ),
     );
   }

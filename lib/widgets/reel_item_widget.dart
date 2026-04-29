@@ -12,11 +12,13 @@ class ReelItemWidget extends StatefulWidget {
     super.key,
     required this.videoUrl,
     required this.isVisible,
+    this.thumbnailUrl,
     this.onVisibilityChanged,
   });
 
   final String videoUrl;
   final bool isVisible;
+  final String? thumbnailUrl;
   final VoidCallback? onVisibilityChanged;
 
   @override
@@ -33,6 +35,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _showControls = false;
   bool _isMuted = false;
   Timer? _hideTimer;
+  Timer? _retryTimer;
   bool _lastIsPlaying = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
@@ -42,7 +45,9 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
+    if (widget.isVisible) {
+      _initializePlayer();
+    }
   }
 
   @override
@@ -50,7 +55,9 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
       _disposePlayer();
-      _initializePlayer();
+      if (widget.isVisible) {
+        _initializePlayer();
+      }
     }
     if (oldWidget.isVisible != widget.isVisible) {
       _handleVisibility();
@@ -64,6 +71,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   Future<void> _initializePlayer() async {
+    if (!widget.isVisible) return;
     final urls = _candidateUrls(widget.videoUrl);
     if (urls.isEmpty) return;
     final url = urls[_urlIndex.clamp(0, urls.length - 1)];
@@ -101,7 +109,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       // Try fallback URL first (e.g. HLS -> MP4 progressive) before timed retry.
       if (mounted && _urlIndex < urls.length - 1) {
         setState(() => _urlIndex++);
-        Future.delayed(const Duration(milliseconds: 700), () {
+        _retryTimer?.cancel();
+        _retryTimer = Timer(const Duration(milliseconds: 700), () {
           if (mounted) _initializePlayer();
         });
         return;
@@ -113,7 +122,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
           _retryCount++;
           _showError = false;
         });
-        Future.delayed(const Duration(seconds: 5), () {
+        _retryTimer?.cancel();
+        _retryTimer = Timer(const Duration(seconds: 5), () {
           if (mounted) _initializePlayer();
         });
       } else if (mounted) {
@@ -123,6 +133,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   void _disposePlayer() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     _hideTimer?.cancel();
     _hideTimer = null;
     _controller?.removeListener(_onControllerValueChanged);
@@ -162,10 +174,19 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   void _handleVisibility() {
-    if (!_isInitialized || _controller == null) return;
     if (widget.isVisible) {
-      _controller!.play();
-    } else {
+      if (_controller == null) {
+        _initializePlayer();
+        return;
+      }
+      if (_isInitialized) {
+        _controller!.play();
+      }
+      return;
+    }
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    if (_isInitialized && _controller != null) {
       _controller!.pause();
     }
   }
@@ -206,24 +227,34 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Widget build(BuildContext context) {
     super.build(context);
 
+    final loadingBg = _buildLoadingBackground();
+
     // Show loading/retrying state
     if (_controller == null && !_showError) {
       return Container(
         color: Colors.black,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-              if (_retryCount > 0) ...[
-                SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Preparing video... ($_retryCount/$_maxRetries)',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+              loadingBg,
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                    if (_retryCount > 0) ...[
+                      SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Preparing video... ($_retryCount/$_maxRetries)',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
@@ -268,10 +299,16 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     if (!_isInitialized) {
       return Container(
         color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            loadingBg,
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -327,6 +364,18 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         ),
       ),
     );
+  }
+
+  Widget _buildLoadingBackground() {
+    final thumb = (widget.thumbnailUrl ?? '').trim();
+    if (thumb.isNotEmpty) {
+      return Image.network(
+        thumb,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
+      );
+    }
+    return const ColoredBox(color: Colors.black);
   }
 
   Widget _buildControlPill() {

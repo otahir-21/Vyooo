@@ -278,12 +278,15 @@ class _EditVideoScreenState extends State<EditVideoScreen>
     required VoidCallback onTap,
     required bool isPink,
   }) {
+    final isNext = label == 'Next';
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isPink ? _pink : Colors.black.withValues(alpha: 0.5),
+          color: isNext
+              ? Colors.white
+              : (isPink ? _pink : Colors.black.withValues(alpha: 0.5)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -291,10 +294,14 @@ class _EditVideoScreenState extends State<EditVideoScreen>
           children: [
             Text(
               label,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+              style: TextStyle(
+                color: isNext ? Colors.black : Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
             const SizedBox(width: 6),
-            Icon(icon, color: Colors.white, size: 14),
+            Icon(icon, color: isNext ? Colors.black : Colors.white, size: 14),
           ],
         ),
       ),

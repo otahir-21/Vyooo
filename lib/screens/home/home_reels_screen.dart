@@ -198,6 +198,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final filteredFollowing = following.where(allowedByBlock).toList();
     final filteredTrending = trending.where(allowedByBlock).toList();
     final filteredVr = vr.where(allowedByBlock).toList();
+    final reelUserIds = <String>{
+      ...filteredForYou.map((r) => (r['userId'] as String?) ?? ''),
+      ...filteredFollowing.map((r) => (r['userId'] as String?) ?? ''),
+      ...filteredTrending.map((r) => (r['userId'] as String?) ?? ''),
+      ...filteredVr.map((r) => (r['userId'] as String?) ?? ''),
+    }..removeWhere((id) => id.isEmpty);
+    final latestAvatarByUid = await _fetchLatestProfileImages(reelUserIds);
     final filteredStories = storyGroups
         .where((g) => !blockedIds.contains(g.userId))
         .toList();
@@ -217,8 +224,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             final id = (r['id'] as String?) ?? '';
             if (id.isEmpty) return r;
             final remoteCount = saveCounts[id];
-            if (remoteCount == null) return r;
-            return Map<String, dynamic>.from(r)..['saves'] = remoteCount;
+            final cloned = Map<String, dynamic>.from(r);
+            final reelUid = (cloned['userId'] as String?) ?? '';
+            final latestAvatar = latestAvatarByUid[reelUid];
+            if (latestAvatar != null && latestAvatar.isNotEmpty) {
+              cloned['avatarUrl'] = latestAvatar;
+              cloned['profileImage'] = latestAvatar;
+            }
+            if (remoteCount != null) {
+              cloned['saves'] = remoteCount;
+            }
+            return cloned;
           }).toList();
         }
         // Always assign so empty API results clear lists (avoids stale / black feed).
@@ -242,6 +258,30 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       });
       _handleIncomingDeepLink();
     }
+  }
+
+  Future<Map<String, String>> _fetchLatestProfileImages(Set<String> userIds) async {
+    if (userIds.isEmpty) return const <String, String>{};
+    final out = <String, String>{};
+    final ids = userIds.toList(growable: false);
+    for (var i = 0; i < ids.length; i += 10) {
+      final chunk = ids.sublist(i, (i + 10) > ids.length ? ids.length : (i + 10));
+      try {
+        final q = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final d in q.docs) {
+          final image = (d.data()['profileImage'] as String?)?.trim() ?? '';
+          if (image.isNotEmpty) {
+            out[d.id] = image;
+          }
+        }
+      } catch (_) {
+        // Ignore lookup failures and keep feed fallback avatars.
+      }
+    }
+    return out;
   }
 
   Future<void> _handleIncomingDeepLink() async {
@@ -719,9 +759,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       controller: _pageController,
       scrollDirection: Axis.vertical,
       onPageChanged: _onPageChanged,
-      // Keep feed infinite; replay content in randomized cycles.
+      itemCount: reels.length,
       itemBuilder: (context, index) {
-        final feedIndex = _feedIndexForPage(index, reels.length);
+        final feedIndex = index;
         final reel = reels[feedIndex];
         final mediaType =
             ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
@@ -738,8 +778,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         if (videoUrl.isEmpty) {
           return _buildMissingMediaPlaceholder('This reel has no video URL.');
         }
+        final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
+        final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+        final loadingThumb = thumbnailUrl.isNotEmpty ? thumbnailUrl : imageUrl;
         return ReelItemWidget(
+          key: ValueKey<String>((reel['id'] as String?) ?? videoUrl),
           videoUrl: videoUrl,
+          thumbnailUrl: loadingThumb,
           // Only play when this page is visible AND the home tab is active.
           isVisible: widget.isActive &&
               _isRouteVisible &&
@@ -1052,6 +1097,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                             reel['avatarUrl'] as String?)
                         ? NetworkImage((reel['avatarUrl'] as String).trim())
                         : null,
+                    onBackgroundImageError: (_, __) {},
                     child: !_isValidNetworkUrl(reel['avatarUrl'] as String?)
                         ? const Icon(Icons.person, color: Colors.white, size: 20)
                         : null,

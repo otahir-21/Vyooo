@@ -1178,11 +1178,20 @@ class _ProfileScreenState extends State<ProfileScreen>
                   final data = d.data();
                   return {
                     'id': d.id,
+                    'userId': data['userId'] as String? ?? '',
+                    'username': data['username'] as String? ?? '',
+                    'handle': data['handle'] as String? ?? '',
+                    'avatarUrl': data['avatarUrl'] as String? ?? '',
                     'videoUrl': data['videoUrl'] as String? ?? '',
                     'imageUrl': data['imageUrl'] as String? ?? '',
                     'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
                     'mediaType': data['mediaType'] as String? ?? '',
                     'caption': data['caption'] as String? ?? '',
+                    'likes': (data['likes'] as num?)?.toInt() ?? 0,
+                    'comments': (data['comments'] as num?)?.toInt() ?? 0,
+                    'shares': (data['shares'] as num?)?.toInt() ?? 0,
+                    'views': (data['views'] as num?)?.toInt() ?? 0,
+                    'saves': (data['saves'] as num?)?.toInt() ?? 0,
                     'createdAt': data['createdAt'],
                   };
                 }).toList();
@@ -2188,6 +2197,141 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
     _loopedReels.addAll(batch);
   }
 
+  static String _formatCount(int value) {
+    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}k';
+    return '$value';
+  }
+
+  Future<void> _editCaption(Map<String, dynamic> reel) async {
+    final reelId = (reel['id'] as String?)?.trim() ?? '';
+    if (reelId.isEmpty) return;
+    final existing = (reel['caption'] as String?) ?? '';
+    final controller = TextEditingController(text: existing);
+    final nextCaption = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit caption'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Write a caption',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || nextCaption == null || nextCaption == existing) return;
+    try {
+      await FirebaseFirestore.instance.collection('reels').doc(reelId).update({
+        'caption': nextCaption,
+      });
+      if (!mounted) return;
+      setState(() {
+        for (final item in _seedReels) {
+          if (item['id'] == reelId) item['caption'] = nextCaption;
+        }
+        for (final item in _loopedReels) {
+          if (item['id'] == reelId) item['caption'] = nextCaption;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update caption. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _deletePost(Map<String, dynamic> reel) async {
+    final reelId = (reel['id'] as String?)?.trim() ?? '';
+    if (reelId.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This will remove this post from your profile feed.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      await FirebaseFirestore.instance.collection('reels').doc(reelId).delete();
+      if (!mounted) return;
+      setState(() {
+        _seedReels.removeWhere((item) => item['id'] == reelId);
+        _loopedReels.removeWhere((item) => item['id'] == reelId);
+        if (_loopedReels.isEmpty) {
+          Navigator.of(context).pop();
+          return;
+        }
+        if (_currentIndex >= _loopedReels.length) {
+          _currentIndex = _loopedReels.length - 1;
+        }
+      });
+      if (mounted && _loopedReels.isNotEmpty) {
+        _pageController.jumpToPage(_currentIndex);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete post. Please try again.')),
+      );
+    }
+  }
+
+  void _openPostOptions(Map<String, dynamic> reel) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF141414),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_rounded, color: Colors.white),
+              title: const Text('Edit caption', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _editCaption(reel);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: AppColors.deleteRed),
+              title: const Text(
+                'Delete post',
+                style: TextStyle(color: AppColors.deleteRed),
+              ),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _deletePost(reel);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -2196,6 +2340,12 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentReel = _loopedReels.isEmpty ? null : _loopedReels[_currentIndex];
+    final avatarUrl = ((currentReel?['avatarUrl'] as String?) ?? '').trim();
+    final username = ((currentReel?['username'] as String?) ?? '').trim();
+    final handle = ((currentReel?['handle'] as String?) ?? '').trim();
+    final caption = ((currentReel?['caption'] as String?) ?? '').trim();
+    final normalizedHandle = handle.startsWith('@') ? handle : '@$handle';
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -2250,17 +2400,181 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
               );
             },
           ),
-          SafeArea(
-            child: IconButton(
-              icon: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                color: Colors.white,
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x66000000),
+                    Color(0x00000000),
+                    Color(0x99000000),
+                  ],
+                  stops: [0.0, 0.45, 1.0],
+                ),
               ),
-              onPressed: () => Navigator.of(context).pop(),
+              child: SizedBox.expand(),
             ),
           ),
+          SafeArea(
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                const Text(
+                  'Posts',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                if (currentReel != null)
+                  IconButton(
+                    icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+                    onPressed: () => _openPostOptions(currentReel),
+                  ),
+              ],
+            ),
+          ),
+          if (currentReel != null)
+            Positioned(
+              right: 16,
+              bottom: 120,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _OverlayMetric(
+                    icon: Icons.remove_red_eye_outlined,
+                    value: _formatCount((currentReel['views'] as int?) ?? 0),
+                  ),
+                  const SizedBox(height: 14),
+                  _OverlayMetric(
+                    icon: Icons.favorite_rounded,
+                    value: _formatCount((currentReel['likes'] as int?) ?? 0),
+                  ),
+                  const SizedBox(height: 14),
+                  _OverlayMetric(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    value: _formatCount((currentReel['comments'] as int?) ?? 0),
+                  ),
+                  const SizedBox(height: 14),
+                  _OverlayMetric(
+                    icon: Icons.reply_rounded,
+                    value: _formatCount((currentReel['shares'] as int?) ?? 0),
+                  ),
+                  const SizedBox(height: 14),
+                  _OverlayMetric(
+                    icon: Icons.star_outline_rounded,
+                    value: _formatCount((currentReel['saves'] as int?) ?? 0),
+                  ),
+                ],
+              ),
+            ),
+          if (currentReel != null)
+            Positioned(
+              left: 16,
+              right: 80,
+              bottom: 34,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.white24,
+                        backgroundImage: avatarUrl.isNotEmpty
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: avatarUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.white70, size: 18)
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              username.isNotEmpty ? username : 'My Post',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 23,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              handle.isNotEmpty ? normalizedHandle : '@myprofile',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    caption.isNotEmpty ? caption : 'No caption',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 26,
+                      height: 1.05,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
+    );
+  }
+}
+
+class _OverlayMetric extends StatelessWidget {
+  const _OverlayMetric({
+    required this.icon,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

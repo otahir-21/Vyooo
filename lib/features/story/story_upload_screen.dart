@@ -1,14 +1,40 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/services/story_service.dart';
 import '../../screens/upload/creator_live_route.dart';
 
 enum _Tab { story, gallery, live }
+
+enum _StoryFilter { normal, warm, cool, mono, vivid }
+
+class _StoryImageEdit {
+  const _StoryImageEdit({
+    this.filter = _StoryFilter.normal,
+    this.overlayText = '',
+  });
+
+  final _StoryFilter filter;
+  final String overlayText;
+
+  _StoryImageEdit copyWith({
+    _StoryFilter? filter,
+    String? overlayText,
+  }) {
+    return _StoryImageEdit(
+      filter: filter ?? this.filter,
+      overlayText: overlayText ?? this.overlayText,
+    );
+  }
+}
 
 /// Story upload (Figma): camera + Story/Gallery/Live tabs, caption + Post,
 /// multi-image strip. Gallery uses the **system photo picker** (`pickMultiImage`)
@@ -32,11 +58,20 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   _Tab _tab = _Tab.story;
 
   List<File> _images = [];
+  List<_StoryImageEdit> _imageEdits = [];
   int _previewIdx = 0;
   final _captionCtrl = TextEditingController();
   bool _uploading = false;
 
   final _picker = ImagePicker();
+
+  static const Map<_StoryFilter, String> _filterLabels = <_StoryFilter, String>{
+    _StoryFilter.normal: 'Normal',
+    _StoryFilter.warm: 'Warm',
+    _StoryFilter.cool: 'Cool',
+    _StoryFilter.mono: 'Mono',
+    _StoryFilter.vivid: 'Vivid',
+  };
 
   static const List<String> _videoExtensions = [
     '.mp4',
@@ -196,6 +231,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       if (mounted) {
         setState(() {
           _images = [File(xFile.path)];
+          _imageEdits = [const _StoryImageEdit()];
           _previewIdx = 0;
         });
       }
@@ -232,10 +268,22 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     if (mounted) {
       setState(() {
         if (append) {
+          final prevLen = _images.length;
           _images = [..._images, ...files];
+          _imageEdits = [
+            ..._imageEdits,
+            ...List<_StoryImageEdit>.generate(
+              _images.length - prevLen,
+              (_) => const _StoryImageEdit(),
+            ),
+          ];
           _previewIdx = _images.length - 1;
         } else {
           _images = files;
+          _imageEdits = List<_StoryImageEdit>.generate(
+            files.length,
+            (_) => const _StoryImageEdit(),
+          );
           _previewIdx = 0;
         }
       });
@@ -246,8 +294,9 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     if (_images.isEmpty || _uploading) return;
     setState(() => _uploading = true);
     try {
+      final renderedImages = await _buildUploadImages();
       await StoryService().uploadMultipleStories(
-        images: _images,
+        images: renderedImages,
         caption: _captionCtrl.text.trim(),
       );
       if (mounted) Navigator.of(context).pop(true);
@@ -257,6 +306,340 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
         setState(() => _uploading = false);
       }
     }
+  }
+
+  Future<void> _cropCurrentImage() async {
+    if (_images.isEmpty) return;
+    final source = _images[_previewIdx];
+    try {
+      final cropped = await ImageCropper().cropImage(
+        sourcePath: source.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop',
+            toolbarColor: Colors.black,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+          ),
+          IOSUiSettings(
+            title: 'Crop',
+            rotateButtonsHidden: false,
+            aspectRatioLockEnabled: false,
+            doneButtonTitle: 'Done',
+            cancelButtonTitle: 'Cancel',
+          ),
+        ],
+      );
+      if (!mounted || cropped == null) return;
+      setState(() {
+        _images[_previewIdx] = File(cropped.path);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack('Crop failed: $e');
+    }
+  }
+
+  Future<void> _pickFilter() async {
+    if (_images.isEmpty) return;
+    final current = _imageEdits[_previewIdx].filter;
+    final picked = await showModalBottomSheet<_StoryFilter>(
+      context: context,
+      backgroundColor: const Color(0xFF151515),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _StoryFilter.values.map((f) {
+            final selected = f == current;
+            return ListTile(
+              title: Text(
+                _filterLabels[f] ?? 'Filter',
+                style: TextStyle(
+                  color: selected ? const Color(0xFFDE106B) : Colors.white,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              trailing: selected
+                  ? const Icon(Icons.check_rounded, color: Color(0xFFDE106B))
+                  : null,
+              onTap: () => Navigator.of(ctx).pop(f),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _imageEdits[_previewIdx] = _imageEdits[_previewIdx].copyWith(filter: picked);
+    });
+  }
+
+  Future<void> _editOverlayText() async {
+    if (_images.isEmpty) return;
+    final controller = TextEditingController(
+      text: _imageEdits[_previewIdx].overlayText,
+    );
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF171717),
+        title: const Text('Add Text', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLength: 60,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Type your story text',
+            hintStyle: TextStyle(color: Colors.white54),
+            counterStyle: TextStyle(color: Colors.white54),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(''),
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || text == null) return;
+    setState(() {
+      _imageEdits[_previewIdx] = _imageEdits[_previewIdx].copyWith(overlayText: text);
+    });
+  }
+
+  ColorFilter? _colorFilterFor(_StoryFilter filter) {
+    switch (filter) {
+      case _StoryFilter.normal:
+        return null;
+      case _StoryFilter.warm:
+        return const ColorFilter.matrix(<double>[
+          1.08, 0.0, 0.0, 0.0, 12,
+          0.0, 1.00, 0.0, 0.0, 6,
+          0.0, 0.0, 0.90, 0.0, -6,
+          0.0, 0.0, 0.0, 1.0, 0,
+        ]);
+      case _StoryFilter.cool:
+        return const ColorFilter.matrix(<double>[
+          0.90, 0.0, 0.0, 0.0, -6,
+          0.0, 1.00, 0.0, 0.0, 2,
+          0.0, 0.0, 1.08, 0.0, 12,
+          0.0, 0.0, 0.0, 1.0, 0,
+        ]);
+      case _StoryFilter.mono:
+        return const ColorFilter.matrix(<double>[
+          0.2126, 0.7152, 0.0722, 0.0, 0,
+          0.2126, 0.7152, 0.0722, 0.0, 0,
+          0.2126, 0.7152, 0.0722, 0.0, 0,
+          0.0, 0.0, 0.0, 1.0, 0,
+        ]);
+      case _StoryFilter.vivid:
+        return const ColorFilter.matrix(<double>[
+          1.20, 0.0, 0.0, 0.0, 5,
+          0.0, 1.15, 0.0, 0.0, 5,
+          0.0, 0.0, 1.10, 0.0, 5,
+          0.0, 0.0, 0.0, 1.0, 0,
+        ]);
+    }
+  }
+
+  Widget _buildEditedPreviewImage({
+    required File imageFile,
+    required _StoryImageEdit edit,
+    required BoxFit fit,
+  }) {
+    final base = Image.file(
+      imageFile,
+      fit: fit,
+      width: double.infinity,
+      height: double.infinity,
+    );
+    final filtered = _colorFilterFor(edit.filter) == null
+        ? base
+        : ColorFiltered(
+            colorFilter: _colorFilterFor(edit.filter)!,
+            child: base,
+          );
+    if (edit.overlayText.trim().isEmpty) return filtered;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        filtered,
+        Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 54, left: 14, right: 14),
+            child: Text(
+              edit.overlayText.trim(),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 30,
+                fontWeight: FontWeight.w800,
+                shadows: [
+                  Shadow(color: Colors.black87, blurRadius: 8, offset: Offset(0, 2)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<List<File>> _buildUploadImages() async {
+    final hasAnyEdits = _imageEdits.any(
+      (e) => e.filter != _StoryFilter.normal || e.overlayText.trim().isNotEmpty,
+    );
+    if (!hasAnyEdits) return _images;
+
+    final tempDir = await getTemporaryDirectory();
+    final output = <File>[];
+    for (var i = 0; i < _images.length; i++) {
+      final rendered = await _renderEditedImage(
+        source: _images[i],
+        edit: _imageEdits[i],
+        outputDir: tempDir,
+        index: i,
+      );
+      output.add(rendered ?? _images[i]);
+    }
+    return output;
+  }
+
+  Future<File?> _renderEditedImage({
+    required File source,
+    required _StoryImageEdit edit,
+    required Directory outputDir,
+    required int index,
+  }) async {
+    try {
+      final bytes = await source.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return null;
+      _applyFilterToImage(decoded, edit.filter);
+      _drawOverlayText(decoded, edit.overlayText.trim());
+      final encoded = Uint8List.fromList(img.encodeJpg(decoded, quality: 92));
+      final path =
+          '${outputDir.path}/story_edit_${DateTime.now().millisecondsSinceEpoch}_$index.jpg';
+      final out = File(path);
+      await out.writeAsBytes(encoded, flush: true);
+      return out;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _applyFilterToImage(img.Image image, _StoryFilter filter) {
+    if (filter == _StoryFilter.normal) return;
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        final p = image.getPixel(x, y);
+        var r = p.r;
+        var g = p.g;
+        var b = p.b;
+        switch (filter) {
+          case _StoryFilter.normal:
+            break;
+          case _StoryFilter.warm:
+            r = _clampColor(r * 1.12 + 12);
+            g = _clampColor(g * 1.03 + 4);
+            b = _clampColor(b * 0.90 - 8);
+            break;
+          case _StoryFilter.cool:
+            r = _clampColor(r * 0.92 - 6);
+            g = _clampColor(g * 1.00 + 2);
+            b = _clampColor(b * 1.10 + 12);
+            break;
+          case _StoryFilter.mono:
+            final luma = _clampColor(0.2126 * r + 0.7152 * g + 0.0722 * b);
+            r = luma;
+            g = luma;
+            b = luma;
+            break;
+          case _StoryFilter.vivid:
+            r = _clampColor((r - 128) * 1.16 + 128 + 5);
+            g = _clampColor((g - 128) * 1.16 + 128 + 5);
+            b = _clampColor((b - 128) * 1.16 + 128 + 5);
+            break;
+        }
+        image.setPixelRgba(x, y, r.round(), g.round(), b.round(), p.a.round());
+      }
+    }
+  }
+
+  double _clampColor(num value) => value.clamp(0, 255).toDouble();
+
+  void _drawOverlayText(img.Image image, String text) {
+    if (text.isEmpty) return;
+    final lines = _splitTextLines(text, maxCharsPerLine: 16, maxLines: 3);
+    if (lines.isEmpty) return;
+    final font = img.arial48;
+    final lineHeight = font.lineHeight + 10;
+    var y = math.max(20, (image.height * 0.08).round());
+    for (final line in lines) {
+      final estimatedWidth = (line.length * (font.lineHeight * 0.55)).round();
+      final x = math.max(16, ((image.width - estimatedWidth) / 2).round());
+      img.drawString(
+        image,
+        line,
+        font: font,
+        x: x + 2,
+        y: y + 2,
+        color: img.ColorRgb8(0, 0, 0),
+      );
+      img.drawString(
+        image,
+        line,
+        font: font,
+        x: x,
+        y: y,
+        color: img.ColorRgb8(255, 255, 255),
+      );
+      y += lineHeight;
+    }
+  }
+
+  List<String> _splitTextLines(
+    String text, {
+    required int maxCharsPerLine,
+    required int maxLines,
+  }) {
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return const <String>[];
+    final lines = <String>[];
+    var current = '';
+    for (final word in words) {
+      final next = current.isEmpty ? word : '$current $word';
+      if (next.length <= maxCharsPerLine) {
+        current = next;
+        continue;
+      }
+      if (current.isNotEmpty) lines.add(current);
+      current = word;
+      if (lines.length >= maxLines - 1) break;
+    }
+    if (lines.length < maxLines && current.isNotEmpty) {
+      lines.add(current);
+    }
+    if (lines.length > maxLines) {
+      return lines.take(maxLines).toList();
+    }
+    return lines;
   }
 
   void _onTabChanged(_Tab tab) {
@@ -602,11 +985,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
           ColoredBox(
             color: Colors.black,
             child: Center(
-              child: Image.file(
-                _images[_previewIdx],
+              child: _buildEditedPreviewImage(
+                imageFile: _images[_previewIdx],
+                edit: _imageEdits[_previewIdx],
                 fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
               ),
             ),
           ),
@@ -640,6 +1022,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                       ),
                       onPressed: () => setState(() {
                         _images.clear();
+                        _imageEdits.clear();
                         _previewIdx = 0;
                         _captionCtrl.clear();
                       }),
@@ -690,13 +1073,42 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                                 ),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: Image.file(_images[i], fit: BoxFit.cover),
+                              child: _buildEditedPreviewImage(
+                                imageFile: _images[i],
+                                edit: _imageEdits[i],
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           );
                         },
                       ),
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _editActionButton(
+                        icon: Icons.crop_rounded,
+                        label: 'Crop',
+                        onTap: _cropCurrentImage,
+                      ),
+                      const SizedBox(width: 10),
+                      _editActionButton(
+                        icon: Icons.filter_rounded,
+                        label: _filterLabels[_imageEdits[_previewIdx].filter] ?? 'Filter',
+                        onTap: _pickFilter,
+                      ),
+                      const SizedBox(width: 10),
+                      _editActionButton(
+                        icon: Icons.text_fields_rounded,
+                        label: 'Text',
+                        onTap: _editOverlayText,
+                      ),
+                    ],
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: Row(
@@ -731,6 +1143,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                         iconPath: 'assets/vyooO_icons/Home/nav_bar_icons/create.png',
                         onTap: () => setState(() {
                           _images.clear();
+                          _imageEdits.clear();
                           _previewIdx = 0;
                           _captionCtrl.clear();
                           _tab = _Tab.story;
@@ -840,6 +1253,39 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
             height: 20,
             color: Colors.white,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _editActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black45,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

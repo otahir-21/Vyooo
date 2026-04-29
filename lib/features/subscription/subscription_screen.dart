@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/config/app_links.dart';
 import '../../core/subscription/membership_tier.dart';
@@ -232,32 +233,50 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(height: isCompact ? 8 : 12),
-                            Center(
-                              child: RichText(
-                                text: TextSpan(
-                                  children: [
-                                    TextSpan(
-                                      text: 'Vyoo',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: logoSize,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: -1,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                      text: 'O',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: logoSize,
-                                        fontWeight: FontWeight.w400,
-                                        letterSpacing: -1,
-                                      ),
-                                    ),
-                                  ],
+                          Center(
+                            child: SizedBox(
+                              height: 100,
+                              child: Image.asset(
+                                'assets/BrandLogo/vyooo_white_transparent.png',
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, error, stackTrace) => const Text(
+                                  'VyooO',
+                                  style: TextStyle(
+                                    color: AppTheme.primary,
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5,
+                                  ),
                                 ),
                               ),
                             ),
+                          ),
+                            // Center(
+                            //   child: RichText(
+                            //     text: TextSpan(
+                            //       children: [
+                            //         TextSpan(
+                            //           text: 'Vyoo',
+                            //           style: TextStyle(
+                            //             color: Colors.white,
+                            //             fontSize: logoSize,
+                            //             fontWeight: FontWeight.w700,
+                            //             letterSpacing: -1,
+                            //           ),
+                            //         ),
+                            //         TextSpan(
+                            //           text: 'O',
+                            //           style: TextStyle(
+                            //             color: Colors.white,
+                            //             fontSize: logoSize,
+                            //             fontWeight: FontWeight.w400,
+                            //             letterSpacing: -1,
+                            //           ),
+                            //         ),
+                            //       ],
+                            //     ),
+                            //   ),
+                            // ),
                             SizedBox(height: isCompact ? 24 : 36),
                             Padding(
                               padding: const EdgeInsets.symmetric(
@@ -943,5 +962,6 @@ class _UpgradeButton extends StatelessWidget {
         ),
       ),
     );
+
   }
 }

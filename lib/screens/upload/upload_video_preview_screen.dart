@@ -377,7 +377,7 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
-                  color: _pink,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
@@ -386,7 +386,7 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
                     Text(
                       'Next',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.black,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                       ),
@@ -394,7 +394,7 @@ class _UploadVideoPreviewScreenState extends State<UploadVideoPreviewScreen>
                     SizedBox(width: 4),
                     Icon(
                       Icons.arrow_forward_ios_rounded,
-                      color: Colors.white,
+                      color: Colors.black,
                       size: 12,
                     ),
                   ],

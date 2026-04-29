@@ -18,6 +18,8 @@ import '../../screens/auth/create_account_screen.dart';
 import '../../screens/auth/create_username_screen.dart';
 import '../../screens/auth/verify_code_screen.dart';
 import '../../screens/debug/tier_picker_screen.dart';
+import '../../screens/onboarding/organization_details_screen.dart';
+import '../../screens/onboarding/select_dob_screen.dart';
 import '../subscription/subscription_controller.dart';
 import 'main_nav_wrapper.dart';
 
@@ -157,15 +159,20 @@ class _UserDocGate extends StatefulWidget {
 
 class _UserDocGateState extends State<_UserDocGate> {
   late Future<void> _readyFuture;
+  late Future<bool> _otpRequiredFuture;
   String _lastAccountNotice = '';
   String? _selectedLoginOtpChannel;
   String _selectedLoginOtpPhone = '';
   bool _otpDialogInFlight = false;
+  bool _lastOtpRequired = false;
+  int _lastAuthNoticeRevision = -1;
+  int _lastOtpSessionRevision = -1;
 
   @override
   void initState() {
     super.initState();
     _readyFuture = _bootstrapUserDoc();
+    _otpRequiredFuture = _isPasswordOtpRequired();
   }
 
   @override
@@ -173,9 +180,13 @@ class _UserDocGateState extends State<_UserDocGate> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.uid != widget.uid) {
       _readyFuture = _bootstrapUserDoc();
+      _otpRequiredFuture = _isPasswordOtpRequired();
       _selectedLoginOtpChannel = null;
       _selectedLoginOtpPhone = '';
       _otpDialogInFlight = false;
+      _lastOtpRequired = false;
+      _lastAuthNoticeRevision = -1;
+      _lastOtpSessionRevision = -1;
     }
   }
 
@@ -231,20 +242,24 @@ class _UserDocGateState extends State<_UserDocGate> {
               ]),
               builder: (context, _) {
                 _maybeShowAccountNotice(appUser);
+                final authNoticeRevision = AuthService.authNoticeRevision.value;
+                final otpSessionRevision = OtpSessionService.sessionRevision.value;
+                if (authNoticeRevision != _lastAuthNoticeRevision ||
+                    otpSessionRevision != _lastOtpSessionRevision) {
+                  _lastAuthNoticeRevision = authNoticeRevision;
+                  _lastOtpSessionRevision = otpSessionRevision;
+                  _otpRequiredFuture = _isPasswordOtpRequired();
+                }
                 return FutureBuilder<bool>(
-                  future: _isPasswordOtpRequired(),
+                  future: _otpRequiredFuture,
                   builder: (context, otpSnapshot) {
-                    if (otpSnapshot.connectionState != ConnectionState.done) {
-                      return const Scaffold(
-                        backgroundColor: Color(0xFF0D0015),
-                        body: Center(
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        ),
-                      );
+                    final isOtpRequired = otpSnapshot.connectionState == ConnectionState.done
+                        ? (otpSnapshot.data == true)
+                        : _lastOtpRequired;
+                    if (otpSnapshot.connectionState == ConnectionState.done) {
+                      _lastOtpRequired = isOtpRequired;
                     }
-                    if (otpSnapshot.data == true) {
+                    if (isOtpRequired) {
                       if (_selectedLoginOtpChannel == null) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           _showLoginOtpMethodDialog(appUser);
@@ -282,7 +297,7 @@ class _UserDocGateState extends State<_UserDocGate> {
                       }
                       return const MainNavWrapper();
                     }
-                    return const CreateUsernameScreen();
+                    return _nextOnboardingScreen(appUser);
                   },
                 );
               },
@@ -434,5 +449,22 @@ class _UserDocGateState extends State<_UserDocGate> {
       final messenger = ScaffoldMessenger.maybeOf(context);
       messenger?.showSnackBar(SnackBar(content: Text(notice)));
     });
+  }
+
+  Widget _nextOnboardingScreen(AppUserModel appUser) {
+    final hasUsername = (appUser.username ?? '').trim().isNotEmpty;
+    if (!hasUsername) {
+      return const CreateUsernameScreen();
+    }
+
+    final accountType = appUser.accountType.trim().toLowerCase();
+    if (accountType == 'business' || accountType == 'government') {
+      if (!appUser.orgProfileCompleted) {
+        return OrganizationDetailsScreen(accountType: accountType);
+      }
+    }
+
+    // Username is set and any required org profile step is complete.
+    return const SelectDobScreen();
   }
 }

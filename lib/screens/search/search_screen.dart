@@ -34,7 +34,9 @@ class _SearchScreenState extends State<SearchScreen>
   @override
   bool get wantKeepAlive => true;
 
-  int _selectedTabIndex = 0;
+  static int _lastSelectedTabIndex = 0;
+  static String _lastSearchQuery = '';
+  int _selectedTabIndex = _lastSelectedTabIndex;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearchActive = false;
@@ -43,6 +45,7 @@ class _SearchScreenState extends State<SearchScreen>
   final _liveService = LiveStreamService();
   List<LiveStreamModel> _liveStreams = [];
   StreamSubscription<List<LiveStreamModel>>? _liveStreamsSub;
+  StreamSubscription<AppUserModel?>? _meUserSub;
   Map<String, AppUserModel> _liveHostProfiles = const {};
   final UserService _userService = UserService();
   final ReelsService _reelsService = ReelsService();
@@ -51,6 +54,7 @@ class _SearchScreenState extends State<SearchScreen>
   String? _usersError;
   Set<String> _myFollowingIds = <String>{};
   bool _usersLoadAttempted = false;
+  final Set<String> _followInFlightIds = <String>{};
   List<String> _recentSearches = <String>[];
   List<_VRSearchItem> _vrSearchItems = <_VRSearchItem>[];
   bool _vrLoading = false;
@@ -60,6 +64,10 @@ class _SearchScreenState extends State<SearchScreen>
   @override
   void initState() {
     super.initState();
+    _searchController.text = _lastSearchQuery;
+    _searchController.selection = TextSelection.collapsed(
+      offset: _searchController.text.length,
+    );
     _searchFocusNode.addListener(_onSearchFocusChange);
     _searchController.addListener(_onSearchTextChange);
     _liveStreamsSub = _liveService.liveStreams().listen((streams) {
@@ -68,10 +76,31 @@ class _SearchScreenState extends State<SearchScreen>
       }
       _refreshLiveHostProfiles(streams);
     });
-    // Keep Live as the default tab (matches new segmented control design).
-    _selectedTabIndex = 0;
+    _bindMyFollowingRealtime();
+    // Keep previously selected tab during parent/widget rebuilds.
+    _selectedTabIndex = _lastSelectedTabIndex;
     _loadUsers();
     _loadVrItems();
+  }
+
+  void _bindMyFollowingRealtime() {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null || me.isEmpty) return;
+    _meUserSub?.cancel();
+    _meUserSub = _userService.userStream(me).listen((meUser) {
+      if (!mounted || meUser == null) return;
+      final liveFollowing = meUser.following.toSet();
+      setState(() {
+        _myFollowingIds = liveFollowing;
+        for (var i = 0; i < _allUsers.length; i++) {
+          final user = _allUsers[i];
+          final nextFollowing = liveFollowing.contains(user.uid);
+          if (user.isFollowing != nextFollowing) {
+            _allUsers[i] = user.copyWith(isFollowing: nextFollowing);
+          }
+        }
+      });
+    });
   }
 
   Future<void> _loadVrItems() async {
@@ -353,7 +382,9 @@ class _SearchScreenState extends State<SearchScreen>
   Future<void> _toggleFollow(_UserSearchItem user) async {
     final me = FirebaseAuth.instance.currentUser?.uid;
     if (me == null || me.isEmpty || me == user.uid) return;
+    if (_followInFlightIds.contains(user.uid)) return;
     final currently = _myFollowingIds.contains(user.uid);
+    setState(() => _followInFlightIds.add(user.uid));
     try {
       if (currently) {
         await _userService.unfollowUser(currentUid: me, targetUid: user.uid);
@@ -371,10 +402,27 @@ class _SearchScreenState extends State<SearchScreen>
           );
         }
       });
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('Search follow toggle failed for ${user.uid}: $e');
+      debugPrint('$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            currently
+                ? 'Could not unfollow right now: $e'
+                : 'Could not follow right now: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() => _followInFlightIds.remove(user.uid));
+    }
   }
 
   void _onSearchTextChange() {
+    _lastSearchQuery = _searchController.text;
     setState(() {});
   }
 
@@ -412,6 +460,7 @@ class _SearchScreenState extends State<SearchScreen>
   @override
   void dispose() {
     _liveStreamsSub?.cancel();
+    _meUserSub?.cancel();
     _searchFocusNode.removeListener(_onSearchFocusChange);
     _searchController.removeListener(_onSearchTextChange);
     _searchFocusNode.dispose();
@@ -572,18 +621,24 @@ class _SearchScreenState extends State<SearchScreen>
             ),
           )
         else
-          ListView.separated(
+          Builder(
+            builder: (context) {
+              final users = _filteredUsers;
+              return ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _filteredUsers.length,
+            itemCount: users.length,
             separatorBuilder: (context, index) =>
                 const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) => _UserSearchResultTile(
-              user: _filteredUsers[index],
-              onTap: () => _openUserProfile(_filteredUsers[index]),
-              onFollowTap: () => _toggleFollow(_filteredUsers[index]),
+              user: users[index],
+              isFollowBusy: _followInFlightIds.contains(users[index].uid),
+              onTap: () => _openUserProfile(users[index]),
+              onFollowTap: () => _toggleFollow(users[index]),
             ),
+              );
+            },
           ),
         const SizedBox(height: AppSpacing.xl),
       ],
@@ -742,6 +797,7 @@ class _SearchScreenState extends State<SearchScreen>
           const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
         user: users[index],
+        isFollowBusy: _followInFlightIds.contains(users[index].uid),
         onTap: () => _openUserProfile(users[index]),
         onFollowTap: () => _toggleFollow(users[index]),
       ),
@@ -926,7 +982,10 @@ class _SearchScreenState extends State<SearchScreen>
               child: GestureDetector(
                 onTap: () {
                   if (_selectedTabIndex != index) {
-                    setState(() => _selectedTabIndex = index);
+                    setState(() {
+                      _selectedTabIndex = index;
+                      _lastSelectedTabIndex = index;
+                    });
                   }
                 },
                 child: Container(
@@ -1266,7 +1325,11 @@ class _SearchResultGridCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(item.thumbnailUrl, fit: BoxFit.cover),
+            Image.network(
+              item.thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1A0020)),
+            ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -1335,6 +1398,7 @@ class _SearchResultGridCard extends StatelessWidget {
                         Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
+                    onBackgroundImageError: (_, __) {},
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -1398,7 +1462,11 @@ class _VRSearchResultGridCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(item.thumbnailUrl, fit: BoxFit.cover),
+            Image.network(
+              item.thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1A0020)),
+            ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -1470,6 +1538,7 @@ class _VRSearchResultGridCard extends StatelessWidget {
                         Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
+                    onBackgroundImageError: (_, __) {},
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -1528,11 +1597,13 @@ class _VRSearchResultGridCard extends StatelessWidget {
 class _UserSearchResultTile extends StatelessWidget {
   const _UserSearchResultTile({
     required this.user,
+    this.isFollowBusy = false,
     this.onTap,
     this.onFollowTap,
   });
 
   final _UserSearchItem user;
+  final bool isFollowBusy;
   final VoidCallback? onTap;
   final VoidCallback? onFollowTap;
   static const String _defaultAvatarAsset =
@@ -1554,90 +1625,105 @@ class _UserSearchResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    width: 1.5,
-                  ),
-                ),
-                child: CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white.withValues(alpha: 0.1),
-                  backgroundImage:
-                      Uri.tryParse(user.avatarUrl)?.isAbsolute == true
-                      ? NetworkImage(user.avatarUrl)
-                      : const AssetImage(_defaultAvatarAsset),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            user.username,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.1,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: isFollowBusy ? null : onTap,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
+                            width: 1.5,
                           ),
                         ),
-                        if (user.isVerified) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 14,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              color: verificationBadgeColor(
-                                isVerified: user.isVerified,
-                                accountType: user.accountType,
-                                vipVerified: user.vipVerified,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check_rounded,
-                              size: 9,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user.fullName,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          backgroundImage:
+                              Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                              ? NetworkImage(user.avatarUrl)
+                              : const AssetImage(_defaultAvatarAsset),
+                          onBackgroundImageError: (_, __) {},
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ],
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    user.username,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.1,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                                if (user.isVerified) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: verificationBadgeColor(
+                                        isVerified: user.isVerified,
+                                        accountType: user.accountType,
+                                        vipVerified: user.vipVerified,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.check_rounded,
+                                      size: 9,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              user.fullName,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: onFollowTap,
+            ),
+            const SizedBox(width: 12),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                // Keep tap consumed even while busy so row onTap never fires.
+                onTap: isFollowBusy ? () {} : onFollowTap,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 18,
@@ -1649,20 +1735,29 @@ class _UserSearchResultTile extends StatelessWidget {
                         : const Color(0xFFF81945),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    user.isFollowing ? 'Following' : 'Follow',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: isFollowBusy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          user.isFollowing ? 'Following' : 'Follow',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
-            ],
+            ),
+          ],
           ),
         ),
-      ),
     );
   }
 }
@@ -1897,6 +1992,7 @@ class _LiveCard extends StatelessWidget {
                             Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                             ? NetworkImage(item.avatarUrl)
                             : null,
+                        onBackgroundImageError: (_, __) {},
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -2058,6 +2154,7 @@ class _CreatorCardState extends State<_CreatorCard> {
                       Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                       ? NetworkImage(item.avatarUrl)
                       : null,
+                  onBackgroundImageError: (_, __) {},
                 ),
                 Positioned(
                   bottom: 2,

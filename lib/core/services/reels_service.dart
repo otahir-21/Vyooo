@@ -26,7 +26,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
+          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
@@ -50,16 +50,25 @@ class ReelsService {
         if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
         return [];
       }
+      // Avoid requiring a composite Firestore index (userId + createdAt).
+      // We fetch by followed user IDs then sort in-memory by createdAt.
       final q = await _firestore
           .collection(_reelsCollection)
           .where('userId', whereIn: followingIds.take(10).toList())
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
+          .limit(limit * 2)
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
+          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
           .toList();
+      list.sort((a, b) {
+        final aTs = (a['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+        final bTs = (b['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+        return bTs.compareTo(aTs);
+      });
+      if (list.length > limit) {
+        return list.take(limit).toList(growable: false);
+      }
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getFollowing(limit: limit);
       return [];
@@ -79,7 +88,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
+          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
@@ -100,7 +109,7 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isReelApproved(r) && _isPlayableReel(r))
+          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
@@ -121,7 +130,7 @@ class ReelsService {
       final data = doc.data();
       if (data == null) return null;
       final reel = _snapshotDataToReelMap(doc.id, data);
-      if (!_isReelApproved(reel) || !_isPlayableReel(reel)) return null;
+      if (!_isVisibleToCurrentUser(reel) || !_isPlayableReel(reel)) return null;
       return reel;
     } catch (_) {
       return null;
@@ -223,6 +232,14 @@ class ReelsService {
     return false;
   }
 
+  bool _isVisibleToCurrentUser(Map<String, dynamic> data) {
+    if (_isReelApproved(data)) return true;
+    final currentUid = AuthService().currentUser?.uid ?? '';
+    if (currentUid.isEmpty) return false;
+    final ownerUid = (data['userId'] as String?) ?? '';
+    return ownerUid == currentUid;
+  }
+
   static bool _isPlayableReel(Map<String, dynamic> data) {
     final mediaType = _resolveMediaType(data);
     if (mediaType == 'image') {
@@ -260,6 +277,7 @@ class ReelsService {
       'shares': (data['shares'] as num?)?.toInt() ?? 0,
       'avatarUrl': data['profileImage'] ?? data['avatarUrl'] ?? '',
       'userId': data['userId'] ?? '',
+      'createdAt': data['createdAt'],
       'moderation': data['moderation'],
     };
   }

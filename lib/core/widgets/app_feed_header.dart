@@ -33,7 +33,7 @@ class AppFeedHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _buildLogo(),
+          _buildLogo(context),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: AppFeedTabSelector(
@@ -47,13 +47,16 @@ class AppFeedHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final logoHeight = screenWidth < 360 ? 34.0 : (screenWidth < 420 ? 40.0 : 44.0);
+
     return SizedBox(
-      height: 34,
+      height: 100,
       child: Image.asset(
         'assets/BrandLogo/Vyooo logo (2).png',
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text(
+        errorBuilder: (_, error, stackTrace) => const Text(
           'VyooO',
           style: TextStyle(
             color: Colors.white,
@@ -98,7 +101,7 @@ class AppFeedTabSelector extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? Colors.white
-                        : Colors.white.withOpacity(0.15),
+                        : Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(

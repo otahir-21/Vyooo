@@ -95,8 +95,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 // Top: centered logo
                 const SizedBox(height: 20),
                 _buildLogo(),
-                const SizedBox(height: _spacingBelowLogo),
-
                 // Title
                 Text(
                   'Create an\nAccount',
@@ -104,7 +102,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     color: AppTheme.defaultTextColor,
                     fontSize: _titleFontSize,
                     fontWeight: FontWeight.w700,
-                    height: 1.2,
+                    height: 1,
                   ),
                 ),
                 const SizedBox(height: _spacingBelowTitle),
@@ -356,9 +354,9 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
-        height: _logoHeight,
+        height: 100,
         child: Image.asset(
-          'assets/BrandLogo/Vyooo logo (2).png',
+          'assets/BrandLogo/vyooo_white_transparent.png',
           fit: BoxFit.contain,
           errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',

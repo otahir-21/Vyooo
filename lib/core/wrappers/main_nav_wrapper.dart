@@ -26,7 +26,8 @@ class MainNavWrapper extends StatefulWidget {
 }
 
 class _MainNavWrapperState extends State<MainNavWrapper> {
-  int _currentIndex = 0;
+  static int _lastSelectedIndex = 0;
+  int _currentIndex = _lastSelectedIndex;
   int _feedRefreshToken = 0;
   int _deepLinkNonce = 0;
   String? _deepLinkedReelId;
@@ -47,6 +48,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
       if (!mounted) return;
       setState(() {
         _currentIndex = 0;
+        _lastSelectedIndex = 0;
         _deepLinkedReelId = reelId;
         _deepLinkNonce++;
       });
@@ -119,6 +121,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
           if (!mounted) return;
           setState(() {
             _currentIndex = 0;
+            _lastSelectedIndex = 0;
             _feedRefreshToken++;
           });
         });
@@ -135,6 +138,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
           // Refresh feed after returning from upload (whether posted or cancelled).
           setState(() {
             _currentIndex = 0;
+            _lastSelectedIndex = 0;
             _feedRefreshToken++;
           });
         });
@@ -146,7 +150,10 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
       }
       return;
     }
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _lastSelectedIndex = index;
+    });
   }
 
   @override
