@@ -17,6 +17,9 @@ class AppNotification {
     required this.isRead,
     this.actorUsername = '',
     this.actorAvatarUrl = '',
+    this.reelId = '',
+    this.commentId = '',
+    this.targetUserId = '',
   });
 
   final String id;
@@ -28,6 +31,9 @@ class AppNotification {
   final bool isRead;
   final String actorUsername;
   final String actorAvatarUrl;
+  final String reelId;
+  final String commentId;
+  final String targetUserId;
 
   static AppNotification fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -47,6 +53,9 @@ class AppNotification {
       isRead: (data['isRead'] as bool?) ?? false,
       actorUsername: (data['actorUsername'] as String?) ?? '',
       actorAvatarUrl: (data['actorAvatarUrl'] as String?) ?? '',
+      reelId: (data['reelId'] as String?) ?? '',
+      commentId: (data['commentId'] as String?) ?? '',
+      targetUserId: (data['targetUserId'] as String?) ?? '',
     );
   }
 }
