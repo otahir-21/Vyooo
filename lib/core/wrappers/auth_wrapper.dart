@@ -182,7 +182,7 @@ class _UserDocGateState extends State<_UserDocGate> {
   Future<void> _bootstrapUserDoc() async {
     final appUser = await UserService().getUser(widget.uid);
     if (!mounted) return;
-    if (appUser == null && widget.email.isNotEmpty) {
+    if (appUser == null) {
       await UserService().ensureUserDocument(
         uid: widget.uid,
         email: widget.email,
