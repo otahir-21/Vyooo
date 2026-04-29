@@ -410,7 +410,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
-  Widget _buildSocialIcon(IconData icon) {
+  Widget _buildSocialIcon(FaIconData icon) {
     final isGoogle = icon == FontAwesomeIcons.google;
     final isApple = icon == FontAwesomeIcons.apple;
     return GestureDetector(

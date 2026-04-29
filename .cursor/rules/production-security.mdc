@@ -1,0 +1,24 @@
+---
+description: Security and production-readiness baseline for all code changes
+alwaysApply: true
+---
+
+# Production Security Baseline
+
+- Treat every change as production code: prefer safe defaults, defensive checks, and explicit failure handling.
+- Never hardcode secrets, tokens, API keys, private URLs, or credentials. Use secure config/env and keep secrets out of logs.
+- Validate and sanitize all external/user input (client, API, Firestore payloads, query params, deep links).
+- Enforce authorization at data boundaries: client checks are not enough; keep Firestore/backend rules aligned with access intent.
+- Minimize data exposure: request/read/write only required fields, and avoid storing unnecessary sensitive data.
+- Use structured error handling. Do not swallow errors silently; log actionable context without PII and return safe user-facing messages.
+- Preserve backward compatibility for schema/contract changes. Prefer additive migrations and guarded rollouts.
+- For auth/payment/notification flows, require idempotent writes and clear state transitions to avoid duplicate side effects.
+- Keep dependencies current and trusted; avoid introducing unmaintained packages without strong justification.
+- Add/maintain verification for critical paths (auth, payments, notifications, uploads): tests or reproducible manual checks are required before merge.
+
+## Release Gate (must pass)
+
+- No debug/test-only behavior in production paths.
+- No placeholder/mock data in production screens unless explicitly feature-flagged.
+- No sensitive data in analytics/crash logs.
+- Build/lint/tests pass for touched surfaces.

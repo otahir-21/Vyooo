@@ -16,10 +16,22 @@ class TierPickerScreen extends StatelessWidget {
   final VoidCallback onContinue;
 
   /// Three plans only: Standard, Subscriber, Creator (no Free).
-  static const List<(MembershipTier, String, IconData)> _options = [
-    (MembershipTier.standard, 'Standard', Icons.star_outline_rounded),
-    (MembershipTier.subscriber, 'Subscriber', FontAwesomeIcons.crown),
-    (MembershipTier.creator, 'Creator', Icons.verified_user_rounded),
+  static const List<(MembershipTier, String, Widget)> _options = [
+    (
+      MembershipTier.standard,
+      'Standard',
+      Icon(Icons.star_outline_rounded),
+    ),
+    (
+      MembershipTier.subscriber,
+      'Subscriber',
+      FaIcon(FontAwesomeIcons.crown),
+    ),
+    (
+      MembershipTier.creator,
+      'Creator',
+      Icon(Icons.verified_user_rounded),
+    ),
   ];
 
   @override
@@ -89,12 +101,14 @@ class TierPickerScreen extends StatelessWidget {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(
-                                      icon,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.white.withValues(alpha: 0.8),
-                                      size: 24,
+                                    IconTheme(
+                                      data: IconThemeData(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.white.withValues(alpha: 0.8),
+                                        size: 24,
+                                      ),
+                                      child: icon,
                                     ),
                                     const SizedBox(width: AppSpacing.md),
                                     Expanded(

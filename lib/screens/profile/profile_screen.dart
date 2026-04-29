@@ -1650,7 +1650,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    const FaIcon(
                       FontAwesomeIcons.crown,
                       size: 16,
                       color: Colors.black,

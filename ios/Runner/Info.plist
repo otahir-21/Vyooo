@@ -34,6 +34,14 @@
 				<string>vyooo</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.google.firebase.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-177333950751-ios-9b20ca802bcf0c8b72f82a</string>
+			</array>
+		</dict>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>

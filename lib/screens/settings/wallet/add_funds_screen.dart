@@ -778,7 +778,7 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
     );
   }
 
-  Widget _buildPaymentOption(String label, IconData icon, Color iconColor) {
+  Widget _buildPaymentOption(String label, Object icon, Color iconColor) {
     final selected = _selectedPaymentMethod == label;
     return GestureDetector(
       onTap: () => setState(() => _selectedPaymentMethod = label),
@@ -804,7 +804,9 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
                 color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: iconColor, size: 20),
+              child: icon is FaIconData
+                  ? FaIcon(icon, color: iconColor, size: 20)
+                  : Icon(icon as IconData, color: iconColor, size: 20),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -933,7 +935,7 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
     );
   }
 
-  Widget _buildTextField({required String hint, IconData? suffixIcon}) {
+  Widget _buildTextField({required String hint, Object? suffixIcon}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
@@ -957,9 +959,11 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
             color: Colors.white.withValues(alpha: 0.2),
             fontWeight: FontWeight.w400,
           ),
-          suffixIcon: suffixIcon != null
-              ? Icon(suffixIcon, color: Colors.orange, size: 20)
-              : null,
+          suffixIcon: suffixIcon == null
+              ? null
+              : suffixIcon is FaIconData
+                  ? FaIcon(suffixIcon, color: Colors.orange, size: 20)
+                  : Icon(suffixIcon as IconData, color: Colors.orange, size: 20),
         ),
       ),
     );
