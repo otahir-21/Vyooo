@@ -21,8 +21,10 @@ String accountMessage({
     return 'Some features are currently limited on your account due to policy review.';
   }
 
+  // Do not show "creator verified" as a login-time toast.
+  // Verification state can already be reflected in profile UI badges.
   if (creatorVerified) {
-    return 'Your creator profile has been verified successfully.';
+    return '';
   }
 
   return '';
