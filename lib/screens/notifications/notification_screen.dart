@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
+import '../../core/services/auth_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/user_service.dart';
+import '../../features/comments/widgets/comments_bottom_sheet.dart';
 
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
 class NotificationScreen extends StatefulWidget {
@@ -138,7 +141,9 @@ class _NotificationScreenState extends State<NotificationScreen>
             rows.add(
               _NotifTile(
                 item: item,
-                onTap: () => NotificationService().markAsRead(item.id),
+                onTap: () => _handleOpen(item),
+                onFollowBack: () => _handleFollowBack(item),
+                onReply: () => _handleReply(item),
               ),
             );
             rows.add(const SizedBox(height: 20));
@@ -151,6 +156,52 @@ class _NotificationScreenState extends State<NotificationScreen>
         );
       },
     );
+  }
+
+  Future<void> _handleOpen(AppNotification item) async {
+    await NotificationService().markAsRead(item.id);
+  }
+
+  Future<void> _handleFollowBack(AppNotification item) async {
+    await NotificationService().markAsRead(item.id);
+    final me = AuthService().currentUser?.uid ?? '';
+    final targetUid = item.senderId.trim();
+    if (me.isEmpty || targetUid.isEmpty || me == targetUid) return;
+    try {
+      await UserService().followUser(currentUid: me, targetUid: targetUid);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Followed back.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not follow back right now.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleReply(AppNotification item) async {
+    await NotificationService().markAsRead(item.id);
+    final reelId = item.reelId.trim();
+    if (reelId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post not available for this notification.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+    showCommentsBottomSheet(context, reelId: reelId);
   }
 
   String _sectionFor(DateTime createdAt) {
@@ -193,10 +244,17 @@ class _NotificationScreenState extends State<NotificationScreen>
 }
 
 class _NotifTile extends StatelessWidget {
-  const _NotifTile({required this.item, required this.onTap});
+  const _NotifTile({
+    required this.item,
+    required this.onTap,
+    this.onFollowBack,
+    this.onReply,
+  });
 
   final AppNotification item;
   final VoidCallback onTap;
+  final VoidCallback? onFollowBack;
+  final VoidCallback? onReply;
 
   @override
   Widget build(BuildContext context) {
@@ -291,9 +349,15 @@ class _NotifTile extends StatelessWidget {
   Widget _buildActionButton() {
     switch (item.type.name) {
       case 'follow':
-        return _PinkPillButton(label: 'Follow back', onTap: onTap);
+        return _PinkPillButton(
+          label: 'Follow back',
+          onTap: onFollowBack ?? onTap,
+        );
       case 'comment':
-        return _OutlinePillButton(label: 'Reply');
+        return _OutlinePillButton(
+          label: 'Reply',
+          onTap: onReply ?? onTap,
+        );
       default:
         return const SizedBox.shrink();
     }
@@ -337,23 +401,27 @@ class _PinkPillButton extends StatelessWidget {
 }
 
 class _OutlinePillButton extends StatelessWidget {
-  const _OutlinePillButton({required this.label});
+  const _OutlinePillButton({required this.label, this.onTap});
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: Colors.white.withValues(alpha: 0.85),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withValues(alpha: 0.85),
+          ),
         ),
       ),
     );
