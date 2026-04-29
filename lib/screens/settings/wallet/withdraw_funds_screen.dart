@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../../core/theme/app_gradients.dart';
 import 'withdrawal_confirmation_screen.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class WithdrawFundsScreen extends StatefulWidget {
   const WithdrawFundsScreen({super.key});
@@ -20,8 +20,8 @@ class _WithdrawFundsScreenState extends State<WithdrawFundsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

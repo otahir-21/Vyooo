@@ -119,7 +119,9 @@ class AppBottomNavigation extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Image.asset(
-          isSelected ? _NavAssets.settingsSelected : _NavAssets.settingsUnselected,
+          isSelected
+              ? _NavAssets.settingsSelected
+              : _NavAssets.settingsUnselected,
           width: 25,
           height: 25,
           color: isSelected ? _activeIconColor : _inactiveIconColor,
@@ -158,12 +160,8 @@ class AppBottomNavigation extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF5A044A),
-            Color(0xFF2A0332),
-            Color(0xFF14001F),
-          ],
-          stops: [0.0, 0.42, 1.0],
+          colors: [Color(0xFF1A061E), Color(0xFF77105D), Color(0xFF6D0D45)],
+          stops: [0.1, 0.62, 1.0],
         ),
         border: Border.all(
           color: const Color(0xFFDE106B).withValues(alpha: 0.2),
@@ -258,7 +256,8 @@ class _NavItem extends StatelessWidget {
           splashColor: splashColor,
           highlightColor: splashColor.withValues(alpha: 0.6),
           child: Center(
-            child: customChild ??
+            child:
+                customChild ??
                 Image.asset(
                   isSelected ? selectedAsset! : unselectedAsset!,
                   width: 25,

@@ -18,7 +18,9 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -27,18 +29,16 @@ class SettingsScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 24,
+                  vertical: 16,
                 ),
                 children: [
-                  _buildSectionHeader('Account settings'),
-                  const SizedBox(height: 12),
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 0.5,
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 1,
                       ),
                     ),
                     child: Column(
@@ -52,17 +52,6 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _divider(),
-                        _SettingsTile(
-                          iconPath: 'assets/vyooO_icons/Settings/Wallet.png',
-                          label: 'Wallet',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const WalletScreen(),
-                            ),
-                          ),
-                        ),
-                        _divider(),
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Subscription.png',
@@ -75,18 +64,27 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _divider(),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/Wallet.png',
+                          label: 'VyooO Wallet',
+                          isPremium: true,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const WalletScreen(),
+                            ),
+                          ),
+                        ),
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Downloaded.png',
-                          label: 'Downloaded',
+                          label: 'Downloaded Videos',
+                          isPremium: true,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const DownloadedVideosScreen(),
                             ),
                           ),
                         ),
-                        _divider(),
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Notification.png',
@@ -98,23 +96,6 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('Support'),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Customer Support.png',
@@ -125,18 +106,16 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _divider(),
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Report a problem.png',
-                          label: 'Report problem',
+                          label: 'Report Problem',
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const ReportProblemScreen(),
                             ),
                           ),
                         ),
-                        _divider(),
                         _SettingsTile(
                           iconPath: 'assets/vyooO_icons/Settings/About.png',
                           label: 'About',
@@ -146,24 +125,13 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/Logout.png',
+                          label: 'Logout',
+                          isLogout: true,
+                          onTap: () => _logout(context),
+                        ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.02),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 0.5,
-                      ),
-                    ),
-                    child: _SettingsTile(
-                      iconPath: 'assets/vyooO_icons/Settings/Logout.png',
-                      label: 'Logout',
-                      isLogout: true,
-                      onTap: () => _logout(context),
                     ),
                   ),
                 ],
@@ -189,16 +157,15 @@ class SettingsScreen extends StatelessWidget {
                 const Icon(
                   Icons.arrow_back_ios_new_rounded,
                   color: Colors.white,
-                  size: 22,
+                  size: 20,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 const Text(
                   'Settings',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
                   ),
                 ),
               ],
@@ -208,35 +175,12 @@ class SettingsScreen extends StatelessWidget {
             'VyooO',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-      ),
-    );
-  }
-
-  Widget _divider() {
-    return Divider(
-      height: 1,
-      thickness: 1,
-      color: Colors.white.withValues(alpha: 0.1),
-      indent: 0,
-      endIndent: 0,
     );
   }
 
@@ -342,8 +286,10 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isLogout ? Colors.black : Colors.white.withValues(alpha: 0.85);
-    final labelColor = isLogout ? Colors.black : Colors.white;
+    final color = isLogout
+        ? const Color(0xFFE81E57)
+        : Colors.white.withValues(alpha: 0.85);
+    final labelColor = isLogout ? const Color(0xFFE81E57) : Colors.white;
 
     return Material(
       color: Colors.transparent,

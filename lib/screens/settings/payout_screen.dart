@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_gradients.dart';
 import 'wallet/withdraw_funds_screen.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class PayoutScreen extends StatefulWidget {
   const PayoutScreen({super.key});
@@ -16,8 +17,8 @@ class _PayoutScreenState extends State<PayoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.authGradient),
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

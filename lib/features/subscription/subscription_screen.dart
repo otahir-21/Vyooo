@@ -23,6 +23,7 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   int _selectedIndex = 1; // Default to 'Subscriber' (Popular)
   Offerings? _offerings;
+
   /// Start true so the first frame doesn’t flash “couldn’t reach store” before [ _loadOfferings] runs.
   bool _fetchingOfferings = true;
   bool _closingForActivePlan = false;
@@ -70,11 +71,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final pkg = selectedIndex == 0
         ? standardPkg
         : selectedIndex == 1
-            ? subscriberPkg
-            : creatorPkg;
+        ? subscriberPkg
+        : creatorPkg;
     if (pkg == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Plans not available yet. Try again shortly.')),
+        const SnackBar(
+          content: Text('Plans not available yet. Try again shortly.'),
+        ),
       );
       return;
     }
@@ -95,7 +98,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(controller.purchaseError ?? 'Purchase failed. Please try again.')),
+        SnackBar(
+          content: Text(
+            controller.purchaseError ?? 'Purchase failed. Please try again.',
+          ),
+        ),
       );
     }
   }
@@ -116,9 +123,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open link.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open link.')));
     }
   }
 
@@ -138,7 +145,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     // Only block the screen during purchase — not while fetching offerings (that hid all plans).
     final isPurchasing = controller.isLoading;
 
-    final offering = SubscriptionPackageMapper.resolveCurrentOffering(_offerings);
+    final offering = SubscriptionPackageMapper.resolveCurrentOffering(
+      _offerings,
+    );
     Package? standardPkg;
     Package? subscriberPkg;
     Package? creatorPkg;
@@ -150,265 +159,304 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       creatorPkg = mapped.creator;
     }
 
-    final plansLoaded = offering != null && offering.availablePackages.isNotEmpty;
-    final plansLoadFailed = !_fetchingOfferings && _offerings != null && !plansLoaded;
+    final plansLoaded =
+        offering != null && offering.availablePackages.isNotEmpty;
+    final plansLoadFailed =
+        !_fetchingOfferings && _offerings != null && !plansLoaded;
     final offeringsUnreachable = !_fetchingOfferings && _offerings == null;
 
     final selectedForDisclosure = _selectedIndex == 0
         ? standardPkg
         : _selectedIndex == 1
-            ? subscriberPkg
-            : creatorPkg;
+        ? subscriberPkg
+        : creatorPkg;
     final isPaidPlanSelected =
-        selectedForDisclosure != null && selectedForDisclosure.storeProduct.price > 0;
+        selectedForDisclosure != null &&
+        selectedForDisclosure.storeProduct.price > 0;
     final alreadyHasPaidPlan = controller.isPaid;
 
     return Scaffold(
       body: Stack(
         children: [
           AppGradientBackground(
+            type: GradientType.premiumDark,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                  final isCompact =
-                      constraints.maxWidth < 390 || constraints.maxHeight < 780;
-                  final logoSize = isCompact ? 40.0 : 48.0;
-                  final titleSize = isCompact ? 28.0 : 32.0;
-                  final subtitleSize = isCompact ? 13.0 : 14.0;
-                  final sectionGap = isCompact ? 28.0 : 40.0;
-                  final tableGap = isCompact ? 28.0 : 48.0;
-                  final legalSize = isCompact ? 9.0 : 10.0;
+                final isCompact =
+                    constraints.maxWidth < 390 || constraints.maxHeight < 780;
+                final logoSize = isCompact ? 40.0 : 48.0;
+                final titleSize = isCompact ? 28.0 : 32.0;
+                final subtitleSize = isCompact ? 13.0 : 14.0;
+                final sectionGap = isCompact ? 28.0 : 40.0;
+                final tableGap = isCompact ? 28.0 : 48.0;
+                final legalSize = isCompact ? 9.0 : 10.0;
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                  // Restore & Close (stay pinned; rest scrolls)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (widget.showRestoreButton)
-                          TextButton(
-                            onPressed: () => controller.restorePurchases(),
-                            child: const Text(
-                              'Restore',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Restore & Close (stay pinned; rest scrolls)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (widget.showRestoreButton)
+                            TextButton(
+                              onPressed: () => controller.restorePurchases(),
+                              child: const Text(
+                                'Restore',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+                          IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(height: isCompact ? 8 : 12),
+                            Center(
+                              child: RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'Vyoo',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: logoSize,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: 'O',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: logoSize,
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: -1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          )
-                        else
-                          const SizedBox.shrink(),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close, color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: isCompact ? 8 : 12),
-                          Center(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: 'Vyoo',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: logoSize,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -1,
+                            SizedBox(height: isCompact ? 24 : 36),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Text(
+                                'Choose your plan',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: titleSize,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: isCompact ? 8 : 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Text(
+                                'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  fontSize: subtitleSize,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                            if (_fetchingOfferings) ...[
+                              SizedBox(height: isCompact ? 12 : 16),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 24),
+                                child: LinearProgressIndicator(
+                                  minHeight: 3,
+                                  color: Color(0xFFDE106B),
+                                  backgroundColor: Colors.white12,
+                                ),
+                              ),
+                            ],
+                            if (plansLoadFailed || offeringsUnreachable) ...[
+                              SizedBox(height: isCompact ? 12 : 16),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.amber.withValues(
+                                        alpha: 0.4,
+                                      ),
                                     ),
                                   ),
-                                  TextSpan(
-                                    text: 'O',
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Text(
+                                          offeringsUnreachable
+                                              ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
+                                              : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                            fontSize: isCompact ? 12.0 : 13.0,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        TextButton.icon(
+                                          onPressed: _fetchingOfferings
+                                              ? null
+                                              : _loadOfferings,
+                                          icon: const Icon(
+                                            Icons.refresh,
+                                            color: Color(0xFFDE106B),
+                                            size: 20,
+                                          ),
+                                          label: const Text(
+                                            'Retry loading plans',
+                                            style: TextStyle(
+                                              color: Color(0xFFDE106B),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            SizedBox(height: sectionGap),
+                            _PlanCardsRow(
+                              compact: isCompact,
+                              selectedIndex: _selectedIndex,
+                              onSelect: (i) =>
+                                  setState(() => _selectedIndex = i),
+                              standardPkg: standardPkg,
+                              subscriberPkg: subscriberPkg,
+                              creatorPkg: creatorPkg,
+                            ),
+                            SizedBox(height: tableGap),
+                            _FeatureComparisonTable(compact: isCompact),
+                            SizedBox(height: isCompact ? 16 : 20),
+                            _UpgradeButton(
+                              compact: isCompact,
+                              selectedIndex: _selectedIndex,
+                              title: alreadyHasPaidPlan
+                                  ? 'Current plan: ${controller.planDisplayName}'
+                                  : 'Upgrade',
+                              disabled:
+                                  alreadyHasPaidPlan &&
+                                  controller.currentTier ==
+                                      _selectedTierFromIndex(_selectedIndex),
+                              isLoading: isPurchasing,
+                              onPressed: () => _handlePurchase(
+                                controller,
+                                selectedIndex: _selectedIndex,
+                                standardPkg: standardPkg,
+                                subscriberPkg: subscriberPkg,
+                                creatorPkg: creatorPkg,
+                              ),
+                            ),
+                            SizedBox(height: isCompact ? 10 : 16),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: _SubscriptionLegalFooter(
+                                fontSize: legalSize,
+                                isPaidPlanSelected: isPaidPlanSelected,
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                top: isCompact ? 8 : 10,
+                                bottom: isCompact ? 24 : 32,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton(
+                                    onPressed: () => _openExternalUrl(
+                                      AppLinks.privacyPolicy,
+                                    ),
+                                    child: Text(
+                                      'Privacy Policy',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                        fontSize: legalSize + 1,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: Colors.white54,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    '·',
                                     style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: logoSize,
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: -1,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                      fontSize: legalSize + 2,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        _openExternalUrl(AppLinks.termsOfUse),
+                                    child: Text(
+                                      'Terms of Use',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                        fontSize: legalSize + 1,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: Colors.white54,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          SizedBox(height: isCompact ? 24 : 36),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              'Choose your plan',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: titleSize,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: isCompact ? 8 : 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              'Stream Exclusive Live streams, Immersive VR\nContent, also Monetize Content and many more',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.8),
-                                fontSize: subtitleSize,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                          if (_fetchingOfferings) ...[
-                            SizedBox(height: isCompact ? 12 : 16),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 24),
-                              child: LinearProgressIndicator(
-                                minHeight: 3,
-                                color: Color(0xFFDE106B),
-                                backgroundColor: Colors.white12,
-                              ),
-                            ),
                           ],
-                          if (plansLoadFailed || offeringsUnreachable) ...[
-                            SizedBox(height: isCompact ? 12 : 16),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        offeringsUnreachable
-                                            ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
-                                            : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.9),
-                                          fontSize: isCompact ? 12.0 : 13.0,
-                                          height: 1.35,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      TextButton.icon(
-                                        onPressed: _fetchingOfferings ? null : _loadOfferings,
-                                        icon: const Icon(Icons.refresh, color: Color(0xFFDE106B), size: 20),
-                                        label: const Text(
-                                          'Retry loading plans',
-                                          style: TextStyle(
-                                            color: Color(0xFFDE106B),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                          SizedBox(height: sectionGap),
-                          _PlanCardsRow(
-                            compact: isCompact,
-                            selectedIndex: _selectedIndex,
-                            onSelect: (i) => setState(() => _selectedIndex = i),
-                            standardPkg: standardPkg,
-                            subscriberPkg: subscriberPkg,
-                            creatorPkg: creatorPkg,
-                          ),
-                          SizedBox(height: tableGap),
-                          _FeatureComparisonTable(compact: isCompact),
-                          SizedBox(height: isCompact ? 16 : 20),
-                          _UpgradeButton(
-                            compact: isCompact,
-                            selectedIndex: _selectedIndex,
-                            title: alreadyHasPaidPlan
-                                ? 'Current plan: ${controller.planDisplayName}'
-                                : 'Upgrade',
-                            disabled: alreadyHasPaidPlan &&
-                                controller.currentTier ==
-                                    _selectedTierFromIndex(_selectedIndex),
-                            isLoading: isPurchasing,
-                            onPressed: () => _handlePurchase(
-                              controller,
-                              selectedIndex: _selectedIndex,
-                              standardPkg: standardPkg,
-                              subscriberPkg: subscriberPkg,
-                              creatorPkg: creatorPkg,
-                            ),
-                          ),
-                          SizedBox(height: isCompact ? 10 : 16),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: _SubscriptionLegalFooter(
-                              fontSize: legalSize,
-                              isPaidPlanSelected: isPaidPlanSelected,
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: isCompact ? 8 : 10,
-                              bottom: isCompact ? 24 : 32,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                TextButton(
-                                  onPressed: () => _openExternalUrl(AppLinks.privacyPolicy),
-                                  child: Text(
-                                    'Privacy Policy',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.85),
-                                      fontSize: legalSize + 1,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white54,
-                                    ),
-                                  ),
-                                ),
-                                Text(
-                                  '·',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                    fontSize: legalSize + 2,
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () => _openExternalUrl(AppLinks.termsOfUse),
-                                  child: Text(
-                                    'Terms of Use',
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.85),
-                                      fontSize: legalSize + 1,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white54,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                    ],
-                  );
-            },
+                  ],
+                );
+              },
+            ),
           ),
-        ),
           if (isPurchasing)
             Container(
               color: Colors.black54,
@@ -542,6 +590,7 @@ class _PlanCard extends StatelessWidget {
   });
 
   final bool compact;
+
   /// Store product title when available (Apple subscription display name).
   final String displayTitle;
   final String priceLine;
@@ -556,7 +605,6 @@ class _PlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final titleSize = compact ? 11.0 : 12.0;
     final priceSize = compact ? 14.0 : 16.0;
-    final metaSize = compact ? 9.0 : 10.0;
     // Fixed height: a Stack with only Positioned children gets near-zero height inside a Row
     // when vertical constraints are loose, which hid all plan text (badges still drew).
     final cardHeight = compact ? 132.0 : 148.0;
@@ -567,21 +615,23 @@ class _PlanCard extends StatelessWidget {
         child: Container(
           height: cardHeight,
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 4 : 6,
-            vertical: compact ? 6 : 8,
+            horizontal: compact ? 12 : 16,
+            vertical: compact ? 12 : 16,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(8),
+            color: isSelected
+                ? const Color(0xFF5A214D)
+                : const Color(0xFF4A183D),
+            borderRadius: BorderRadius.circular(12),
             border: isSelected
-                ? Border.all(color: const Color(0xFFDE106B), width: 2)
-                : Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+                ? Border.all(color: const Color(0xFFE81E57), width: 2)
+                : null,
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFFDE106B).withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      spreadRadius: 0,
+                      color: const Color(0xFFE81E57).withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
                     ),
                   ]
                 : null,
@@ -614,65 +664,33 @@ class _PlanCard extends StatelessWidget {
               else
                 SizedBox(height: compact ? 18 : 20),
               Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        priceLine,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: priceSize,
-                          fontWeight: FontWeight.w700,
-                        ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      priceLine,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: priceSize,
+                        fontWeight: FontWeight.w700,
                       ),
-                      SizedBox(height: compact ? 6 : 8),
-                      Text(
-                        displayTitle,
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: titleSize,
-                          fontWeight: FontWeight.w600,
-                          height: 1.15,
-                        ),
+                    ),
+                    SizedBox(height: compact ? 6 : 8),
+                    Text(
+                      displayTitle,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: titleSize + 2,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
                       ),
-                      if (periodLine != null) ...[
-                        SizedBox(height: compact ? 3 : 4),
-                        Text(
-                          periodLine!,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.72),
-                            fontSize: metaSize,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                      if (pricePerUnitLine != null) ...[
-                        SizedBox(height: compact ? 2 : 3),
-                        Text(
-                          pricePerUnitLine!,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: compact ? 8 : 9,
-                            height: 1.2,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -696,14 +714,14 @@ class _SubscriptionLegalFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final body = isPaidPlanSelected
         ? 'When you continue, a subscription purchase may be completed. '
-            'The price and billing period for each plan are shown above. '
-            'Payment is charged to your Apple ID. The subscription renews automatically '
-            'for the same price and duration until you turn off auto-renew in '
-            'Settings → Apple ID → Subscriptions at least 24 hours before the period ends.'
+              'The price and billing period for each plan are shown above. '
+              'Payment is charged to your Apple ID. The subscription renews automatically '
+              'for the same price and duration until you turn off auto-renew in '
+              'Settings → Apple ID → Subscriptions at least 24 hours before the period ends.'
         : 'Standard may be offered at no charge. Subscriber and Creator are auto-renewing '
-            'subscriptions: price and period are shown above. When you purchase a paid plan, '
-            'payment is charged to your Apple ID and the subscription renews until canceled '
-            'in Settings → Apple ID → Subscriptions.';
+              'subscriptions: price and period are shown above. When you purchase a paid plan, '
+              'payment is charged to your Apple ID and the subscription renews until canceled '
+              'in Settings → Apple ID → Subscriptions.';
 
     return Text(
       body,
@@ -727,7 +745,7 @@ class _FeatureComparisonTable extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: const Color(0xFF350A2A),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -761,7 +779,13 @@ class _FeatureComparisonTable extends StatelessWidget {
           _FeatureRow('Verification', false, true, true, compact: compact),
           _FeatureRow('Upload content', false, true, true, compact: compact),
           _FeatureRow('Monetize content', false, false, true, compact: compact),
-          _FeatureRow('Offer subscriptions', false, false, true, compact: compact),
+          _FeatureRow(
+            'Offer subscriptions',
+            false,
+            false,
+            true,
+            compact: compact,
+          ),
           _FeatureRow(
             compact: compact,
             'Video Quality',
@@ -791,7 +815,13 @@ class _FeatureComparisonTable extends StatelessWidget {
 }
 
 class _FeatureRow extends StatelessWidget {
-  const _FeatureRow(this.feature, this.standard, this.subscriber, this.creator, {required this.compact});
+  const _FeatureRow(
+    this.feature,
+    this.standard,
+    this.subscriber,
+    this.creator, {
+    required this.compact,
+  });
 
   final String feature;
   final dynamic standard;
@@ -802,7 +832,10 @@ class _FeatureRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 16, vertical: compact ? 10 : 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12 : 16,
+        vertical: compact ? 10 : 12,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -872,18 +905,35 @@ class _UpgradeButton extends StatelessWidget {
           height: compact ? 44 : 48,
           decoration: BoxDecoration(
             color: disabled ? Colors.white54 : Colors.white,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: isLoading
-              ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFDE106B))))
+              ? const Center(
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Color(0xFFDE106B),
+                    ),
+                  ),
+                )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const FaIcon(FontAwesomeIcons.crown, color: Color(0xFFDE106B), size: 18),
+                    const FaIcon(
+                      FontAwesomeIcons.crown,
+                      color: Color(0xFFDE106B),
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       title,
-                      style: TextStyle(color: Colors.black, fontSize: compact ? 14 : 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: compact ? 14 : 16,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ],
                 ),

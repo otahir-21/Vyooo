@@ -17,9 +17,8 @@ Future<void> showVrLockedOverlaySheet(
       opaque: false,
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      pageBuilder: (_, __, ___) => _VrLockedOverlayRoute(
-        backgroundImageUrl: backgroundImageUrl,
-      ),
+      pageBuilder: (_, __, ___) =>
+          _VrLockedOverlayRoute(backgroundImageUrl: backgroundImageUrl),
       transitionsBuilder: (_, animation, __, child) {
         final curved = CurvedAnimation(
           parent: animation,
@@ -53,7 +52,8 @@ class _VrLockedOverlayRoute extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (backgroundImageUrl != null && backgroundImageUrl!.trim().isNotEmpty)
+          if (backgroundImageUrl != null &&
+              backgroundImageUrl!.trim().isNotEmpty)
             Image.network(
               backgroundImageUrl!.trim(),
               fit: BoxFit.cover,
@@ -226,9 +226,8 @@ class _VrLockedBottomPanel extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => const SubscriptionScreen(
-                        showRestoreButton: true,
-                      ),
+                      builder: (_) =>
+                          const SubscriptionScreen(showRestoreButton: true),
                     ),
                   );
                 },

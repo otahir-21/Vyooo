@@ -82,26 +82,31 @@ class _SearchScreenState extends State<SearchScreen>
     }
     try {
       final reels = await _reelsService.getReelsVR(limit: 120);
-      final mapped = reels.map((r) {
-        final username = (r['username']?.toString() ?? '').trim();
-        final handleCore = username.isNotEmpty
-            ? username.toLowerCase().replaceAll(' ', '_')
-            : (r['handle']?.toString() ?? '').replaceFirst('@', '').trim();
-        final creatorHandle = handleCore.isEmpty ? '@creator' : '@$handleCore';
-        final thumb = (r['thumbnailUrl']?.toString() ?? '').trim();
-        final avatar = (r['avatarUrl']?.toString() ?? '').trim();
-        final video = (r['videoUrl']?.toString() ?? '').trim();
-        final views = (r['views'] as num?)?.toInt() ?? 0;
-        return _VRSearchItem(
-          thumbnailUrl: thumb.isNotEmpty ? thumb : avatar,
-          creatorName: username.isNotEmpty ? username : 'Creator',
-          creatorHandle: creatorHandle,
-          avatarUrl: avatar.isNotEmpty ? avatar : thumb,
-          viewerCount: views,
-          isVerified: (r['isVerified'] as bool?) ?? false,
-          videoUrl: video.isNotEmpty ? video : null,
-        );
-      }).where((item) => item.thumbnailUrl.isNotEmpty).toList(growable: false);
+      final mapped = reels
+          .map((r) {
+            final username = (r['username']?.toString() ?? '').trim();
+            final handleCore = username.isNotEmpty
+                ? username.toLowerCase().replaceAll(' ', '_')
+                : (r['handle']?.toString() ?? '').replaceFirst('@', '').trim();
+            final creatorHandle = handleCore.isEmpty
+                ? '@creator'
+                : '@$handleCore';
+            final thumb = (r['thumbnailUrl']?.toString() ?? '').trim();
+            final avatar = (r['avatarUrl']?.toString() ?? '').trim();
+            final video = (r['videoUrl']?.toString() ?? '').trim();
+            final views = (r['views'] as num?)?.toInt() ?? 0;
+            return _VRSearchItem(
+              thumbnailUrl: thumb.isNotEmpty ? thumb : avatar,
+              creatorName: username.isNotEmpty ? username : 'Creator',
+              creatorHandle: creatorHandle,
+              avatarUrl: avatar.isNotEmpty ? avatar : thumb,
+              viewerCount: views,
+              isVerified: (r['isVerified'] as bool?) ?? false,
+              videoUrl: video.isNotEmpty ? video : null,
+            );
+          })
+          .where((item) => item.thumbnailUrl.isNotEmpty)
+          .toList(growable: false);
       if (!mounted) return;
       setState(() {
         _vrSearchItems = mapped;
@@ -232,9 +237,7 @@ class _SearchScreenState extends State<SearchScreen>
         ? _liveStreams
         : _liveStreams
               .where((s) {
-                final inTags = s.tags.any(
-                  (t) => _normalizeTag(t).contains(q),
-                );
+                final inTags = s.tags.any((t) => _normalizeTag(t).contains(q));
                 if (hashtagOnly) return inTags;
                 return s.hostUsername.toLowerCase().contains(q) ||
                     s.title.toLowerCase().contains(q) ||
@@ -383,8 +386,7 @@ class _SearchScreenState extends State<SearchScreen>
     return raw;
   }
 
-  bool get _isHashtagQuery =>
-      _searchController.text.trimLeft().startsWith('#');
+  bool get _isHashtagQuery => _searchController.text.trimLeft().startsWith('#');
 
   static String _normalizeTag(String tag) {
     final t = tag.trim().toLowerCase();
@@ -436,10 +438,8 @@ class _SearchScreenState extends State<SearchScreen>
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: AppGradientBackground(
-        type: GradientType
-            .feed, // Using existing feed gradient but we can custom craft it if needed
+        type: GradientType.premiumDark,
         child: Column(
           children: [
             _buildSearchBar(
@@ -652,7 +652,10 @@ class _SearchScreenState extends State<SearchScreen>
         }
         if (_vrSearchItems.isEmpty) {
           return const Center(
-            child: Text('No VR results found', style: TextStyle(color: Colors.white70)),
+            child: Text(
+              'No VR results found',
+              style: TextStyle(color: Colors.white70),
+            ),
           );
         }
         return GridView.builder(
@@ -1569,8 +1572,8 @@ class _UserSearchResultTile extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 28,
                   backgroundColor: Colors.white.withValues(alpha: 0.1),
-                  backgroundImage: Uri.tryParse(user.avatarUrl)?.isAbsolute ==
-                          true
+                  backgroundImage:
+                      Uri.tryParse(user.avatarUrl)?.isAbsolute == true
                       ? NetworkImage(user.avatarUrl)
                       : const AssetImage(_defaultAvatarAsset),
                 ),
@@ -1753,7 +1756,6 @@ class _VRSearchItem {
   final bool isVerified;
   final String? videoUrl;
 }
-
 
 class _CategoryItem {
   const _CategoryItem({required this.label, required this.icon});
