@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -112,6 +113,14 @@ class SubscriptionController extends ChangeNotifier {
     }
   }
 
+  Future<MembershipTier?> _loadCachedTierForUid(String uid) async {
+    if (uid.isEmpty) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final tierName = prefs.getString('$_keyCachedTierPrefix$uid');
+    if (tierName == null || tierName.isEmpty) return null;
+    return _tierFromString(tierName);
+  }
+
   Future<void> init(String publicKey) async {
     final ok = await _service.init(publicKey);
     if (!ok) {
@@ -147,6 +156,15 @@ class SubscriptionController extends ChangeNotifier {
       currentTier = _service.getTier(info);
       _hasAnyStoreSubscription =
           info.entitlements.active.isNotEmpty || info.activeSubscriptions.isNotEmpty;
+      if (currentTier == MembershipTier.none && _hasAnyStoreSubscription) {
+        final uid = _activeFirebaseUid;
+        if (uid != null && uid.isNotEmpty) {
+          final cachedTier = await _loadCachedTierForUid(uid);
+          if (cachedTier != null && cachedTier != MembershipTier.none) {
+            currentTier = cachedTier;
+          }
+        }
+      }
       _hasResolvedStatusOnce = true;
       await _persistCurrentStatusForActiveUid();
     }
@@ -194,13 +212,25 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   /// Returns true if purchase succeeded, false if user cancelled, throws on real error.
-  Future<bool> purchase(Package package) async {
+  Future<bool> purchase(Package package, {MembershipTier? intendedTier}) async {
     purchaseError = null;
     isLoading = true;
     notifyListeners();
     try {
+      final uid = _activeFirebaseUid ?? FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null && uid.isNotEmpty) {
+        _activeFirebaseUid = uid;
+        await _service.syncFirebaseUser(uid);
+      }
       await _service.purchase(package);
       await refreshStatus();
+      if (currentTier == MembershipTier.none &&
+          intendedTier != null &&
+          intendedTier != MembershipTier.none &&
+          isPaid) {
+        currentTier = intendedTier;
+        await _persistCurrentStatusForActiveUid();
+      }
       return true;
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
@@ -226,9 +256,12 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   // Keep these for backwards compatibility
-  Future<void> purchaseStandard(Package package) async => purchase(package);
-  Future<void> purchaseSubscriber(Package package) async => purchase(package);
-  Future<void> purchaseCreator(Package package) async => purchase(package);
+  Future<void> purchaseStandard(Package package) async =>
+      purchase(package, intendedTier: MembershipTier.standard);
+  Future<void> purchaseSubscriber(Package package) async =>
+      purchase(package, intendedTier: MembershipTier.subscriber);
+  Future<void> purchaseCreator(Package package) async =>
+      purchase(package, intendedTier: MembershipTier.creator);
 
   Future<void> restorePurchases() async {
     try {

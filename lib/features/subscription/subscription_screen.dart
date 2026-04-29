@@ -87,7 +87,10 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return;
     }
     try {
-      final purchased = await controller.purchase(pkg);
+      final purchased = await controller.purchase(
+        pkg,
+        intendedTier: selectedTier,
+      );
       if (!mounted) return;
       if (purchased) {
         ScaffoldMessenger.of(context).showSnackBar(
