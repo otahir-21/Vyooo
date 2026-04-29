@@ -281,8 +281,15 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   }
 
   void _showSnack(String msg) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
+      ),
     );
   }
 
