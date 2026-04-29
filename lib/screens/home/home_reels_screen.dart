@@ -87,12 +87,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   List<StoryModel> _myStories = [];
   String _myAvatarUrl = '';
 
-  /// True when Following tab has no followed feed but we show [For You] reels instead.
-  bool get _followingUsesForYouFallback =>
-      currentTab == HomeTab.following &&
-      _reelsFollowing.isEmpty &&
-      _reelsForYou.isNotEmpty;
-
   /// Reels for current tab. Rebuilt when currentTab changes; PageView uses this.
   List<Map<String, dynamic>> get _currentReels {
     switch (currentTab) {
@@ -101,9 +95,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       case HomeTab.vr:
         return _reelsVR;
       case HomeTab.following:
-        // No one followed (or no reels from them) → show For You so the tab isn't a black void.
-        if (_reelsFollowing.isNotEmpty) return _reelsFollowing;
-        return _reelsForYou;
+        return _reelsFollowing;
       case HomeTab.forYou:
         return _reelsForYou;
     }
@@ -205,9 +197,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       ...filteredVr.map((r) => (r['userId'] as String?) ?? ''),
     }..removeWhere((id) => id.isEmpty);
     final latestAvatarByUid = await _fetchLatestProfileImages(reelUserIds);
-    final filteredStories = storyGroups
-        .where((g) => !blockedIds.contains(g.userId))
-        .toList();
+    // Following tab story strip: only people you follow (+ your own group for viewer indexing).
+    final followingSet = followingIds.toSet();
+    final filteredStories = storyGroups.where((g) {
+      if (blockedIds.contains(g.userId)) return false;
+      if (uid.isEmpty) return false;
+      if (g.userId == uid) return true;
+      return followingSet.contains(g.userId);
+    }).toList();
     final reelIds = <String>{
       ...filteredForYou.map((r) => (r['id'] as String?) ?? ''),
       ...filteredFollowing.map((r) => (r['id'] as String?) ?? ''),
@@ -702,52 +699,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
-  /// Rounded feed; when Following has no followed content, a banner + [For You] fallback.
   Widget _buildFeedClipArea(bool isFollowingTab) {
     final radius = BorderRadius.circular(isFollowingTab ? 24 : 0);
-    final feed = ClipRRect(borderRadius: radius, child: _buildReelsFeed());
-    if (isFollowingTab && _followingUsesForYouFallback) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildFollowingFallbackBanner(),
-          const SizedBox(height: 8),
-          Expanded(child: feed),
-        ],
-      );
-    }
-    return feed;
-  }
-
-  Widget _buildFollowingFallbackBanner() {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(
-              Icons.people_outline_rounded,
-              color: Colors.white.withValues(alpha: 0.85),
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                "You're not following anyone yet, or they have no reels. Showing For You for now.",
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  fontSize: 12,
-                  height: 1.3,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ClipRRect(borderRadius: radius, child: _buildReelsFeed());
   }
 
   Widget _buildReelsFeed() {
@@ -840,9 +794,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final (String title, String subtitle, IconData icon) = switch (currentTab) {
       HomeTab.following => (
         'Nothing here yet',
-        _reelsForYou.isEmpty
-            ? 'Follow creators to see their reels here. For You is empty too—check back after content is added.'
-            : 'Follow creators to see their reels here. (For You will fill this tab until you do.)',
+        _followingIds.isEmpty
+            ? 'Follow creators to see their reels and stories here.'
+            : 'No new reels from people you follow yet. Check back soon.',
         Icons.people_outline_rounded,
       ),
       HomeTab.trending => (
