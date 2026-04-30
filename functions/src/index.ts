@@ -752,8 +752,11 @@ export const processEmailOtpSendRequest = onDocumentCreated(
       console.error('processEmailOtpSendRequest getUser failed', uid, e);
       const emailFromDoc =
         typeof profile?.email === 'string' ? profile.email.trim() : '';
-      if ((emailFromDoc.includes('@') || email.includes('@')) && userDoc.exists) {
+      if (emailFromDoc.includes('@') || email.includes('@')) {
         email = emailFromDoc;
+        if (!email && requestedEmail.includes('@')) {
+          email = requestedEmail;
+        }
         // Fallback path for transient Auth Admin lookup failures:
         // this request can only be created by the signed-in user for their own uid.
         isPasswordSignup = true;

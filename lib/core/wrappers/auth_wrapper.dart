@@ -63,7 +63,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           });
         }
         final shouldBindMessaging =
-            uid != null && uid.isNotEmpty && !user.isAnonymous;
+            uid != null && uid.isNotEmpty && !(user?.isAnonymous ?? true);
         if (shouldBindMessaging && _fcmBoundUid != uid) {
           _fcmBoundUid = uid;
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -76,7 +76,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           // Keep listener alive even after hot-restart/rebuild edge cases.
           InAppNotificationAlertService.instance.startForUser(uid);
         }
-        if (uid == null || user.isAnonymous) {
+        if (uid == null || (user?.isAnonymous ?? true)) {
           _fcmBoundUid = null;
           InAppNotificationAlertService.instance.stop();
         }
