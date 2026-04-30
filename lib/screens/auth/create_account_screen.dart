@@ -20,6 +20,8 @@ class CreateAccountScreen extends StatefulWidget {
 class _CreateAccountScreenState extends State<CreateAccountScreen> {
   static const String _otpChannelEmail = 'email';
   static const String _otpChannelPhone = 'phone';
+  static const String _signupMethodEmail = 'email';
+  static const String _signupMethodPhone = 'phone';
 
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -37,6 +39,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   String? _errorMessage;
   String _selectedCountryDialCode = '44';
   String _selectedCountryFlag = '🇬🇧';
+  String _selectedSignupMethod = _signupMethodEmail;
 
   final AuthService _auth = AuthService();
 
@@ -104,6 +107,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     height: 1,
                   ),
                 ),
+                const SizedBox(height: 18),
+                _buildSignupMethodToggle(),
                 const SizedBox(height: _spacingBelowTitle),
 
                 // Inputs
@@ -128,14 +133,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                         textCapitalization: TextCapitalization.words,
                       ),
                       const SizedBox(height: _spacingBetweenFields),
-                      _buildUnderlineField(
-                        controller: _emailController,
-                        icon: Icons.mail_outline,
-                        hint: 'Email',
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: _spacingBetweenFields),
-                      _buildPhoneField(),
+                      if (_selectedSignupMethod == _signupMethodEmail)
+                        _buildUnderlineField(
+                          controller: _emailController,
+                          icon: Icons.mail_outline,
+                          hint: 'Email',
+                          keyboardType: TextInputType.emailAddress,
+                        )
+                      else
+                        _buildPhoneField(),
                       const SizedBox(height: _spacingBetweenFields),
                       _buildUnderlineField(
                         controller: _passwordController,
@@ -350,6 +356,71 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     );
   }
 
+  Widget _buildSignupMethodToggle() {
+    final isEmail = _selectedSignupMethod == _signupMethodEmail;
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedSignupMethod = _signupMethodEmail),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isEmail ? Colors.white : Colors.transparent,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Text(
+                  'Email',
+                  style: TextStyle(
+                    color: isEmail
+                        ? Colors.black.withValues(alpha: 0.9)
+                        : Colors.white.withValues(alpha: 0.82),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedSignupMethod = _signupMethodPhone),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isEmail ? Colors.transparent : Colors.white,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: Text(
+                  'Phone',
+                  style: TextStyle(
+                    color: isEmail
+                        ? Colors.white.withValues(alpha: 0.82)
+                        : Colors.black.withValues(alpha: 0.9),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
@@ -470,13 +541,19 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _onRegister() async {
-    final email = _emailController.text.trim();
+    final typedEmail = _emailController.text.trim();
     final firstName = _nameController.text.trim();
     final surname = _surnameController.text.trim();
     final name = '$firstName $surname'.trim();
     final password = _passwordController.text;
     final confirm = _confirmPasswordController.text;
     final phone = _normalizedPhone();
+    final otpChannel = _selectedSignupMethod == _signupMethodPhone
+        ? _otpChannelPhone
+        : _otpChannelEmail;
+    final email = otpChannel == _otpChannelEmail
+        ? typedEmail
+        : _emailForPhoneSignup(phone);
 
     setState(() => _errorMessage = null);
     if (firstName.isEmpty) {
@@ -487,13 +564,16 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       setState(() => _errorMessage = 'Please enter your surname.');
       return;
     }
-    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      setState(() => _errorMessage = 'Please enter a valid email address.');
-      return;
-    }
-    if (phone.isEmpty || !phone.startsWith('+') || phone.length < 8) {
-      setState(() => _errorMessage = 'Please enter a valid phone number.');
-      return;
+    if (otpChannel == _otpChannelEmail) {
+      if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+        setState(() => _errorMessage = 'Please enter a valid email address.');
+        return;
+      }
+    } else {
+      if (phone.isEmpty || !phone.startsWith('+') || phone.length < 8) {
+        setState(() => _errorMessage = 'Please enter a valid phone number.');
+        return;
+      }
     }
     if (password.isEmpty) {
       setState(() => _errorMessage = 'Please enter your password.');
@@ -507,16 +587,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       setState(() => _errorMessage = 'Password must be at least 8 characters.');
       return;
     }
-    final otpChannel = await _showVerificationMethodDialog();
-    if (!mounted || otpChannel == null) return;
-    if (otpChannel == _otpChannelPhone &&
-        (phone.isEmpty || !phone.startsWith('+') || phone.length < 8)) {
-      setState(() {
-        _errorMessage = 'Please enter a valid phone number for Number OTP.';
-      });
-      return;
-    }
-
     if (otpChannel == _otpChannelPhone) {
       try {
         await OtpSessionService().setSignupOtpPreference(
@@ -582,24 +652,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ),
       );
       if (!mounted) return;
-      var initialOtpError = '';
-      var autoSendOnOpen = otpChannel == _otpChannelEmail;
-      if (otpChannel == _otpChannelEmail) {
-        final otpResult = await _auth.sendSignupEmailOtp(email: email);
-        if (!mounted) return;
-        if (!otpResult.success) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = otpResult.message ?? 'Could not send email OTP.';
-          });
-          return;
-        } else {
-          autoSendOnOpen = false;
-        }
-      }
-      if (otpChannel == _otpChannelPhone) {
-        autoSendOnOpen = true;
-      }
+      final initialOtpError = '';
+      // Always attempt OTP from Verify screen so user can retry there
+      // instead of being blocked on register submit.
+      final autoSendOnOpen = true;
       setState(() => _isLoading = false);
       if (!mounted) return;
       final route = MaterialPageRoute(
@@ -625,82 +681,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     }
   }
 
-  Future<String?> _showVerificationMethodDialog() {
-    final platform = Theme.of(context).platform;
-    final isCupertino =
-        platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
-    return isCupertino
-        ? _showCupertinoVerificationMethodDialog()
-        : _showMaterialVerificationMethodDialog();
-  }
-
-  Future<String?> _showCupertinoVerificationMethodDialog() {
-    final emailValue = _emailController.text.trim();
-    final phoneValue = _normalizedPhone();
-    return showCupertinoModalPopup<String>(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: const Text('Verify your account'),
-        message: const Text('Choose how you want to receive OTP.'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(ctx).pop(_otpChannelEmail),
-            child: Text(
-              'Email OTP${emailValue.isEmpty ? '' : '\n$emailValue'}',
-              textAlign: TextAlign.center,
-            ),
-          ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(ctx).pop(_otpChannelPhone),
-            child: Text(
-              'Number OTP${phoneValue.isEmpty ? '' : '\n$phoneValue'}',
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('Cancel'),
-        ),
-      ),
-    );
-  }
-
-  Future<String?> _showMaterialVerificationMethodDialog() {
-    final theme = Theme.of(context);
-    final emailValue = _emailController.text.trim();
-    final phoneValue = _normalizedPhone();
-
-    return showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Verify your account'),
-        content: Text(
-          'Choose how you want to receive OTP.',
-          style: theme.textTheme.bodyMedium,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(_otpChannelEmail),
-            child: Text(
-              emailValue.isEmpty ? 'Email OTP' : 'Email OTP ($emailValue)',
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(_otpChannelPhone),
-            child: Text(
-              phoneValue.isEmpty ? 'Number OTP' : 'Number OTP ($phoneValue)',
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-        ],
-      ),
-    );
+  String _emailForPhoneSignup(String phone) {
+    final normalized = phone.toLowerCase().trim();
+    if (normalized.isEmpty) return '';
+    // Phone-mode accounts still need a valid email credential in Firebase link flow.
+    final safe = normalized.replaceAll(RegExp(r'[^a-z0-9+]'), '');
+    return '${safe.replaceAll('+', 'p')}-phone@vyooo.app';
   }
 
   void _pickCountry() {

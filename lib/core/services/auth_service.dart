@@ -333,15 +333,28 @@ class AuthService {
       if (finalUser == null) {
         return const AuthResult(success: false, message: 'Could not create account.');
       }
-      await UserService().createUserDocument(
-        uid: finalUser.uid,
-        email: email.trim(),
-      );
-      await UserService().updateUserProfile(
-        uid: finalUser.uid,
-        displayName: name.trim(),
-        phoneNumber: phoneNumber,
-      );
+      try {
+        await UserService().createUserDocument(
+          uid: finalUser.uid,
+          email: email.trim(),
+        );
+        await UserService().updateUserProfile(
+          uid: finalUser.uid,
+          displayName: name.trim(),
+          phoneNumber: phoneNumber,
+        );
+      } on FirebaseException catch (e) {
+        // OTP is already verified and auth credential may already be linked.
+        // Do not block account entry on transient/profile-write failures.
+        final code = (e.code).trim().toLowerCase();
+        if (code == 'permission-denied' ||
+            code == 'unavailable' ||
+            code == 'deadline-exceeded' ||
+            code == 'aborted') {
+          return AuthResult(success: true, user: finalUser);
+        }
+        rethrow;
+      }
       return AuthResult(success: true, user: finalUser);
     } on FirebaseAuthException catch (e) {
       return AuthResult(success: false, message: _mapAuthException(e.code));

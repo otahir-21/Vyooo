@@ -46,6 +46,13 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   bool get _usePhone => _activeChannel == 'phone';
   int get _otpLength => _usePhone ? 6 : 4;
 
+  String _activeEmailForOtp() {
+    final draftEmail = SignupDraftService().current?.email.trim() ?? '';
+    if (draftEmail.isNotEmpty) return draftEmail;
+    final userEmail = _auth.currentUser?.email?.trim() ?? '';
+    return userEmail;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -266,11 +273,11 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
-        height: 50,
+        height: 100,
         child: Image.asset(
-          'assets/BrandLogo/Vyooo logo (2).png',
+          'assets/BrandLogo/vyooo_white_transparent.png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
@@ -353,7 +360,14 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
       _sendInFlight = true;
       _errorMessage = null;
     });
-    (draft?.email ?? _auth.currentUser?.email ?? '').trim();
+    final email = _activeEmailForOtp();
+    if (!_usePhone && email.isEmpty) {
+      setState(() {
+        _sendInFlight = false;
+        _errorMessage = 'Email is missing. Go back and register again.';
+      });
+      return;
+    }
     final result = _usePhone
         ? await _auth.requestPhoneSignInOtp(
             phoneNumber: _activePhoneNumber,
@@ -363,7 +377,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
               _phoneResendToken = resendToken;
             },
           )
-        : await _auth.sendSignupEmailOtp(email: draft?.email ?? '');
+        : await _auth.sendSignupEmailOtp(email: email);
     if (!mounted) return;
     if (_usePhone &&
         result.success &&
@@ -393,18 +407,24 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   Future<void> _onVerify() async {
     if (!_isOtpComplete || _verifyInFlight) return;
     final code = _controllers.map((c) => c.text).join();
-    final draft = SignupDraftService().current;
     setState(() {
       _verifyInFlight = true;
       _errorMessage = null;
     });
-    (draft?.email ?? _auth.currentUser?.email ?? '').trim();
+    final email = _activeEmailForOtp();
+    if (!_usePhone && email.isEmpty) {
+      setState(() {
+        _verifyInFlight = false;
+        _errorMessage = 'Email is missing. Go back and register again.';
+      });
+      return;
+    }
     final result = _usePhone
         ? await _auth.verifyPhoneSignInOtp(
             verificationId: _phoneVerificationId,
             smsCode: code,
           )
-        : await _auth.verifySignupEmailOtp(code, email: draft?.email ?? '');
+        : await _auth.verifySignupEmailOtp(code, email: email);
     if (!mounted) return;
     if (!result.success) {
       setState(() {
@@ -417,36 +437,49 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   }
 
   Future<void> _finishAfterSuccessfulVerification() async {
-    final draft = SignupDraftService().current;
-    if (draft != null) {
-      final complete = await _auth.completeSignupAfterOtp(
-        name: draft.name,
-        email: draft.email,
-        password: draft.password,
-        phoneNumber: draft.phoneNumber,
-      );
-      if (!mounted) return;
-      if (!complete.success) {
-        setState(() {
-          _verifyInFlight = false;
-          _errorMessage = complete.message ?? 'Could not finalize account.';
-        });
-        return;
+    try {
+      final draft = SignupDraftService().current;
+      if (draft != null) {
+        final complete = await _auth.completeSignupAfterOtp(
+          name: draft.name,
+          email: draft.email,
+          password: draft.password,
+          phoneNumber: draft.phoneNumber,
+        );
+        if (!mounted) return;
+        if (!complete.success) {
+          final raw = (complete.message ?? '').trim();
+          final friendly = raw.toLowerCase().contains('try again in a moment')
+              ? 'Could not verify account right now. Please tap Resend Code and try again.'
+              : (raw.isEmpty ? 'Could not finalize account.' : raw);
+          setState(() {
+            _verifyInFlight = false;
+            _errorMessage = friendly;
+          });
+          return;
+        }
+        SignupDraftService().clear();
       }
-      SignupDraftService().clear();
+      final currentUid = _auth.currentUser?.uid ?? '';
+      if (currentUid.isNotEmpty) {
+        await OtpSessionService().markTrustedDeviceForUid(currentUid);
+      }
+      await OtpSessionService().clearOtpRequirement();
+      await OtpSessionService().clearSignupOtpPreference();
+      setState(() => _verifyInFlight = false);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthWrapper()),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _verifyInFlight = false;
+        _errorMessage =
+            'Could not verify account right now. Please tap Resend Code and try again.';
+      });
     }
-    final currentUid = _auth.currentUser?.uid ?? '';
-    if (currentUid.isNotEmpty) {
-      await OtpSessionService().markTrustedDeviceForUid(currentUid);
-    }
-    await OtpSessionService().clearOtpRequirement();
-    await OtpSessionService().clearSignupOtpPreference();
-    setState(() => _verifyInFlight = false);
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AuthWrapper()),
-      (route) => false,
-    );
   }
 
   Future<void> _onSwitchVerificationMethod() async {

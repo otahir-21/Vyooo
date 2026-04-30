@@ -62,7 +62,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
             unawaited(context.read<SubscriptionController>().syncPurchasesIdentity(uid));
           });
         }
-        if (uid != null && uid.isNotEmpty && _fcmBoundUid != uid) {
+        final shouldBindMessaging =
+            uid != null && uid.isNotEmpty && !user.isAnonymous;
+        if (shouldBindMessaging && _fcmBoundUid != uid) {
           _fcmBoundUid = uid;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             unawaited(PushMessagingService.instance.syncTokenForUser(uid));
@@ -70,11 +72,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
             InAppNotificationAlertService.instance.startForUser(uid);
           });
         }
-        if (uid != null && uid.isNotEmpty) {
+        if (shouldBindMessaging) {
           // Keep listener alive even after hot-restart/rebuild edge cases.
           InAppNotificationAlertService.instance.startForUser(uid);
         }
-        if (uid == null) {
+        if (uid == null || user.isAnonymous) {
           _fcmBoundUid = null;
           InAppNotificationAlertService.instance.stop();
         }
