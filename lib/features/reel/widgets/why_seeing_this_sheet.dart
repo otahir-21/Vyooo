@@ -72,7 +72,7 @@ class _WhySeeingThisSheet extends StatelessWidget {
                 RichText(
                   text: TextSpan(
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 15,
                       height: 1.4,
                       fontWeight: FontWeight.w400,

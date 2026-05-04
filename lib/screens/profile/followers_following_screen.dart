@@ -54,7 +54,9 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final uid = AuthService().currentUser?.uid;
-      context.read<SubscriptionController>().reconcilePaidStatus(firebaseUid: uid);
+      context.read<SubscriptionController>().reconcilePaidStatus(
+        firebaseUid: uid,
+      );
     });
   }
 
@@ -140,7 +142,8 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
         : (m.email.contains('@')
               ? m.email.split('@').first
               : (m.uid.length > 8 ? m.uid.substring(0, 8) : m.uid));
-    final displayName = (m.displayName != null && m.displayName!.trim().isNotEmpty)
+    final displayName =
+        (m.displayName != null && m.displayName!.trim().isNotEmpty)
         ? m.displayName!.trim()
         : handle;
     return _ConnectionUser(
@@ -203,8 +206,9 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                       if (target == null ||
                           target.isEmpty ||
                           me == null ||
-                          me.isEmpty)
+                          me.isEmpty) {
                         return;
+                      }
                       try {
                         await UserService().blockUser(
                           currentUid: me,
@@ -313,8 +317,12 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen> {
                       Navigator.pop(ctx);
                       final id = user.targetUserId;
                       final me = AuthService().currentUser?.uid;
-                      if (id == null || id.isEmpty || me == null || me.isEmpty)
+                      if (id == null ||
+                          id.isEmpty ||
+                          me == null ||
+                          me.isEmpty) {
                         return;
+                      }
                       try {
                         await UserService().unfollowUser(
                           currentUid: me,
@@ -1033,8 +1041,9 @@ class _ConnectionRowState extends State<_ConnectionRow> {
   @override
   void didUpdateWidget(_ConnectionRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isFollowing != widget.isFollowing)
+    if (oldWidget.isFollowing != widget.isFollowing) {
       _isFollowing = widget.isFollowing;
+    }
   }
 
   Future<void> _onFollowTap() async {

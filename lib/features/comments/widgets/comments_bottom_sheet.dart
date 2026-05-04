@@ -201,11 +201,12 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
         _parsing = false;
       });
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _parsing = false;
           _streamError = true;
         });
+      }
     }
   }
 
@@ -234,8 +235,9 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
       for (final d in snap.docs) {
         _olderById[d.id] = d;
       }
-      if (snap.docs.length < CommentService.olderPageSize)
+      if (snap.docs.length < CommentService.olderPageSize) {
         _hasMoreOlder = false;
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -267,8 +269,9 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
     if (_posting ||
         text.trim().isEmpty ||
         text.length > maxLen ||
-        AuthService().currentUser == null)
+        AuthService().currentUser == null) {
       return;
+    }
 
     setState(() => _posting = true);
     try {

@@ -90,7 +90,7 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -115,7 +115,7 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      icon: Icon(Icons.close_rounded, color: Colors.white.withOpacity(0.5), size: 24),
+                      icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.5), size: 24),
                     ),
                   ),
                 ],
@@ -164,7 +164,7 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
             'We use these reports to show less of this kind of content in the future.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 14,
               height: 1.4,
             ),
@@ -194,7 +194,7 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
                       const Spacer(),
                       Icon(
                         _isOtherActionsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                       ),
                     ],
                   ),
@@ -286,7 +286,7 @@ class _ReasonTile extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: Colors.white.withOpacity(0.3), size: 20),
+            Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.3), size: 20),
           ],
         ),
       ),
@@ -315,12 +315,12 @@ class _ActionItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Row(
           children: [
-            Icon(icon, color: labelColor ?? Colors.white.withOpacity(0.7), size: 20),
+            Icon(icon, color: labelColor ?? Colors.white.withValues(alpha: 0.7), size: 20),
             const SizedBox(width: 12),
             Text(
               label,
               style: TextStyle(
-                color: labelColor ?? Colors.white.withOpacity(0.7),
+                color: labelColor ?? Colors.white.withValues(alpha: 0.7),
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
               ),
@@ -331,7 +331,7 @@ class _ActionItem extends StatelessWidget {
               height: 18,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
               ),
             ),
           ],

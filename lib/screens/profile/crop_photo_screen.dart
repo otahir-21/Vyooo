@@ -58,7 +58,7 @@ class _CropPhotoScreenState extends State<CropPhotoScreen> {
               child: Image.file(
                 File(widget.imagePath),
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 80),
+                errorBuilder: (_, _, _) => const Icon(Icons.broken_image, color: Colors.white54, size: 80),
               ),
             ),
           ),

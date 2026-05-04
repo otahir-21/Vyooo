@@ -82,9 +82,9 @@ class _ShareSheet extends StatelessWidget {
             filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.75),
+                color: Colors.black.withValues(alpha: 0.75),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                border: Border.all(color: Colors.white.withOpacity(0.08), width: 0.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.5),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -103,7 +103,7 @@ class _ShareSheet extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       itemCount: contacts.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 16),
+                      separatorBuilder: (_, _) => const SizedBox(width: 16),
                       itemBuilder: (context, index) {
                         final c = contacts[index];
                         return _ContactChip(
@@ -120,7 +120,7 @@ class _ShareSheet extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       itemCount: nativeTargets.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 16),
+                      separatorBuilder: (_, _) => const SizedBox(width: 16),
                       itemBuilder: (context, index) {
                         final a = nativeTargets[index];
                         return _NativeTargetChip(
@@ -165,7 +165,7 @@ class _DragHandle extends StatelessWidget {
           width: 36,
           height: 4,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(2),
           ),
         ),
@@ -199,7 +199,7 @@ class _TopBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.12),
+                color: Colors.white.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.close, color: Colors.white, size: 20),
@@ -230,7 +230,7 @@ class _ContentHeader extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.06),
+        color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -265,7 +265,7 @@ class _ContentHeader extends StatelessWidget {
                 Text(
                   'Vyooo',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                 ),
@@ -298,7 +298,7 @@ class _ContactChip extends StatelessWidget {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
                   ),
                   child: CircleAvatar(
                     radius: 28,
@@ -410,7 +410,7 @@ class _SystemActionTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.08), width: 0.8)),
+              border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 0.8)),
             ),
             child: Row(
               children: [

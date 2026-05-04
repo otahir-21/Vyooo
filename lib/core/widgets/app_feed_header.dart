@@ -49,10 +49,12 @@ class AppFeedHeader extends StatelessWidget {
 
   Widget _buildLogo(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final logoHeight = screenWidth < 360 ? 34.0 : (screenWidth < 420 ? 40.0 : 44.0);
+    final logoHeight = screenWidth < 360
+        ? 34.0
+        : (screenWidth < 420 ? 40.0 : 44.0);
 
     return SizedBox(
-      height: 100,
+      height: logoHeight,
       child: Image.asset(
         'assets/BrandLogo/Vyooo logo (2).png',
         fit: BoxFit.contain,
@@ -97,23 +99,24 @@ class AppFeedTabSelector extends StatelessWidget {
               onTap: () => onTabSelected?.call(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  labels[index],
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? Colors.black : Colors.white,
                   ),
-                  child: Text(
-                    labels[index],
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.black
-                          : Colors.white,
-                    ),
-                  ),
+                ),
               ),
             ),
           );

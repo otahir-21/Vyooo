@@ -103,7 +103,7 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -131,7 +131,7 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
                   const Spacer(),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close_rounded, color: Colors.white.withOpacity(0.5), size: 24),
+                    icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.5), size: 24),
                   ),
                 ],
               ),
@@ -144,9 +144,9 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
               margin: const EdgeInsets.symmetric(horizontal: 24),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               ),
               child: Row(
                 children: [
@@ -173,7 +173,7 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
                         Text(
                           'This will also block any other accounts that they may have or create in the future.',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -212,7 +212,7 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
                   onPressed: _busy ? null : _onBlock,
                   style: TextButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
-                    disabledBackgroundColor: const Color(0xFFEF4444).withOpacity(0.5),
+                    disabledBackgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(24),
@@ -250,13 +250,13 @@ class _ConsequenceItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white.withOpacity(0.9), size: 20),
+          Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 20),
           const SizedBox(width: 16),
           Expanded(
             child: Text(
               text,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 14,
                 height: 1.4,
               ),

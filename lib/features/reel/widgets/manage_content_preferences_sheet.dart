@@ -152,7 +152,7 @@ class _PreferenceSwitch extends StatelessWidget {
               0xFF22C55E,
             ), // Accurate WhatsApp Green
             inactiveThumbColor: Colors.white54,
-            inactiveTrackColor: Colors.white.withOpacity(0.1),
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
           ),
         ],
       ),

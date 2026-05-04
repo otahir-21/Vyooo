@@ -246,7 +246,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         child: Image.asset(
           'assets/BrandLogo/Vyooo logo (2).png',
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Text(
+          errorBuilder: (_, _, _) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
@@ -377,7 +377,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       curve: Curves.easeInOut,
       height: 60,
       decoration: BoxDecoration(
-        color: AppColors.brandPurple.withOpacity(0.25),
+        color: AppColors.brandPurple.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(20),
         border: borderWidth > 0
             ? Border.all(color: borderColor, width: borderWidth)
@@ -619,7 +619,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
           return Column(
             children: [
               if (index != 0)
-                Divider(height: 1, color: Colors.white.withOpacity(0.1)),
+                Divider(height: 1, color: Colors.white.withValues(alpha: 0.1)),
               InkWell(
                 onTap: () => _applySuggestion(suggestion),
                 borderRadius: BorderRadius.circular(20),

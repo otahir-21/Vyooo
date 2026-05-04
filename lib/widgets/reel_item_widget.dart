@@ -372,7 +372,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       return Image.network(
         thumb,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
+        errorBuilder: (_, _, _) => const ColoredBox(color: Colors.black),
       );
     }
     return const ColoredBox(color: Colors.black);

@@ -369,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     await Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (_, __, ___) => StoryViewerScreen(
+        pageBuilder: (_, _, _) => StoryViewerScreen(
           groups: [
             StoryGroup(
               userId: userId,
@@ -381,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           initialGroupIndex: 0,
           initialStoryIndex: 0,
         ),
-        transitionsBuilder: (_, animation, __, child) =>
+        transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 200),
       ),
@@ -1422,7 +1422,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 vertical: AppSpacing.sm,
               ),
               itemCount: streams.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final stream = streams[index];
@@ -2382,7 +2382,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
                       child: Image.network(
                         displayUrl,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   );

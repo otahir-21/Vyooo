@@ -976,11 +976,11 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
 
     return Column(
       children: [
-        _buildSummaryRow('Subtotal', '${amountVal.toStringAsFixed(2)}'),
+        _buildSummaryRow('Subtotal', amountVal.toStringAsFixed(2)),
         const SizedBox(height: 12),
         _buildSummaryRow(
           'Processing Fee',
-          '${fee.toStringAsFixed(2)}',
+          fee.toStringAsFixed(2),
           showInfo: true,
         ),
         const SizedBox(height: 20),

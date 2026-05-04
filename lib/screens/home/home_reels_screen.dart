@@ -1066,7 +1066,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                         ? NetworkImage(_asString(reel['avatarUrl']))
                         : null,
                     onBackgroundImageError: _isValidNetworkUrl(_asString(reel['avatarUrl']))
-                        ? (_, __) {}
+                        ? (_, _) {}
                         : null,
                     child: !_isValidNetworkUrl(_asString(reel['avatarUrl']))
                         ? const Icon(Icons.person, color: Colors.white, size: 20)

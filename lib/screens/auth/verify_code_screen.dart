@@ -294,16 +294,16 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   Widget _buildOtpBox(int index) {
     return ListenableBuilder(
       listenable: _focusNodes[index],
-      builder: (_, __) {
+      builder: (_, _) {
         final hasFocus = _focusNodes[index].hasFocus;
         return Container(
           width: _usePhone ? 48 : 70,
           height: 70,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
             border: hasFocus
-                ? Border.all(color: Colors.white.withOpacity(0.4), width: 1.5)
+                ? Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5)
                 : null,
           ),
           alignment: Alignment.center,
@@ -335,7 +335,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             decoration: InputDecoration(
               hintText: '-',
               hintStyle: TextStyle(
-                color: AppTheme.primary.withOpacity(0.5),
+                color: AppTheme.primary.withValues(alpha: 0.5),
                 fontSize: 32,
                 fontWeight: FontWeight.w600,
               ),
@@ -355,7 +355,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
 
   Future<void> _sendOtp() async {
     if (_sendInFlight || !mounted) return;
-    final draft = SignupDraftService().current;
+    SignupDraftService().current;
     setState(() {
       _sendInFlight = true;
       _errorMessage = null;

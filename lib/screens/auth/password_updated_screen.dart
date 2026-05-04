@@ -79,7 +79,7 @@ class PasswordUpdatedScreen extends StatelessWidget {
         'assets/images/illustration.png',
         height: 230,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const SizedBox(
+        errorBuilder: (_, _, _) => const SizedBox(
           height: 230,
           child: Center(
             child: Icon(

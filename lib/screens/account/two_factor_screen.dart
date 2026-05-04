@@ -47,7 +47,7 @@ class _TwoFactorScreenState extends State<TwoFactorScreen> {
   late _CountryDial _selected;
   final _phoneController = TextEditingController();
   String? _errorMessage;
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   @override
   void initState() {

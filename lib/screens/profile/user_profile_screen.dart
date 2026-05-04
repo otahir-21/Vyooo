@@ -988,7 +988,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 vertical: AppSpacing.sm,
               ),
               itemCount: streams.length,
-              separatorBuilder: (_, __) =>
+              separatorBuilder: (_, _) =>
                   const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final stream = streams[index];

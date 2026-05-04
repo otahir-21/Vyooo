@@ -307,8 +307,9 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       // Send heartbeat immediately, then every 30 s so discover list stays current
       _liveService.updateHeartbeat(_streamId!).ignore();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-        if (_streamId != null)
+        if (_streamId != null) {
           _liveService.updateHeartbeat(_streamId!).ignore();
+        }
       });
     } catch (e, st) {
       debugPrint('❌ _goLive error: $e\n$st');
@@ -485,8 +486,9 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 
   Widget _buildBackground() {
     if (!_engineReady) return Container(color: const Color(0xFF0A000F));
-    if (_isVideoOff && _liveState == _LiveState.live)
+    if (_isVideoOff && _liveState == _LiveState.live) {
       return Container(color: const Color(0xFF0A000F));
+    }
     return AgoraVideoView(
       key: ValueKey(_engineVersion),
       controller: VideoViewController(

@@ -126,7 +126,7 @@ class _SignInScreenState extends State<SignInScreen> {
     var resolvedEmail = await UserService().resolveEmailForPhone(phone);
     resolvedEmail ??= _emailForPhoneLogin(phone);
     if (!mounted) return;
-    if (resolvedEmail == null || resolvedEmail.isEmpty) {
+    if (resolvedEmail.isEmpty) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'No account found with this phone number.';
@@ -457,8 +457,9 @@ class _SignInScreenState extends State<SignInScreen> {
                 onChanged: (v) => setState(() => _rememberMe = v ?? false),
                 activeColor: AppTheme.primary,
                 fillColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected))
+                  if (states.contains(WidgetState.selected)) {
                     return AppTheme.primary;
+                  }
                   return Colors.transparent;
                 }),
                 side: const BorderSide(color: AppTheme.primary),

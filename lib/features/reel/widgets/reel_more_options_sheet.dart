@@ -141,7 +141,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                   children: [
                     _Section(
-                      backgroundColor: Colors.white.withOpacity(0.05),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       borderRadius: 16,
                       children: [
                         _SettingTile(
@@ -174,7 +174,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     _Section(
-                      backgroundColor: Colors.white.withOpacity(0.05),
+                      backgroundColor: Colors.white.withValues(alpha: 0.05),
                       borderRadius: 16,
                       children: [
                         _SettingTile(
@@ -246,7 +246,7 @@ class _ActionButton extends StatelessWidget {
     final color = iconColor ?? Colors.white;
     final textColor = labelColor ?? Colors.white;
     return Material(
-      color: Colors.white.withOpacity(0.05),
+      color: Colors.white.withValues(alpha: 0.05),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -324,7 +324,7 @@ class _SettingTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: Colors.white.withOpacity(0.9)),
+            Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.9)),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
@@ -340,7 +340,7 @@ class _SettingTile extends StatelessWidget {
               Text(
                 trailing!,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 14,
                 ),
               ),
@@ -349,7 +349,7 @@ class _SettingTile extends StatelessWidget {
             Icon(
               Icons.chevron_right,
               size: 20,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
             ),
           ],
         ),

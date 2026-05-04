@@ -1328,7 +1328,7 @@ class _SearchResultGridCard extends StatelessWidget {
             Image.network(
               item.thumbnailUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1A0020)),
+              errorBuilder: (_, _, _) => Container(color: const Color(0xFF1A0020)),
             ),
             Container(
               decoration: BoxDecoration(
@@ -1398,7 +1398,7 @@ class _SearchResultGridCard extends StatelessWidget {
                         Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
-                    onBackgroundImageError: (_, __) {},
+                    onBackgroundImageError: (_, _) {},
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -1465,7 +1465,7 @@ class _VRSearchResultGridCard extends StatelessWidget {
             Image.network(
               item.thumbnailUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1A0020)),
+              errorBuilder: (_, _, _) => Container(color: const Color(0xFF1A0020)),
             ),
             Container(
               decoration: BoxDecoration(
@@ -1538,7 +1538,7 @@ class _VRSearchResultGridCard extends StatelessWidget {
                         Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                         ? NetworkImage(item.avatarUrl)
                         : null,
-                    onBackgroundImageError: (_, __) {},
+                    onBackgroundImageError: (_, _) {},
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -1652,7 +1652,7 @@ class _UserSearchResultTile extends StatelessWidget {
                               Uri.tryParse(user.avatarUrl)?.isAbsolute == true
                               ? NetworkImage(user.avatarUrl)
                               : const AssetImage(_defaultAvatarAsset),
-                          onBackgroundImageError: (_, __) {},
+                          onBackgroundImageError: (_, _) {},
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -1992,7 +1992,7 @@ class _LiveCard extends StatelessWidget {
                             Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                             ? NetworkImage(item.avatarUrl)
                             : null,
-                        onBackgroundImageError: (_, __) {},
+                        onBackgroundImageError: (_, _) {},
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -2154,7 +2154,7 @@ class _CreatorCardState extends State<_CreatorCard> {
                       Uri.tryParse(item.avatarUrl)?.isAbsolute == true
                       ? NetworkImage(item.avatarUrl)
                       : null,
-                  onBackgroundImageError: (_, __) {},
+                  onBackgroundImageError: (_, _) {},
                 ),
                 Positioned(
                   bottom: 2,

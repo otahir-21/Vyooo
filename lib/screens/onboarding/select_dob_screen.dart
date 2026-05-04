@@ -259,7 +259,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
             height: 140,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               border: Border.all(color: White10.value, width: 1),
             ),
             alignment: Alignment.center,
@@ -291,7 +291,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
       // decoration: BoxDecoration(
       //   borderRadius: BorderRadius.circular(20),
       //   color: Colors.transparent,
-      //   border: Border.all(color: Colors.white.withOpacity(0.08)),
+      //   border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       // ),
       child: Stack(
         children: [
@@ -318,7 +318,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                               : FontWeight.w400,
                           color: selected
                               ? Colors.white
-                              : Colors.white.withOpacity(0.35),
+                              : Colors.white.withValues(alpha: 0.35),
                         ),
                         child: Text(_monthNames[index]),
                       ),
@@ -347,7 +347,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                               : FontWeight.w400,
                           color: selected
                               ? Colors.white
-                              : Colors.white.withOpacity(0.35),
+                              : Colors.white.withValues(alpha: 0.35),
                         ),
                         child: Text('${_days[index]}'),
                       ),
@@ -376,7 +376,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                               : FontWeight.w400,
                           color: selected
                               ? Colors.white
-                              : Colors.white.withOpacity(0.35),
+                              : Colors.white.withValues(alpha: 0.35),
                         ),
                         child: Text('${_years[index]}'),
                       ),
@@ -394,7 +394,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                 height: _pickerItemExtent,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
-                  color: Colors.white.withOpacity(0.08),
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -413,7 +413,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.45),
+                      Colors.black.withValues(alpha: 0.45),
                       Colors.transparent,
                     ],
                   ),
@@ -435,7 +435,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withOpacity(0.45),
+                      Colors.black.withValues(alpha: 0.45),
                       Colors.transparent,
                     ],
                   ),

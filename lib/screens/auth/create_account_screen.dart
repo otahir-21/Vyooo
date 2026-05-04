@@ -44,8 +44,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final AuthService _auth = AuthService();
 
   static const double _horizontalPadding = 28;
-  static const double _logoHeight = 50;
-  static const double _spacingBelowLogo = 60;
   static const double _titleFontSize = 48;
   static const double _spacingBelowTitle = 40;
   static const double _inputFontSize = 16;
