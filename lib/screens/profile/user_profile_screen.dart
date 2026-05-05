@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -16,6 +18,8 @@ import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
+import '../../features/chat/services/chat_service.dart';
+import '../../features/chat/screens/chat_thread_screen.dart';
 import '../content/live_stream_route.dart';
 import '../content/vr_detail_screen.dart';
 import '../../widgets/reel_item_widget.dart';
@@ -257,6 +261,41 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       subject: 'Vyooo profile',
       sharePositionOrigin: origin,
     );
+  }
+
+  Future<void> _openChat() async {
+    final target = widget.payload.targetUserId;
+    final me = AuthService().currentUser;
+    if (target == null || target.isEmpty || me == null || me.uid == target) {
+      return;
+    }
+    try {
+      final currentUser = await UserService().getUser(me.uid);
+      final otherUser = await UserService().getUser(target);
+      if (!mounted || currentUser == null || otherUser == null) return;
+
+      final chatId = await ChatService().getOrCreateDirectChat(
+        currentUser: currentUser,
+        otherUser: otherUser,
+      );
+      if (!mounted) return;
+
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ChatThreadScreen(
+            chatId: chatId,
+            currentUser: currentUser,
+            otherUser: otherUser,
+          ),
+        ),
+      );
+    } catch (e, st) {
+      dev.log('UserProfileScreen._openChat failed', error: e, stackTrace: st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open chat')),
+      );
+    }
   }
 
   @override
@@ -520,6 +559,30 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
             ),
             const SizedBox(width: 12),
+          ],
+          if (widget.payload.targetUserId != null &&
+              widget.payload.targetUserId!.isNotEmpty &&
+              widget.payload.targetUserId != AuthService().currentUser?.uid) ...[
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _openChat,
+                borderRadius: BorderRadius.circular(50),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE81E57),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline,
+                    size: 22,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
           ],
           Material(
             color: Colors.transparent,

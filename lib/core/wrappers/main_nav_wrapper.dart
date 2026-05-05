@@ -11,7 +11,10 @@ import '../widgets/app_bottom_navigation.dart';
 import '../../screens/home/home_reels_screen.dart';
 import '../../screens/search/search_screen.dart';
 import '../../screens/upload/upload_screen.dart';
-import '../../screens/notifications/notification_screen.dart';
+import '../../features/chat/screens/chat_inbox_screen.dart';
+import '../../features/chat/services/chat_service.dart';
+import '../../features/chat/services/chat_notification_service.dart';
+import '../../features/chat/services/presence_service.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/profile/user_profile_screen.dart';
 import '../../features/subscription/subscription_screen.dart';
@@ -38,6 +41,13 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   @override
   void initState() {
     super.initState();
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      ChatNotificationService.instance.startForUser(uid);
+      PresenceService.instance.start(uid);
+    }
+
     final pending = DeepLinkService.instance.takePendingReelId();
     if (pending != null && pending.isNotEmpty) {
       _deepLinkedReelId = pending;
@@ -72,6 +82,8 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   void dispose() {
     _reelDeepLinkSub?.cancel();
     _profileDeepLinkSub?.cancel();
+    PresenceService.instance.stop();
+    ChatNotificationService.instance.stop();
     super.dispose();
   }
 
@@ -118,13 +130,13 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
         Navigator.of(context)
             .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
             .then((_) {
-          if (!mounted) return;
-          setState(() {
-            _currentIndex = 0;
-            _lastSelectedIndex = 0;
-            _feedRefreshToken++;
-          });
-        });
+              if (!mounted) return;
+              setState(() {
+                _currentIndex = 0;
+                _lastSelectedIndex = 0;
+                _feedRefreshToken++;
+              });
+            });
         return;
       }
       final canUpload = await subscriptionController.reconcilePaidStatus(
@@ -135,13 +147,13 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
         Navigator.of(context)
             .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
             .then((_) {
-          // Refresh feed after returning from upload (whether posted or cancelled).
-          setState(() {
-            _currentIndex = 0;
-            _lastSelectedIndex = 0;
-            _feedRefreshToken++;
-          });
-        });
+              // Refresh feed after returning from upload (whether posted or cancelled).
+              setState(() {
+                _currentIndex = 0;
+                _lastSelectedIndex = 0;
+                _feedRefreshToken++;
+              });
+            });
       } else {
         if (!mounted) return;
         Navigator.of(context).push(
@@ -168,7 +180,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
       ),
       const SearchScreen(),
       const Placeholder(), // Plus opens Upload or Membership via push; no tab content.
-      const NotificationScreen(),
+      const ChatInboxScreen(),
       const ProfileScreen(),
     ];
 
@@ -178,15 +190,22 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
         stream: NotificationService().watchUnreadCount(),
         builder: (context, unreadSnapshot) {
           final unreadCount = unreadSnapshot.data ?? 0;
-          return StreamBuilder(
-            stream: uid.isEmpty ? null : _userService.userStream(uid),
-            builder: (context, snapshot) {
-              final profileImageUrl = snapshot.data?.profileImage;
-              return AppBottomNavigation(
-                currentIndex: _currentIndex,
-                onTap: _onNavTap,
-                profileImageUrl: profileImageUrl,
-                unreadNotificationCount: unreadCount,
+          return StreamBuilder<int>(
+            stream: uid.isEmpty ? null : ChatService().watchTotalUnread(uid),
+            builder: (context, chatUnreadSnapshot) {
+              final chatUnread = chatUnreadSnapshot.data ?? 0;
+              return StreamBuilder(
+                stream: uid.isEmpty ? null : _userService.userStream(uid),
+                builder: (context, snapshot) {
+                  final profileImageUrl = snapshot.data?.profileImage;
+                  return AppBottomNavigation(
+                    currentIndex: _currentIndex,
+                    onTap: _onNavTap,
+                    profileImageUrl: profileImageUrl,
+                    unreadNotificationCount: unreadCount,
+                    unreadChatCount: chatUnread,
+                  );
+                },
               );
             },
           );

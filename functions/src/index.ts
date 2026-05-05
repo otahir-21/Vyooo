@@ -1,7 +1,8 @@
 import * as crypto from 'crypto';
 import * as admin from 'firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
-import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
 
@@ -144,12 +145,15 @@ export const generateAgoraTokenOnRequest = onDocumentCreated(
     const snap = event.data;
     if (!snap) return;
 
+    const requestId = event.params.requestId;
     const data = snap.data() as {
       userId?: unknown;
       channelName?: unknown;
       uid?: unknown;
       role?: unknown;
     };
+
+    logger.info(`[AgoraToken] received requestId=${requestId} userId=${data.userId} channelName=${data.channelName} uid=${data.uid} role=${data.role}`);
 
     // ── Validate ───────────────────────────────────────────────────────────────
     if (
@@ -159,11 +163,13 @@ export const generateAgoraTokenOnRequest = onDocumentCreated(
       typeof data.uid !== 'number' ||
       (data.role !== 'publisher' && data.role !== 'subscriber')
     ) {
+      logger.error(`[AgoraToken] invalid fields requestId=${requestId}`);
       await snap.ref.update({ status: 'error', error: 'Invalid request fields.' });
       return;
     }
 
     if (!APP_CERTIFICATE) {
+      logger.error(`[AgoraToken] missing APP_CERTIFICATE requestId=${requestId}`);
       await snap.ref.update({ status: 'error', error: 'AGORA_APP_CERTIFICATE not configured.' });
       return;
     }
@@ -177,6 +183,8 @@ export const generateAgoraTokenOnRequest = onDocumentCreated(
       const nowSeconds = Math.floor(Date.now() / 1000);
       const privilegeExpireTime = nowSeconds + TOKEN_TTL_SECONDS;
 
+      logger.info(`[AgoraToken] generating token requestId=${requestId} channel="${channelName}" uid=${uid} role=${data.role} expirySeconds=${TOKEN_TTL_SECONDS}`);
+
       const token = RtcTokenBuilder.buildTokenWithUid(
         APP_ID,
         APP_CERTIFICATE,
@@ -186,8 +194,10 @@ export const generateAgoraTokenOnRequest = onDocumentCreated(
         privilegeExpireTime,
       );
 
+      logger.info(`[AgoraToken] token generated requestId=${requestId} tokenLen=${token.length}`);
       await snap.ref.update({ status: 'done', token, expiresAt: privilegeExpireTime });
     } catch (e) {
+      logger.error(`[AgoraToken] generation failed requestId=${requestId} error=${String(e)}`);
       await snap.ref.update({ status: 'error', error: String(e) });
     }
   },
@@ -1190,5 +1200,775 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
       );
       throw e;
     }
+  },
+);
+
+// ── Chat: onChatCreate ────────────────────────────────────────────────────────
+export const onChatCreate = onDocumentCreated(
+  {
+    document: 'chats/{chatId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const db = admin.firestore();
+    const chatId = event.params.chatId;
+    const data = snap.data() as Record<string, unknown>;
+
+    const type = typeof data.type === 'string' ? data.type : '';
+    const participantIds = Array.isArray(data.participantIds)
+      ? data.participantIds.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : [];
+    const createdBy = typeof data.createdBy === 'string' ? data.createdBy : '';
+
+    if (!participantIds.includes(createdBy)) {
+      logger.error('onChatCreate: createdBy not in participantIds', { chatId, createdBy });
+      await snap.ref.update({ _invalid: true, _invalidReason: 'creator_not_participant' });
+      return;
+    }
+
+    const uniqueIds = [...new Set(participantIds)];
+
+    if (type === 'direct') {
+      if (uniqueIds.length !== 2) {
+        logger.error('onChatCreate: invalid direct chat', { chatId, type, participantIds });
+        await snap.ref.update({ _invalid: true, _invalidReason: 'bad_shape' });
+        return;
+      }
+
+      const [userASnap, userBSnap] = await Promise.all([
+        db.collection('users').doc(uniqueIds[0]).get(),
+        db.collection('users').doc(uniqueIds[1]).get(),
+      ]);
+
+      const userA = userASnap.data() as Record<string, unknown> | undefined;
+      const userB = userBSnap.data() as Record<string, unknown> | undefined;
+
+      const nameOf = (u: Record<string, unknown> | undefined): string => {
+        if (!u) return '';
+        const dn = typeof u.displayName === 'string' ? u.displayName.trim() : '';
+        if (dn) return dn;
+        return typeof u.username === 'string' ? u.username.trim() : '';
+      };
+      const avatarOf = (u: Record<string, unknown> | undefined): string => {
+        if (!u) return '';
+        return typeof u.profileImage === 'string' ? u.profileImage.trim() : '';
+      };
+
+      const baseSummary = {
+        type: 'direct',
+        participantIds: uniqueIds,
+        lastMessage: '',
+        lastMessageAt: null,
+        lastMessageSenderId: '',
+        unreadCount: 0,
+        muted: false,
+        pinned: false,
+        archived: false,
+        clearedAt: null,
+        requestStatus: 'none',
+      };
+
+      const batch = db.batch();
+
+      batch.set(
+        db.collection('users').doc(uniqueIds[0]).collection('chatSummaries').doc(chatId),
+        { ...baseSummary, chatId, title: nameOf(userB), avatarUrl: avatarOf(userB) },
+        { merge: true },
+      );
+
+      batch.set(
+        db.collection('users').doc(uniqueIds[1]).collection('chatSummaries').doc(chatId),
+        { ...baseSummary, chatId, title: nameOf(userA), avatarUrl: avatarOf(userA) },
+        { merge: true },
+      );
+
+      await batch.commit();
+      logger.info('onChatCreate: direct summaries created', { chatId });
+
+    } else if (type === 'group') {
+      if (uniqueIds.length < 3 || uniqueIds.length > 256) {
+        logger.error('onChatCreate: invalid group size', { chatId, size: uniqueIds.length });
+        await snap.ref.update({ _invalid: true, _invalidReason: 'bad_group_size' });
+        return;
+      }
+
+      const groupName = typeof data.groupName === 'string' ? data.groupName.trim() : 'Group';
+      const groupImageUrl = typeof data.groupImageUrl === 'string' ? data.groupImageUrl : '';
+
+      const baseSummary = {
+        type: 'group',
+        participantIds: uniqueIds,
+        lastMessage: '',
+        lastMessageAt: null,
+        lastMessageSenderId: '',
+        unreadCount: 0,
+        muted: false,
+        pinned: false,
+        archived: false,
+        clearedAt: null,
+        requestStatus: 'none',
+        title: groupName,
+        avatarUrl: groupImageUrl,
+      };
+
+      const batchSize = 500;
+      for (let i = 0; i < uniqueIds.length; i += batchSize) {
+        const chunk = uniqueIds.slice(i, i + batchSize);
+        const batch = db.batch();
+        for (const uid of chunk) {
+          batch.set(
+            db.collection('users').doc(uid).collection('chatSummaries').doc(chatId),
+            { ...baseSummary, chatId },
+            { merge: true },
+          );
+        }
+        await batch.commit();
+      }
+
+      logger.info('onChatCreate: group summaries created', { chatId, members: uniqueIds.length });
+
+    } else {
+      logger.error('onChatCreate: unknown chat type', { chatId, type });
+      await snap.ref.update({ _invalid: true, _invalidReason: 'unknown_type' });
+    }
+  },
+);
+
+// ── Chat: onChatMessageCreate ─────────────────────────────────────────────────
+export const onChatMessageCreate = onDocumentCreated(
+  {
+    document: 'chats/{chatId}/messages/{messageId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const db = admin.firestore();
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const msg = snap.data() as Record<string, unknown>;
+
+    const senderId = typeof msg.senderId === 'string' ? msg.senderId : '';
+    const msgType = typeof msg.type === 'string' ? msg.type : '';
+    const text = typeof msg.text === 'string' ? msg.text : '';
+    const trimmedText = text.trim();
+    const mediaUrl = typeof msg.mediaUrl === 'string' ? msg.mediaUrl : '';
+    const storagePath = typeof msg.storagePath === 'string' ? msg.storagePath : '';
+
+    const chatSnap = await db.collection('chats').doc(chatId).get();
+    if (!chatSnap.exists) {
+      logger.error('onChatMessageCreate: parent chat missing', { chatId, messageId });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'no_parent_chat' });
+      return;
+    }
+
+    const chatData = chatSnap.data() as Record<string, unknown>;
+    const chatType = typeof chatData.type === 'string' ? chatData.type : 'direct';
+    const participantIds = Array.isArray(chatData.participantIds)
+      ? chatData.participantIds.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : [];
+
+    if (!senderId || !participantIds.includes(senderId)) {
+      logger.error('onChatMessageCreate: invalid senderId', { chatId, messageId, senderId });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'invalid_sender' });
+      return;
+    }
+
+    const allowedTypes = ['text', 'image', 'video', 'call', 'audio', 'gif'];
+    if (!allowedTypes.includes(msgType)) {
+      logger.error('onChatMessageCreate: unsupported type', { chatId, messageId, msgType });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'unsupported_type' });
+      return;
+    }
+
+    if (msgType === 'text' && !trimmedText) {
+      logger.error('onChatMessageCreate: empty text', { chatId, messageId });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'empty_text' });
+      return;
+    }
+
+    if ((msgType === 'image' || msgType === 'video' || msgType === 'audio') && (!mediaUrl || !storagePath)) {
+      logger.error('onChatMessageCreate: missing media fields', { chatId, messageId, msgType });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'missing_media_fields' });
+      return;
+    }
+
+    const isViewOnce = msg.isViewOnce === true;
+
+    if (isViewOnce && msgType === 'text') {
+      logger.error('onChatMessageCreate: view-once text not allowed', { chatId, messageId });
+      await snap.ref.update({ _rejected: true, _rejectedReason: 'view_once_text_not_allowed' });
+      return;
+    }
+
+    if (isViewOnce) {
+      const expiresAt = msg.expiresAt;
+      if (!expiresAt) {
+        const createdAt = msg.createdAt as admin.firestore.Timestamp | undefined;
+        const baseMs = createdAt ? createdAt.toMillis() : Date.now();
+        const expiry = admin.firestore.Timestamp.fromMillis(baseMs + 14 * 24 * 60 * 60 * 1000);
+        await snap.ref.update({ expiresAt: expiry });
+      }
+    }
+
+    let preview: string;
+    if (isViewOnce) {
+      preview = msgType === 'video' ? '🔒 View-once video' : '🔒 View-once photo';
+    } else if (msgType === 'image') {
+      preview = '📷 Photo';
+    } else if (msgType === 'video') {
+      preview = '🎥 Video';
+    } else if (msgType === 'audio') {
+      preview = '🎤 Voice message';
+    } else {
+      preview = trimmedText.length <= 100 ? trimmedText : `${trimmedText.substring(0, 100)}…`;
+    }
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    const batchSize = 500;
+    for (let i = 0; i < participantIds.length; i += batchSize) {
+      const chunk = participantIds.slice(i, i + batchSize);
+      const batch = db.batch();
+
+      if (i === 0) {
+        batch.update(db.collection('chats').doc(chatId), {
+          lastMessage: preview,
+          lastMessageAt: now,
+          lastMessageSenderId: senderId,
+          lastMessageType: msgType,
+          updatedAt: now,
+        });
+      }
+
+      for (const uid of chunk) {
+        if (!uid) continue;
+        const isSender = uid === senderId;
+        const summaryRef = db.collection('users').doc(uid).collection('chatSummaries').doc(chatId);
+        batch.set(
+          summaryRef,
+          {
+            lastMessage: preview,
+            lastMessageAt: now,
+            lastMessageSenderId: senderId,
+            participantIds,
+            type: chatType,
+            ...(isSender ? { unreadCount: 0 } : { unreadCount: admin.firestore.FieldValue.increment(1) }),
+          },
+          { merge: true },
+        );
+      }
+
+      await batch.commit();
+    }
+
+    logger.info('onChatMessageCreate: metadata fanout done', { chatId, messageId });
+
+    if (msgType === 'call') return;
+
+    // ── FCM push notifications ────────────────────────────────────────────────
+    try {
+      const mutedBy = Array.isArray(chatData.mutedBy)
+        ? chatData.mutedBy.filter((v): v is string => typeof v === 'string')
+        : [];
+      const recipientIds = participantIds.filter(
+        (uid) => uid !== senderId && !mutedBy.includes(uid),
+      );
+      if (recipientIds.length === 0) {
+        logger.info('onChatMessageCreate: no push recipients', { chatId, messageId });
+      } else {
+        const tokenSnaps = await Promise.all(
+          recipientIds.map((uid) =>
+            db.collection('users').doc(uid).collection('push_tokens').get(),
+          ),
+        );
+        const tokens: string[] = [];
+        for (const snap of tokenSnaps) {
+          for (const doc of snap.docs) {
+            const t = doc.data()?.token;
+            if (typeof t === 'string' && t.length > 0) tokens.push(t);
+          }
+        }
+        if (tokens.length > 0) {
+          const senderMap = chatData.participantMap as Record<string, Record<string, unknown>> | undefined;
+          const senderInfo = senderMap?.[senderId];
+          const senderDisplayName =
+            (typeof senderInfo?.displayName === 'string' && senderInfo.displayName.trim())
+              ? senderInfo.displayName.trim()
+              : (typeof senderInfo?.username === 'string' && senderInfo.username.trim())
+                ? senderInfo.username.trim()
+                : 'Someone';
+          const groupName = typeof chatData.groupName === 'string' ? chatData.groupName.trim() : '';
+
+          let notifTitle: string;
+          if (chatType === 'group' && groupName) {
+            notifTitle = groupName;
+          } else {
+            notifTitle = senderDisplayName;
+          }
+
+          let notifBody: string;
+          if (msgType === 'image') {
+            notifBody = chatType === 'group' ? `${senderDisplayName}: Sent a photo` : 'Sent a photo';
+          } else if (msgType === 'video') {
+            notifBody = chatType === 'group' ? `${senderDisplayName}: Sent a video` : 'Sent a video';
+          } else if (msgType === 'audio') {
+            notifBody = chatType === 'group' ? `${senderDisplayName}: Sent a voice message` : 'Sent a voice message';
+          } else {
+            const bodyPreview = trimmedText.length <= 200 ? trimmedText : `${trimmedText.substring(0, 200)}…`;
+            notifBody = chatType === 'group' ? `${senderDisplayName}: ${bodyPreview}` : bodyPreview;
+          }
+
+          const FCM_BATCH = 500;
+          for (let t = 0; t < tokens.length; t += FCM_BATCH) {
+            const batch = tokens.slice(t, t + FCM_BATCH);
+            const response = await admin.messaging().sendEachForMulticast({
+              tokens: batch,
+              notification: { title: notifTitle, body: notifBody },
+              data: {
+                type: 'chat_message',
+                chatId,
+                senderId,
+                messageId,
+                chatType,
+              },
+              android: { priority: 'high' },
+              apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+            });
+            if (response.failureCount > 0) {
+              response.responses.forEach((r, idx) => {
+                if (!r.success) {
+                  logger.warn('onChatMessageCreate: FCM send failed', {
+                    token: batch[idx]?.substring(0, 10),
+                    error: r.error?.message,
+                  });
+                }
+              });
+            }
+          }
+          logger.info('onChatMessageCreate: push sent', { chatId, messageId, tokenCount: tokens.length });
+        }
+      }
+    } catch (pushErr) {
+      logger.error('onChatMessageCreate: push notification failed (non-fatal)', { chatId, messageId, error: String(pushErr) });
+    }
+  },
+);
+
+// ── Chat: onChatUpdate (sync group metadata to summaries) ─────────────────────
+export const onChatUpdate = onDocumentWritten(
+  {
+    document: 'chats/{chatId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const before = event.data?.before?.data() as Record<string, unknown> | undefined;
+    const after = event.data?.after?.data() as Record<string, unknown> | undefined;
+
+    if (!before || !after) return;
+
+    const chatId = event.params.chatId;
+    const chatType = typeof after.type === 'string' ? after.type : '';
+    if (chatType !== 'group') return;
+
+    const oldName = typeof before.groupName === 'string' ? before.groupName : '';
+    const newName = typeof after.groupName === 'string' ? after.groupName : '';
+    const oldImage = typeof before.groupImageUrl === 'string' ? before.groupImageUrl : '';
+    const newImage = typeof after.groupImageUrl === 'string' ? after.groupImageUrl : '';
+    const oldParticipants = Array.isArray(before.participantIds) ? before.participantIds : [];
+    const newParticipants = Array.isArray(after.participantIds)
+      ? after.participantIds.filter((v): v is string => typeof v === 'string')
+      : [];
+
+    if (oldName === newName && oldImage === newImage && JSON.stringify(oldParticipants) === JSON.stringify(newParticipants)) {
+      return;
+    }
+
+    const db = admin.firestore();
+    const updates: Record<string, unknown> = {};
+    if (oldName !== newName) updates.title = newName;
+    if (oldImage !== newImage) updates.avatarUrl = newImage;
+    if (JSON.stringify(oldParticipants) !== JSON.stringify(newParticipants)) {
+      updates.participantIds = newParticipants;
+    }
+
+    if (Object.keys(updates).length === 0) return;
+
+    const batchSize = 500;
+    for (let i = 0; i < newParticipants.length; i += batchSize) {
+      const chunk = newParticipants.slice(i, i + batchSize);
+      const batch = db.batch();
+      for (const uid of chunk) {
+        if (typeof uid !== 'string' || !uid) continue;
+        batch.set(
+          db.collection('users').doc(uid).collection('chatSummaries').doc(chatId),
+          updates,
+          { merge: true },
+        );
+      }
+      await batch.commit();
+    }
+
+    logger.info('onChatUpdate: synced group metadata', { chatId, fields: Object.keys(updates) });
+  },
+);
+
+// ── Chat: onViewOnceMessageUpdate ─────────────────────────────────────────────
+export const onViewOnceMessageUpdate = onDocumentUpdated(
+  {
+    document: 'chats/{chatId}/messages/{messageId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const before = event.data?.before?.data() as Record<string, unknown> | undefined;
+    const after = event.data?.after?.data() as Record<string, unknown> | undefined;
+    if (!before || !after) return;
+
+    if (after.isViewOnce !== true) return;
+
+    const beforeViewedBy = Array.isArray(before.viewedBy) ? before.viewedBy : [];
+    const afterViewedBy = Array.isArray(after.viewedBy) ? after.viewedBy : [];
+
+    if (afterViewedBy.length <= beforeViewedBy.length) return;
+
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const senderId = typeof after.senderId === 'string' ? after.senderId : '';
+    const storagePath = typeof after.storagePath === 'string' ? after.storagePath : '';
+
+    const db = admin.firestore();
+    const chatSnap = await db.collection('chats').doc(chatId).get();
+    if (!chatSnap.exists) return;
+
+    const chatData = chatSnap.data() as Record<string, unknown>;
+    const participantIds = Array.isArray(chatData.participantIds)
+      ? chatData.participantIds.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : [];
+
+    const eligibleRecipients = participantIds.filter((uid) => uid !== senderId);
+    const allViewed = eligibleRecipients.length > 0 &&
+      eligibleRecipients.every((uid) => afterViewedBy.includes(uid));
+
+    if (!allViewed) {
+      logger.info('onViewOnceMessageUpdate: not all recipients viewed yet', {
+        chatId, messageId, viewed: afterViewedBy.length, eligible: eligibleRecipients.length,
+      });
+      return;
+    }
+
+    logger.info('onViewOnceMessageUpdate: all recipients viewed, cleaning up', { chatId, messageId });
+
+    if (storagePath) {
+      try {
+        await admin.storage().bucket().file(storagePath).delete();
+        logger.info('onViewOnceMessageUpdate: deleted storage file', { storagePath });
+      } catch (err) {
+        logger.warn('onViewOnceMessageUpdate: storage delete failed (non-fatal)', { storagePath, error: String(err) });
+      }
+    }
+
+    try {
+      await event.data!.after.ref.update({
+        mediaUrl: '',
+        thumbnailUrl: '',
+        storagePath: '',
+        'metadata.cleanedUpAt': admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      logger.error('onViewOnceMessageUpdate: doc cleanup update failed', { chatId, messageId, error: String(err) });
+    }
+  },
+);
+
+// ── Chat: cleanupExpiredViewOnceMessages (scheduled) ──────────────────────────
+export const cleanupExpiredViewOnceMessages = onSchedule(
+  {
+    schedule: 'every 6 hours',
+    timeoutSeconds: 120,
+    memory: '256MiB',
+  },
+  async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const batchLimit = 200;
+
+    const expiredSnap = await db.collectionGroup('messages')
+      .where('isViewOnce', '==', true)
+      .where('expiresAt', '<=', now)
+      .where('storagePath', '!=', '')
+      .limit(batchLimit)
+      .get();
+
+    if (expiredSnap.empty) {
+      logger.info('cleanupExpiredViewOnceMessages: no expired view-once messages');
+      return;
+    }
+
+    logger.info('cleanupExpiredViewOnceMessages: found expired messages', { count: expiredSnap.size });
+
+    for (const doc of expiredSnap.docs) {
+      const data = doc.data();
+      const storagePath = typeof data.storagePath === 'string' ? data.storagePath : '';
+
+      if (storagePath) {
+        try {
+          await admin.storage().bucket().file(storagePath).delete();
+        } catch (err) {
+          logger.warn('cleanupExpiredViewOnceMessages: storage delete failed', { docPath: doc.ref.path, error: String(err) });
+        }
+      }
+
+      try {
+        await doc.ref.update({
+          mediaUrl: '',
+          thumbnailUrl: '',
+          storagePath: '',
+          'metadata.cleanedUpAt': admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        logger.error('cleanupExpiredViewOnceMessages: doc update failed', { docPath: doc.ref.path, error: String(err) });
+      }
+    }
+
+    logger.info('cleanupExpiredViewOnceMessages: cleanup done', { processed: expiredSnap.size });
+  },
+);
+
+// ── Calls: onCallSessionCreate ────────────────────────────────────────────────
+export const onCallSessionCreate = onDocumentCreated(
+  {
+    document: 'callSessions/{callId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const db = admin.firestore();
+    const callId = event.params.callId;
+    const data = snap.data() as Record<string, unknown>;
+
+    const callerId = typeof data.callerId === 'string' ? data.callerId : '';
+    const callType = typeof data.type === 'string' ? data.type : 'audio';
+    const chatId = typeof data.chatId === 'string' ? data.chatId : '';
+    const agoraChannelName = typeof data.agoraChannelName === 'string' ? data.agoraChannelName : '';
+    const calleeIds = Array.isArray(data.calleeIds)
+      ? data.calleeIds.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : [];
+
+    if (!callerId || calleeIds.length === 0 || !chatId) {
+      logger.error('onCallSessionCreate: invalid call data', { callId });
+      return;
+    }
+
+    let callerDisplayName = 'Someone';
+    try {
+      const chatSnap = await db.collection('chats').doc(chatId).get();
+      if (chatSnap.exists) {
+        const chatData = chatSnap.data() as Record<string, unknown>;
+        const pMap = chatData.participantMap as Record<string, Record<string, unknown>> | undefined;
+        const callerInfo = pMap?.[callerId];
+        if (callerInfo) {
+          const dn = typeof callerInfo.displayName === 'string' ? callerInfo.displayName.trim() : '';
+          const un = typeof callerInfo.username === 'string' ? callerInfo.username.trim() : '';
+          callerDisplayName = dn || un || callerDisplayName;
+        }
+      }
+    } catch (err) {
+      logger.warn('onCallSessionCreate: could not fetch caller name', { error: String(err) });
+    }
+
+    const tokenSnaps = await Promise.all(
+      calleeIds.map((uid) =>
+        db.collection('users').doc(uid).collection('push_tokens').get(),
+      ),
+    );
+    const tokens: string[] = [];
+    for (const tSnap of tokenSnaps) {
+      for (const doc of tSnap.docs) {
+        const t = doc.data()?.token;
+        if (typeof t === 'string' && t.length > 0) tokens.push(t);
+      }
+    }
+
+    if (tokens.length === 0) {
+      logger.info('onCallSessionCreate: no push tokens for callees', { callId });
+      return;
+    }
+
+    const notifTitle = callerDisplayName;
+    const notifBody = callType === 'video' ? 'Incoming video call' : 'Incoming audio call';
+
+    const FCM_BATCH = 500;
+    for (let t = 0; t < tokens.length; t += FCM_BATCH) {
+      const batch = tokens.slice(t, t + FCM_BATCH);
+      try {
+        const response = await admin.messaging().sendEachForMulticast({
+          tokens: batch,
+          notification: { title: notifTitle, body: notifBody },
+          data: {
+            type: 'incoming_call',
+            callId,
+            chatId,
+            callerId,
+            callType,
+            agoraChannelName,
+          },
+          android: { priority: 'high' },
+          apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } } },
+        });
+        if (response.failureCount > 0) {
+          logger.warn('onCallSessionCreate: FCM partial failure', {
+            callId,
+            failureCount: response.failureCount,
+          });
+        }
+      } catch (err) {
+        logger.error('onCallSessionCreate: FCM send error', { callId, error: String(err) });
+      }
+    }
+
+    logger.info('onCallSessionCreate: push sent', { callId, tokenCount: tokens.length });
+  },
+);
+
+// ── Calls: onCallSessionUpdate ────────────────────────────────────────────────
+export const onCallSessionUpdate = onDocumentUpdated(
+  {
+    document: 'callSessions/{callId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const beforeSnap = event.data?.before;
+    const afterSnap = event.data?.after;
+    if (!beforeSnap || !afterSnap) return;
+
+    const db = admin.firestore();
+    const callId = event.params.callId;
+    const before = beforeSnap.data() as Record<string, unknown>;
+    const after = afterSnap.data() as Record<string, unknown>;
+
+    const oldStatus = typeof before.status === 'string' ? before.status : '';
+    const newStatus = typeof after.status === 'string' ? after.status : '';
+
+    if (oldStatus === newStatus) return;
+
+    const terminalStatuses = ['ended', 'missed', 'declined', 'failed'];
+    if (!terminalStatuses.includes(newStatus)) return;
+
+    const chatId = typeof after.chatId === 'string' ? after.chatId : '';
+    const callerId = typeof after.callerId === 'string' ? after.callerId : '';
+    const callType = typeof after.type === 'string' ? after.type : 'audio';
+    const durationSeconds = typeof after.durationSeconds === 'number' ? after.durationSeconds : 0;
+    const participantIds = Array.isArray(after.participantIds)
+      ? after.participantIds.filter((v): v is string => typeof v === 'string')
+      : [];
+
+    if (!chatId || !callerId) {
+      logger.error('onCallSessionUpdate: missing chatId or callerId', { callId });
+      return;
+    }
+
+    const existingMsg = await db.collection('chats').doc(chatId).collection('messages')
+      .where('type', '==', 'call')
+      .where('metadata.callId', '==', callId)
+      .limit(1)
+      .get();
+
+    if (!existingMsg.empty) {
+      const msgDoc = existingMsg.docs[0];
+      await msgDoc.ref.update({
+        'metadata.callStatus': newStatus,
+        'metadata.durationSeconds': durationSeconds,
+        text: _callPreviewText(callType, newStatus, durationSeconds),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      logger.info('onCallSessionUpdate: updated existing call message', { callId, newStatus });
+      return;
+    }
+
+    let preview = _callPreviewText(callType, newStatus, durationSeconds);
+
+    const msgRef = db.collection('chats').doc(chatId).collection('messages').doc();
+    await msgRef.set({
+      senderId: callerId,
+      type: 'call',
+      text: preview,
+      metadata: {
+        callId,
+        callType,
+        callStatus: newStatus,
+        durationSeconds,
+      },
+      participantIds,
+      isViewOnce: false,
+      mediaUrl: '',
+      storagePath: '',
+      thumbnailUrl: '',
+      seenBy: [],
+      deletedForEveryone: false,
+      deletedFor: [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    logger.info('onCallSessionUpdate: call system message created', { callId, chatId, newStatus });
+  },
+);
+
+function _callPreviewText(callType: string, status: string, durationSeconds: number): string {
+  const typeLabel = callType === 'video' ? 'Video call' : 'Audio call';
+  if (status === 'ended' && durationSeconds > 0) {
+    const m = Math.floor(durationSeconds / 60).toString().padStart(2, '0');
+    const s = (durationSeconds % 60).toString().padStart(2, '0');
+    return `${typeLabel} (${m}:${s})`;
+  }
+  if (status === 'missed') return `Missed ${typeLabel.toLowerCase()}`;
+  if (status === 'declined') return `Declined ${typeLabel.toLowerCase()}`;
+  if (status === 'failed') return 'Call failed';
+  return typeLabel;
+}
+
+// ── Calls: cleanupStaleRingingCalls (scheduled) ───────────────────────────────
+export const cleanupStaleRingingCalls = onSchedule(
+  {
+    schedule: 'every 1 minutes',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async () => {
+    const db = admin.firestore();
+    const cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 45 * 1000);
+    const staleSnap = await db.collection('callSessions')
+      .where('status', '==', 'ringing')
+      .where('createdAt', '<=', cutoff)
+      .limit(50)
+      .get();
+
+    if (staleSnap.empty) return;
+
+    logger.info('cleanupStaleRingingCalls: found stale calls', { count: staleSnap.size });
+
+    for (const doc of staleSnap.docs) {
+      try {
+        await doc.ref.update({
+          status: 'missed',
+          endedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        logger.error('cleanupStaleRingingCalls: update failed', { callId: doc.id, error: String(err) });
+      }
+    }
+
+    logger.info('cleanupStaleRingingCalls: done', { processed: staleSnap.size });
   },
 );

@@ -22,12 +22,14 @@ class AppBottomNavigation extends StatelessWidget {
     required this.onTap,
     this.profileImageUrl,
     this.unreadNotificationCount = 0,
+    this.unreadChatCount = 0,
   });
 
   final int currentIndex;
   final void Function(int) onTap;
   final String? profileImageUrl;
   final int unreadNotificationCount;
+  final int unreadChatCount;
 
   static const double _iconSize = 25;
   static const Color _activeIconColor = Colors.white;
@@ -154,10 +156,41 @@ class AppBottomNavigation extends StatelessWidget {
   }
 
   Widget _buildChatIcon(bool isSelected) {
-    return Icon(
-      isSelected ? Icons.chat_bubble : Icons.chat_bubble_outline,
-      size: 25,
-      color: isSelected ? _activeIconColor : _inactiveIconColor,
+    final count = unreadChatCount < 0 ? 0 : unreadChatCount;
+    final showBadge = count > 0;
+    final label = count > 99 ? '99+' : '$count';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(
+          isSelected ? Icons.chat_bubble : Icons.chat_bubble_outline,
+          size: 25,
+          color: isSelected ? _activeIconColor : _inactiveIconColor,
+        ),
+        if (showBadge)
+          Positioned(
+            right: -10,
+            top: -6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF2D55),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF14001F), width: 1),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

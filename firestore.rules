@@ -106,6 +106,26 @@ service cloud.firestore {
       allow read, write, delete: if isOwner(userId);
     }
 
+    // Per-user chat summaries (Cloud Functions manage most writes).
+    match /users/{userId}/chatSummaries/{chatId} {
+      allow read: if isOwner(userId);
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['unreadCount', 'muted', 'archived', 'pinned', 'clearedAt', 'requestStatus']);
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    // Per-user presence (safe subcollection).
+    match /users/{userId}/presence/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId)
+                   && request.resource.data.keys().hasOnly(['isOnline', 'lastActiveAt'])
+                   && request.resource.data.isOnline is bool
+                   && request.resource.data.lastActiveAt is timestamp;
+      allow delete: if isOwner(userId);
+    }
+
     // ── App collections (explicit so list/get never rely on a fragile catch‑all) ──
     match /stories/{storyId} {
       allow read, write: if isSignedIn();
@@ -205,6 +225,247 @@ service cloud.firestore {
       allow read, delete: if isSignedIn()
                           && resource.data.userId == request.auth.uid;
       allow update: if false;
+    }
+
+    // ── Chat documents ────────────────────────────────────────────────────────
+    function isChatParticipant(chatId) {
+      return isSignedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+    }
+
+    match /chats/{chatId} {
+      allow read: if isSignedIn()
+                  && request.auth.uid in resource.data.participantIds;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.participantIds is list
+                    && request.auth.uid in request.resource.data.participantIds
+                    && request.resource.data.createdBy == request.auth.uid
+                    && (
+                      (
+                        request.resource.data.type == 'direct'
+                        && request.resource.data.participantIds.size() == 2
+                      )
+                      ||
+                      (
+                        request.resource.data.type == 'group'
+                        && request.resource.data.participantIds.size() >= 3
+                        && request.resource.data.participantIds.size() <= 256
+                        && request.resource.data.admins is list
+                        && request.auth.uid in request.resource.data.admins
+                        && request.resource.data.groupName is string
+                        && request.resource.data.groupName.size() > 0
+                      )
+                    );
+
+      allow update: if isSignedIn()
+                    && request.auth.uid in resource.data.participantIds
+                    && (
+                      // Any participant can update their own muted/cleared/deleted fields
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['mutedBy', 'clearedAtBy', 'deletedFor', 'updatedAt'])
+                      )
+                      ||
+                      // Self-leave: any participant can remove themselves
+                      (
+                        resource.data.type == 'group'
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['participantIds', 'participantMap', 'admins', 'updatedAt'])
+                        && !(request.auth.uid in request.resource.data.participantIds)
+                        && request.resource.data.participantIds.size() == resource.data.participantIds.size() - 1
+                        && request.resource.data.participantIds.hasAll(
+                             resource.data.participantIds.removeAll([request.auth.uid])
+                           )
+                        // Block if this would leave zero admins with remaining participants
+                        && (
+                          request.resource.data.admins.size() > 0
+                          || request.resource.data.participantIds.size() == 0
+                        )
+                      )
+                      ||
+                      // Admins can update group metadata
+                      (
+                        resource.data.type == 'group'
+                        && request.auth.uid in resource.data.admins
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['groupName', 'groupImageUrl', 'participantIds', 'participantMap', 'admins', 'updatedAt'])
+                        // Admins cannot empty the admins list while participants remain
+                        && (
+                          request.resource.data.admins.size() > 0
+                          || request.resource.data.participantIds.size() <= 1
+                        )
+                      )
+                    );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isChatParticipant(chatId);
+
+        allow create: if isChatParticipant(chatId)
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.resource.data.deletedForEveryone == false
+                      && (
+                        // Normal (non-view-once) messages
+                        (
+                          request.resource.data.isViewOnce == false
+                          && (
+                            (
+                              request.resource.data.type == 'text'
+                              && request.resource.data.text is string
+                              && request.resource.data.text.size() > 0
+                              && request.resource.data.text.size() <= 5000
+                            )
+                            ||
+                            (
+                              request.resource.data.type in ['image', 'video']
+                              && request.resource.data.mediaUrl is string
+                              && request.resource.data.mediaUrl.size() > 0
+                              && request.resource.data.storagePath is string
+                              && request.resource.data.storagePath.size() > 0
+                            )
+                            ||
+                            (
+                              request.resource.data.type == 'audio'
+                              && request.resource.data.mediaUrl is string
+                              && request.resource.data.mediaUrl.size() > 0
+                              && request.resource.data.storagePath is string
+                              && request.resource.data.storagePath.size() > 0
+                            )
+                            ||
+                            (
+                              request.resource.data.type == 'gif'
+                              && request.resource.data.mediaUrl is string
+                              && request.resource.data.mediaUrl.size() > 0
+                            )
+                          )
+                        )
+                        ||
+                        // View-once media messages
+                        (
+                          request.resource.data.isViewOnce == true
+                          && request.resource.data.type in ['image', 'video']
+                          && request.resource.data.mediaUrl is string
+                          && request.resource.data.mediaUrl.size() > 0
+                          && request.resource.data.storagePath is string
+                          && request.resource.data.storagePath.size() > 0
+                          && request.resource.data.viewedBy is list
+                          && request.resource.data.viewedBy.size() == 0
+                          && request.resource.data.deletedFor is list
+                          && request.resource.data.deletedFor.size() == 0
+                        )
+                        ||
+                        // Call system messages
+                        (
+                          request.resource.data.isViewOnce == false
+                          && request.resource.data.type == 'call'
+                          && request.resource.data.text is string
+                          && request.resource.data.text.size() > 0
+                          && request.resource.data.metadata is map
+                        )
+                      );
+
+        allow update: if isChatParticipant(chatId)
+                      && (
+                        // Delete for self: add own uid to deletedFor
+                        (
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedFor'])
+                          && request.resource.data.deletedFor.hasAll(resource.data.deletedFor)
+                          && request.resource.data.deletedFor.size() == resource.data.deletedFor.size() + 1
+                          && request.auth.uid in request.resource.data.deletedFor
+                          && !(request.auth.uid in resource.data.deletedFor)
+                        )
+                        ||
+                        // Delete for everyone: sender only, within 15 min
+                        (
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedForEveryone'])
+                          && resource.data.senderId == request.auth.uid
+                          && request.resource.data.deletedForEveryone == true
+                          && resource.data.deletedForEveryone == false
+                          && resource.data.createdAt is timestamp
+                          && request.time - resource.data.createdAt < duration.value(15, 'm')
+                        )
+                        ||
+                        // Mark seen: participant can only add their own uid to seenBy
+                        (
+                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenBy'])
+                          && request.resource.data.seenBy.hasAll(resource.data.seenBy)
+                          && request.resource.data.seenBy.size() == resource.data.seenBy.size() + 1
+                          && request.auth.uid in request.resource.data.seenBy
+                          && !(request.auth.uid in resource.data.seenBy)
+                        )
+                        ||
+                        // Mark view-once viewed: non-sender participant adds only their own uid to viewedBy
+                        (
+                          resource.data.isViewOnce == true
+                          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedBy'])
+                          && request.auth.uid != resource.data.senderId
+                          && request.resource.data.viewedBy.hasAll(resource.data.viewedBy)
+                          && request.resource.data.viewedBy.size() == resource.data.viewedBy.size() + 1
+                          && request.auth.uid in request.resource.data.viewedBy
+                          && !(request.auth.uid in resource.data.viewedBy)
+                        )
+                      );
+
+        allow delete: if false;
+      }
+
+      // ── Typing indicators ──────────────────────────────────────────────────
+      match /typing/{uid} {
+        allow read: if isChatParticipant(chatId);
+        allow create, update: if isSignedIn()
+                              && request.auth.uid == uid
+                              && isChatParticipant(chatId)
+                              && request.resource.data.keys().hasOnly(['uid', 'displayName', 'updatedAt'])
+                              && request.resource.data.uid == uid
+                              && request.resource.data.displayName is string
+                              && request.resource.data.updatedAt is timestamp;
+        allow delete: if isSignedIn()
+                      && request.auth.uid == uid
+                      && isChatParticipant(chatId);
+      }
+    }
+
+    // ── Call Sessions ───────────────────────────────────────────────────────────
+    match /callSessions/{callId} {
+      function isCallParticipant() {
+        return isSignedIn()
+               && request.auth.uid in resource.data.participantIds;
+      }
+
+      allow read: if isSignedIn()
+                  && request.auth.uid in resource.data.participantIds;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.callerId == request.auth.uid
+                    && request.resource.data.participantIds is list
+                    && request.auth.uid in request.resource.data.participantIds
+                    && request.resource.data.calleeIds is list
+                    && !(request.auth.uid in request.resource.data.calleeIds)
+                    && request.resource.data.type in ['audio', 'video']
+                    && request.resource.data.status == 'ringing'
+                    && request.resource.data.chatId is string
+                    && request.resource.data.agoraChannelName is string;
+
+      allow update: if isCallParticipant()
+                    && request.resource.data.callerId == resource.data.callerId
+                    && request.resource.data.chatId == resource.data.chatId
+                    && request.resource.data.participantIds == resource.data.participantIds
+                    && request.resource.data.calleeIds == resource.data.calleeIds
+                    && request.resource.data.type == resource.data.type
+                    && request.resource.data.agoraChannelName == resource.data.agoraChannelName
+                    && (
+                      (resource.data.status == 'ringing' && request.resource.data.status in ['active', 'declined', 'missed'])
+                      || (resource.data.status == 'active' && request.resource.data.status == 'ended')
+                      || (
+                        request.resource.data.status == resource.data.status
+                        && request.resource.data.diff(resource.data).affectedKeys()
+                          .hasOnly(['agoraUidMap', 'updatedAt'])
+                      )
+                    );
+
+      allow delete: if false;
     }
 
     // Deny everything not explicitly allowed above.

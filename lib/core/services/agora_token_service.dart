@@ -33,52 +33,60 @@ class AgoraTokenService {
     final firestore = FirebaseFirestore.instance;
     final requestRef = firestore.collection('token_requests').doc();
 
-    // Write the request — Firestore rules enforce userId == auth.uid
-    await requestRef.set({
+    final payload = {
       'userId': user.uid,
       'channelName': channelName,
       'uid': uid,
       'role': isHost ? 'publisher' : 'subscriber',
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
 
-    debugPrint('🎫 Token request created: ${requestRef.id}');
+    debugPrint('[AgoraToken] requestId=${requestRef.id}');
+    debugPrint(
+      '[AgoraToken] channelName="$channelName" uid=$uid role=${isHost ? "publisher" : "subscriber"}',
+    );
+
+    await requestRef.set(payload);
+    debugPrint('[AgoraToken] token request doc created');
 
     // Listen for the function to write back the token
     final completer = Completer<String>();
     StreamSubscription<DocumentSnapshot>? sub;
 
-    sub = requestRef.snapshots().listen((snap) {
-      if (!snap.exists) return;
-      final data = snap.data();
-      if (data == null) return;
+    sub = requestRef.snapshots().listen(
+      (snap) {
+        if (!snap.exists) return;
+        final data = snap.data();
+        if (data == null) return;
 
-      final status = data['status'] as String?;
+        final status = data['status'] as String?;
 
-      if (status == 'done') {
-        final token = data['token'] as String?;
-        sub?.cancel();
-        requestRef.delete().ignore();
-        if (token == null || token.isEmpty) {
-          completer.completeError(
-            Exception('Token generation failed: empty token returned.'),
-          );
-        } else {
-          debugPrint('✅ Token received');
-          completer.complete(token);
+        if (status == 'done') {
+          final token = data['token'] as String?;
+          sub?.cancel();
+          requestRef.delete().ignore();
+          if (token == null || token.isEmpty) {
+            completer.completeError(
+              Exception('Token generation failed: empty token returned.'),
+            );
+          } else {
+            debugPrint('[AgoraToken] token received length=${token.length}');
+            completer.complete(token);
+          }
+        } else if (status == 'error') {
+          final error = data['error'] as String? ?? 'Unknown error';
+          sub?.cancel();
+          requestRef.delete().ignore();
+          completer.completeError(Exception('Token generation failed: $error'));
         }
-      } else if (status == 'error') {
-        final error = data['error'] as String? ?? 'Unknown error';
+      },
+      onError: (e) {
         sub?.cancel();
         requestRef.delete().ignore();
-        completer.completeError(Exception('Token generation failed: $error'));
-      }
-    }, onError: (e) {
-      sub?.cancel();
-      requestRef.delete().ignore();
-      completer.completeError(e);
-    });
+        completer.completeError(e);
+      },
+    );
 
     // 20-second timeout — Cloud Function should respond in <2 s normally
     return completer.future.timeout(
@@ -96,6 +104,5 @@ class AgoraTokenService {
     required String channelName,
     required int uid,
     required bool isHost,
-  }) =>
-      getToken(channelName: channelName, uid: uid, isHost: isHost);
+  }) => getToken(channelName: channelName, uid: uid, isHost: isHost);
 }

@@ -1,11 +1,12 @@
 "use strict";
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendPushOnNotificationCreate = exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
+exports.cleanupExpiredViewOnceMessages = exports.onViewOnceMessageUpdate = exports.onChatUpdate = exports.onChatMessageCreate = exports.onChatCreate = exports.sendPushOnNotificationCreate = exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-functions/v2/firestore");
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const firebase_functions_1 = require("firebase-functions");
 const agora_access_token_1 = require("agora-access-token");
 admin.initializeApp();
@@ -999,5 +1000,452 @@ exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)({
         }, { merge: true });
         throw e;
     }
+});
+// ── Chat: onChatCreate ────────────────────────────────────────────────────────
+exports.onChatCreate = (0, firestore_1.onDocumentCreated)({
+    document: 'chats/{chatId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (event) => {
+    const snap = event.data;
+    if (!snap)
+        return;
+    const db = admin.firestore();
+    const chatId = event.params.chatId;
+    const data = snap.data();
+    const type = typeof data.type === 'string' ? data.type : '';
+    const participantIds = Array.isArray(data.participantIds)
+        ? data.participantIds.filter((v) => typeof v === 'string' && v.length > 0)
+        : [];
+    const createdBy = typeof data.createdBy === 'string' ? data.createdBy : '';
+    if (!participantIds.includes(createdBy)) {
+        firebase_functions_1.logger.error('onChatCreate: createdBy not in participantIds', { chatId, createdBy });
+        await snap.ref.update({ _invalid: true, _invalidReason: 'creator_not_participant' });
+        return;
+    }
+    const uniqueIds = [...new Set(participantIds)];
+    if (type === 'direct') {
+        if (uniqueIds.length !== 2) {
+            firebase_functions_1.logger.error('onChatCreate: invalid direct chat', { chatId, type, participantIds });
+            await snap.ref.update({ _invalid: true, _invalidReason: 'bad_shape' });
+            return;
+        }
+        const [userASnap, userBSnap] = await Promise.all([
+            db.collection('users').doc(uniqueIds[0]).get(),
+            db.collection('users').doc(uniqueIds[1]).get(),
+        ]);
+        const userA = userASnap.data();
+        const userB = userBSnap.data();
+        const nameOf = (u) => {
+            if (!u)
+                return '';
+            const dn = typeof u.displayName === 'string' ? u.displayName.trim() : '';
+            if (dn)
+                return dn;
+            return typeof u.username === 'string' ? u.username.trim() : '';
+        };
+        const avatarOf = (u) => {
+            if (!u)
+                return '';
+            return typeof u.profileImage === 'string' ? u.profileImage.trim() : '';
+        };
+        const baseSummary = {
+            type: 'direct',
+            participantIds: uniqueIds,
+            lastMessage: '',
+            lastMessageAt: null,
+            lastMessageSenderId: '',
+            unreadCount: 0,
+            muted: false,
+            pinned: false,
+            archived: false,
+            clearedAt: null,
+            requestStatus: 'none',
+        };
+        const batch = db.batch();
+        batch.set(db.collection('users').doc(uniqueIds[0]).collection('chatSummaries').doc(chatId), Object.assign(Object.assign({}, baseSummary), { chatId, title: nameOf(userB), avatarUrl: avatarOf(userB) }), { merge: true });
+        batch.set(db.collection('users').doc(uniqueIds[1]).collection('chatSummaries').doc(chatId), Object.assign(Object.assign({}, baseSummary), { chatId, title: nameOf(userA), avatarUrl: avatarOf(userA) }), { merge: true });
+        await batch.commit();
+        firebase_functions_1.logger.info('onChatCreate: direct summaries created', { chatId });
+    }
+    else if (type === 'group') {
+        if (uniqueIds.length < 3 || uniqueIds.length > 256) {
+            firebase_functions_1.logger.error('onChatCreate: invalid group size', { chatId, size: uniqueIds.length });
+            await snap.ref.update({ _invalid: true, _invalidReason: 'bad_group_size' });
+            return;
+        }
+        const groupName = typeof data.groupName === 'string' ? data.groupName.trim() : 'Group';
+        const groupImageUrl = typeof data.groupImageUrl === 'string' ? data.groupImageUrl : '';
+        const baseSummary = {
+            type: 'group',
+            participantIds: uniqueIds,
+            lastMessage: '',
+            lastMessageAt: null,
+            lastMessageSenderId: '',
+            unreadCount: 0,
+            muted: false,
+            pinned: false,
+            archived: false,
+            clearedAt: null,
+            requestStatus: 'none',
+            title: groupName,
+            avatarUrl: groupImageUrl,
+        };
+        const batchSize = 500;
+        for (let i = 0; i < uniqueIds.length; i += batchSize) {
+            const chunk = uniqueIds.slice(i, i + batchSize);
+            const batch = db.batch();
+            for (const uid of chunk) {
+                batch.set(db.collection('users').doc(uid).collection('chatSummaries').doc(chatId), Object.assign(Object.assign({}, baseSummary), { chatId }), { merge: true });
+            }
+            await batch.commit();
+        }
+        firebase_functions_1.logger.info('onChatCreate: group summaries created', { chatId, members: uniqueIds.length });
+    }
+    else {
+        firebase_functions_1.logger.error('onChatCreate: unknown chat type', { chatId, type });
+        await snap.ref.update({ _invalid: true, _invalidReason: 'unknown_type' });
+    }
+});
+// ── Chat: onChatMessageCreate ─────────────────────────────────────────────────
+exports.onChatMessageCreate = (0, firestore_1.onDocumentCreated)({
+    document: 'chats/{chatId}/messages/{messageId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (event) => {
+    var _a;
+    const snap = event.data;
+    if (!snap)
+        return;
+    const db = admin.firestore();
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const msg = snap.data();
+    const senderId = typeof msg.senderId === 'string' ? msg.senderId : '';
+    const msgType = typeof msg.type === 'string' ? msg.type : '';
+    const text = typeof msg.text === 'string' ? msg.text : '';
+    const trimmedText = text.trim();
+    const mediaUrl = typeof msg.mediaUrl === 'string' ? msg.mediaUrl : '';
+    const storagePath = typeof msg.storagePath === 'string' ? msg.storagePath : '';
+    const chatSnap = await db.collection('chats').doc(chatId).get();
+    if (!chatSnap.exists) {
+        firebase_functions_1.logger.error('onChatMessageCreate: parent chat missing', { chatId, messageId });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'no_parent_chat' });
+        return;
+    }
+    const chatData = chatSnap.data();
+    const chatType = typeof chatData.type === 'string' ? chatData.type : 'direct';
+    const participantIds = Array.isArray(chatData.participantIds)
+        ? chatData.participantIds.filter((v) => typeof v === 'string' && v.length > 0)
+        : [];
+    if (!senderId || !participantIds.includes(senderId)) {
+        firebase_functions_1.logger.error('onChatMessageCreate: invalid senderId', { chatId, messageId, senderId });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'invalid_sender' });
+        return;
+    }
+    const allowedTypes = ['text', 'image', 'video'];
+    if (!allowedTypes.includes(msgType)) {
+        firebase_functions_1.logger.error('onChatMessageCreate: unsupported type', { chatId, messageId, msgType });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'unsupported_type' });
+        return;
+    }
+    if (msgType === 'text' && !trimmedText) {
+        firebase_functions_1.logger.error('onChatMessageCreate: empty text', { chatId, messageId });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'empty_text' });
+        return;
+    }
+    if ((msgType === 'image' || msgType === 'video') && (!mediaUrl || !storagePath)) {
+        firebase_functions_1.logger.error('onChatMessageCreate: missing media fields', { chatId, messageId, msgType });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'missing_media_fields' });
+        return;
+    }
+    const isViewOnce = msg.isViewOnce === true;
+    if (isViewOnce && msgType === 'text') {
+        firebase_functions_1.logger.error('onChatMessageCreate: view-once text not allowed', { chatId, messageId });
+        await snap.ref.update({ _rejected: true, _rejectedReason: 'view_once_text_not_allowed' });
+        return;
+    }
+    if (isViewOnce) {
+        const expiresAt = msg.expiresAt;
+        if (!expiresAt) {
+            const createdAt = msg.createdAt;
+            const baseMs = createdAt ? createdAt.toMillis() : Date.now();
+            const expiry = admin.firestore.Timestamp.fromMillis(baseMs + 14 * 24 * 60 * 60 * 1000);
+            await snap.ref.update({ expiresAt: expiry });
+        }
+    }
+    let preview;
+    if (isViewOnce) {
+        preview = msgType === 'video' ? '🔒 View-once video' : '🔒 View-once photo';
+    }
+    else if (msgType === 'image') {
+        preview = '📷 Photo';
+    }
+    else if (msgType === 'video') {
+        preview = '🎥 Video';
+    }
+    else {
+        preview = trimmedText.length <= 100 ? trimmedText : `${trimmedText.substring(0, 100)}…`;
+    }
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const batchSize = 500;
+    for (let i = 0; i < participantIds.length; i += batchSize) {
+        const chunk = participantIds.slice(i, i + batchSize);
+        const batch = db.batch();
+        if (i === 0) {
+            batch.update(db.collection('chats').doc(chatId), {
+                lastMessage: preview,
+                lastMessageAt: now,
+                lastMessageSenderId: senderId,
+                lastMessageType: msgType,
+                updatedAt: now,
+            });
+        }
+        for (const uid of chunk) {
+            if (!uid)
+                continue;
+            const isSender = uid === senderId;
+            const summaryRef = db.collection('users').doc(uid).collection('chatSummaries').doc(chatId);
+            batch.set(summaryRef, Object.assign({ lastMessage: preview, lastMessageAt: now, lastMessageSenderId: senderId, participantIds, type: chatType }, (isSender ? { unreadCount: 0 } : { unreadCount: admin.firestore.FieldValue.increment(1) })), { merge: true });
+        }
+        await batch.commit();
+    }
+    firebase_functions_1.logger.info('onChatMessageCreate: metadata fanout done', { chatId, messageId });
+    // ── FCM push notifications ────────────────────────────────────────────────
+    try {
+        const mutedBy = Array.isArray(chatData.mutedBy)
+            ? chatData.mutedBy.filter((v) => typeof v === 'string')
+            : [];
+        const recipientIds = participantIds.filter((uid) => uid !== senderId && !mutedBy.includes(uid));
+        if (recipientIds.length === 0) {
+            firebase_functions_1.logger.info('onChatMessageCreate: no push recipients', { chatId, messageId });
+        }
+        else {
+            const tokenSnaps = await Promise.all(recipientIds.map((uid) => db.collection('users').doc(uid).collection('push_tokens').get()));
+            const tokens = [];
+            for (const snap of tokenSnaps) {
+                for (const doc of snap.docs) {
+                    const t = (_a = doc.data()) === null || _a === void 0 ? void 0 : _a.token;
+                    if (typeof t === 'string' && t.length > 0)
+                        tokens.push(t);
+                }
+            }
+            if (tokens.length > 0) {
+                const senderMap = chatData.participantMap;
+                const senderInfo = senderMap === null || senderMap === void 0 ? void 0 : senderMap[senderId];
+                const senderDisplayName = (typeof (senderInfo === null || senderInfo === void 0 ? void 0 : senderInfo.displayName) === 'string' && senderInfo.displayName.trim())
+                    ? senderInfo.displayName.trim()
+                    : (typeof (senderInfo === null || senderInfo === void 0 ? void 0 : senderInfo.username) === 'string' && senderInfo.username.trim())
+                        ? senderInfo.username.trim()
+                        : 'Someone';
+                const groupName = typeof chatData.groupName === 'string' ? chatData.groupName.trim() : '';
+                let notifTitle;
+                if (chatType === 'group' && groupName) {
+                    notifTitle = groupName;
+                }
+                else {
+                    notifTitle = senderDisplayName;
+                }
+                let notifBody;
+                if (msgType === 'image') {
+                    notifBody = chatType === 'group' ? `${senderDisplayName}: Sent a photo` : 'Sent a photo';
+                }
+                else if (msgType === 'video') {
+                    notifBody = chatType === 'group' ? `${senderDisplayName}: Sent a video` : 'Sent a video';
+                }
+                else {
+                    const bodyPreview = trimmedText.length <= 200 ? trimmedText : `${trimmedText.substring(0, 200)}…`;
+                    notifBody = chatType === 'group' ? `${senderDisplayName}: ${bodyPreview}` : bodyPreview;
+                }
+                const FCM_BATCH = 500;
+                for (let t = 0; t < tokens.length; t += FCM_BATCH) {
+                    const batch = tokens.slice(t, t + FCM_BATCH);
+                    const response = await admin.messaging().sendEachForMulticast({
+                        tokens: batch,
+                        notification: { title: notifTitle, body: notifBody },
+                        data: {
+                            type: 'chat_message',
+                            chatId,
+                            senderId,
+                            messageId,
+                            chatType,
+                        },
+                        android: { priority: 'high' },
+                        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+                    });
+                    if (response.failureCount > 0) {
+                        response.responses.forEach((r, idx) => {
+                            var _a, _b;
+                            if (!r.success) {
+                                firebase_functions_1.logger.warn('onChatMessageCreate: FCM send failed', {
+                                    token: (_a = batch[idx]) === null || _a === void 0 ? void 0 : _a.substring(0, 10),
+                                    error: (_b = r.error) === null || _b === void 0 ? void 0 : _b.message,
+                                });
+                            }
+                        });
+                    }
+                }
+                firebase_functions_1.logger.info('onChatMessageCreate: push sent', { chatId, messageId, tokenCount: tokens.length });
+            }
+        }
+    }
+    catch (pushErr) {
+        firebase_functions_1.logger.error('onChatMessageCreate: push notification failed (non-fatal)', { chatId, messageId, error: String(pushErr) });
+    }
+});
+// ── Chat: onChatUpdate (sync group metadata to summaries) ─────────────────────
+exports.onChatUpdate = (0, firestore_1.onDocumentWritten)({
+    document: 'chats/{chatId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (event) => {
+    var _a, _b, _c, _d;
+    const before = (_b = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before) === null || _b === void 0 ? void 0 : _b.data();
+    const after = (_d = (_c = event.data) === null || _c === void 0 ? void 0 : _c.after) === null || _d === void 0 ? void 0 : _d.data();
+    if (!before || !after)
+        return;
+    const chatId = event.params.chatId;
+    const chatType = typeof after.type === 'string' ? after.type : '';
+    if (chatType !== 'group')
+        return;
+    const oldName = typeof before.groupName === 'string' ? before.groupName : '';
+    const newName = typeof after.groupName === 'string' ? after.groupName : '';
+    const oldImage = typeof before.groupImageUrl === 'string' ? before.groupImageUrl : '';
+    const newImage = typeof after.groupImageUrl === 'string' ? after.groupImageUrl : '';
+    const oldParticipants = Array.isArray(before.participantIds) ? before.participantIds : [];
+    const newParticipants = Array.isArray(after.participantIds)
+        ? after.participantIds.filter((v) => typeof v === 'string')
+        : [];
+    if (oldName === newName && oldImage === newImage && JSON.stringify(oldParticipants) === JSON.stringify(newParticipants)) {
+        return;
+    }
+    const db = admin.firestore();
+    const updates = {};
+    if (oldName !== newName)
+        updates.title = newName;
+    if (oldImage !== newImage)
+        updates.avatarUrl = newImage;
+    if (JSON.stringify(oldParticipants) !== JSON.stringify(newParticipants)) {
+        updates.participantIds = newParticipants;
+    }
+    if (Object.keys(updates).length === 0)
+        return;
+    const batchSize = 500;
+    for (let i = 0; i < newParticipants.length; i += batchSize) {
+        const chunk = newParticipants.slice(i, i + batchSize);
+        const batch = db.batch();
+        for (const uid of chunk) {
+            if (typeof uid !== 'string' || !uid)
+                continue;
+            batch.set(db.collection('users').doc(uid).collection('chatSummaries').doc(chatId), updates, { merge: true });
+        }
+        await batch.commit();
+    }
+    firebase_functions_1.logger.info('onChatUpdate: synced group metadata', { chatId, fields: Object.keys(updates) });
+});
+// ── Chat: onViewOnceMessageUpdate ─────────────────────────────────────────────
+exports.onViewOnceMessageUpdate = (0, firestore_1.onDocumentUpdated)({
+    document: 'chats/{chatId}/messages/{messageId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (event) => {
+    var _a, _b, _c, _d;
+    const before = (_b = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before) === null || _b === void 0 ? void 0 : _b.data();
+    const after = (_d = (_c = event.data) === null || _c === void 0 ? void 0 : _c.after) === null || _d === void 0 ? void 0 : _d.data();
+    if (!before || !after)
+        return;
+    if (after.isViewOnce !== true)
+        return;
+    const beforeViewedBy = Array.isArray(before.viewedBy) ? before.viewedBy : [];
+    const afterViewedBy = Array.isArray(after.viewedBy) ? after.viewedBy : [];
+    if (afterViewedBy.length <= beforeViewedBy.length)
+        return;
+    const chatId = event.params.chatId;
+    const messageId = event.params.messageId;
+    const senderId = typeof after.senderId === 'string' ? after.senderId : '';
+    const storagePath = typeof after.storagePath === 'string' ? after.storagePath : '';
+    const db = admin.firestore();
+    const chatSnap = await db.collection('chats').doc(chatId).get();
+    if (!chatSnap.exists)
+        return;
+    const chatData = chatSnap.data();
+    const participantIds = Array.isArray(chatData.participantIds)
+        ? chatData.participantIds.filter((v) => typeof v === 'string' && v.length > 0)
+        : [];
+    const eligibleRecipients = participantIds.filter((uid) => uid !== senderId);
+    const allViewed = eligibleRecipients.length > 0 &&
+        eligibleRecipients.every((uid) => afterViewedBy.includes(uid));
+    if (!allViewed) {
+        firebase_functions_1.logger.info('onViewOnceMessageUpdate: not all recipients viewed yet', {
+            chatId, messageId, viewed: afterViewedBy.length, eligible: eligibleRecipients.length,
+        });
+        return;
+    }
+    firebase_functions_1.logger.info('onViewOnceMessageUpdate: all recipients viewed, cleaning up', { chatId, messageId });
+    if (storagePath) {
+        try {
+            await admin.storage().bucket().file(storagePath).delete();
+            firebase_functions_1.logger.info('onViewOnceMessageUpdate: deleted storage file', { storagePath });
+        }
+        catch (err) {
+            firebase_functions_1.logger.warn('onViewOnceMessageUpdate: storage delete failed (non-fatal)', { storagePath, error: String(err) });
+        }
+    }
+    try {
+        await event.data.after.ref.update({
+            mediaUrl: '',
+            thumbnailUrl: '',
+            storagePath: '',
+            'metadata.cleanedUpAt': admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    catch (err) {
+        firebase_functions_1.logger.error('onViewOnceMessageUpdate: doc cleanup update failed', { chatId, messageId, error: String(err) });
+    }
+});
+// ── Chat: cleanupExpiredViewOnceMessages (scheduled) ──────────────────────────
+exports.cleanupExpiredViewOnceMessages = (0, scheduler_1.onSchedule)({
+    schedule: 'every 6 hours',
+    timeoutSeconds: 120,
+    memory: '256MiB',
+}, async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const batchLimit = 200;
+    const expiredSnap = await db.collectionGroup('messages')
+        .where('isViewOnce', '==', true)
+        .where('expiresAt', '<=', now)
+        .where('storagePath', '!=', '')
+        .limit(batchLimit)
+        .get();
+    if (expiredSnap.empty) {
+        firebase_functions_1.logger.info('cleanupExpiredViewOnceMessages: no expired view-once messages');
+        return;
+    }
+    firebase_functions_1.logger.info('cleanupExpiredViewOnceMessages: found expired messages', { count: expiredSnap.size });
+    for (const doc of expiredSnap.docs) {
+        const data = doc.data();
+        const storagePath = typeof data.storagePath === 'string' ? data.storagePath : '';
+        if (storagePath) {
+            try {
+                await admin.storage().bucket().file(storagePath).delete();
+            }
+            catch (err) {
+                firebase_functions_1.logger.warn('cleanupExpiredViewOnceMessages: storage delete failed', { docPath: doc.ref.path, error: String(err) });
+            }
+        }
+        try {
+            await doc.ref.update({
+                mediaUrl: '',
+                thumbnailUrl: '',
+                storagePath: '',
+                'metadata.cleanedUpAt': admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+        catch (err) {
+            firebase_functions_1.logger.error('cleanupExpiredViewOnceMessages: doc update failed', { docPath: doc.ref.path, error: String(err) });
+        }
+    }
+    firebase_functions_1.logger.info('cleanupExpiredViewOnceMessages: cleanup done', { processed: expiredSnap.size });
 });
 //# sourceMappingURL=index.js.map
