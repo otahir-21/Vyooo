@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -68,7 +70,11 @@ class HomeReelsScreen extends StatefulWidget {
 }
 
 class _HomeReelsScreenState extends State<HomeReelsScreen>
-    with AutomaticKeepAliveClientMixin, RouteAware, WidgetsBindingObserver {
+    with
+        AutomaticKeepAliveClientMixin,
+        RouteAware,
+        WidgetsBindingObserver,
+        SingleTickerProviderStateMixin {
   @override
   bool get wantKeepAlive => true;
   final PageController _pageController = PageController();
@@ -125,11 +131,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   bool _isAppForeground = true;
   bool _isRouteObserverSubscribed = false;
   int _lastHandledDeepLinkNonce = -1;
+  late final AnimationController _followingStoriesCollapse;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _followingStoriesCollapse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
     _loadReels();
   }
 
@@ -353,6 +364,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       appRouteObserver.unsubscribe(this);
       _isRouteObserverSubscribed = false;
     }
+    _followingStoriesCollapse.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -421,7 +433,15 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onPageChanged(int index) {
+    final previous = _currentIndex;
     setState(() => _currentIndex = index);
+    if (currentTab == HomeTab.following) {
+      if (index > previous) {
+        _followingStoriesCollapse.forward();
+      } else if (index < previous) {
+        _followingStoriesCollapse.reverse();
+      }
+    }
     if (_currentReels.isNotEmpty) {
       final feedIndex = _feedIndexForPage(index, _currentReels.length);
       final reelId = _asString(_currentReels[feedIndex]['id']);
@@ -570,6 +590,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       currentTab = tab;
       _currentIndex = 0;
     });
+    // Following starts expanded; first upward swipe collapses story strip.
+    _followingStoriesCollapse.value = 0;
     if (tab != HomeTab.vr) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || currentTab != tab) return;
@@ -588,9 +610,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     super.build(context);
     final isVrTab = currentTab == HomeTab.vr;
     final isFollowing = currentTab == HomeTab.following;
-    final isFollowingFallback = isFollowing && _followingIds.isEmpty;
     final followingStoriesTop = MediaQuery.paddingOf(context).top + 120;
     final followingFeedTop = followingStoriesTop + 120;
+    final collapseT = isFollowing ? _followingStoriesCollapse.value : 0.0;
+    final storiesCollapsedTop = MediaQuery.paddingOf(context).top + 66;
+    final animatedStoriesTop =
+        lerpDouble(followingStoriesTop, storiesCollapsedTop, collapseT) ??
+        followingStoriesTop;
+    final animatedFeedTop =
+        lerpDouble(followingFeedTop, MediaQuery.paddingOf(context).top + 86, collapseT) ??
+        followingFeedTop;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -616,20 +645,24 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               )
             else
               Positioned.fill(
-                top: (isFollowing && !isFollowingFallback)
-                    ? followingFeedTop
+                top: isFollowing
+                    ? animatedFeedTop
                     : 0, // Push video down only when stories row is visible.
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: (isFollowing && !isFollowingFallback) ? 8 : 0,
-                    vertical: (isFollowing && !isFollowingFallback) ? 8 : 0,
+                    horizontal: isFollowing ? (8 - (4 * collapseT)) : 0,
+                    vertical: isFollowing ? (8 - (4 * collapseT)) : 0,
                   ),
                   child: _buildFeedClipArea(isFollowing),
                 ),
               ),
             _buildHeader(),
-            if (isFollowing && !isFollowingFallback)
-              _buildStoryRow(topOffset: followingStoriesTop),
+            if (isFollowing)
+              _buildStoryRow(
+                topOffset: animatedStoriesTop,
+                opacity: 1 - (0.9 * collapseT),
+                ignorePointer: collapseT > 0.95,
+              ),
             if (!isVrTab) ...[
               _buildInteractionButtons(),
               _buildBottomUserInfo(),
@@ -690,7 +723,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     await _openStoryUpload();
   }
 
-  Widget _buildStoryRow({required double topOffset}) {
+  Widget _buildStoryRow({
+    required double topOffset,
+    double opacity = 1,
+    bool ignorePointer = false,
+  }) {
     final uid = AuthService().currentUser?.uid ?? '';
     final otherGroups = _storyGroups.where((g) => g.userId != uid).toList();
 
@@ -709,17 +746,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       top: topOffset,
       left: 0,
       right: 0,
-      child: FollowingHeaderStories(
-        stories: stories,
-        selectedId: _selectedStoryId,
-        onStoryTap: (userId) {
-          setState(() => _selectedStoryId = userId);
-          final idx = _storyGroups.indexWhere((g) => g.userId == userId);
-          if (idx != -1) _openStoryViewer(idx);
-        },
-        myAvatarUrl: _myAvatarUrl,
-        myHasStory: _myStories.isNotEmpty,
-        onAddStory: _handleMyStoryTap,
+      child: IgnorePointer(
+        ignoring: ignorePointer,
+        child: Opacity(
+          opacity: opacity.clamp(0, 1),
+          child: FollowingHeaderStories(
+            stories: stories,
+            selectedId: _selectedStoryId,
+            onStoryTap: (userId) {
+              setState(() => _selectedStoryId = userId);
+              final idx = _storyGroups.indexWhere((g) => g.userId == userId);
+              if (idx != -1) _openStoryViewer(idx);
+            },
+            myAvatarUrl: _myAvatarUrl,
+            myHasStory: _myStories.isNotEmpty,
+            onAddStory: _handleMyStoryTap,
+          ),
+        ),
       ),
     );
   }
