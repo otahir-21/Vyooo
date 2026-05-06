@@ -115,6 +115,7 @@ class ChatService {
   }) async {
     try {
       final chatId = ChatHelpers.directChatId(currentUser.uid, otherUser.uid);
+      final chatRef = _chatsCol().doc(chatId);
 
       final currentParticipant = ChatParticipant(
         uid: currentUser.uid,
@@ -140,16 +141,26 @@ class ChatService {
         createdBy: currentUser.uid,
       );
 
-      try {
-        debugPrint('[ChatService] getOrCreateDirectChat: set chats/$chatId');
-        await _chatsCol().doc(chatId).set(chatModel.toJson());
-      } on FirebaseException catch (e) {
-        debugPrint(
-          '[ChatService] getOrCreateDirectChat: set chats/$chatId got ${e.code} (expected if exists)',
-        );
-        if (e.code != 'permission-denied') rethrow;
+      // Avoid unconditional set() on an existing chat because that becomes an
+      // update and can violate chat update rules.
+      final existing = await chatRef.get();
+      if (existing.exists) {
+        final data = existing.data() ?? const <String, dynamic>{};
+        final ids = (data['participantIds'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .toList();
+        if (!ids.contains(currentUser.uid)) {
+          throw FirebaseException(
+            plugin: 'cloud_firestore',
+            code: 'permission-denied',
+            message: 'You are not a participant in this chat.',
+          );
+        }
+        return chatId;
       }
 
+      debugPrint('[ChatService] getOrCreateDirectChat: create chats/$chatId');
+      await chatRef.set(chatModel.toJson());
       return chatId;
     } catch (e, st) {
       dev.log(
