@@ -543,87 +543,93 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   ),
                 ),
               ),
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
-                child: Row(
-                  children: List.generate(group.stories.length, (i) {
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: i < _storyIndex
-                                ? 1.0
-                                : i == _storyIndex
-                                    ? _progressValue
-                                    : 0.0,
-                            backgroundColor: Colors.white38,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.white),
-                            minHeight: 3,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ),
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 26, 4, 0),
-                child: Row(
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: group.avatarUrl.isNotEmpty
-                          ? NetworkImage(group.avatarUrl)
-                          : null,
-                      child: group.avatarUrl.isEmpty
-                          ? const Icon(Icons.person,
-                              color: Colors.white, size: 18)
-                          : null,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+                      child: Row(
+                        children: List.generate(group.stories.length, (i) {
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: LinearProgressIndicator(
+                                  value: i < _storyIndex
+                                      ? 1.0
+                                      : i == _storyIndex
+                                          ? _progressValue
+                                          : 0.0,
+                                  backgroundColor: Colors.white38,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
+                                  minHeight: 3,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 16, 4, 0),
                       child: Row(
                         children: [
-                          Text(
-                            group.username.isNotEmpty
-                                ? group.username
-                                : 'User',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.white24,
+                            backgroundImage: group.avatarUrl.isNotEmpty
+                                ? NetworkImage(group.avatarUrl)
+                                : null,
+                            child: group.avatarUrl.isEmpty
+                                ? const Icon(Icons.person,
+                                    color: Colors.white, size: 18)
+                                : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Text(
+                                  group.username.isNotEmpty
+                                      ? group.username
+                                      : 'User',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _timeAgo(story.createdAt),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _timeAgo(story.createdAt),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
+                          if (_isOwnStory)
+                            IconButton(
+                              icon: const Icon(Icons.more_horiz,
+                                  color: Colors.white, size: 24),
+                              onPressed: _onMoreTap,
                             ),
+                          IconButton(
+                            icon: const Icon(Icons.close,
+                                color: Colors.white, size: 22),
+                            onPressed: () => Navigator.of(context).pop(),
                           ),
                         ],
                       ),
-                    ),
-                    if (_isOwnStory)
-                      IconButton(
-                        icon: const Icon(Icons.more_horiz,
-                            color: Colors.white, size: 24),
-                        onPressed: _onMoreTap,
-                      ),
-                    IconButton(
-                      icon: const Icon(Icons.close,
-                          color: Colors.white, size: 22),
-                      onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],
                 ),

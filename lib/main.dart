@@ -21,9 +21,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -55,8 +53,7 @@ void main() async {
       final revenueCatKey = Platform.isIOS
           ? AppConfig.revenueCatApplePublicKey
           : AppConfig.revenueCatGooglePublicKey;
-      if (revenueCatKey.trim().isNotEmpty &&
-          !revenueCatKey.contains('XXXX')) {
+      if (revenueCatKey.trim().isNotEmpty && !revenueCatKey.contains('XXXX')) {
         await subscriptionController.init(revenueCatKey);
       } else {
         debugPrint(

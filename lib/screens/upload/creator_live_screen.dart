@@ -4,6 +4,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 import '../../core/config/agora_config.dart';
 import '../../core/constants/app_colors.dart';
@@ -368,19 +369,15 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
   }
 
   Future<void> _openSettings() async {
-    if (_streamId != null && _liveState == _LiveState.live) {
-      // Can only edit title/description while live — category/tags locked
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
+    await Navigator.of(context).push(
+      MaterialPageRoute(
         builder: (_) => _LiveSettingsSheet(
           initialTitle: _streamTitle,
           initialDescription: _streamDescription,
           initialCategory: _streamCategory,
           initialTags: _streamTags,
           initialPrice: _streamPrice,
-          isLive: true,
+          isLive: _liveState == _LiveState.live,
           onSave: (title, desc, category, tags, price) async {
             setState(() {
               _streamTitle = title;
@@ -389,38 +386,17 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
               _streamTags = tags;
               _streamPrice = price;
             });
-            await _liveService.updateStreamMetadata(
-              streamId: _streamId!,
-              title: title,
-              description: desc,
-            );
+            if (_liveState == _LiveState.live && _streamId != null) {
+              await _liveService.updateStreamMetadata(
+                streamId: _streamId!,
+                title: title,
+                description: desc,
+              );
+            }
           },
         ),
-      );
-    } else {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => _LiveSettingsSheet(
-          initialTitle: _streamTitle,
-          initialDescription: _streamDescription,
-          initialCategory: _streamCategory,
-          initialTags: _streamTags,
-          initialPrice: _streamPrice,
-          isLive: false,
-          onSave: (title, desc, category, tags, price) {
-            setState(() {
-              _streamTitle = title;
-              _streamDescription = desc;
-              _streamCategory = category;
-              _streamTags = tags;
-              _streamPrice = price;
-            });
-          },
-        ),
-      );
-    }
+      ),
+    );
   }
 
   Future<void> _onEndStream() async {
@@ -597,23 +573,20 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
+                  horizontal: 14,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.28),
-                  ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
                   'OFFLINE',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
+                    color: Colors.black,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
@@ -621,41 +594,41 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           ),
           // Right tool icons
           Positioned(
-            top: 60,
-            right: 16,
+            top: 100,
+            right: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(24),
+                color: Colors.black.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CircleIconButton(
-                    icon: Icons.mic_rounded,
+                    icon: Icons.mic_none_rounded,
                     onTap: _toggleMute,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.videocam_rounded,
+                    icon: Icons.videocam_outlined,
                     onTap: _toggleVideo,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.cameraswitch_rounded,
+                    icon: Icons.refresh_rounded,
                     onTap: _flipCamera,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.chat_bubble_rounded,
+                    icon: Icons.chat_bubble_outline_rounded,
                     onTap: _toggleComments,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.settings_rounded,
+                    icon: Icons.settings_outlined,
                     onTap: _openSettings,
-                    size: 40,
+                    size: 38,
                   ),
                 ],
               ),
@@ -691,7 +664,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                   ),
                   child: _GradientButton(
                     label: 'Start Live',
-                    icon: Icons.wifi_rounded,
+                    icon: Icons.sensors_rounded,
                     onTap: _startCountdown,
                     isWhite: true,
                   ),
@@ -712,6 +685,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
     return SafeArea(
       child: Stack(
         children: [
+          // Background overlay for countdown
+          Positioned.fill(
+            child: Container(color: Colors.black.withValues(alpha: 0.35)),
+          ),
           Positioned(
             top: 14,
             left: 48,
@@ -729,59 +706,77 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
             ),
           ),
           Center(
-            child: Container(
-              width: 92,
-              height: 92,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black.withValues(alpha: 0.5),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  width: 2.5,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  '$_countdown',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 44,
-                    fontWeight: FontWeight.w700,
+            child: SizedBox(
+              width: 96,
+              height: 96,
+              child: Stack(
+                children: [
+                  CustomPaint(
+                    size: const Size(96, 96),
+                    painter: _CountdownCirclePainter(),
                   ),
-                ),
+                  Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.35),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$_countdown',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           Positioned(
-            bottom: 32,
+            bottom: 0,
             left: 0,
             right: 0,
-            child: Center(
-              child: GestureDetector(
-                onTap: _cancelCountdown,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.close, color: Colors.white, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
+            child: Container(
+              height: 100,
+              color: const Color(0xFF490038), // brandPurple/Plum bar
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Center(
+                child: GestureDetector(
+                  onTap: _cancelCountdown,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
-                    ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -821,80 +816,63 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _streamTitle.isEmpty
-                            ? 'Live Stream Topic'
-                            : _streamTitle,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _streamDoc?.description ??
-                            'Leveraging cutting-edge technologies and modern UI/UX principles to deliver premium experiences. #vyoo #live #creative',
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 11.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _streamTitle.isEmpty ? 'Live Stream Topic' : _streamTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           Positioned(
-            top: 60,
-            right: 16,
+            top: 100,
+            right: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(24),
+                color: Colors.black.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _CircleIconButton(
-                    icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    icon: _isMuted
+                        ? Icons.mic_off_outlined
+                        : Icons.mic_none_rounded,
                     onTap: _toggleMute,
                     active: _isMuted,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
                     icon: _isVideoOff
-                        ? Icons.videocam_off_rounded
-                        : Icons.videocam_rounded,
+                        ? Icons.videocam_off_outlined
+                        : Icons.videocam_outlined,
                     onTap: _toggleVideo,
                     active: _isVideoOff,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.cameraswitch_rounded,
+                    icon: Icons.refresh_rounded,
                     onTap: _flipCamera,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.speaker_notes_rounded,
+                    icon: Icons.chat_bubble_outline_rounded,
                     onTap: _toggleComments,
                     active: _isCommentsOff,
-                    size: 40,
+                    size: 38,
                   ),
                   _CircleIconButton(
-                    icon: Icons.settings_rounded,
+                    icon: Icons.settings_outlined,
                     onTap: _openSettings,
-                    size: 40,
+                    size: 38,
                   ),
                 ],
               ),
@@ -956,11 +934,19 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
         ? const <LiveChatMessageModel>[]
         : _chatMessages;
     if (msgs.isEmpty) return const SizedBox.shrink();
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 150),
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.black.withValues(alpha: 0.2)],
+        ),
+      ),
+      constraints: const BoxConstraints(maxHeight: 180),
       child: ListView.builder(
         controller: _chatScrollCtrl,
         shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         itemCount: msgs.length,
         itemBuilder: (context, i) {
           final m = msgs[i];
@@ -1011,15 +997,15 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                       children: [
                         TextSpan(
                           text: '${m.username} ',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontWeight: FontWeight.w600,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         TextSpan(
                           text: m.message,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -1041,8 +1027,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: TextField(
               controller: _chatCtrl,
@@ -1104,7 +1090,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        Icon(Icons.reply_rounded, color: Colors.white, size: 20),
+        Transform.scale(
+          scaleX: -1,
+          child: const Icon(Icons.reply_rounded, color: Colors.white, size: 22),
+        ),
       ],
     );
   }
@@ -1114,17 +1103,18 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       child: GestureDetector(
         onTap: _onEndStream,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF8B1538),
+            color: Colors.black.withValues(alpha: 0.75),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 12,
-                height: 12,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(2),
@@ -1135,8 +1125,8 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                 'End stream',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -1149,16 +1139,16 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
   Widget _buildToast(String msg) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           msg,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -1222,11 +1212,12 @@ class _GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = isWhite ? AppColors.brandPink : Colors.white;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: isWhite ? Colors.white : null,
           gradient: isWhite
@@ -1240,13 +1231,13 @@ class _GradientButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isWhite ? Colors.black : Colors.white, size: 20),
+            Icon(icon, color: iconColor, size: 18),
             const SizedBox(width: 10),
             Text(
               label,
               style: TextStyle(
                 color: isWhite ? Colors.black : Colors.white,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1262,30 +1253,35 @@ class _LiveSegmentBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _SegBtn(
-          label: 'Story',
-          icon: Icons.auto_stories_rounded,
-          selected: false,
-          onTap: () => Navigator.of(context).pop(),
-        ),
-        const SizedBox(width: 8),
-        _SegBtn(
-          label: 'Gallery',
-          icon: Icons.photo_library_rounded,
-          selected: false,
-          onTap: () => Navigator.of(context).pop(),
-        ),
-        const SizedBox(width: 8),
-        const _SegBtn(
-          label: 'Live',
-          icon: Icons.videocam_rounded,
-          selected: true,
-          onTap: null,
-        ),
-      ],
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFF490038), // brandPurple/Plum color from AppColors
+      padding: const EdgeInsets.only(top: 12, bottom: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _SegBtn(
+            label: 'Post',
+            icon: Icons.grid_view_rounded,
+            selected: false,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 20),
+          _SegBtn(
+            label: 'Videos',
+            icon: Icons.video_library_outlined,
+            selected: false,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+          const SizedBox(width: 20),
+          const _SegBtn(
+            label: 'Live',
+            icon: Icons.sensors_rounded,
+            selected: true,
+            onTap: null,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1305,28 +1301,26 @@ class _SegBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
-        ? Colors.white
-        : Colors.white.withValues(alpha: 0.65);
+    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.5);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFDE106B) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+          color: selected ? AppColors.brandPink : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: color),
+            Icon(icon, size: 18, color: color),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 color: color,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -1407,6 +1401,56 @@ class _HeartSliderThumb extends SliderComponentShape {
   }
 }
 
+class _CountdownCirclePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 2;
+
+    // 1. Solid part (approx 1/3 of circle)
+    final solidPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -2.2, // Start at approx 10 o'clock
+      2.1, // Sweep approx 120 degrees
+      false,
+      solidPaint,
+    );
+
+    // 2. Dashed part
+    final dashPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+
+    const double dashLen = 6;
+    const double spaceLen = 6;
+    double startAngle = -0.1; // Start where solid part ends
+    const double endAngle = 4.0; // End where solid part begins again (looping)
+
+    // Rough loop to draw dashes for the remaining arc
+    while (startAngle < endAngle) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        dashLen / radius,
+        false,
+        dashPaint,
+      );
+      startAngle += (dashLen + spaceLen) / radius;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 // ── Confirm dialog ─────────────────────────────────────────────────────────────
 
 class _ConfirmDialog extends StatelessWidget {
@@ -1421,9 +1465,9 @@ class _ConfirmDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 40),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(28, 32, 28, 20),
+        padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E0A1E),
+          color: const Color(0xFF2E0D2E),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1433,17 +1477,17 @@ class _ConfirmDialog extends StatelessWidget {
               'VyooO',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 18),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 15,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
                 height: 1.4,
               ),
             ),
@@ -1456,8 +1500,8 @@ class _ConfirmDialog extends StatelessWidget {
                   child: Text(
                     confirmLabel,
                     style: const TextStyle(
-                      color: Color(0xFFDE106B),
-                      fontSize: 15,
+                      color: AppColors.brandPink,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -1468,8 +1512,8 @@ class _ConfirmDialog extends StatelessWidget {
                     'No',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1517,8 +1561,8 @@ class _LiveSettingsSheet extends StatefulWidget {
 }
 
 class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
-  static const _titleMax = 150;
-  static const _descMax = 500;
+  static const _titleMax = 120;
+  static const _descMax = 200;
 
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descCtrl;
@@ -1579,38 +1623,13 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.88,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollCtrl) {
-        return AnimatedPadding(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(bottom: keyboardInset),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1A0020), Color(0xFF0D000F), Color(0xFF1A0020)],
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Column(
-              children: [
-              // Handle bar
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AppGradientBackground(
+        type: GradientType.premiumDark,
+        child: SafeArea(
+          child: Column(
+            children: [
               // Header
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -1624,7 +1643,7 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                       icon: const Icon(
                         Icons.chevron_left_rounded,
                         color: Colors.white,
-                        size: 28,
+                        size: 32,
                       ),
                     ),
                     const Expanded(
@@ -1632,8 +1651,8 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                         'Stream Settings',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -1642,9 +1661,9 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                       child: const Text(
                         'Save',
                         style: TextStyle(
-                          color: Color(0xFFDE106B),
+                          color: AppColors.brandMagenta,
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
@@ -1652,21 +1671,20 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                 ),
               ),
               // Form
-                Expanded(
-                  child: ListView(
-                    controller: scrollCtrl,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    children: [
+              Expanded(
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
                     _buildField(
                       'Title',
                       _titleCtrl,
                       _titleMax,
-                      'Add your title',
+                      'Add your Title',
                       1,
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: 24),
                     _buildField(
                       'Description',
                       _descCtrl,
@@ -1674,32 +1692,23 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
                       'Add a short description',
                       3,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'All content must be categorized for better search experience',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 11,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: 24),
                     _buildCategoryDropdown(),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: 24),
                     _buildTagsField(),
                     // Pricing only editable pre-live
                     if (!widget.isLive) ...[
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: 24),
                       _buildPricingSlider(),
                     ],
-                    const SizedBox(height: 32),
-                    ],
-                  ),
+                    const SizedBox(height: 48),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
