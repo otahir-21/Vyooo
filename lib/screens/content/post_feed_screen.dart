@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -52,6 +53,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
   late final List<Map<String, dynamic>> _orderedPosts;
   int _currentBottomNavIndex = 4;
 
+  // Tracks which post card is currently the "most visible" one in the
+  // ListView so only that ReelItemWidget auto-plays. Prevents overlapping
+  // audio while scrolling through video posts.
+  final ValueNotifier<int> _activeVideoIndex = ValueNotifier<int>(0);
+  final Map<int, GlobalKey> _itemKeys = <int, GlobalKey>{};
+  final GlobalKey _listKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +72,50 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     final safeStart = p.initialIndex.clamp(0, source.length - 1);
     _orderedPosts = [...source.sublist(safeStart), ...source.sublist(0, safeStart)];
     _warmInteractionState();
+  }
+
+  @override
+  void dispose() {
+    _activeVideoIndex.dispose();
+    super.dispose();
+  }
+
+  GlobalKey _keyFor(int index) =>
+      _itemKeys.putIfAbsent(index, () => GlobalKey());
+
+  /// Recompute which post card overlaps the viewport center the most.
+  /// Called from a [NotificationListener] on the [ListView] so the active
+  /// index updates as the user scrolls.
+  void _updateActiveVideoIndex() {
+    if (!mounted) return;
+    final listContext = _listKey.currentContext;
+    if (listContext == null) return;
+    final listBox = listContext.findRenderObject();
+    if (listBox is! RenderBox || !listBox.hasSize) return;
+    final viewportTop = listBox.localToGlobal(Offset.zero).dy;
+    final viewportBottom = viewportTop + listBox.size.height;
+
+    int bestIndex = _activeVideoIndex.value;
+    double bestOverlap = -1;
+    _itemKeys.forEach((index, key) {
+      final ctx = key.currentContext;
+      if (ctx == null) return;
+      final box = ctx.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final top = box.localToGlobal(Offset.zero).dy;
+      final bottom = top + box.size.height;
+      final overlap =
+          (bottom.clamp(viewportTop, viewportBottom) -
+                  top.clamp(viewportTop, viewportBottom))
+              .toDouble();
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        bestIndex = index;
+      }
+    });
+    if (bestOverlap > 0 && _activeVideoIndex.value != bestIndex) {
+      _activeVideoIndex.value = bestIndex;
+    }
   }
 
   Future<void> _warmInteractionState() async {
@@ -374,26 +426,41 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 10, top: 2),
-                      itemCount: _orderedPosts.length,
-                      itemBuilder: (context, index) {
-                        final post = _orderedPosts[index];
-                        final reelId = _asString(post['id']).trim();
-                        return _PostCard(
-                          post: post,
-                          fallbackCreatorName: p.creatorName,
-                          fallbackAvatarUrl: p.avatarUrl,
-                          fallbackIsVerified: p.isVerified,
-                          isLiked: _likedReels[reelId] ?? false,
-                          isSaved: _savedReels[reelId] ?? false,
-                          onLike: () => _onLike(post),
-                          onComment: () => _onComment(post),
-                          onSave: () => _onSave(post),
-                          onShare: () => _onShare(post),
-                          onMore: () => _onMoreOptions(post),
-                        );
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification is ScrollUpdateNotification ||
+                            notification is ScrollEndNotification) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            _updateActiveVideoIndex();
+                          });
+                        }
+                        return false;
                       },
+                      child: ListView.builder(
+                        key: _listKey,
+                        padding: const EdgeInsets.only(bottom: 10, top: 2),
+                        itemCount: _orderedPosts.length,
+                        itemBuilder: (context, index) {
+                          final post = _orderedPosts[index];
+                          final reelId = _asString(post['id']).trim();
+                          return _PostCard(
+                            key: _keyFor(index),
+                            index: index,
+                            activeIndex: _activeVideoIndex,
+                            post: post,
+                            fallbackCreatorName: p.creatorName,
+                            fallbackAvatarUrl: p.avatarUrl,
+                            fallbackIsVerified: p.isVerified,
+                            isLiked: _likedReels[reelId] ?? false,
+                            isSaved: _savedReels[reelId] ?? false,
+                            onLike: () => _onLike(post),
+                            onComment: () => _onComment(post),
+                            onSave: () => _onSave(post),
+                            onShare: () => _onShare(post),
+                            onMore: () => _onMoreOptions(post),
+                          );
+                        },
+                      ),
                     ),
             ),
             AppBottomNavigation(
@@ -447,6 +514,9 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 
 class _PostCard extends StatelessWidget {
   const _PostCard({
+    super.key,
+    required this.index,
+    required this.activeIndex,
     required this.post,
     required this.fallbackCreatorName,
     required this.fallbackAvatarUrl,
@@ -460,6 +530,8 @@ class _PostCard extends StatelessWidget {
     required this.onMore,
   });
 
+  final int index;
+  final ValueListenable<int> activeIndex;
   final Map<String, dynamic> post;
   final String fallbackCreatorName;
   final String fallbackAvatarUrl;
@@ -644,10 +716,13 @@ class _PostCard extends StatelessWidget {
                   AspectRatio(
                     aspectRatio: 800 / 900,
                     child: isVideoPost && _asString(post['videoUrl']).trim().isNotEmpty
-                        ? ReelItemWidget(
-                            videoUrl: _asString(post['videoUrl']).trim(),
-                            isVisible: true,
-                            thumbnailUrl: mediaUrl,
+                        ? ValueListenableBuilder<int>(
+                            valueListenable: activeIndex,
+                            builder: (_, currentActive, _) => ReelItemWidget(
+                              videoUrl: _asString(post['videoUrl']).trim(),
+                              isVisible: currentActive == index,
+                              thumbnailUrl: mediaUrl,
+                            ),
                           )
                         : Image.network(mediaUrl, fit: BoxFit.cover),
                   ),

@@ -2,11 +2,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../core/navigation/app_route_observer.dart';
 import '../core/utils/video_upload_policy.dart';
 import '../core/theme/app_spacing.dart';
 
 /// Single reel item for PageView. Handles video playback, auto-play, pause, preload.
-/// Use AutomaticKeepAliveClientMixin for performance.
+///
+/// Self-contained lifecycle: pauses the underlying [VideoPlayerController] when
+/// any of these become false, regardless of what the parent passes for
+/// [isVisible]:
+///   * the host route is no longer the topmost route (e.g. Settings/Notifications
+///     is pushed over it) — observed via [appRouteObserver],
+///   * the app moves to background — observed via [WidgetsBindingObserver],
+///   * the surrounding subtree is in an inactive [TickerMode] (e.g. inactive
+///     bottom-nav tab kept alive by [AutomaticKeepAliveClientMixin]).
+///
+/// This guarantees that no audio leaks while the user is on another screen,
+/// even if a caller (incorrectly) hardcodes `isVisible: true`.
 class ReelItemWidget extends StatefulWidget {
   const ReelItemWidget({
     super.key,
@@ -26,7 +38,10 @@ class ReelItemWidget extends StatefulWidget {
 }
 
 class _ReelItemWidgetState extends State<ReelItemWidget>
-    with AutomaticKeepAliveClientMixin {
+    with
+        AutomaticKeepAliveClientMixin,
+        WidgetsBindingObserver,
+        RouteAware {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _showError = false;
@@ -39,14 +54,42 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _lastIsPlaying = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
+  // Effective-visibility flags. Combined with [widget.isVisible] in
+  // [_shouldPlay] to decide whether the controller may play right now.
+  bool _isRouteOnTop = true;
+  bool _isAppForeground = true;
+  bool _isTickerActive = true;
+  bool _isRouteObserverSubscribed = false;
+
   @override
   bool get wantKeepAlive => true;
+
+  bool get _shouldPlay =>
+      widget.isVisible && _isRouteOnTop && _isAppForeground && _isTickerActive;
 
   @override
   void initState() {
     super.initState();
-    if (widget.isVisible) {
+    WidgetsBinding.instance.addObserver(this);
+    if (_shouldPlay) {
       _initializePlayer();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isRouteObserverSubscribed) {
+      final route = ModalRoute.of(context);
+      if (route is PageRoute<void>) {
+        appRouteObserver.subscribe(this, route);
+        _isRouteObserverSubscribed = true;
+      }
+    }
+    final tickerActive = TickerMode.of(context);
+    if (tickerActive != _isTickerActive) {
+      _isTickerActive = tickerActive;
+      _syncPlayback();
     }
   }
 
@@ -55,23 +98,53 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
       _disposePlayer();
-      if (widget.isVisible) {
+      if (_shouldPlay) {
         _initializePlayer();
       }
+      return;
     }
     if (oldWidget.isVisible != widget.isVisible) {
-      _handleVisibility();
+      _syncPlayback();
     }
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Treat anything other than `resumed` as "not in foreground" so that audio
+    // is paused on incoming calls, control center, app switcher, lock screen.
+    final foreground = state == AppLifecycleState.resumed;
+    if (foreground == _isAppForeground) return;
+    _isAppForeground = foreground;
+    _syncPlayback();
+  }
+
+  @override
+  void didPushNext() {
+    if (!_isRouteOnTop) return;
+    _isRouteOnTop = false;
+    _syncPlayback();
+  }
+
+  @override
+  void didPopNext() {
+    if (_isRouteOnTop) return;
+    _isRouteOnTop = true;
+    _syncPlayback();
+  }
+
+  @override
   void dispose() {
+    if (_isRouteObserverSubscribed) {
+      appRouteObserver.unsubscribe(this);
+      _isRouteObserverSubscribed = false;
+    }
+    WidgetsBinding.instance.removeObserver(this);
     _disposePlayer();
     super.dispose();
   }
 
   Future<void> _initializePlayer() async {
-    if (!widget.isVisible) return;
+    if (!_shouldPlay) return;
     final urls = _candidateUrls(widget.videoUrl);
     if (urls.isEmpty) return;
     final url = urls[_urlIndex.clamp(0, urls.length - 1)];
@@ -85,7 +158,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       );
 
       ctrl.setLooping(true);
-      ctrl.setVolume(1.0);
+      ctrl.setVolume(_isMuted ? 0 : 1.0);
 
       await ctrl.initialize();
 
@@ -101,7 +174,11 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       });
       _lastIsPlaying = ctrl.value.isPlaying;
       ctrl.addListener(_onControllerValueChanged);
-      if (widget.isVisible) await ctrl.play();
+      // Re-check after async gap: route may have been pushed away during
+      // initialize(), in which case we must NOT autoplay.
+      if (_shouldPlay) {
+        await ctrl.play();
+      }
     } catch (e) {
       debugPrint('Error initializing video: $e');
       _disposePlayer();
@@ -173,21 +250,30 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     return out.toSet().toList();
   }
 
-  void _handleVisibility() {
-    if (widget.isVisible) {
-      if (_controller == null) {
+  /// Idempotent: drives the underlying controller toward [_shouldPlay].
+  ///
+  /// Called from every effective-visibility change (route, app lifecycle,
+  /// ticker mode, parent's [isVisible]). Safe to call multiple times.
+  void _syncPlayback() {
+    if (!mounted) return;
+    if (_shouldPlay) {
+      final controller = _controller;
+      if (controller == null) {
+        // First time we became eligible to play — kick off initialization.
         _initializePlayer();
         return;
       }
-      if (_isInitialized) {
-        _controller!.play();
+      if (_isInitialized && !controller.value.isPlaying) {
+        controller.play();
       }
       return;
     }
+    // Stop any pending retry to avoid bringing audio back on inactive routes.
     _retryTimer?.cancel();
     _retryTimer = null;
-    if (_isInitialized && _controller != null) {
-      _controller!.pause();
+    final controller = _controller;
+    if (_isInitialized && controller != null && controller.value.isPlaying) {
+      controller.pause();
     }
   }
 
