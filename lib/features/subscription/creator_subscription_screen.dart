@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-import '../../core/constants/app_colors.dart';
-import '../../core/services/notification_service.dart';
+import '../../core/services/creator_subscription_service.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class CreatorSubscriptionScreen extends StatefulWidget {
@@ -35,6 +34,8 @@ class CreatorSubscriptionScreen extends StatefulWidget {
 class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
   int _selectedIndex = 2; // Default to 'Yearly' (Best value)
   bool _loading = false;
+  final CreatorSubscriptionService _creatorSubscriptionService =
+      CreatorSubscriptionService();
 
   String get _monthlyStr => '\$${widget.monthlyPrice.toStringAsFixed(2)}/M';
   String get _threeMonthStr =>
@@ -42,26 +43,51 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
   String get _yearlyStr =>
       '\$${(widget.monthlyPrice * 0.567).toStringAsFixed(2)}/M';
 
+  String get _selectedBillingCycle => switch (_selectedIndex) {
+        0 => 'monthly',
+        1 => '3_months',
+        _ => 'yearly',
+      };
+
+  double get _selectedPricePerMonth => switch (_selectedIndex) {
+        0 => widget.monthlyPrice,
+        1 => widget.monthlyPrice * 0.80,
+        _ => widget.monthlyPrice * 0.567,
+      };
+
   Future<void> _onSubscribe() async {
+    final creatorId = (widget.creatorUserId ?? '').trim();
+    if (creatorId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Creator account is unavailable.')),
+      );
+      return;
+    }
     setState(() => _loading = true);
-    // TODO: wire up RevenueCat purchase for creator subscription product
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() => _loading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Subscribed to ${widget.name}! 🎉'),
-        backgroundColor: AppColors.brandPink,
-      ),
-    );
-    await NotificationService().create(
-      recipientId: widget.creatorUserId ?? '',
-      type: AppNotificationType.subscribe,
-      message: 'subscribed to your content.',
-      extra: const {'entity': 'creator_subscription'},
-    );
-    if (!mounted) return;
-    Navigator.of(context).pop();
+    try {
+      await _creatorSubscriptionService.subscribeToCreator(
+        creatorId: creatorId,
+        creatorName: widget.name,
+        creatorHandle: widget.handle,
+        creatorAvatarUrl: widget.avatarUrl,
+        billingCycle: _selectedBillingCycle,
+        pricePerMonth: _selectedPricePerMonth,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Subscribed to ${widget.name}!'),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Subscription failed: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -218,7 +244,7 @@ class _CreatorSubscriptionScreenState extends State<CreatorSubscriptionScreen> {
                           if (widget.onSubscribe != null) {
                             widget.onSubscribe!.call();
                             if (!mounted) return;
-                            Navigator.of(context).pop();
+                            Navigator.of(context).pop(true);
                             return;
                           }
                           await _onSubscribe();

@@ -1,7 +1,7 @@
 "use strict";
 var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupStaleRingingCalls = exports.onCallSessionUpdate = exports.onCallSessionCreate = exports.cleanupExpiredViewOnceMessages = exports.onViewOnceMessageUpdate = exports.onChatUpdate = exports.onChatMessageCreate = exports.onChatCreate = exports.syncStoryCommentCountOnDelete = exports.syncStoryCommentCountOnCreate = exports.syncStoryLikeCount = exports.sendPushOnNotificationCreate = exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
+exports.cleanupStaleRingingCalls = exports.onCallSessionUpdate = exports.onCallSessionCreate = exports.cleanupExpiredViewOnceMessages = exports.onViewOnceMessageUpdate = exports.onChatUpdate = exports.onChatMessageCreate = exports.onChatCreate = exports.syncStoryCommentCountOnDelete = exports.syncStoryCommentCountOnCreate = exports.syncStoryLikeCount = exports.sendPushOnNotificationCreate = exports.processCreatorSubscriptionRequest = exports.processWhatsAppOtpVerifyRequest = exports.processWhatsAppOtpSendRequest = exports.processEmailOtpVerifyRequest = exports.processEmailOtpSendRequest = exports.moderateReelOnWrite = exports.moderateReelOnCreate = exports.syncFollowersCountOnFollowingChange = exports.getCloudflareUploadUrl = exports.generateAgoraTokenOnRequest = void 0;
 const crypto = require("crypto");
 const admin = require("firebase-admin");
 const auth_1 = require("firebase-admin/auth");
@@ -915,6 +915,117 @@ exports.processWhatsAppOtpVerifyRequest = (0, firestore_1.onDocumentCreated)({
     await userRef.set({ emailOtpVerified: true }, { merge: true });
     await challengeRef.delete();
     await snap.ref.update({ status: 'done' });
+});
+// ── Creator subscription requests (client -> server mutation boundary) ─────────
+/**
+ * Client creates: creator_subscription_requests/{requestId}
+ * {
+ *   userId, creatorId, action: subscribe|cancel|resume, status: pending, ...
+ * }
+ * Function writes:
+ *   { status: done } or { status: error, error }
+ *
+ * Clients never write creatorSubscriptions directly; this keeps mutation rules strict.
+ */
+exports.processCreatorSubscriptionRequest = (0, firestore_1.onDocumentCreated)({
+    document: 'creator_subscription_requests/{requestId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+}, async (event) => {
+    var _a, _b;
+    const snap = event.data;
+    if (!snap)
+        return;
+    const db = admin.firestore();
+    const req = snap.data();
+    const fail = async (message) => {
+        await snap.ref.update({
+            status: 'error',
+            error: message,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    };
+    const userId = typeof req.userId === 'string' ? req.userId.trim() : '';
+    const creatorId = typeof req.creatorId === 'string' ? req.creatorId.trim() : '';
+    const action = typeof req.action === 'string' ? req.action.trim().toLowerCase() : '';
+    if (!userId || !creatorId || !action) {
+        await fail('Invalid subscription request.');
+        return;
+    }
+    if (userId === creatorId) {
+        await fail('Cannot subscribe to your own profile.');
+        return;
+    }
+    if (!['subscribe', 'cancel', 'resume'].includes(action)) {
+        await fail('Unsupported subscription action.');
+        return;
+    }
+    const docId = `${userId}_${creatorId}`;
+    const subscriptionRef = db.collection('creatorSubscriptions').doc(docId);
+    const existing = await subscriptionRef.get();
+    if (action === 'subscribe') {
+        const creatorName = typeof req.creatorName === 'string' ? req.creatorName.trim() : '';
+        const creatorHandle = typeof req.creatorHandle === 'string' ? req.creatorHandle.trim() : '';
+        const creatorAvatarUrl = typeof req.creatorAvatarUrl === 'string' ? req.creatorAvatarUrl.trim() : '';
+        const billingCycle = typeof req.billingCycle === 'string' ? req.billingCycle.trim() : 'monthly';
+        const pricePerMonthRaw = req.pricePerMonth;
+        const pricePerMonth = typeof pricePerMonthRaw === 'number' ? pricePerMonthRaw : Number(pricePerMonthRaw);
+        const currencyCode = typeof req.currencyCode === 'string' ? req.currencyCode.trim().toLowerCase() : 'usd';
+        if (!creatorName || !creatorHandle || !Number.isFinite(pricePerMonth) || pricePerMonth < 0) {
+            await fail('Invalid subscription payload.');
+            return;
+        }
+        await subscriptionRef.set({
+            subscriberId: userId,
+            creatorId,
+            creatorName,
+            creatorHandle,
+            creatorAvatarUrl,
+            billingCycle,
+            pricePerMonth,
+            currencyCode,
+            status: 'active',
+            cancelledAt: null,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: existing.exists
+                ? (_b = (_a = existing.data()) === null || _a === void 0 ? void 0 : _a.createdAt) !== null && _b !== void 0 ? _b : admin.firestore.FieldValue.serverTimestamp()
+                : admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        await db.collection('notifications').add({
+            senderId: userId,
+            recipientId: creatorId,
+            type: 'subscribe',
+            message: 'subscribed to your content.',
+            isRead: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+    else if (action === 'cancel') {
+        if (!existing.exists) {
+            await fail('Subscription not found.');
+            return;
+        }
+        await subscriptionRef.set({
+            status: 'cancelled',
+            cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
+    else if (action === 'resume') {
+        if (!existing.exists) {
+            await fail('Subscription not found.');
+            return;
+        }
+        await subscriptionRef.set({
+            status: 'active',
+            cancelledAt: null,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+    }
+    await snap.ref.update({
+        status: 'done',
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 });
 // ── sendPushOnNotificationCreate ───────────────────────────────────────────────
 exports.sendPushOnNotificationCreate = (0, firestore_1.onDocumentCreated)({

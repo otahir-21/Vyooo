@@ -22,6 +22,14 @@ class ChangePlanScreen extends StatefulWidget {
 }
 
 class _ChangePlanScreenState extends State<ChangePlanScreen> {
+  bool _isValidNetworkUrl(String value) {
+    final url = value.trim();
+    if (url.isEmpty) return false;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.isAbsolute || uri.host.isEmpty) return false;
+    return uri.scheme == 'http' || uri.scheme == 'https';
+  }
+
   int _selectedPlanIndex =
       1; // Default to '3 Months' as shown in middle screenshot
 
@@ -136,13 +144,22 @@ class _ChangePlanScreenState extends State<ChangePlanScreen> {
   }
 
   Widget _buildProfileHeader() {
+    final hasImage = _isValidNetworkUrl(widget.image);
     return Column(
       children: [
         Stack(
           children: [
             CircleAvatar(
               radius: 48,
-              backgroundImage: NetworkImage(widget.image),
+              backgroundColor: Colors.white12,
+              backgroundImage: hasImage ? NetworkImage(widget.image.trim()) : null,
+              child: hasImage
+                  ? null
+                  : const Icon(
+                      Icons.person_rounded,
+                      color: Colors.white70,
+                      size: 36,
+                    ),
             ),
           ],
         ),

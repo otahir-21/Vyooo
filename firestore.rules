@@ -351,6 +351,33 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Creator subscription server-owned records.
+    // Clients can read only when they are the subscriber or creator.
+    // All writes happen via Cloud Functions (Admin SDK).
+    match /creatorSubscriptions/{docId} {
+      allow read: if isSignedIn()
+                  && (
+                    resource.data.subscriberId == request.auth.uid
+                    || resource.data.creatorId == request.auth.uid
+                  );
+      allow create, update, delete: if false;
+    }
+
+    // Mutation requests for creator subscriptions (client -> function).
+    // Clients can create/delete/read only their own requests; no client updates.
+    match /creator_subscription_requests/{requestId} {
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.creatorId is string
+                    && request.resource.data.creatorId.size() > 0
+                    && request.resource.data.action is string
+                    && request.resource.data.action in ['subscribe', 'cancel', 'resume']
+                    && request.resource.data.status == 'pending';
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
     // ── Chat documents ────────────────────────────────────────────────────────
     function isChatParticipant(chatId) {
       return isSignedIn()

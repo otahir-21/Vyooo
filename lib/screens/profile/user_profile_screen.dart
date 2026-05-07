@@ -16,6 +16,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
+import '../../core/services/creator_subscription_service.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../../core/controllers/reels_controller.dart';
@@ -106,6 +107,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   StreamSubscription<int>? _postCountSub;
   StreamSubscription<AppUserModel?>? _targetUserSub;
   final LiveStreamService _liveStreamService = LiveStreamService();
+  final CreatorSubscriptionService _creatorSubscriptionService =
+      CreatorSubscriptionService();
 
   @override
   void initState() {
@@ -113,6 +116,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _isFollowing = widget.payload.isFollowing;
     _isSubscribed = widget.payload.isSubscribed;
     _refreshFollowFromFirestore();
+    _refreshCreatorSubscriptionFromFirestore();
     _loadPublicCounts();
     _bindLiveCountStreams();
   }
@@ -131,6 +135,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _liveAccountType = null;
       _liveVipVerified = null;
       _refreshFollowFromFirestore();
+      _refreshCreatorSubscriptionFromFirestore();
       _loadPublicCounts();
       _bindLiveCountStreams();
     }
@@ -200,6 +205,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       targetUid: target,
     );
     if (mounted) setState(() => _isFollowing = v);
+  }
+
+  Future<void> _refreshCreatorSubscriptionFromFirestore() async {
+    final creatorId = (widget.payload.targetUserId ?? '').trim();
+    if (creatorId.isEmpty) return;
+    final record = await _creatorSubscriptionService
+        .getForCurrentSubscriberByCreator(creatorId);
+    if (!mounted) return;
+    setState(() => _isSubscribed = record?.isActive == true);
   }
 
   Future<void> _onFollowTap() async {
@@ -549,8 +563,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 icon: FontAwesomeIcons.crown,
                 onPressed: () {
                   if (!_isSubscribed) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
+                    Navigator.of(context).push<bool>(
+                      MaterialPageRoute<bool>(
                         builder: (_) => CreatorSubscriptionScreen(
                           name: p.displayName,
                           handle: '@${p.username}',
@@ -559,9 +573,31 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           isVerified: p.isVerified,
                         ),
                       ),
-                    );
+                    ).then((bool? subscribed) {
+                      if (!mounted) return;
+                      if (subscribed == true) {
+                        setState(() => _isSubscribed = true);
+                      }
+                    });
                   } else {
-                    setState(() => _isSubscribed = false);
+                    final creatorId = (p.targetUserId ?? '').trim();
+                    if (creatorId.isEmpty) {
+                      setState(() => _isSubscribed = false);
+                      return;
+                    }
+                    _creatorSubscriptionService
+                        .cancelSubscription(creatorId: creatorId)
+                        .then((_) {
+                      if (!mounted) return;
+                      setState(() => _isSubscribed = false);
+                    }).catchError((_) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to cancel subscription.'),
+                        ),
+                      );
+                    });
                   }
                 },
               ),
@@ -1113,32 +1149,177 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   List<Widget> _buildSavedGridSlivers() {
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+    final targetUid = (widget.payload.targetUserId ?? '').trim();
+    if (targetUid.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _buildEmptyTab(),
         ),
-        sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 4,
-            crossAxisSpacing: 4,
-            childAspectRatio: 1,
-          ),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Image.network(
-                _userProfileMockSavedUrls[index],
-                fit: BoxFit.cover,
+      ];
+    }
+    return [
+      SliverToBoxAdapter(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchSavedReels(targetUid),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 200,
+                child: Center(
+                  child: CircularProgressIndicator(color: Colors.white54),
+                ),
+              );
+            }
+            final savedReels = snapshot.data ?? <Map<String, dynamic>>[];
+            if (savedReels.isEmpty) {
+              return _buildEmptyTab();
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
               ),
-            ),
-            childCount: _userProfileMockSavedUrls.length,
-          ),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  childAspectRatio: 1,
+                ),
+                itemCount: savedReels.length,
+                itemBuilder: (context, index) {
+                  final reel = savedReels[index];
+                  final thumb = _thumbnailFromReel(reel);
+                  final mediaType = ((reel['mediaType'] as String?) ?? '')
+                      .toLowerCase();
+                  final isVideo = mediaType != 'image';
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PostFeedScreen(
+                          payload: PostFeedPayload(
+                            posts: savedReels,
+                            initialIndex: index,
+                            creatorName: (reel['username'] as String? ?? '')
+                                    .trim()
+                                    .isNotEmpty
+                                ? (reel['username'] as String).trim()
+                                : widget.payload.displayName,
+                            creatorHandle:
+                                '@${((reel['username'] as String?) ?? widget.payload.username).replaceAll('@', '')}',
+                            avatarUrl:
+                                (reel['avatarUrl'] as String? ?? '').trim(),
+                            isVerified: reel['isVerified'] == true,
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(color: Colors.grey[900]),
+                          if (thumb.isNotEmpty)
+                            Image.network(
+                              thumb,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          if (isVideo)
+                            const Align(
+                              alignment: Alignment.bottomRight,
+                              child: Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white70,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ),
     ];
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSavedReels(String uid) async {
+    try {
+      final savesSnap = await FirebaseFirestore.instance
+          .collection('userSaves')
+          .where('userId', isEqualTo: uid)
+          .get();
+      if (savesSnap.docs.isEmpty) return <Map<String, dynamic>>[];
+
+      final saveMeta = <String, int>{};
+      final reelIds = <String>[];
+      for (final d in savesSnap.docs) {
+        final data = d.data();
+        final reelId = (data['reelId'] as String?)?.trim() ?? '';
+        if (reelId.isEmpty) continue;
+        final ts = data['savedAt'];
+        final epoch = ts is Timestamp ? ts.millisecondsSinceEpoch : 0;
+        saveMeta[reelId] = epoch;
+        reelIds.add(reelId);
+      }
+      if (reelIds.isEmpty) return <Map<String, dynamic>>[];
+
+      final reelsById = <String, Map<String, dynamic>>{};
+      for (var i = 0; i < reelIds.length; i += 10) {
+        final chunk = reelIds.sublist(
+          i,
+          (i + 10) > reelIds.length ? reelIds.length : (i + 10),
+        );
+        final q = await FirebaseFirestore.instance
+            .collection('reels')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in q.docs) {
+          final data = doc.data();
+          reelsById[doc.id] = {
+            'id': doc.id,
+            'videoUrl': data['videoUrl'] as String? ?? '',
+            'caption': data['caption'] as String? ?? '',
+            'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
+            'imageUrl': data['imageUrl'] as String? ?? '',
+            'mediaType': data['mediaType'] as String? ?? '',
+            'username': data['username'] as String? ?? '',
+            'avatarUrl': data['profileImage'] as String? ??
+                data['avatarUrl'] as String? ??
+                '',
+            'isVerified': data['isVerified'] == true,
+            'createdAt': data['createdAt'],
+          };
+        }
+      }
+
+      final out = <Map<String, dynamic>>[];
+      for (final id in reelIds) {
+        final reel = reelsById[id];
+        if (reel != null) out.add(reel);
+      }
+      out.sort((a, b) {
+        final aTs = saveMeta[a['id']] ?? 0;
+        final bTs = saveMeta[b['id']] ?? 0;
+        return bTs.compareTo(aTs);
+      });
+      return out;
+    } catch (e) {
+      dev.log('Failed to fetch user profile saved reels', error: e);
+      return <Map<String, dynamic>>[];
+    }
   }
 
   Widget _buildEmptyTab() {
@@ -1153,16 +1334,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 }
-
-// Mock data for other user profile (design only).
-const List<String> _userProfileMockSavedUrls = [
-  'https://picsum.photos/400/400?random=us1',
-  'https://picsum.photos/400/400?random=us2',
-  'https://picsum.photos/400/400?random=us3',
-  'https://picsum.photos/400/400?random=us4',
-  'https://picsum.photos/400/400?random=us5',
-  'https://picsum.photos/400/400?random=us6',
-];
 
 class _UserProfileVRItem {
   const _UserProfileVRItem({
@@ -1356,9 +1527,12 @@ class _UserProfileVRCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avatarProvider = Uri.tryParse(item.avatarUrl)?.isAbsolute == true
-        ? NetworkImage(item.avatarUrl)
-        : null;
+    final avatarUri = Uri.tryParse(item.avatarUrl.trim());
+    final hasValidAvatar = avatarUri != null &&
+        avatarUri.isAbsolute &&
+        avatarUri.host.isNotEmpty &&
+        (avatarUri.scheme == 'http' || avatarUri.scheme == 'https');
+    final avatarProvider = hasValidAvatar ? NetworkImage(item.avatarUrl.trim()) : null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -1500,9 +1674,12 @@ class _UserProfileStreamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = Uri.tryParse(item.thumbnailUrl)?.isAbsolute == true
-        ? NetworkImage(item.thumbnailUrl)
-        : null;
+    final thumbUri = Uri.tryParse(item.thumbnailUrl.trim());
+    final hasValidThumb = thumbUri != null &&
+        thumbUri.isAbsolute &&
+        thumbUri.host.isNotEmpty &&
+        (thumbUri.scheme == 'http' || thumbUri.scheme == 'https');
+    final imageProvider = hasValidThumb ? NetworkImage(item.thumbnailUrl.trim()) : null;
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
