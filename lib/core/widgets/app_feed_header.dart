@@ -56,8 +56,8 @@ class AppFeedHeader extends StatelessWidget {
   Widget _buildLogo(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final logoHeight = screenWidth < 360
-        ? 48.0
-        : (screenWidth < 420 ? 108.0 : 64.0);
+        ? 44.0
+        : (screenWidth < 420 ? 54.0 : 64.0);
 
     return SizedBox(
       height: logoHeight,

@@ -100,11 +100,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   int? _liveFollowerCount;
   int? _liveFollowingCount;
   int? _livePostCount;
+  int? _liveSubscriberCount;
   bool? _liveIsVerified;
   String? _liveAccountType;
   bool? _liveVipVerified;
   StreamSubscription<int>? _followerCountSub;
   StreamSubscription<int>? _postCountSub;
+  StreamSubscription<int>? _subscriberCountSub;
   StreamSubscription<AppUserModel?>? _targetUserSub;
   final LiveStreamService _liveStreamService = LiveStreamService();
   final CreatorSubscriptionService _creatorSubscriptionService =
@@ -131,6 +133,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _liveFollowerCount = null;
       _liveFollowingCount = null;
       _livePostCount = null;
+      _liveSubscriberCount = null;
       _liveIsVerified = null;
       _liveAccountType = null;
       _liveVipVerified = null;
@@ -145,6 +148,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   void dispose() {
     _followerCountSub?.cancel();
     _postCountSub?.cancel();
+    _subscriberCountSub?.cancel();
     _targetUserSub?.cancel();
     super.dispose();
   }
@@ -164,6 +168,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (!mounted) return;
       setState(() => _livePostCount = v);
     });
+    _subscriberCountSub =
+        _creatorSubscriptionService.subscriberCountStream(id).listen((v) {
+      if (!mounted) return;
+      setState(() => _liveSubscriberCount = v);
+    });
     _targetUserSub = svc.userStream(id).listen((u) {
       if (!mounted) return;
       setState(() {
@@ -181,12 +190,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final svc = UserService();
     final fc = await svc.getFollowerCount(id);
     final pc = await svc.getReelCountForUser(id);
+    final sc = await _creatorSubscriptionService.getSubscriberCount(id);
     final u = await svc.getUser(id);
     if (!mounted) return;
     setState(() {
       _liveFollowerCount = fc;
       _liveFollowingCount = u?.following.length ?? 0;
       _livePostCount = pc;
+      _liveSubscriberCount = sc;
     });
   }
 
@@ -456,6 +467,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             value: _formatCount(
                               _liveFollowingCount ?? p.followingCount,
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          _UserStatChip(
+                            label: 'Subscriptions',
+                            value: _formatCount(_liveSubscriberCount ?? 0),
                           ),
                         ],
                       ),

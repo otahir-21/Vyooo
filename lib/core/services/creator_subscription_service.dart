@@ -211,4 +211,40 @@ class CreatorSubscriptionService {
       payload: {'subscriberId': subscriberId},
     );
   }
+
+  /// Reactive stream of active subscriber count for a creator.
+  Stream<int> subscriberCountStream(String creatorId) {
+    if (creatorId.isEmpty) return const Stream<int>.empty();
+    return _firestore
+        .collection(_collection)
+        .where('creatorId', isEqualTo: creatorId)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((q) => q.docs.length);
+  }
+
+  /// One-time fetch of active subscriber count for a creator.
+  Future<int> getSubscriberCount(String creatorId) async {
+    if (creatorId.isEmpty) return 0;
+    try {
+      final agg = await _firestore
+          .collection(_collection)
+          .where('creatorId', isEqualTo: creatorId)
+          .where('status', isEqualTo: 'active')
+          .count()
+          .get();
+      return agg.count ?? 0;
+    } catch (_) {
+      try {
+        final q = await _firestore
+            .collection(_collection)
+            .where('creatorId', isEqualTo: creatorId)
+            .where('status', isEqualTo: 'active')
+            .get();
+        return q.docs.length;
+      } catch (_) {
+        return 0;
+      }
+    }
+  }
 }

@@ -631,19 +631,35 @@ class _PostCard extends StatelessWidget {
   }
 
   Widget _buildCaption() {
-    final caption = _asString(post['caption']).trim();
-    if (caption.isEmpty) return const SizedBox.shrink();
-    if (caption.length <= 95) {
-      return CaptionWithHashtags(
-        text: caption,
-        maxLines: 10,
-        overflow: TextOverflow.ellipsis,
-      );
+    final title = _asString(post['title']).trim();
+    final description = _asString(post['description']).trim();
+    final tagsList = post['tags'] as List? ?? [];
+    final oldCaption = _asString(post['caption']).trim();
+
+    final buffer = StringBuffer();
+    if (title.isNotEmpty) {
+      buffer.write(title);
+    } else if (oldCaption.isNotEmpty && description.isEmpty && tagsList.isEmpty) {
+      // Fallback for old content
+      buffer.write(oldCaption);
     }
-    final shortened = caption.substring(0, 92);
+
+    if (description.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write(description);
+    }
+
+    if (tagsList.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write(tagsList.map((t) => '#${t.toString().trim()}').join(' '));
+    }
+
+    final fullText = buffer.toString();
+    if (fullText.isEmpty) return const SizedBox.shrink();
+
     return CaptionWithHashtags(
-      text: '$shortened...Read more',
-      maxLines: 2,
+      text: fullText,
+      maxLines: 10,
       overflow: TextOverflow.ellipsis,
     );
   }

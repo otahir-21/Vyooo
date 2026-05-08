@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:vyooo/core/services/creator_subscription_service.dart';
 
 import '../../core/config/deep_link_config.dart';
 import '../../core/theme/app_gradients.dart';
@@ -574,15 +575,23 @@ class _ProfileScreenState extends State<ProfileScreen>
                             stream: UserService().reelCountStream(uid),
                             builder: (context, postSnap) {
                               final pc = postSnap.data ?? 0;
-                              final following = user?.following.length ?? 0;
-                              return _buildProfileBody(
-                                context,
-                                user: user,
-                                profileUid: uid,
-                                canUploadContent: canUploadContent,
-                                followerCount: fc,
-                                followingCount: following,
-                                postCount: pc,
+                              return StreamBuilder<int>(
+                                stream: CreatorSubscriptionService()
+                                    .subscriberCountStream(uid),
+                                builder: (context, subSnap) {
+                                  final sc = subSnap.data ?? 0;
+                                  final following = user?.following.length ?? 0;
+                                  return _buildProfileBody(
+                                    context,
+                                    user: user,
+                                    profileUid: uid,
+                                    canUploadContent: canUploadContent,
+                                    followerCount: fc,
+                                    followingCount: following,
+                                    postCount: pc,
+                                    subscriberCount: sc,
+                                  );
+                                },
                               );
                             },
                           );
@@ -607,6 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       followerCount: 0,
       followingCount: 0,
       postCount: 0,
+      subscriberCount: 0,
     );
   }
 
@@ -618,6 +628,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     required int followerCount,
     required int followingCount,
     required int postCount,
+    required int subscriberCount,
   }) {
     final username = user?.username?.isNotEmpty == true
         ? user!.username!
@@ -901,6 +912,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(width: 12),
+                    _StatChip(
+                      label: 'Subscriptions',
+                      value: _formatStatCount(subscriberCount),
                     ),
                   ],
                 ),

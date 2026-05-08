@@ -622,17 +622,26 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     super.build(context);
     final isVrTab = currentTab == HomeTab.vr;
     final isFollowing = currentTab == HomeTab.following;
-    final followingStoriesTop = MediaQuery.paddingOf(context).top + 120;
-    final followingFeedTop = followingStoriesTop + 120;
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final logoHeight = screenWidth < 360
+        ? 44.0
+        : (screenWidth < 420 ? 54.0 : 64.0);
+    final headerEstimate = logoHeight + 24; // sm(8) + md(16) from AppFeedHeader
+    final topPadding = MediaQuery.paddingOf(context).top;
+
+    final followingStoriesTop = topPadding + headerEstimate + 12;
+    final followingFeedTop = followingStoriesTop + 116;
     final collapseT = isFollowing ? _followingStoriesCollapse.value : 0.0;
-    final storiesCollapsedTop = MediaQuery.paddingOf(context).top + 66;
+    final storiesCollapsedTop = topPadding + headerEstimate - 30;
+
     final animatedStoriesTop =
         lerpDouble(followingStoriesTop, storiesCollapsedTop, collapseT) ??
         followingStoriesTop;
     final animatedFeedTop =
         lerpDouble(
           followingFeedTop,
-          MediaQuery.paddingOf(context).top + 86,
+          topPadding + headerEstimate + 8,
           collapseT,
         ) ??
         followingFeedTop;
@@ -656,7 +665,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           children: [
             if (isVrTab)
               Positioned.fill(
-                top: 110, // Just below header
+                top: topPadding + headerEstimate + 8,
                 child: _buildVrContent(),
               )
             else
@@ -1272,11 +1281,40 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             ],
           ),
           const SizedBox(height: 12),
-          _CaptionWithSeeMore(text: _asString(reel['caption'])),
+          _buildReelCaption(reel),
           const SizedBox(height: 16),
         ],
       ),
     );
+  }
+
+  Widget _buildReelCaption(Map<String, dynamic> reel) {
+    final title = _asString(reel['title']);
+    final description = _asString(reel['description']);
+    final tagsList = reel['tags'] as List? ?? [];
+
+    if (title.isEmpty && description.isEmpty && tagsList.isEmpty) {
+      // Fallback for old reels that only have the 'caption' field
+      return _CaptionWithSeeMore(text: _asString(reel['caption']));
+    }
+
+    final buffer = StringBuffer();
+    if (title.isNotEmpty) {
+      buffer.write(title);
+    }
+    if (description.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write(description);
+    }
+    if (tagsList.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write(tagsList.map((t) => '#${t.toString().trim()}').join(' '));
+    }
+
+    // If description was added, we might want to distinguish the title.
+    // However, CaptionWithHashtags takes a single string.
+    // For now, let's just ensure it's all passed.
+    return _CaptionWithSeeMore(text: buffer.toString());
   }
 
   // bool _isVideoPlaying() {
@@ -1373,7 +1411,7 @@ class _CaptionWithSeeMoreState extends State<_CaptionWithSeeMore> {
   bool _isOverflowing(String text, double maxWidth) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: _captionStyle),
-      maxLines: 2,
+      maxLines: 3,
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: maxWidth);
     return painter.didExceedMaxLines;
@@ -1395,7 +1433,7 @@ class _CaptionWithSeeMoreState extends State<_CaptionWithSeeMore> {
               text: caption,
               style: _captionStyle,
               hashtagColor: AppColors.brandPink,
-              maxLines: _expanded ? null : 2,
+              maxLines: _expanded ? null : 3,
               overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
             ),
             if (hasOverflow && !_expanded) ...[

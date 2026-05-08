@@ -229,12 +229,33 @@ class CommentService {
     );
 
     await batch.commit();
-    await NotificationService().create(
-      recipientId: reelOwnerId,
-      type: AppNotificationType.comment,
-      message: 'commented on your post.',
-      extra: {'reelId': reelId, 'commentId': commentRef.id},
-    );
+    final displayComment = trimmed.length > 60 ? '${trimmed.substring(0, 57)}...' : trimmed;
+
+    // Notify Reel Owner
+    if (reelOwnerId.isNotEmpty && reelOwnerId != uid) {
+      await NotificationService().create(
+        recipientId: reelOwnerId,
+        type: AppNotificationType.comment,
+        message: 'commented on your post: "$displayComment"',
+        extra: {'reelId': reelId, 'commentId': commentRef.id},
+      );
+    }
+
+    // Notify Parent Comment Author (if it's a reply)
+    if (effectiveParent.isNotEmpty) {
+      try {
+        final parentDoc = await _comments(reelId).doc(effectiveParent).get();
+        final parentAuthorId = (parentDoc.data()?['userId'] as String?) ?? '';
+        if (parentAuthorId.isNotEmpty && parentAuthorId != uid && parentAuthorId != reelOwnerId) {
+          await NotificationService().create(
+            recipientId: parentAuthorId,
+            type: AppNotificationType.comment,
+            message: 'replied to your comment: "$displayComment"',
+            extra: {'reelId': reelId, 'commentId': commentRef.id, 'parentId': effectiveParent},
+          );
+        }
+      } catch (_) {}
+    }
   }
 
   /// Deletes subtree; returns number of comment documents removed (for feed count).

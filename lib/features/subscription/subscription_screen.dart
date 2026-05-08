@@ -232,24 +232,25 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             SizedBox(height: isCompact ? 8 : 12),
-                          Center(
-                            child: SizedBox(
-                              height: 100,
-                              child: Image.asset(
-                                'assets/BrandLogo/vyooo_white_transparent.png',
-                                fit: BoxFit.contain,
-                                errorBuilder: (_, error, stackTrace) => const Text(
-                                  'VyooO',
-                                  style: TextStyle(
-                                    color: AppTheme.primary,
-                                    fontSize: 42,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: -0.5,
-                                  ),
+                            Center(
+                              child: SizedBox(
+                                height: 100,
+                                child: Image.asset(
+                                  'assets/BrandLogo/vyooo_white_transparent.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, error, stackTrace) =>
+                                      const Text(
+                                        'VyooO',
+                                        style: TextStyle(
+                                          color: AppTheme.primary,
+                                          fontSize: 42,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
                                 ),
                               ),
                             ),
-                          ),
                             // Center(
                             //   child: RichText(
                             //     text: TextSpan(
@@ -342,7 +343,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                       children: [
                                         Text(
                                           offeringsUnreachable
-                                              ? 'We couldn’t reach the App Store for plans. Check your connection and try again.'
+                                              ? 'We couldn’t reach the store for plans. Check your connection and try again.'
                                               : 'Subscription products aren’t available yet from the store. Confirm RevenueCat offerings or try again shortly.',
                                           style: TextStyle(
                                             color: Colors.white.withValues(
@@ -736,13 +737,13 @@ class _SubscriptionLegalFooter extends StatelessWidget {
     final body = isPaidPlanSelected
         ? 'When you continue, a subscription purchase may be completed. '
               'The price and billing period for each plan are shown above. '
-              'Payment is charged to your Apple ID. The subscription renews automatically '
+              'Payment is charged to your account. The subscription renews automatically '
               'for the same price and duration until you turn off auto-renew in '
-              'Settings → Apple ID → Subscriptions at least 24 hours before the period ends.'
+              'your account settings at least 24 hours before the period ends.'
         : 'Standard may be offered at no charge. Subscriber and Creator are auto-renewing '
               'subscriptions: price and period are shown above. When you purchase a paid plan, '
-              'payment is charged to your Apple ID and the subscription renews until canceled '
-              'in Settings → Apple ID → Subscriptions.';
+              'payment is charged to your account and the subscription renews until canceled '
+              'in your account settings.';
 
     return Text(
       body,
@@ -789,13 +790,7 @@ class _FeatureComparisonTable extends StatelessWidget {
           const Divider(height: 1, color: Colors.white12),
           // Intrinsic-height rows: parent [SingleChildScrollView] scrolls the full list
           // (Monetize / Offer subscriptions / Video Quality, etc.).
-          _FeatureRow(
-            'Watch live content',
-            true,
-            true,
-            true,
-            compact: compact,
-          ),
+          _FeatureRow('Watch live content', true, true, true, compact: compact),
           _FeatureRow(
             'Ad-free experience',
             false,
@@ -968,6 +963,5 @@ class _UpgradeButton extends StatelessWidget {
         ),
       ),
     );
-
   }
 }

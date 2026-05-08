@@ -442,6 +442,9 @@ class UserService {
       },
       SetOptions(merge: true),
     );
+    await _firestore.collection(_usersCollection).doc(targetUid).update({
+      'followersCount': FieldValue.increment(1),
+    });
     await NotificationService().create(
       recipientId: targetUid,
       type: AppNotificationType.follow,
@@ -462,6 +465,9 @@ class UserService {
       {'following': FieldValue.arrayRemove([targetUid])},
       SetOptions(merge: true),
     );
+    await _firestore.collection(_usersCollection).doc(targetUid).update({
+      'followersCount': FieldValue.increment(-1),
+    });
   }
 
   /// Blocks [targetUid]: adds to blockedUsers and removes from following (local doc only).

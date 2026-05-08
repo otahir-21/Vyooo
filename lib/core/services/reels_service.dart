@@ -372,6 +372,8 @@ class ReelsService {
       'username': data['username'] ?? '',
       'handle': data['handle'] ?? '',
       'caption': data['caption'] ?? '',
+      'description': data['description'] ?? '',
+      'title': data['title'] ?? '',
       'tags': tagsList,
       'isVR': data['isVR'] == true,
       'likes': (data['likes'] as num?)?.toInt() ?? 0,

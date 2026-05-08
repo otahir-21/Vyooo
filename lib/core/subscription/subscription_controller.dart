@@ -26,7 +26,8 @@ class SubscriptionController extends ChangeNotifier {
   static const String _keyDebugTier = 'debug_subscription_tier';
   static const String _keyCachedTierPrefix = 'cached_subscription_tier_';
   static const String _keyCachedPaidPrefix = 'cached_subscription_paid_';
-  static const String _keyCachedSyncedAtPrefix = 'cached_subscription_synced_at_';
+  static const String _keyCachedSyncedAtPrefix =
+      'cached_subscription_synced_at_';
 
   MembershipTier currentTier = MembershipTier.none;
   MembershipTier? _testTierOverride;
@@ -84,7 +85,8 @@ class SubscriptionController extends ChangeNotifier {
     final tier = tierName == null ? null : _tierFromString(tierName);
     if (tier == null && cachedPaid == null) return;
     currentTier = tier ?? MembershipTier.none;
-    _hasAnyStoreSubscription = cachedPaid ?? (currentTier != MembershipTier.none);
+    _hasAnyStoreSubscription =
+        cachedPaid ?? (currentTier != MembershipTier.none);
     _hasResolvedStatusOnce = true;
     if (kDebugMode && syncedAtMs != null) {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -136,16 +138,27 @@ class SubscriptionController extends ChangeNotifier {
     return await _service.fetchOfferings();
   }
 
-  Future<void> refreshStatus() async {
+  Future<void> refreshStatus([CustomerInfo? providedInfo]) async {
     if ((kDebugMode || AppConfig.enableSubscriptionTierTesting) &&
         _testTierOverride != null) {
       currentTier = _testTierOverride!;
       _hasAnyStoreSubscription = currentTier != MembershipTier.none;
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionController: Using test tier override: ${currentTier.name}',
+        );
+      }
       notifyListeners();
       return;
     }
-    final info = await _service.getCustomerInfoSafe();
+
+    final info = providedInfo ?? await _service.getCustomerInfoSafe();
     if (info == null) {
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionController: No CustomerInfo available (network error?)',
+        );
+      }
       // Do not downgrade on transient SDK/network failures after we already
       // resolved a real status once in this session.
       if (!_hasResolvedStatusOnce) {
@@ -155,12 +168,25 @@ class SubscriptionController extends ChangeNotifier {
     } else {
       currentTier = _service.getTier(info);
       _hasAnyStoreSubscription =
-          info.entitlements.active.isNotEmpty || info.activeSubscriptions.isNotEmpty;
+          info.entitlements.active.isNotEmpty ||
+          info.activeSubscriptions.isNotEmpty;
+
+      if (kDebugMode) {
+        debugPrint(
+          'SubscriptionController: Status resolved from RevenueCat. Tier: ${currentTier.name}, Paid: $_hasAnyStoreSubscription',
+        );
+      }
+
       if (currentTier == MembershipTier.none && _hasAnyStoreSubscription) {
         final uid = _activeFirebaseUid;
         if (uid != null && uid.isNotEmpty) {
           final cachedTier = await _loadCachedTierForUid(uid);
           if (cachedTier != null && cachedTier != MembershipTier.none) {
+            if (kDebugMode) {
+              debugPrint(
+                'SubscriptionController: RC says none but store has active subs. Using cached tier: ${cachedTier.name}',
+              );
+            }
             currentTier = cachedTier;
           }
         }
@@ -174,17 +200,23 @@ class SubscriptionController extends ChangeNotifier {
   /// Strong status reconciliation for cases where sandbox entitlement sync lags.
   /// Returns true when an active paid subscription is detected after recovery.
   Future<bool> reconcilePaidStatus({String? firebaseUid}) async {
+    if (kDebugMode)
+      debugPrint(
+        'SubscriptionController: Starting reconcilePaidStatus for $firebaseUid',
+      );
     // Ensure RevenueCat identity matches Firebase before checking status.
+    CustomerInfo? info;
     if (firebaseUid != null && firebaseUid.isNotEmpty) {
-      await _service.syncFirebaseUser(firebaseUid);
+      info = await _service.syncFirebaseUser(firebaseUid);
     }
-    await refreshStatus();
+    await refreshStatus(info);
     if (isPaid) return true;
 
     // Recovery path: restore, then refresh again.
     // Throttle restore calls to avoid repeated restore loops on quick tab taps.
     final now = DateTime.now();
-    final canRestoreNow = _lastRestoreAttemptAt == null ||
+    final canRestoreNow =
+        _lastRestoreAttemptAt == null ||
         now.difference(_lastRestoreAttemptAt!) > const Duration(minutes: 2);
     if (!canRestoreNow) return isPaid;
     _lastRestoreAttemptAt = now;
@@ -195,10 +227,14 @@ class SubscriptionController extends ChangeNotifier {
 
   /// After Firebase Auth sign-in / sign-out, keep RevenueCat `appUserID` aligned.
   Future<void> syncPurchasesIdentity(String? firebaseUid) async {
+    if (kDebugMode)
+      debugPrint('SubscriptionController: syncPurchasesIdentity($firebaseUid)');
     // On account changes, show last known status immediately for this user.
     if (firebaseUid != _activeFirebaseUid) {
       _activeFirebaseUid = firebaseUid;
       if (firebaseUid == null || firebaseUid.isEmpty) {
+        if (kDebugMode)
+          debugPrint('SubscriptionController: Resetting to none (logout)');
         currentTier = MembershipTier.none;
         _hasAnyStoreSubscription = false;
         _hasResolvedStatusOnce = false;
@@ -207,8 +243,7 @@ class SubscriptionController extends ChangeNotifier {
       }
       notifyListeners();
     }
-    await _service.syncFirebaseUser(firebaseUid);
-    await refreshStatus();
+    await reconcilePaidStatus(firebaseUid: firebaseUid);
   }
 
   /// Returns true if purchase succeeded, false if user cancelled, throws on real error.
@@ -292,7 +327,8 @@ class SubscriptionController extends ChangeNotifier {
   }
 
   /// True if user has any paid plan (Standard, Subscriber, or Creator).
-  bool get isPaid => currentTier != MembershipTier.none || _hasAnyStoreSubscription;
+  bool get isPaid =>
+      currentTier != MembershipTier.none || _hasAnyStoreSubscription;
 
   /// True if user can monetize content (Creator only in typical setup).
   bool get canMonetize => isCreator;

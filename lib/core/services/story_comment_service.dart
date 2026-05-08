@@ -26,10 +26,9 @@ class StoryCommentService {
     String storyId, {
     int limit = recentTailLimit,
   }) {
-    return _comments(storyId)
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots();
+    return _comments(
+      storyId,
+    ).orderBy('createdAt', descending: true).limit(limit).snapshots();
   }
 
   Future<QuerySnapshot<Map<String, dynamic>>> fetchCommentsOlderThan(
@@ -59,8 +58,7 @@ class StoryCommentService {
   Future<List<Comment>> commentsFromDocuments(
     String storyId,
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) =>
-      _snapshotToComments(storyId, docs);
+  ) => _snapshotToComments(storyId, docs);
 
   Future<List<Comment>> _snapshotToComments(
     String storyId,
@@ -163,8 +161,7 @@ class StoryCommentService {
     if (p.isEmpty) return '';
     final doc = await _comments(storyId).doc(p).get();
     if (!doc.exists) return '';
-    final parentOfParent =
-        (doc.data()?['parentId'] as String?)?.trim() ?? '';
+    final parentOfParent = (doc.data()?['parentId'] as String?)?.trim() ?? '';
     if (parentOfParent.isNotEmpty) return parentOfParent;
     return p;
   }
@@ -184,8 +181,7 @@ class StoryCommentService {
     var username = AuthService().currentUser?.displayName ?? '';
     var avatarUrl = AuthService().currentUser?.photoURL ?? '';
     if (username.isEmpty) {
-      username =
-          AuthService().currentUser?.email?.split('@').first ?? 'User';
+      username = AuthService().currentUser?.email?.split('@').first ?? 'User';
     }
     try {
       final u = await UserService().getUser(uid);
@@ -213,12 +209,35 @@ class StoryCommentService {
     // `comments` on the story doc is maintained by Cloud Function `syncStoryCommentCountOnCreate`.
 
     await batch.commit();
-    await NotificationService().create(
-      recipientId: storyOwnerId,
-      type: AppNotificationType.comment,
-      message: 'commented on your story.',
-      extra: {'storyId': storyId, 'commentId': commentRef.id},
-    );
+    final displayComment = trimmed.length > 60
+        ? '${trimmed.substring(0, 57)}...'
+        : trimmed;
+
+    // Notify Story Owner
+    if (storyOwnerId.isNotEmpty && storyOwnerId != uid) {
+      await NotificationService().create(
+        recipientId: storyOwnerId,
+        type: AppNotificationType.comment,
+        message: 'commented on your story: "$displayComment"',
+        extra: {'storyId': storyId, 'commentId': commentRef.id},
+      );
+    }
+
+    // Notify Parent Comment Author (if it's a reply)
+    if (effectiveParent.isNotEmpty) {
+      try {
+        final parentDoc = await _comments(storyId).doc(effectiveParent).get();
+        final parentAuthorId = (parentDoc.data()?['userId'] as String?) ?? '';
+        if (parentAuthorId.isNotEmpty && parentAuthorId != uid && parentAuthorId != storyOwnerId) {
+          await NotificationService().create(
+            recipientId: parentAuthorId,
+            type: AppNotificationType.comment,
+            message: 'replied to your comment: "$displayComment"',
+            extra: {'storyId': storyId, 'commentId': commentRef.id, 'parentId': effectiveParent},
+          );
+        }
+      } catch (_) {}
+    }
   }
 
   Future<int> deleteComment(String storyId, String commentId) async {
@@ -269,8 +288,9 @@ class StoryCommentService {
     final uid = _uid;
     if (uid == null) return;
 
-    final likeRef =
-        _comments(storyId).doc(commentId).collection('likes').doc(uid);
+    final likeRef = _comments(
+      storyId,
+    ).doc(commentId).collection('likes').doc(uid);
     final commentRef = _comments(storyId).doc(commentId);
     final batch = _firestore.batch();
 

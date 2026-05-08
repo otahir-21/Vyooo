@@ -34,9 +34,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   AnimationController? _imageProgress;
   VideoPlayerController? _video;
   bool _didLongPress = false;
+  bool _isHolding = false;
   bool _videoEndedHandled = false;
 
-  static const Duration _imageStoryDuration = Duration(seconds: 5);
+  static const Duration _imageStoryDuration = Duration(seconds: 8);
 
   final _storyService = StoryService();
   Set<String> _likedStoryIds = {};
@@ -472,10 +473,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       body: GestureDetector(
         onTapDown: (_) {
           _didLongPress = false;
+          setState(() => _isHolding = true);
           _imageProgress?.stop();
           _video?.pause();
         },
         onTapUp: (details) {
+          setState(() => _isHolding = false);
           if (_didLongPress) {
             _didLongPress = false;
             _imageProgress?.forward();
@@ -490,14 +493,23 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           }
         },
         onTapCancel: () {
+          setState(() => _isHolding = false);
           if (!_didLongPress) {
             _imageProgress?.forward();
             _video?.play();
           }
         },
-        onLongPressStart: (_) => setState(() => _didLongPress = true),
+        onLongPressStart: (_) {
+          setState(() {
+            _didLongPress = true;
+            _isHolding = true;
+          });
+        },
         onLongPressEnd: (_) {
-          setState(() => _didLongPress = false);
+          setState(() {
+            _didLongPress = false;
+            _isHolding = false;
+          });
           _imageProgress?.forward();
           _video?.play();
         },
@@ -526,6 +538,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                           )
                         : Container(color: Colors.grey[900]),
               ),
+            ),
+            // Dim overlay when holding
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _isHolding ? 0.3 : 0.0,
+              child: Container(color: Colors.black),
             ),
             Positioned(
               top: 0,

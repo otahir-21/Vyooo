@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
@@ -13,12 +14,19 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
   int _selectedCurrencyIndex = 0; // 0: Fiat, 1: Crypto
   String _amount = "100";
   int _selectedQuickAmount = 100;
-  String? _selectedPaymentMethod = "Apple Pay";
+  String? _selectedPaymentMethod;
   bool _saveCardInfo = false;
 
   final TextEditingController _amountController = TextEditingController(
     text: "100",
   );
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPaymentMethod =
+        (defaultTargetPlatform == TargetPlatform.iOS) ? "Apple Pay" : "Google Pay";
+  }
 
   @override
   void dispose() {
@@ -752,13 +760,14 @@ class _AddFundsScreenState extends State<AddFundsScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildPaymentOption('Apple Pay', Icons.apple, Colors.white),
-        const SizedBox(height: 12),
-        _buildPaymentOption(
-          'Google Pay',
-          FontAwesomeIcons.google,
-          const Color(0xFF4285F4),
-        ),
+        if (Theme.of(context).platform == TargetPlatform.iOS)
+          _buildPaymentOption('Apple Pay', Icons.apple, Colors.white)
+        else
+          _buildPaymentOption(
+            'Google Pay',
+            FontAwesomeIcons.google,
+            const Color(0xFF4285F4),
+          ),
         const SizedBox(height: 12),
         _buildPaymentOption(
           'Credit / Debit Card',
