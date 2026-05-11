@@ -301,7 +301,8 @@ class UserService {
         if (byUsername.docs.length > 1) return null;
         if (byUsername.docs.isNotEmpty) {
           final email = (byUsername.docs.first.data()['email'] as String? ?? '')
-              .trim();
+              .trim()
+              .toLowerCase();
           if (email.isNotEmpty) return email;
         }
       }
@@ -313,7 +314,9 @@ class UserService {
           .get();
       if (byDisplayName.docs.isNotEmpty) {
         final email =
-            (byDisplayName.docs.first.data()['email'] as String? ?? '').trim();
+            (byDisplayName.docs.first.data()['email'] as String? ?? '')
+                .trim()
+                .toLowerCase();
         if (email.isNotEmpty) return email;
       }
 
@@ -328,7 +331,7 @@ class UserService {
             .trim()
             .toLowerCase();
         if (displayName != normalizedDisplayName) continue;
-        final email = (data['email'] as String? ?? '').trim();
+        final email = (data['email'] as String? ?? '').trim().toLowerCase();
         if (email.isNotEmpty) return email;
       }
       return null;
@@ -349,7 +352,8 @@ class UserService {
           .get();
       if (byNormalized.docs.isNotEmpty) {
         final email = (byNormalized.docs.first.data()['email'] as String? ?? '')
-            .trim();
+            .trim()
+            .toLowerCase();
         if (email.isNotEmpty) return email;
       }
       final byRaw = await _firestore
@@ -359,7 +363,8 @@ class UserService {
           .get();
       if (byRaw.docs.isNotEmpty) {
         final email = (byRaw.docs.first.data()['email'] as String? ?? '')
-            .trim();
+            .trim()
+            .toLowerCase();
         if (email.isNotEmpty) return email;
       }
       return null;

@@ -32,6 +32,11 @@ int _readFirestoreInt(dynamic value, {int fallback = 0}) {
   return fallback;
 }
 
+/// Firestore auto-ids never contain spaces; strip accidental whitespace from bad data.
+String _sanitizeParentConsentId(String raw) {
+  return raw.replaceAll(RegExp(r'\s+'), '');
+}
+
 /// Firestore user document model. Do NOT store password.
 class AppUserModel {
   const AppUserModel({
@@ -152,9 +157,36 @@ class AppUserModel {
       return [];
     }
 
-    final parentStatusRaw = _readFirestoreStringNullable(
+    final orgJson = json['organizationDetails'];
+    final org = orgJson is Map<String, dynamic>
+        ? Map<String, dynamic>.from(orgJson)
+        : <String, dynamic>{};
+
+    /// Some legacy / hand-edited docs stored parental fields under [organizationDetails]
+    /// instead of top-level keys. Prefer top-level when present.
+    String parentString(String key) {
+      final top = _readFirestoreString(json[key]).trim();
+      if (top.isNotEmpty) return top;
+      return _readFirestoreString(org[key]).trim();
+    }
+
+    final fromTopStatus = _readFirestoreStringNullable(
       json['parentConsentStatus'],
     )?.trim();
+    final parentStatusRaw = (fromTopStatus != null && fromTopStatus.isNotEmpty)
+        ? fromTopStatus
+        : _readFirestoreStringNullable(org['parentConsentStatus'])?.trim();
+
+    Timestamp? parentConsentAtField() {
+      if (json['parentConsentAt'] is Timestamp) {
+        return json['parentConsentAt'] as Timestamp;
+      }
+      if (org['parentConsentAt'] is Timestamp) {
+        return org['parentConsentAt'] as Timestamp;
+      }
+      return null;
+    }
+
     return AppUserModel(
       uid: _readFirestoreString(json['uid']),
       email: _readFirestoreString(json['email']),
@@ -185,11 +217,7 @@ class AppUserModel {
         json['orgProfileCompleted'],
         fallback: false,
       ),
-      organizationDetails: json['organizationDetails'] is Map<String, dynamic>
-          ? Map<String, dynamic>.from(
-              json['organizationDetails'] as Map<String, dynamic>,
-            )
-          : <String, dynamic>{},
+      organizationDetails: org,
       createdAt: json['createdAt'] is Timestamp
           ? json['createdAt'] as Timestamp
           : Timestamp.now(),
@@ -199,15 +227,11 @@ class AppUserModel {
       parentConsentStatus: parentStatusRaw != null && parentStatusRaw.isNotEmpty
           ? parentStatusRaw
           : ParentConsentStatusValue.notRequired,
-      parentConsentId: _readFirestoreString(json['parentConsentId']).trim(),
-      parentUid: _readFirestoreString(json['parentUid']).trim(),
-      parentInviteEmail:
-          _readFirestoreString(json['parentInviteEmail']).trim(),
-      parentInvitePhone:
-          _readFirestoreString(json['parentInvitePhone']).trim(),
-      parentConsentAt: json['parentConsentAt'] is Timestamp
-          ? json['parentConsentAt'] as Timestamp
-          : null,
+      parentConsentId: _sanitizeParentConsentId(parentString('parentConsentId')),
+      parentUid: parentString('parentUid'),
+      parentInviteEmail: parentString('parentInviteEmail'),
+      parentInvitePhone: parentString('parentInvitePhone'),
+      parentConsentAt: parentConsentAtField(),
     );
   }
 

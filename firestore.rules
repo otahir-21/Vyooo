@@ -10,6 +10,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // Merge updates must not change follower count; [==] fails when the field is
+    // missing on legacy docs or when numeric types differ slightly.
+    function followersCountUnchanged() {
+      return int(request.resource.data.get('followersCount', 0))
+        == int(resource.data.get('followersCount', 0));
+    }
+
     function validUserDoc(userId) {
       return request.resource.data.keys().hasOnly([
         'uid',
@@ -92,7 +99,8 @@ service cloud.firestore {
     }
 
     function parentalConsentCreateValid() {
-      return request.resource.data.keys().hasOnly([
+      let k = request.resource.data.keys();
+      return k.hasAll([
             'minorUid',
             'minorUsername',
             'parentEmailLower',
@@ -100,16 +108,29 @@ service cloud.firestore {
             'status',
             'createdAt',
           ])
+          && k.size() == 6
           && request.resource.data.minorUid == request.auth.uid
           && request.resource.data.minorUsername is string
           && request.resource.data.parentEmailLower is string
           && request.resource.data.parentPhoneNormalized is string
           && request.resource.data.status == 'pending'
-          && request.resource.data.createdAt is timestamp
+          && request.resource.data.createdAt != null
           && (
             request.resource.data.parentEmailLower.size() > 0
             || request.resource.data.parentPhoneNormalized.size() > 0
           );
+    }
+
+    // Phone-only Firebase accounts often have no [request.auth.token.email]; match invite
+    // to [users/{uid}.email] so parents can list and read [parental_consents] by email query.
+    function parentUserDocEmailMatchesInviteLower() {
+      return resource.data.parentEmailLower is string
+        && resource.data.parentEmailLower.size() > 0
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && 'email' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email is string
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email.lower()
+          == resource.data.parentEmailLower;
     }
 
     function parentalConsentReadAllowed() {
@@ -120,6 +141,7 @@ service cloud.firestore {
           && request.auth.token.email != null
           && request.auth.token.email.lower() == resource.data.parentEmailLower
         )
+        || parentUserDocEmailMatchesInviteLower()
         || (
           resource.data.parentPhoneNormalized is string
           && resource.data.parentPhoneNormalized.size() > 0
@@ -136,6 +158,7 @@ service cloud.firestore {
           && request.auth.token.email != null
           && request.auth.token.email.lower() == resource.data.parentEmailLower
         )
+        || parentUserDocEmailMatchesInviteLower()
         || (
           resource.data.parentPhoneNormalized is string
           && resource.data.parentPhoneNormalized.size() > 0
@@ -165,9 +188,11 @@ service cloud.firestore {
     function minorDobAndParentGateUpdate(userId) {
       return isOwner(userId)
         && emailOtpVerifiedUnchanged()
-        && request.resource.data.followersCount == resource.data.followersCount
-        && validUserDoc(userId)
+        && followersCountUnchanged()
+        // Do not use [validUserDoc] here: merged docs may include legacy/extra keys
+        // not in the allowlist; [diff] already restricts this write to DOB + gate fields.
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dob', 'parentConsentStatus'])
+        && request.resource.data.dob is string
         && request.resource.data.parentConsentStatus in ['pending_contact', 'not_required'];
     }
 
@@ -175,9 +200,14 @@ service cloud.firestore {
       let cid = request.resource.data.parentConsentId;
       return isOwner(userId)
         && emailOtpVerifiedUnchanged()
-        && request.resource.data.followersCount == resource.data.followersCount
-        && validUserDoc(userId)
-        && resource.data.parentConsentStatus == 'pending_contact'
+        && followersCountUnchanged()
+        // Do not use [validUserDoc]: same allowlist issue as [minorDobAndParentGateUpdate].
+        // [diff().affectedKeys().hasOnly] ensures no other profile fields change in this write.
+        // Allow [pending_contact] (normal) or [pending] (retry / stale consent id / race).
+        && (
+          resource.data.parentConsentStatus == 'pending_contact'
+          || resource.data.parentConsentStatus == 'pending'
+        )
         && request.resource.data.parentConsentStatus == 'pending'
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly([
@@ -196,7 +226,7 @@ service cloud.firestore {
       let cid = resource.data.parentConsentId;
       return isOwner(userId)
         && emailOtpVerifiedUnchanged()
-        && request.resource.data.followersCount == resource.data.followersCount
+        && followersCountUnchanged()
         && cid is string
         && cid.size() > 0
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -224,7 +254,7 @@ service cloud.firestore {
       let cid = request.resource.data.parentConsentId;
       return isOwner(userId)
         && emailOtpVerifiedUnchanged()
-        && request.resource.data.followersCount == resource.data.followersCount
+        && followersCountUnchanged()
         && resource.data.parentConsentStatus == 'denied'
         && request.resource.data.parentConsentStatus == 'pending'
         && cid is string
@@ -236,6 +266,7 @@ service cloud.firestore {
             'parentInviteEmail',
             'parentInvitePhone',
           ])
+        // No [validUserDoc]: merged user docs may carry extra keys; [diff] pins this update.
         && get(/databases/$(database)/documents/parental_consents/$(cid)).data.minorUid == userId
         && get(/databases/$(database)/documents/parental_consents/$(cid)).data.status == 'pending';
     }
@@ -271,6 +302,10 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                       .hasOnly(['status', 'respondedAt', 'parentUid'])
                     && request.resource.data.respondedAt is timestamp
+                    && request.resource.data.respondedAt
+                      <= request.time + duration.value(24, 'h')
+                    && request.resource.data.respondedAt
+                      >= request.time - duration.value(24, 'h')
                     && parentalConsentParentCanRespond()
                     && (
                       (
@@ -282,7 +317,10 @@ service cloud.firestore {
                         && request.resource.data.parentUid == ''
                       )
                     );
-      allow delete: if false;
+      // Minor can remove an orphan or mistaken [pending] consent they created (no parent yet).
+      allow delete: if isSignedIn()
+                    && resource.data.minorUid == request.auth.uid
+                    && resource.data.status == 'pending';
     }
 
     // ── User profile doc only: users/{uid} (one segment after users/) ─────────
@@ -299,7 +337,7 @@ service cloud.firestore {
                       (
                         isOwner(userId)
                         && validUserDoc(userId)
-                        && request.resource.data.followersCount == resource.data.followersCount
+                        && followersCountUnchanged()
                         && emailOtpVerifiedUnchanged()
                         && parentalContactFieldsUnchanged()
                       )

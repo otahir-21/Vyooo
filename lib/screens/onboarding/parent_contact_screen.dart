@@ -1,19 +1,22 @@
-import 'dart:async';
-
 import 'package:country_picker/country_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../core/models/app_user_model.dart';
 import '../../core/models/parent_consent_constants.dart';
+import '../../core/onboarding/parental_submit_handoff.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/parental_consent_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart' show AppTheme, White24;
+import '../../core/utils/dob_validation.dart';
 import '../../core/widgets/app_gradient_background.dart';
 
 /// Collects parent/guardian contact so a minor can send a consent request.
+///
+/// After a successful Firestore batch, [ParentalSubmitHandoff] drives the gate to
+/// [ParentalPendingScreen] immediately so we do not depend on snapshot stream latency.
 class ParentContactScreen extends StatefulWidget {
   const ParentContactScreen({
     super.key,
@@ -30,19 +33,52 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _phoneFocusNode = FocusNode();
+  final GlobalKey _errorScrollKey = GlobalKey();
   /// Same defaults as [CreateAccountScreen] phone signup.
   String _selectedCountryDialCode = '44';
   String _selectedCountryFlag = '🇬🇧';
   bool _submitting = false;
   String? _error;
-  /// After Firestore confirms pending consent, [AuthWrapper] swaps to [ParentalPendingScreen].
-  /// Never use [Navigator.pushReplacement] here: it can replace the root [AuthWrapper] route.
-  bool _awaitingGateHandoff = false;
-  Timer? _handoffTimeout;
+
+  /// Inline error + snackbar + scroll so failures are never silent or off-screen.
+  void _presentSubmitError(String message) {
+    setState(() {
+      _submitting = false;
+      _error = message;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(height: 1.35, fontSize: 15),
+          ),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Dismiss',
+            textColor: AppTheme.primary,
+            onPressed: () => messenger.hideCurrentSnackBar(),
+          ),
+        ),
+      );
+      final ctx = _errorScrollKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.15,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
-    _handoffTimeout?.cancel();
     _email.dispose();
     _phone.dispose();
     _phoneFocusNode.dispose();
@@ -84,6 +120,44 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
     if (raw.isEmpty) return '';
     final local = raw.startsWith('0') ? raw.substring(1) : raw;
     return '+$_selectedCountryDialCode$local';
+  }
+
+  /// [OnboardingRouteResolver] can send minors here while Firestore still has
+  /// `not_required` / empty gate; [minorParentInviteSubmit] rules require
+  /// `pending_contact` on the user doc before the batch runs.
+  Future<void> _ensureMinorInviteGateOnServer(String uid) async {
+    final user = await UserService().getUser(uid, server: true);
+    if (user == null) {
+      throw StateError('Could not load your profile. Check your connection and try again.');
+    }
+    final dobRaw = (user.dob ?? '').trim();
+    if (dobRaw.isEmpty || !DobValidation.isValidDobString(dobRaw)) {
+      throw StateError('Add your date of birth first, then return here to send the parent request.');
+    }
+    final birth = DobValidation.tryParseIsoDob(dobRaw)!;
+    if (!DobValidation.requiresParentalConsent(birth)) {
+      throw StateError('Parent approval is only required if you are under 16.');
+    }
+    final st = user.parentConsentStatus.trim().toLowerCase();
+    if (st == ParentConsentStatusValue.approved) {
+      throw StateError('This account is already approved by a parent or guardian.');
+    }
+    if (st == ParentConsentStatusValue.pending) {
+      final cid = user.parentConsentId.trim();
+      if (cid.isNotEmpty) {
+        throw StateError(
+          'A parent request is already in progress. If you still see this form, close and reopen the app.',
+        );
+      }
+    }
+    if (st == ParentConsentStatusValue.pendingContact ||
+        st == ParentConsentStatusValue.denied) {
+      return;
+    }
+    await UserService().updateUserProfile(
+      uid: uid,
+      parentConsentStatus: ParentConsentStatusValue.pendingContact,
+    );
   }
 
   Widget _buildParentPhoneField() {
@@ -132,22 +206,11 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
       final user = await UserService().getUser(uid);
       final username = (user?.username ?? '').trim();
       if (username.isEmpty) {
-        setState(() {
-          _submitting = false;
-          _error = 'Set a username first, then try again.';
-        });
+        _presentSubmitError('Set a username first, then try again.');
         return;
       }
-      final consentGate = (user?.parentConsentStatus ?? '').trim();
-      if (consentGate != ParentConsentStatusValue.pendingContact &&
-          consentGate != ParentConsentStatusValue.denied) {
-        setState(() {
-          _submitting = false;
-          _error =
-              'Your account is not ready for this step yet. Go back to date of birth, tap Continue so it saves, then open this screen again to send the parent request.';
-        });
-        return;
-      }
+      await _ensureMinorInviteGateOnServer(uid);
+      if (!mounted) return;
       final id = await ParentalConsentService().createPendingRequest(
         minorUid: uid,
         minorUsername: username,
@@ -156,73 +219,54 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
       );
       if (!mounted) return;
 
-      // Wait until Firestore (server) shows pending + this consent id so [AuthWrapper]
-      // will not immediately rebuild back to [ParentContactScreen].
-      final userSvc = UserService();
-      AppUserModel? fresh;
-      for (var i = 0; i < 6; i++) {
-        fresh = await userSvc.getUser(uid, server: true);
-        final st = (fresh?.parentConsentStatus ?? '').trim().toLowerCase();
-        final cid = (fresh?.parentConsentId ?? '').trim();
-        if (st == ParentConsentStatusValue.pending &&
-            cid.isNotEmpty &&
-            cid == id) {
-          break;
-        }
-        await Future<void>.delayed(Duration(milliseconds: 120 * (i + 1)));
-        if (!mounted) return;
-      }
-      if (!mounted) return;
-      final st = (fresh?.parentConsentStatus ?? '').trim().toLowerCase();
-      final cid = (fresh?.parentConsentId ?? '').trim();
-      if (st != ParentConsentStatusValue.pending || cid != id) {
-        setState(() {
-          _submitting = false;
-          _error =
-              'The request was sent but your profile did not update yet. Check your connection, wait a few seconds, and tap Send request again.';
-        });
-        return;
-      }
-
-      _handoffTimeout?.cancel();
-      _handoffTimeout = Timer(const Duration(seconds: 18), () {
-        if (!mounted || !_awaitingGateHandoff) return;
-        setState(() => _awaitingGateHandoff = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Still here? Your request may already be pending — try closing and reopening the app.',
-            ),
-          ),
-        );
-      });
+      // Batch commit succeeded: arm after this frame so [notifyListeners] is not
+      // nested inside [ParentContactScreen.setState], and [_UserDocGateState]'s
+      // dedicated listener reliably rebuilds to [ParentalPendingScreen].
       setState(() {
         _submitting = false;
-        _awaitingGateHandoff = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ParentalSubmitHandoff.instance.arm(minorUid: uid, consentId: id);
       });
     } catch (e) {
       if (!mounted) return;
-      _handoffTimeout?.cancel();
-      setState(() {
-        _submitting = false;
-        _awaitingGateHandoff = false;
-        _error = _consentErrorMessage(e);
-      });
+      final message =
+          e is StateError ? (e.message) : _consentErrorMessage(e);
+      _presentSubmitError(message);
     }
   }
 
   String _consentErrorMessage(Object e) {
     if (e is FirebaseException) {
-      if (e.code == 'permission-denied') {
-        return 'Could not send the request (blocked by server rules). '
-            'Go back to date of birth, tap Continue again so it saves, then return here. '
-            'If this keeps happening, update the app.';
+      final suffix = kDebugMode ? ' (${e.code})' : '';
+      switch (e.code) {
+        case 'permission-denied':
+          return 'We could not send your parent request because the server rejected it '
+              '(missing permission). This is usually fixed by updating VyooO from the '
+              'app store. You can also try again in a moment or check your Wi‑Fi / mobile '
+              'data. If it keeps happening, contact VyooO support.$suffix';
+        case 'unavailable':
+        case 'deadline-exceeded':
+          return 'The network timed out while sending your request. Check your connection '
+              'and tap Send request again.$suffix';
+        case 'failed-precondition':
+        case 'aborted':
+          return 'The request could not be completed. Please try again.$suffix';
+        case 'resource-exhausted':
+          return 'Too many attempts right now. Wait a minute and try again.$suffix';
+        default:
+          final m = e.message?.trim();
+          if (m != null && m.isNotEmpty) {
+            return kDebugMode ? '$m (${e.code})' : m;
+          }
+          return 'Something went wrong. Please try again.$suffix';
       }
-      final m = e.message?.trim();
-      if (m != null && m.isNotEmpty) return m;
-      return e.code;
     }
-    return e.toString().replaceFirst('Bad state: ', '').replaceFirst('Exception: ', '');
+    return e
+        .toString()
+        .replaceFirst('Bad state: ', '')
+        .replaceFirst('Exception: ', '');
   }
 
   Future<void> _onBack() async {
@@ -240,15 +284,22 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
       canPop: Navigator.of(context).canPop(),
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            AppGradientBackground(
+        body: AppGradientBackground(
               type: GradientType.dob,
               child: SafeArea(
+                minimum: const EdgeInsets.only(bottom: 20),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    final mq = MediaQuery.of(context);
                     return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      padding: EdgeInsets.fromLTRB(
+                        28,
+                        0,
+                        28,
+                        // Room below [Send request]: safe area already clears nav bar;
+                        // add a fixed gutter plus IME inset when the keyboard is open.
+                        32 + mq.viewInsets.bottom,
+                      ),
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       child: ConstrainedBox(
@@ -265,10 +316,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                                 Align(
                                   alignment: Alignment.centerLeft,
                                   child: IconButton(
-                                    onPressed: (_submitting ||
-                                            _awaitingGateHandoff)
-                                        ? null
-                                        : _onBack,
+                                    onPressed: _submitting ? null : _onBack,
                                     icon: const Icon(
                                       Icons.arrow_back_ios_new_rounded,
                                       color: Colors.white,
@@ -332,10 +380,12 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                                 if (_error != null) ...[
                                   const SizedBox(height: 16),
                                   Text(
+                                    key: _errorScrollKey,
                                     _error!,
                                     style: const TextStyle(
                                       color: AppColors.brandPink,
                                       fontSize: 14,
+                                      height: 1.4,
                                     ),
                                   ),
                                 ],
@@ -349,10 +399,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                                 SizedBox(
                                   width: double.infinity,
                                   child: FilledButton(
-                                    onPressed: (_submitting ||
-                                            _awaitingGateHandoff)
-                                        ? null
-                                        : _submit,
+                                    onPressed: _submitting ? null : _submit,
                                     style: FilledButton.styleFrom(
                                       backgroundColor: AppTheme.buttonBackground,
                                       foregroundColor: AppTheme.buttonTextColor,
@@ -371,11 +418,6 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                                         : const Text('Send request'),
                                   ),
                                 ),
-                                SizedBox(
-                                  height: 8 +
-                                      MediaQuery.viewPaddingOf(context)
-                                          .bottom,
-                                ),
                               ],
                             ),
                           ],
@@ -386,42 +428,6 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                 ),
               ),
             ),
-            if (_awaitingGateHandoff) _buildHandoffOverlay(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHandoffOverlay() {
-    return Positioned.fill(
-      child: AbsorbPointer(
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.5),
-          child: const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
-                ),
-                SizedBox(height: 22),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 28),
-                  child: Text(
-                    'Request sent. Opening waiting screen…',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -103,7 +103,7 @@ class AuthService {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
-        password: password,
+        password: password.trim(),
       );
       return AuthResult(success: true, user: cred.user);
     } on FirebaseAuthException catch (e) {
@@ -120,13 +120,30 @@ class AuthService {
   }) async {
     final offline = await _requireInternet();
     if (offline != null) return offline;
+    final normalizedEmail = email.trim();
+    // Prefer trimmed password (matches signup after OTP). If an older account was
+    // linked with accidental leading/trailing spaces, retry once with raw input.
     try {
       final cred = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
+        email: normalizedEmail,
+        password: password.trim(),
       );
       return AuthResult(success: true, user: cred.user);
     } on FirebaseAuthException catch (e) {
+      final code = e.code.toLowerCase();
+      if ((code == 'invalid-credential' || code == 'wrong-password') &&
+          password.isNotEmpty &&
+          password != password.trim()) {
+        try {
+          final cred = await _auth.signInWithEmailAndPassword(
+            email: normalizedEmail,
+            password: password,
+          );
+          return AuthResult(success: true, user: cred.user);
+        } on FirebaseAuthException catch (e2) {
+          return AuthResult(success: false, message: _mapAuthException(e2.code));
+        }
+      }
       return AuthResult(success: false, message: _mapAuthException(e.code));
     } catch (e) {
       return AuthResult(success: false, message: _genericMessage(e));
@@ -358,7 +375,7 @@ class AuthService {
       if (user.isAnonymous || !hasPasswordProvider) {
         final credential = EmailAuthProvider.credential(
           email: email.trim(),
-          password: password,
+          password: password.trim(),
         );
         final linked = await user.linkWithCredential(credential);
         finalUser = linked.user;

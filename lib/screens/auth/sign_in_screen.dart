@@ -86,26 +86,23 @@ class _SignInScreenState extends State<SignInScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (result.success) {
+      // Successful email/password is sufficient; do not require a second login OTP step.
       final uid = result.user?.uid ?? '';
-      final trusted = uid.isNotEmpty
-          ? await otpSession.isTrustedDeviceForUid(uid)
-          : false;
-      if (uid.isNotEmpty && !trusted) {
-        await otpSession.requireOtpForUid(uid);
+      await otpSession.clearOtpRequirement();
+      if (uid.isNotEmpty) {
+        await otpSession.markTrustedDeviceForUid(uid);
       } else {
-        await otpSession.clearOtpRequirement();
-        if (uid.isNotEmpty) {
-          await otpSession.markTrustedDeviceForUid(uid);
-        } else {
-          otpSession.abortEmailLoginHandshake();
-        }
+        otpSession.abortEmailLoginHandshake();
       }
       if (!mounted) return;
       Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     } else {
       otpSession.abortEmailLoginHandshake();
-      setState(() => _errorMessage = result.message ?? 'Login failed');
+      final raw = result.message ?? 'Login failed';
+      setState(() {
+        _errorMessage = _emailLoginFailureMessage(raw, identifier);
+      });
     }
   }
 
@@ -130,7 +127,9 @@ class _SignInScreenState extends State<SignInScreen> {
     if (resolvedEmail.isEmpty) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'No account found with this phone number.';
+        _errorMessage = 'No account found with this phone number. If you are a '
+            'parent or guardian, create a Vyooo account with this number first '
+            '(same number your child entered), then sign in.';
       });
       return;
     }
@@ -187,9 +186,33 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _onRegister() {
+    final raw = _usernameController.text.trim();
+    final initialEmail =
+        raw.contains('@') && !raw.startsWith('@') ? raw.toLowerCase() : null;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const CreateAccountScreen()),
+      MaterialPageRoute(
+        builder: (context) => CreateAccountScreen(initialEmail: initialEmail),
+      ),
     );
+  }
+
+  /// Firebase has no account for this email yet (parent invite is only in Firestore).
+  static const String _kNoAuthAccountForEmail = 'No account found.';
+
+  String _emailLoginFailureMessage(String base, String identifierTrimmed) {
+    final looksLikeEmail =
+        identifierTrimmed.contains('@') && !identifierTrimmed.startsWith('@');
+    if (!looksLikeEmail) return base;
+    if (base == _kNoAuthAccountForEmail) {
+      return 'This email is not registered on Vyooo yet. If you are a parent or '
+          'guardian responding to a consent request, tap Register Here and create '
+          'an account using the same email your child entered, then sign in here.';
+    }
+    if (base.startsWith('Invalid email or password')) {
+      return '$base If you have never signed up, use Register Here first (parents: '
+          'use the same email your child used).';
+    }
+    return base;
   }
 
   @override

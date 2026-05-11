@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -25,37 +26,103 @@ class _ParentalApprovalsScreenState extends State<ParentalApprovalsScreen> {
   String _actionId = '';
   String? _message;
 
+  /// Email and phone used to match [parental_consents] (shown when list is empty).
+  String _matchEmail = '';
+  String _matchPhone = '';
+  String? _errorEmailQuery;
+  String? _errorPhoneQuery;
+  bool _listenBusy = false;
+
   @override
   void initState() {
     super.initState();
-    _listen();
+    unawaited(_startListen());
   }
 
-  Future<void> _listen() async {
-    final auth = AuthService().currentUser;
-    if (auth == null) return;
-    final uid = auth.uid;
-    final appUser = await UserService().getUser(uid);
-    final email = (auth.email ?? appUser?.email ?? '').trim().toLowerCase();
-    final phoneRaw = appUser?.phoneNumber ?? auth.phoneNumber ?? '';
-    final phone = UserService.normalizePhone(phoneRaw);
+  Future<void> _startListen() async {
+    await _emailSub?.cancel();
+    await _phoneSub?.cancel();
+    _emailSub = null;
+    _phoneSub = null;
 
-    _emailSub = ParentalConsentService()
-        .pendingByParentEmail(email)
-        .listen((s) {
-      _lastEmail = s;
-      _remerge();
-    }, onError: (_) {});
-    _phoneSub = ParentalConsentService()
-        .pendingByParentPhone(phone)
-        .listen((s) {
-      _lastPhone = s;
-      _remerge();
-    }, onError: (_) {});
-  }
+    final authUser = AuthService().currentUser;
+    if (authUser == null) return;
 
-  void _remerge() {
-    if (mounted) setState(() {});
+    if (mounted) setState(() => _listenBusy = true);
+    try {
+      try {
+        await authUser.reload();
+      } catch (_) {}
+      final refreshed = AuthService().currentUser;
+      if (refreshed == null) return;
+
+      final uid = refreshed.uid;
+      final appUser = await UserService().getUser(uid, server: true);
+      final email = (refreshed.email ?? appUser?.email ?? '').trim().toLowerCase();
+      final phoneRaw = appUser?.phoneNumber ?? refreshed.phoneNumber ?? '';
+      final phone = UserService.normalizePhone(phoneRaw);
+
+      if (!mounted) return;
+      setState(() {
+        _matchEmail = email;
+        _matchPhone = phone;
+        _errorEmailQuery = null;
+        _errorPhoneQuery = null;
+      });
+
+      void onEmailErr(Object e, StackTrace st) {
+        if (kDebugMode) {
+          debugPrint('parental_approvals email query: $e');
+        }
+        if (mounted) {
+          setState(() {
+            _errorEmailQuery =
+                'Could not load requests for your email (network or permissions). Tap Refresh.';
+          });
+        }
+      }
+
+      void onPhoneErr(Object e, StackTrace st) {
+        if (kDebugMode) {
+          debugPrint('parental_approvals phone query: $e');
+        }
+        if (mounted) {
+          setState(() {
+            _errorPhoneQuery =
+                'Could not load requests for your phone (network or permissions). Tap Refresh.';
+          });
+        }
+      }
+
+      _emailSub = ParentalConsentService()
+          .pendingByParentEmail(email)
+          .listen(
+        (s) {
+          if (mounted) {
+            setState(() {
+              _lastEmail = s;
+              _errorEmailQuery = null;
+            });
+          }
+        },
+        onError: onEmailErr,
+      );
+      _phoneSub = ParentalConsentService()
+          .pendingByParentPhone(phone)
+          .listen(
+        (s) {
+          if (mounted) {
+            setState(() {
+              _lastPhone = s;
+              _errorPhoneQuery = null;
+            });
+          }
+        },
+        onError: onPhoneErr,
+      );
+    } finally {
+      if (mounted) setState(() => _listenBusy = false);
+    }
   }
 
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _mergedDocs() {
@@ -132,6 +199,115 @@ class _ParentalApprovalsScreenState extends State<ParentalApprovalsScreen> {
     }
   }
 
+  Widget _emptyStateBody() {
+    final emailLine = _matchEmail.isEmpty
+        ? 'Email: (none on this sign-in — add the same email to your VyooO profile your child used, or sign in with that email.)'
+        : 'Email: $_matchEmail';
+    final phoneLine = _matchPhone.isEmpty || !_matchPhone.startsWith('+')
+        ? 'Phone on profile: (none or incomplete — child must have entered this exact number.)'
+        : 'Phone on profile: $_matchPhone';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_listenBusy)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+              ),
+            ),
+          if (_errorEmailQuery != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _errorEmailQuery!,
+                style: TextStyle(
+                  color: Colors.orange.shade200,
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          if (_errorPhoneQuery != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                _errorPhoneQuery!,
+                style: TextStyle(
+                  color: Colors.orange.shade200,
+                  fontSize: 14,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          Text(
+            'No pending requests match this account yet.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'We only show invites that use the same contact as below (must match what your child typed).',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.75),
+              fontSize: 14,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  emailLine,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  phoneLine,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.tonal(
+            onPressed: _listenBusy ? null : () => unawaited(_startListen()),
+            child: const Text('Refresh'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = _mergedDocs();
@@ -163,7 +339,20 @@ class _ParentalApprovalsScreenState extends State<ParentalApprovalsScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    const SizedBox(width: 48),
+                    IconButton(
+                      tooltip: 'Refresh',
+                      onPressed: _listenBusy ? null : () => unawaited(_startListen()),
+                      icon: _listenBusy
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.white),
+                    ),
                   ],
                 ),
               ),
@@ -180,19 +369,7 @@ class _ParentalApprovalsScreenState extends State<ParentalApprovalsScreen> {
                 ),
               Expanded(
                 child: list.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'No pending requests.\n\nIf your child entered your email or phone, make sure this account uses the same email or verified phone number.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.75),
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      )
+                    ? Center(child: _emptyStateBody())
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: list.length,

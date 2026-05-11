@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/app_user_model.dart';
 import '../models/parent_consent_constants.dart';
 import 'onboarding_route_resolver.dart';
+import 'parental_submit_handoff.dart';
 import '../../screens/auth/create_username_screen.dart';
 import '../../screens/onboarding/add_profile_screen.dart';
 import '../../screens/onboarding/onboarding_complete_screen.dart';
@@ -18,7 +19,33 @@ class OnboardingGate {
 
   /// Next full-screen widget for signed-in users who have not finished onboarding.
   static Widget nextScreen(AppUserModel user) {
-    switch (OnboardingRouteResolver.resolve(user)) {
+    final routeId = OnboardingRouteResolver.resolve(user);
+    final handoffId =
+        ParentalSubmitHandoff.instance.activeConsentIdForMinor(user.uid);
+
+    if (handoffId != null) {
+      // Resolver can briefly read a stale user doc (e.g. missing DOB) after a
+      // successful invite; never drop the handoff for those routes or we snap
+      // back to the wrong onboarding step.
+      const postParentMinor = <String>{
+        OnboardingRouteId.addProfile,
+        OnboardingRouteId.selectInterests,
+        OnboardingRouteId.onboardingComplete,
+      };
+      if (postParentMinor.contains(routeId)) {
+        ParentalSubmitHandoff.instance.disarm(minorUid: user.uid);
+      } else if (routeId == OnboardingRouteId.parentalPending) {
+        final cid = user.parentConsentId.trim();
+        ParentalSubmitHandoff.instance.disarm(minorUid: user.uid);
+        return ParentalPendingScreen(
+          consentId: cid.isNotEmpty ? cid : handoffId,
+        );
+      } else {
+        return ParentalPendingScreen(consentId: handoffId);
+      }
+    }
+
+    switch (routeId) {
       case OnboardingRouteId.createUsername:
         return const CreateUsernameScreen();
       case OnboardingRouteId.organization:

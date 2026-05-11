@@ -11,7 +11,10 @@ import 'sign_in_screen.dart';
 import 'verify_code_screen.dart';
 
 class CreateAccountScreen extends StatefulWidget {
-  const CreateAccountScreen({super.key});
+  const CreateAccountScreen({super.key, this.initialEmail});
+
+  /// When set (e.g. parent opened Register from sign-in), pre-fills email signup.
+  final String? initialEmail;
 
   @override
   State<CreateAccountScreen> createState() => _CreateAccountScreenState();
@@ -61,6 +64,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   void initState() {
     super.initState();
+    final pre = widget.initialEmail?.trim();
+    if (pre != null && pre.isNotEmpty && pre.contains('@')) {
+      _emailController.text = pre;
+      _selectedSignupMethod = _signupMethodEmail;
+    }
     _phoneFocusNode.addListener(() {
       if (mounted) setState(() {});
     });
@@ -543,8 +551,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     final firstName = _nameController.text.trim();
     final surname = _surnameController.text.trim();
     final name = '$firstName $surname'.trim();
-    final password = _passwordController.text;
-    final confirm = _confirmPasswordController.text;
+    final password = _passwordController.text.trim();
+    final confirm = _confirmPasswordController.text.trim();
     final phone = _normalizedPhone();
     final otpChannel = _selectedSignupMethod == _signupMethodPhone
         ? _otpChannelPhone

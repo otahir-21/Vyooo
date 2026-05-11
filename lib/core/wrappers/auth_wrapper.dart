@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../config/app_config.dart';
 import '../models/app_user_model.dart';
+import '../onboarding/parental_submit_handoff.dart';
 import '../services/auth_service.dart';
 import '../services/in_app_notification_alert_service.dart';
 import '../services/otp_session_service.dart';
@@ -195,17 +196,32 @@ class _UserDocGateState extends State<_UserDocGate> {
   /// Bumps [StreamBuilder] key so Firestore `userStream` resubscribes after a hard error.
   int _userDocStreamGeneration = 0;
 
+  void _onParentalHandoffChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
+    ParentalSubmitHandoff.instance.addListener(_onParentalHandoffChanged);
     _readyFuture = _bootstrapUserDoc();
     _otpRequiredFuture = _isPasswordOtpRequired();
+  }
+
+  @override
+  void dispose() {
+    ParentalSubmitHandoff.instance.removeListener(_onParentalHandoffChanged);
+    // Only clear a handoff owned by this gate (avoids wiping state if another
+    // [AuthWrapper] instance was stacked and disposed first).
+    ParentalSubmitHandoff.instance.disarm(minorUid: widget.uid);
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant _UserDocGate oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.uid != widget.uid) {
+      ParentalSubmitHandoff.instance.disarm();
       _readyFuture = _bootstrapUserDoc();
       _otpRequiredFuture = _isPasswordOtpRequired();
       _selectedLoginOtpChannel = null;
@@ -498,19 +514,26 @@ class _UserDocGateState extends State<_UserDocGate> {
   }
 
   Widget _nextOnboardingScreen(AppUserModel appUser) {
-    final hasUsername = (appUser.username ?? '').trim().isNotEmpty;
-    if (!hasUsername) {
-      return const CreateUsernameScreen();
-    }
+    final hasParentalHandoff =
+        ParentalSubmitHandoff.instance.activeConsentIdForMinor(appUser.uid) !=
+            null;
 
-    final accountType = appUser.accountType.trim().toLowerCase();
-    if (accountType == 'business' || accountType == 'government') {
-      if (!appUser.orgProfileCompleted) {
-        return OrganizationDetailsScreen(accountType: accountType);
+    // Stale Firestore snapshots can miss username/org while a parent invite
+    // handoff is active; always run [OnboardingGate] so the waiting screen wins.
+    if (!hasParentalHandoff) {
+      final hasUsername = (appUser.username ?? '').trim().isNotEmpty;
+      if (!hasUsername) {
+        return const CreateUsernameScreen();
+      }
+
+      final accountType = appUser.accountType.trim().toLowerCase();
+      if (accountType == 'business' || accountType == 'government') {
+        if (!appUser.orgProfileCompleted) {
+          return OrganizationDetailsScreen(accountType: accountType);
+        }
       }
     }
 
-    // Username is set and any required org profile step is complete.
     return OnboardingGate.nextScreen(appUser);
   }
 }

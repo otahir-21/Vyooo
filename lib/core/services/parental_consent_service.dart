@@ -30,28 +30,36 @@ class ParentalConsentService {
     }
     final ref = _db.collection(collectionName).doc();
     final consentId = ref.id;
-    // Single batch: if the user-doc rule check fails, the consent doc is not left
-    // orphaned without a linked profile (and rules can read the new consent from the batch).
-    final batch = _db.batch();
-    batch.set(ref, {
+    final consentPayload = <String, dynamic>{
       'minorUid': minorUid,
       'minorUsername': minorUsername.trim(),
       'parentEmailLower': email,
       'parentPhoneNormalized': phone,
       'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-    batch.set(
-      _db.collection('users').doc(minorUid),
-      {
-        'parentConsentStatus': ParentConsentStatusValue.pending,
-        'parentConsentId': consentId,
-        'parentInviteEmail': email,
-        'parentInvitePhone': phone,
-      },
-      SetOptions(merge: true),
-    );
-    await batch.commit();
+      // Rules require a real Firestore timestamp (not [FieldValue.serverTimestamp]).
+      'createdAt': Timestamp.now(),
+    };
+    final userRef = _db.collection('users').doc(minorUid);
+    final userPayload = <String, dynamic>{
+      'parentConsentStatus': ParentConsentStatusValue.pending,
+      'parentConsentId': consentId,
+      'parentInviteEmail': email,
+      'parentInvitePhone': phone,
+    };
+    // Two sequential writes (not one batch): [minorParentInviteSubmit] uses [get] on the
+    // consent doc; evaluating that against an in-batch write is fragile across SDKs.
+    // Consent is created first; then the user merge sees a committed consent id.
+    await ref.set(consentPayload);
+    try {
+      await userRef.set(userPayload, SetOptions(merge: true));
+    } catch (e) {
+      try {
+        await ref.delete();
+      } catch (_) {
+        // Best-effort rollback; rules allow the minor to delete own [pending] consent.
+      }
+      rethrow;
+    }
     return consentId;
   }
 
@@ -91,7 +99,7 @@ class ParentalConsentService {
     await _db.collection(collectionName).doc(consentId).update({
       'status': 'approved',
       'parentUid': uid,
-      'respondedAt': FieldValue.serverTimestamp(),
+      'respondedAt': Timestamp.now(),
     });
   }
 
@@ -103,7 +111,7 @@ class ParentalConsentService {
     await _db.collection(collectionName).doc(consentId).update({
       'status': 'denied',
       'parentUid': '',
-      'respondedAt': FieldValue.serverTimestamp(),
+      'respondedAt': Timestamp.now(),
     });
   }
 
@@ -112,7 +120,9 @@ class ParentalConsentService {
     required String minorUid,
     required String consentId,
   }) async {
-    final snap = await _db.collection(collectionName).doc(consentId).get();
+    final cid = consentId.replaceAll(RegExp(r'\s+'), '');
+    if (cid.isEmpty) return;
+    final snap = await _db.collection(collectionName).doc(cid).get();
     final data = snap.data();
     if (data == null) return;
     if ((data['minorUid'] as String?) != minorUid) return;
