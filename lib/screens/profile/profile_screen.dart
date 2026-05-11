@@ -25,6 +25,7 @@ import '../../core/utils/verification_badge.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
 import '../../features/story/highlight_viewer_screen.dart';
+import '../../features/story/widgets/profile_highlight_album_tile.dart';
 import '../../features/story/story_upload_screen.dart';
 import '../../features/story/story_viewer_screen.dart';
 import '../../core/models/live_stream_model.dart';
@@ -72,6 +73,16 @@ class _ProfileScreenState extends State<ProfileScreen>
   };
   int _selectedTabIndex = 0;
   final LiveStreamService _liveStreamService = LiveStreamService();
+  String? _highlightsStreamUid;
+  Stream<List<StoryHighlightModel>>? _highlightsStream;
+
+  Stream<List<StoryHighlightModel>> _highlightsStreamFor(String uid) {
+    if (_highlightsStreamUid != uid || _highlightsStream == null) {
+      _highlightsStreamUid = uid;
+      _highlightsStream = StoryService().watchHighlightsForUser(uid);
+    }
+    return _highlightsStream!;
+  }
 
   static String _accountTypeLabel(String? raw) {
     final key = (raw ?? '').trim().toLowerCase();
@@ -650,14 +661,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     final accountTypeLabel = _accountTypeLabel(accountTypeKey);
     final bio = (user?.bio ?? '').trim();
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.sm),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     Expanded(
@@ -747,66 +762,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    );
-                  },
-                ),
-                FutureBuilder<List<StoryHighlightModel>>(
-                  future: StoryService().getHighlightsForUser(profileUid),
-                  builder: (context, hSnap) {
-                    final highlights = hSnap.data ?? const [];
-                    if (highlights.isEmpty) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Highlights',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 40,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: highlights.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (_, i) {
-                                final h = highlights[i];
-                                return ActionChip(
-                                  label: Text(
-                                    h.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.12,
-                                  ),
-                                  side: BorderSide.none,
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => HighlightViewerScreen(
-                                          userId: profileUid,
-                                          highlightId: h.id,
-                                          title: h.title,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                        ],
                       ),
                     );
                   },
@@ -968,31 +923,159 @@ class _ProfileScreenState extends State<ProfileScreen>
               color: _profileSurface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  child: _buildTabs(),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: CustomScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    slivers: _buildProfileContentSlivers(
-                      context,
-                      canUploadContent,
-                      uid: profileUid,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final h = constraints.maxHeight;
+                final compactTabs = h < 140;
+                final topPad = compactTabs ? 8.0 : 24.0;
+                final tabGap = compactTabs ? 8.0 : 16.0;
+                return Column(
+                  children: [
+                    SizedBox(height: topPad),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      child: _buildTabs(compact: compactTabs),
                     ),
-                  ),
-                ),
-              ],
+                    SizedBox(height: tabGap),
+                    Expanded(
+                      child: CustomScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        slivers: _buildProfileContentSlivers(
+                          context,
+                          canUploadContent,
+                          uid: profileUid,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
       ],
+          ),
+        ),
+        _buildHighlightsAboveNavBar(context, profileUid, user),
+      ],
+    );
+  }
+
+  Widget _buildHighlightsAboveNavBar(
+    BuildContext context,
+    String profileUid,
+    AppUserModel? user,
+  ) {
+    if (profileUid.isEmpty) return const SizedBox.shrink();
+    return Material(
+      color: _profileSurface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          10,
+          AppSpacing.md,
+          10,
+        ),
+        child: StreamBuilder<List<StoryHighlightModel>>(
+            stream: _highlightsStreamFor(profileUid),
+            builder: (context, snap) {
+              if (snap.hasError) {
+                debugPrint('Profile highlights stream: ${snap.error}');
+              }
+              final highlights = snap.data ?? const <StoryHighlightModel>[];
+              final loading =
+                  snap.connectionState == ConnectionState.waiting &&
+                  !snap.hasData;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Highlights',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.65),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (loading) ...[
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (snap.hasError)
+                    Text(
+                      'Could not load highlights. Pull to refresh or try again.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    )
+                  else if (highlights.isEmpty)
+                    GestureDetector(
+                      onTap: () => _openMyStoryComposerOrViewer(
+                        context,
+                        userId: profileUid,
+                        username: user?.username ?? 'you',
+                        avatarUrl: user?.profileImage ?? '',
+                      ),
+                      child: Text(
+                        'Open your story, tap ···, then "Add to highlight" to save one here.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.45),
+                          fontSize: 12,
+                          height: 1.35,
+                          decoration: TextDecoration.underline,
+                          decorationColor:
+                              Colors.white.withValues(alpha: 0.35),
+                        ),
+                      ),
+                    )
+                  else
+                    SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: highlights.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final h = highlights[i];
+                          return ProfileHighlightAlbumTile(
+                            title: h.title,
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => HighlightViewerScreen(
+                                    userId: profileUid,
+                                    highlightId: h.id,
+                                    title: h.title,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
     );
   }
 
@@ -1564,12 +1647,18 @@ class _ProfileScreenState extends State<ProfileScreen>
     ];
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs({bool compact = false}) {
+    final outerPad = compact ? 2.0 : 4.0;
+    final tabVPad = compact ? 6.0 : 10.0;
+    final tabFont = compact ? 12.0 : 13.0;
+    final dividerH = compact ? 12.0 : 16.0;
+    final starPad = compact ? 8.0 : 10.0;
+    final starIcon = compact ? 18.0 : 20.0;
     return Row(
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(4),
+            padding: EdgeInsets.all(outerPad),
             decoration: BoxDecoration(
               color: const Color(0xFF2B1C2D),
               borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -1588,7 +1677,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 setState(() => _selectedTabIndex = index),
                             borderRadius: BorderRadius.circular(AppRadius.pill),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              padding: EdgeInsets.symmetric(vertical: tabVPad),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? const Color(0xFFFF1E5E)
@@ -1604,7 +1693,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     color: isSelected
                                         ? Colors.white
                                         : Colors.white.withValues(alpha: 0.8),
-                                    fontSize: 13,
+                                    fontSize: tabFont,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
                                         : FontWeight.w500,
@@ -1619,7 +1708,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           !isSelected &&
                           _selectedTabIndex != index + 1)
                         Container(
-                          height: 16,
+                          height: dividerH,
                           width: 1,
                           color: Colors.white.withValues(alpha: 0.1),
                         ),
@@ -1637,7 +1726,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(starPad),
               decoration: BoxDecoration(
                 color: const Color(0xFF2B1C2D),
                 borderRadius: BorderRadius.circular(12),
@@ -1649,7 +1738,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 color: _selectedTabIndex == _savedTabIndex
                     ? const Color(0xFFFF1E5E)
                     : Colors.white.withValues(alpha: 0.8),
-                size: 20,
+                size: starIcon,
               ),
             ),
           ),

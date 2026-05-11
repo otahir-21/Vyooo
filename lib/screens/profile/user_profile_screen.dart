@@ -12,9 +12,11 @@ import '../../core/theme/app_spacing.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
+import '../../core/models/story_highlight_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/reels_service.dart';
+import '../../core/services/story_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/services/creator_subscription_service.dart';
 import '../../core/utils/verification_badge.dart';
@@ -35,6 +37,8 @@ import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../features/reel/widgets/block_user_sheet.dart';
+import '../../features/story/highlight_viewer_screen.dart';
+import '../../features/story/widgets/profile_highlight_album_tile.dart';
 import '../../features/subscription/creator_subscription_screen.dart';
 
 const Color _profileBgTop = Color(0xFF3B0B30);
@@ -121,6 +125,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final LiveStreamService _liveStreamService = LiveStreamService();
   final CreatorSubscriptionService _creatorSubscriptionService =
       CreatorSubscriptionService();
+  String? _otherHighlightsStreamUid;
+  Stream<List<StoryHighlightModel>>? _otherHighlightsStream;
 
   @override
   void initState() {
@@ -150,6 +156,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _liveIsVerified = null;
       _liveAccountType = null;
       _liveVipVerified = null;
+      _otherHighlightsStreamUid = null;
+      _otherHighlightsStream = null;
       unawaited(_refreshFollowFromFirestore(server: true));
       _bindPendingFollowRequest();
       _bindFollowEdgeDoc();
@@ -386,6 +394,97 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+  bool _canViewTheirHighlights(UserProfilePayload p) {
+    final uid = (p.targetUserId ?? '').trim();
+    if (uid.isEmpty) return false;
+    final me = AuthService().currentUser?.uid;
+    if (me == null || me.isEmpty) return false;
+    if (me == uid) return true;
+    if (_locksContentForViewer(p) && !_isFollowing) return false;
+    return true;
+  }
+
+  Stream<List<StoryHighlightModel>> _otherUserHighlightsStream(String uid) {
+    if (_otherHighlightsStreamUid != uid || _otherHighlightsStream == null) {
+      _otherHighlightsStreamUid = uid;
+      _otherHighlightsStream = StoryService().watchHighlightsForUser(uid);
+    }
+    return _otherHighlightsStream!;
+  }
+
+  Widget _buildOtherUserHighlightsBar(
+    BuildContext context,
+    UserProfilePayload p,
+  ) {
+    if (!_canViewTheirHighlights(p)) return const SizedBox.shrink();
+    final uid = (p.targetUserId ?? '').trim();
+    return Material(
+      color: _profileSurface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          10,
+          AppSpacing.md,
+          10,
+        ),
+        child: StreamBuilder<List<StoryHighlightModel>>(
+          stream: _otherUserHighlightsStream(uid),
+          builder: (context, snap) {
+            if (snap.hasError) {
+              dev.log(
+                'UserProfileScreen highlights stream',
+                error: snap.error,
+              );
+              return const SizedBox.shrink();
+            }
+            final highlights = snap.data ?? const <StoryHighlightModel>[];
+            if (highlights.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Highlights',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: highlights.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final h = highlights[i];
+                      return ProfileHighlightAlbumTile(
+                        title: h.title,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => HighlightViewerScreen(
+                                userId: uid,
+                                highlightId: h.id,
+                                title: h.title,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildPrivateProfilePlaceholder() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
@@ -571,12 +670,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
     return Scaffold(
       backgroundColor: Colors.transparent,
-      bottomNavigationBar: AppBottomNavigation(
-        currentIndex: -1,
-        onTap: (index) {
-          MainNavWrapper.tabNotifier.value = index;
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        },
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildOtherUserHighlightsBar(context, p),
+          AppBottomNavigation(
+            currentIndex: -1,
+            onTap: (index) {
+              MainNavWrapper.tabNotifier.value = index;
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [

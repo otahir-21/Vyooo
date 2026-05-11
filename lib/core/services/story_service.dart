@@ -299,6 +299,18 @@ class StoryService {
     }
   }
 
+  /// Live updates when highlights are added/removed (e.g. after returning from story viewer).
+  Stream<List<StoryHighlightModel>> watchHighlightsForUser(String userId) {
+    if (userId.isEmpty) {
+      return Stream<List<StoryHighlightModel>>.value(const []);
+    }
+    return _highlightsCol(userId)
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((snap) => snap.docs.map(StoryHighlightModel.fromDoc).toList());
+  }
+
   Future<String> createHighlight(String title) async {
     final uid = _uid;
     if (uid == null) throw Exception('Not authenticated');
