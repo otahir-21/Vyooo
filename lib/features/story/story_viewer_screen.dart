@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/models/story_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/story_service.dart';
+import '../../core/utils/story_playback_limits.dart';
 import '../comments/widgets/comments_bottom_sheet.dart';
 import 'story_upload_screen.dart';
 
@@ -38,6 +39,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   bool _videoEndedHandled = false;
 
   static const Duration _imageStoryDuration = Duration(seconds: 8);
+
+  /// Long videos play as consecutive ≤60s slides (same Firestore story or split uploads).
+  int _videoClipIndex = 0;
+  int _videoClipCount = 1;
 
   final _storyService = StoryService();
   Set<String> _likedStoryIds = {};
@@ -104,14 +109,29 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   void _initStoryPlayback() {
     _disposePlayback();
     _videoEndedHandled = false;
+    _videoClipIndex = 0;
+    _videoClipCount = 1;
     StoryService().markViewed(_story.id);
     _syncInteractionCounters();
 
     if (_story.isVideo && _story.mediaUrl.isNotEmpty) {
+      if (_story.durationMs > storyMaxSlideMs) {
+        _videoClipCount = storySlideCountForDurationMs(_story.durationMs);
+      }
       final uri = Uri.tryParse(_story.mediaUrl);
       if (uri != null && uri.hasScheme) {
         _video = VideoPlayerController.networkUrl(uri)
-          ..initialize().then((_) {
+          ..initialize().then((_) async {
+            if (!mounted || _video == null) return;
+            final totalMs = _video!.value.duration.inMilliseconds;
+            if (totalMs > storyMaxSlideMs) {
+              _videoClipCount = storySlideCountForDurationMs(totalMs);
+            } else {
+              _videoClipCount = 1;
+            }
+            _videoClipIndex = 0;
+            _videoEndedHandled = false;
+            await _video!.seekTo(Duration.zero);
             if (!mounted) return;
             setState(() {});
             _video!.play();
@@ -121,10 +141,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           });
       }
     } else {
-      final dur = _story.durationMs > 500
-          ? Duration(milliseconds: _story.durationMs)
-          : _imageStoryDuration;
-      _imageProgress = AnimationController(vsync: this, duration: dur)
+      final rawMs = _story.durationMs > 500
+          ? _story.durationMs
+          : _imageStoryDuration.inMilliseconds;
+      final cappedMs = rawMs > storyMaxSlideMs ? storyMaxSlideMs : rawMs;
+      _imageProgress = AnimationController(
+        vsync: this,
+        duration: Duration(milliseconds: cappedMs < 1 ? 1 : cappedMs),
+      )
         ..addStatusListener((s) {
           if (s == AnimationStatus.completed) _advance();
         })
@@ -136,17 +160,33 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     final c = _video;
     if (c == null || !c.value.isInitialized || _videoEndedHandled) return;
     if (c.value.hasError) return;
-    final d = c.value.duration;
-    if (d == Duration.zero) return;
-    if (c.value.position >= d - const Duration(milliseconds: 300)) {
+    final totalMs = c.value.duration.inMilliseconds;
+    if (totalMs <= 0) return;
+    final cap = storyMaxSlideMs;
+    final slotEndMs = ((_videoClipIndex + 1) * cap) < totalMs
+        ? (_videoClipIndex + 1) * cap
+        : totalMs;
+    final posMs = c.value.position.inMilliseconds;
+    if (posMs >= slotEndMs - 300) {
+      if (_videoClipIndex < _videoClipCount - 1) {
+        _videoEndedHandled = true;
+        final next = _videoClipIndex + 1;
+        c.seekTo(Duration(milliseconds: next * cap)).then((_) {
+          if (!mounted || _video != c) return;
+          _videoEndedHandled = false;
+          setState(() => _videoClipIndex = next);
+          c.play();
+        });
+        return;
+      }
       _videoEndedHandled = true;
-      _advance();
+      _advanceAfterClips();
       return;
     }
     setState(() {});
   }
 
-  void _advance() {
+  void _advanceAfterClips() {
     if (!mounted) return;
     _video?.removeListener(_onVideoTick);
     _imageProgress?.stop();
@@ -164,8 +204,53 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     }
   }
 
+  void _advance() {
+    if (!mounted) return;
+    final v = _video;
+    if (_story.isVideo &&
+        v != null &&
+        v.value.isInitialized &&
+        _videoClipCount > 1 &&
+        _videoClipIndex < _videoClipCount - 1) {
+      final cap = storyMaxSlideMs;
+      final next = _videoClipIndex + 1;
+      v.removeListener(_onVideoTick);
+      v.seekTo(Duration(milliseconds: next * cap)).then((_) {
+        if (!mounted || _video != v) return;
+        setState(() {
+          _videoClipIndex = next;
+          _videoEndedHandled = false;
+        });
+        v.addListener(_onVideoTick);
+        v.play();
+      });
+      return;
+    }
+    _advanceAfterClips();
+  }
+
   void _goBack() {
     if (!mounted) return;
+    final v = _video;
+    if (_story.isVideo &&
+        v != null &&
+        v.value.isInitialized &&
+        _videoClipCount > 1 &&
+        _videoClipIndex > 0) {
+      final cap = storyMaxSlideMs;
+      final prev = _videoClipIndex - 1;
+      v.removeListener(_onVideoTick);
+      v.seekTo(Duration(milliseconds: prev * cap)).then((_) {
+        if (!mounted || _video != v) return;
+        setState(() {
+          _videoClipIndex = prev;
+          _videoEndedHandled = false;
+        });
+        v.addListener(_onVideoTick);
+        v.play();
+      });
+      return;
+    }
     _video?.removeListener(_onVideoTick);
     _imageProgress?.stop();
     if (_storyIndex > 0) {
@@ -454,13 +539,129 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   double get _progressValue {
     final v = _video;
     if (v != null && v.value.isInitialized) {
-      final d = v.value.duration.inMilliseconds;
-      if (d <= 0) return 0;
-      return (v.value.position.inMilliseconds / d).clamp(0.0, 1.0);
+      final totalMs = v.value.duration.inMilliseconds;
+      if (totalMs <= 0) return 0;
+      if (_videoClipCount > 1) {
+        final cap = storyMaxSlideMs;
+        final startMs = _videoClipIndex * cap;
+        final endMs = ((_videoClipIndex + 1) * cap) < totalMs
+            ? (_videoClipIndex + 1) * cap
+            : totalMs;
+        final span = endMs - startMs;
+        if (span <= 0) return 0;
+        final frac =
+            (v.value.position.inMilliseconds - startMs) / span.toDouble();
+        return frac.clamp(0.0, 1.0);
+      }
+      return (v.value.position.inMilliseconds / totalMs).clamp(0.0, 1.0);
     }
     final img = _imageProgress;
     if (img != null) return img.value;
     return 0;
+  }
+
+  /// Progress for clip [clipIdx] of the current story’s long video (0…1 per sub-bar).
+  double _videoClipProgressFor(int clipIdx) {
+    final v = _video;
+    if (v == null || !v.value.isInitialized) {
+      return clipIdx < _videoClipIndex
+          ? 1.0
+          : clipIdx > _videoClipIndex
+              ? 0.0
+              : 0.0;
+    }
+    final totalMs = v.value.duration.inMilliseconds;
+    if (totalMs <= 0) return 0;
+    final cap = storyMaxSlideMs;
+    if (clipIdx < _videoClipIndex) return 1.0;
+    if (clipIdx > _videoClipIndex) return 0.0;
+    final startMs = clipIdx * cap;
+    final endMs =
+        ((clipIdx + 1) * cap) < totalMs ? (clipIdx + 1) * cap : totalMs;
+    final span = endMs - startMs;
+    if (span <= 0) return 0;
+    return ((v.value.position.inMilliseconds - startMs) / span.toDouble())
+        .clamp(0.0, 1.0);
+  }
+
+  static const Color _storyBarFg = Colors.white;
+  static const Color _storyBarBg = Colors.white38;
+
+  List<Widget> _storyProgressRowChildren(StoryGroup group) {
+    final list = <Widget>[];
+    for (var i = 0; i < group.stories.length; i++) {
+      final segStory = group.stories[i];
+      Widget bar(double value) => ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: value,
+              backgroundColor: _storyBarBg,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(_storyBarFg),
+              minHeight: 3,
+            ),
+          );
+
+      if (i < _storyIndex) {
+        list.add(Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: bar(1.0),
+          ),
+        ));
+        continue;
+      }
+      if (i > _storyIndex) {
+        list.add(Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: bar(0.0),
+          ),
+        ));
+        continue;
+      }
+
+      if (segStory.isVideo && _videoClipCount > 1) {
+        list.add(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Row(
+                children: List.generate(_videoClipCount, (j) {
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: j > 0 ? 1 : 0,
+                        right: j < _videoClipCount - 1 ? 1 : 0,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: _videoClipProgressFor(j),
+                          backgroundColor: _storyBarBg,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                              _storyBarFg),
+                          minHeight: 3,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+
+      list.add(Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: bar(_progressValue),
+        ),
+      ));
+    }
+    return list;
   }
 
   @override
@@ -593,27 +794,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     Padding(
                       padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
                       child: Row(
-                        children: List.generate(group.stories.length, (i) {
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 2),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: LinearProgressIndicator(
-                                  value: i < _storyIndex
-                                      ? 1.0
-                                      : i == _storyIndex
-                                          ? _progressValue
-                                          : 0.0,
-                                  backgroundColor: Colors.white38,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(
-                                      Colors.white),
-                                  minHeight: 3,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
+                        children: _storyProgressRowChildren(group),
                       ),
                     ),
                     Padding(
