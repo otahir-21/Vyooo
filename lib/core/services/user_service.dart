@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/app_user_model.dart';
+import '../models/parent_consent_constants.dart';
 import 'notification_service.dart';
 
 class UserDiscoveryItem {
@@ -38,6 +39,20 @@ class UserService {
 
   static const String _usersCollection = 'users';
 
+  static const int publicPersonaMaxLength = 80;
+
+  /// Trims and normalizes user-entered public persona text for Firestore.
+  static String normalizePublicPersona(String value) {
+    var t = value.trim();
+    if (t.isEmpty) return '';
+    t = t.replaceAll(RegExp(r'\s+'), ' ');
+    t = t.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F]'), '');
+    if (t.length > publicPersonaMaxLength) {
+      t = t.substring(0, publicPersonaMaxLength);
+    }
+    return t;
+  }
+
   static String normalizePhone(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return '';
@@ -67,6 +82,7 @@ class UserService {
     'isVerified': false,
     'verificationStatus': 'none',
     'accountType': 'private',
+    'publicPersona': '',
     'vipVerified': false,
     'orgProfileCompleted': false,
     'organizationDetails': <String, dynamic>{},
@@ -74,6 +90,11 @@ class UserService {
     'following': <String>[],
     'blockedUsers': <String>[],
     'followersCount': 0,
+    'parentConsentStatus': ParentConsentStatusValue.notRequired,
+    'parentConsentId': '',
+    'parentUid': '',
+    'parentInviteEmail': '',
+    'parentInvitePhone': '',
   };
 
   /// Creates the initial user document. Call after AuthService.registerWithEmail success.
@@ -122,10 +143,16 @@ class UserService {
     List<String>? interests,
     bool? onboardingCompleted,
     String? accountType,
+    String? publicPersona,
     bool? vipVerified,
     String? phoneNumber,
     bool? orgProfileCompleted,
     Map<String, dynamic>? organizationDetails,
+    String? parentConsentStatus,
+    String? parentConsentId,
+    String? parentUid,
+    String? parentInviteEmail,
+    String? parentInvitePhone,
   }) async {
     try {
       final data = <String, dynamic>{};
@@ -145,10 +172,14 @@ class UserService {
       if (dob != null) data['dob'] = dob;
       if (profileImage != null) data['profileImage'] = profileImage;
       if (interests != null) data['interests'] = interests;
-      if (onboardingCompleted != null)
+      if (onboardingCompleted != null) {
         data['onboardingCompleted'] = onboardingCompleted;
+      }
       if (accountType != null && accountType.trim().isNotEmpty) {
         data['accountType'] = accountType.trim().toLowerCase();
+      }
+      if (publicPersona != null) {
+        data['publicPersona'] = normalizePublicPersona(publicPersona);
       }
       if (vipVerified != null) data['vipVerified'] = vipVerified;
       if (phoneNumber != null) {
@@ -162,6 +193,21 @@ class UserService {
       if (organizationDetails != null) {
         data['organizationDetails'] = organizationDetails;
       }
+      if (parentConsentStatus != null && parentConsentStatus.trim().isNotEmpty) {
+        data['parentConsentStatus'] = parentConsentStatus.trim();
+      }
+      if (parentConsentId != null) {
+        data['parentConsentId'] = parentConsentId.trim();
+      }
+      if (parentUid != null) {
+        data['parentUid'] = parentUid.trim();
+      }
+      if (parentInviteEmail != null) {
+        data['parentInviteEmail'] = parentInviteEmail.trim().toLowerCase();
+      }
+      if (parentInvitePhone != null) {
+        data['parentInvitePhone'] = normalizePhone(parentInvitePhone);
+      }
       if (data.isEmpty) return;
       await _firestore
           .collection(_usersCollection)
@@ -170,6 +216,23 @@ class UserService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Sets parental consent outcome on the minor's user doc (merge). Uses server time for [parentConsentAt].
+  Future<void> mergeMinorParentConsentOutcome({
+    required String uid,
+    required String parentConsentStatus,
+    required String parentUid,
+  }) async {
+    final data = <String, dynamic>{
+      'parentConsentStatus': parentConsentStatus,
+      'parentUid': parentUid,
+      'parentConsentAt': FieldValue.serverTimestamp(),
+    };
+    await _firestore.collection(_usersCollection).doc(uid).set(
+          data,
+          SetOptions(merge: true),
+        );
   }
 
   /// Fetches the user document. Returns null if not found or on error.

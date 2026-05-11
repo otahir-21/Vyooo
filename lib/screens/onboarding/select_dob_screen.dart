@@ -1,12 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/models/parent_consent_constants.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dob_validation.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'add_profile_screen.dart';
+import 'parent_contact_screen.dart';
 
 const List<String> _monthNames = [
   'January',
@@ -118,15 +120,27 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
       try {
         final dobString =
             '${_year.toString().padLeft(4, '0')}-${_month.toString().padLeft(2, '0')}-${_day.toString().padLeft(2, '0')}';
-        await UserService().updateUserProfile(uid: uid, dob: dobString);
+        final needsParent = DobValidation.requiresParentalConsent(_selectedDate);
+        await UserService().updateUserProfile(
+          uid: uid,
+          dob: dobString,
+          parentConsentStatus: needsParent
+              ? ParentConsentStatusValue.pendingContact
+              : ParentConsentStatusValue.notRequired,
+        );
       } catch (_) {
         if (!mounted) return;
       }
     }
     if (!mounted) return;
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const AddProfileScreen()));
+    final needsParent = DobValidation.requiresParentalConsent(_selectedDate);
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => needsParent
+            ? const ParentContactScreen()
+            : const AddProfileScreen(),
+      ),
+    );
   }
 
   @override

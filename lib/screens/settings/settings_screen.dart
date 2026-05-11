@@ -11,6 +11,7 @@ import 'contact_support_screen.dart';
 import 'report_problem_screen.dart';
 import 'about_screen.dart';
 import 'wallet/wallet_screen.dart';
+import 'parental_approvals_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -49,6 +50,15 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const AccountScreen(),
+                            ),
+                          ),
+                        ),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Settings/About.png',
+                          label: 'Family approvals',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ParentalApprovalsScreen(),
                             ),
                           ),
                         ),

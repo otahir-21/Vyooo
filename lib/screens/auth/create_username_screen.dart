@@ -507,10 +507,22 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         return;
       }
 
+      String? publicPersonaUpdate;
+      if (selectedType == _OnboardingAccountType.public) {
+        final persona = await _promptPublicPersona();
+        if (!mounted) return;
+        if (persona == null) {
+          setState(() => _isSubmitting = false);
+          return;
+        }
+        publicPersonaUpdate = persona;
+      }
+
       await UserService().updateUserProfile(
         uid: uid,
         username: username,
         accountType: selectedType.name,
+        publicPersona: publicPersonaUpdate,
       );
 
       if (!mounted) return;
@@ -613,6 +625,15 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     );
   }
 
+  /// After choosing a public account, collect how they describe their profile.
+  Future<String?> _promptPublicPersona() {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const _PublicPersonaDialog(),
+    );
+  }
+
   Widget _buildSuggestions() {
     return Container(
       margin: const EdgeInsets.only(top: 10),
@@ -678,5 +699,74 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       return;
     }
     await AuthService().signOut();
+  }
+}
+
+/// Owns [TextEditingController] for the persona field so it is disposed only after
+/// the route removes the dialog (avoids "used after being disposed" on pop/hot restart).
+class _PublicPersonaDialog extends StatefulWidget {
+  const _PublicPersonaDialog();
+
+  @override
+  State<_PublicPersonaDialog> createState() => _PublicPersonaDialogState();
+}
+
+class _PublicPersonaDialogState extends State<_PublicPersonaDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Describe your public profile'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            maxLength: UserService.publicPersonaMaxLength,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Entrepreneur, Content creator, Celebrity',
+              border: OutlineInputBorder(),
+            ),
+            validator: (raw) {
+              final normalized = UserService.normalizePublicPersona(raw ?? '');
+              if (normalized.length < 2) {
+                return 'Enter at least 2 characters.';
+              }
+              return null;
+            },
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Back'),
+        ),
+        TextButton(
+          onPressed: () {
+            if (_formKey.currentState?.validate() != true) return;
+            final out = UserService.normalizePublicPersona(_controller.text);
+            Navigator.of(context).pop(out);
+          },
+          child: const Text('Continue'),
+        ),
+      ],
+    );
   }
 }

@@ -19,7 +19,7 @@ import '../../screens/auth/create_username_screen.dart';
 import '../../screens/auth/verify_code_screen.dart';
 import '../../screens/debug/tier_picker_screen.dart';
 import '../../screens/onboarding/organization_details_screen.dart';
-import '../../screens/onboarding/select_dob_screen.dart';
+import '../onboarding/onboarding_gate.dart';
 import '../subscription/subscription_controller.dart';
 import 'main_nav_wrapper.dart';
 
@@ -476,6 +476,6 @@ class _UserDocGateState extends State<_UserDocGate> {
     }
 
     // Username is set and any required org profile step is complete.
-    return const SelectDobScreen();
+    return OnboardingGate.nextScreen(appUser);
   }
 }

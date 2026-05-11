@@ -24,6 +24,22 @@
         { "fieldPath": "recipientId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "parental_consents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parentEmailLower", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "parental_consents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parentPhoneNormalized", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

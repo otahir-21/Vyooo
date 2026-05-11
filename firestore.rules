@@ -29,11 +29,18 @@ service cloud.firestore {
         'isVerified',
         'verificationStatus',
         'accountType',
+        'publicPersona',
         'vipVerified',
         'phoneNumber',
         'normalizedPhone',
         'orgProfileCompleted',
         'organizationDetails',
+        'parentConsentStatus',
+        'parentConsentId',
+        'parentUid',
+        'parentInviteEmail',
+        'parentInvitePhone',
+        'parentConsentAt',
       ]) &&
       request.resource.data.uid == userId &&
       request.resource.data.email is string &&
@@ -58,6 +65,8 @@ service cloud.firestore {
         request.resource.data.verificationStatus is string) &&
       (!('accountType' in request.resource.data) ||
         request.resource.data.accountType is string) &&
+      (!('publicPersona' in request.resource.data) ||
+        request.resource.data.publicPersona is string) &&
       (!('vipVerified' in request.resource.data) ||
         request.resource.data.vipVerified is bool) &&
       (!('phoneNumber' in request.resource.data) ||
@@ -67,7 +76,168 @@ service cloud.firestore {
       (!('orgProfileCompleted' in request.resource.data) ||
         request.resource.data.orgProfileCompleted is bool) &&
       (!('organizationDetails' in request.resource.data) ||
-        request.resource.data.organizationDetails is map);
+        request.resource.data.organizationDetails is map) &&
+      (!('parentConsentStatus' in request.resource.data) ||
+        request.resource.data.parentConsentStatus is string) &&
+      (!('parentConsentId' in request.resource.data) ||
+        request.resource.data.parentConsentId is string) &&
+      (!('parentUid' in request.resource.data) ||
+        request.resource.data.parentUid is string) &&
+      (!('parentInviteEmail' in request.resource.data) ||
+        request.resource.data.parentInviteEmail is string) &&
+      (!('parentInvitePhone' in request.resource.data) ||
+        request.resource.data.parentInvitePhone is string) &&
+      (!('parentConsentAt' in request.resource.data) ||
+        request.resource.data.parentConsentAt is timestamp);
+    }
+
+    function parentalConsentCreateValid() {
+      return request.resource.data.keys().hasOnly([
+            'minorUid',
+            'minorUsername',
+            'parentEmailLower',
+            'parentPhoneNormalized',
+            'status',
+            'createdAt',
+          ])
+          && request.resource.data.minorUid == request.auth.uid
+          && request.resource.data.minorUsername is string
+          && request.resource.data.parentEmailLower is string
+          && request.resource.data.parentPhoneNormalized is string
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdAt is timestamp
+          && (
+            request.resource.data.parentEmailLower.size() > 0
+            || request.resource.data.parentPhoneNormalized.size() > 0
+          );
+    }
+
+    function parentalConsentReadAllowed() {
+      return resource.data.minorUid == request.auth.uid
+        || (
+          resource.data.parentEmailLower is string
+          && resource.data.parentEmailLower.size() > 0
+          && request.auth.token.email != null
+          && request.auth.token.email.lower() == resource.data.parentEmailLower
+        )
+        || (
+          resource.data.parentPhoneNormalized is string
+          && resource.data.parentPhoneNormalized.size() > 0
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.normalizedPhone
+            == resource.data.parentPhoneNormalized
+        );
+    }
+
+    function parentalConsentParentCanRespond() {
+      return (
+          resource.data.parentEmailLower is string
+          && resource.data.parentEmailLower.size() > 0
+          && request.auth.token.email != null
+          && request.auth.token.email.lower() == resource.data.parentEmailLower
+        )
+        || (
+          resource.data.parentPhoneNormalized is string
+          && resource.data.parentPhoneNormalized.size() > 0
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.normalizedPhone
+            == resource.data.parentPhoneNormalized
+        );
+    }
+
+    function parentalContactFieldsUnchanged() {
+      return request.resource.data.get('parentConsentStatus', 'not_required')
+          == resource.data.get('parentConsentStatus', 'not_required')
+        && request.resource.data.get('parentConsentId', '')
+          == resource.data.get('parentConsentId', '')
+        && request.resource.data.get('parentUid', '') == resource.data.get('parentUid', '')
+        && request.resource.data.get('parentInviteEmail', '')
+          == resource.data.get('parentInviteEmail', '')
+        && request.resource.data.get('parentInvitePhone', '')
+          == resource.data.get('parentInvitePhone', '')
+        && (
+          !('parentConsentAt' in request.resource.data)
+            && !('parentConsentAt' in resource.data)
+          || request.resource.data.parentConsentAt == resource.data.parentConsentAt
+        );
+    }
+
+    function minorDobAndParentGateUpdate(userId) {
+      return isOwner(userId)
+        && emailOtpVerifiedUnchanged()
+        && request.resource.data.followersCount == resource.data.followersCount
+        && validUserDoc(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dob', 'parentConsentStatus'])
+        && request.resource.data.parentConsentStatus in ['pending_contact', 'not_required'];
+    }
+
+    function minorParentInviteSubmit(userId) {
+      let cid = request.resource.data.parentConsentId;
+      return isOwner(userId)
+        && emailOtpVerifiedUnchanged()
+        && request.resource.data.followersCount == resource.data.followersCount
+        && validUserDoc(userId)
+        && resource.data.parentConsentStatus == 'pending_contact'
+        && request.resource.data.parentConsentStatus == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'parentConsentStatus',
+            'parentConsentId',
+            'parentInviteEmail',
+            'parentInvitePhone',
+          ])
+        && cid is string
+        && cid.size() > 0
+        && get(/databases/$(database)/documents/parental_consents/$(cid)).data.minorUid == userId
+        && get(/databases/$(database)/documents/parental_consents/$(cid)).data.status == 'pending';
+    }
+
+    function minorParentalConsentSync(userId) {
+      let cid = resource.data.parentConsentId;
+      return isOwner(userId)
+        && emailOtpVerifiedUnchanged()
+        && request.resource.data.followersCount == resource.data.followersCount
+        && cid is string
+        && cid.size() > 0
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['parentConsentStatus', 'parentUid', 'parentConsentAt'])
+        && resource.data.parentConsentId == request.resource.data.parentConsentId
+        && resource.data.parentConsentStatus == 'pending'
+        && get(/databases/$(database)/documents/parental_consents/$(cid)).data.minorUid == userId
+        && (
+          (
+            request.resource.data.parentConsentStatus == 'approved'
+            && get(/databases/$(database)/documents/parental_consents/$(cid)).data.status == 'approved'
+            && request.resource.data.parentUid
+            == get(/databases/$(database)/documents/parental_consents/$(cid)).data.parentUid
+            && request.resource.data.parentUid.size() > 0
+          )
+          || (
+            request.resource.data.parentConsentStatus == 'denied'
+            && get(/databases/$(database)/documents/parental_consents/$(cid)).data.status == 'denied'
+            && request.resource.data.parentUid == ''
+          )
+        );
+    }
+
+    function minorParentalResubmitAfterDeny(userId) {
+      let cid = request.resource.data.parentConsentId;
+      return isOwner(userId)
+        && emailOtpVerifiedUnchanged()
+        && request.resource.data.followersCount == resource.data.followersCount
+        && resource.data.parentConsentStatus == 'denied'
+        && request.resource.data.parentConsentStatus == 'pending'
+        && cid is string
+        && cid.size() > 0
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            'parentConsentStatus',
+            'parentConsentId',
+            'parentInviteEmail',
+            'parentInvitePhone',
+          ])
+        && get(/databases/$(database)/documents/parental_consents/$(cid)).data.minorUid == userId
+        && get(/databases/$(database)/documents/parental_consents/$(cid)).data.status == 'pending';
     }
 
     // Clients cannot set or flip emailOtpVerified; only Cloud Functions (Admin SDK) may.
@@ -87,6 +257,34 @@ service cloud.firestore {
       allow update: if false; // only Cloud Function (Admin SDK) may update
     }
 
+    // Parent / guardian approval for minors under 16.
+    match /parental_consents/{consentId} {
+      allow read: if isSignedIn() && parentalConsentReadAllowed();
+      allow create: if isSignedIn() && parentalConsentCreateValid();
+      allow update: if isSignedIn()
+                    && resource.data.status == 'pending'
+                    && request.resource.data.minorUid == resource.data.minorUid
+                    && request.resource.data.minorUsername == resource.data.minorUsername
+                    && request.resource.data.parentEmailLower == resource.data.parentEmailLower
+                    && request.resource.data.parentPhoneNormalized == resource.data.parentPhoneNormalized
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['status', 'respondedAt', 'parentUid'])
+                    && request.resource.data.respondedAt is timestamp
+                    && parentalConsentParentCanRespond()
+                    && (
+                      (
+                        request.resource.data.status == 'approved'
+                        && request.resource.data.parentUid == request.auth.uid
+                      )
+                      || (
+                        request.resource.data.status == 'denied'
+                        && request.resource.data.parentUid == ''
+                      )
+                    );
+      allow delete: if false;
+    }
+
     // ── User profile doc only: users/{uid} (one segment after users/) ─────────
     // following / blockedUsers live here; only the owner may write the doc.
     // Exception: any signed-in user may remove *only themselves* from another
@@ -97,10 +295,19 @@ service cloud.firestore {
       allow create: if isOwner(userId)
                     && validUserDoc(userId)
                     && request.resource.data.followersCount == 0;
-      allow update: if (isOwner(userId)
-                    && validUserDoc(userId)
-                    && request.resource.data.followersCount == resource.data.followersCount
-                    && emailOtpVerifiedUnchanged())
+      allow update: if (
+                      (
+                        isOwner(userId)
+                        && validUserDoc(userId)
+                        && request.resource.data.followersCount == resource.data.followersCount
+                        && emailOtpVerifiedUnchanged()
+                        && parentalContactFieldsUnchanged()
+                      )
+                      || minorDobAndParentGateUpdate(userId)
+                      || minorParentInviteSubmit(userId)
+                      || minorParentalConsentSync(userId)
+                      || minorParentalResubmitAfterDeny(userId)
+                    )
                     || (isSignedIn()
                         && !isOwner(userId)
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following'])

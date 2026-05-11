@@ -61,6 +61,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
   final _industryController = TextEditingController();
   final _locationController = TextEditingController();
   final _contactPhoneController = TextEditingController();
+  final _publicPersonaController = TextEditingController();
 
   String _selectedAccountType = 'private';
   bool _loading = true;
@@ -170,6 +171,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _industryController.dispose();
     _locationController.dispose();
     _contactPhoneController.dispose();
+    _publicPersonaController.dispose();
     super.dispose();
   }
 
@@ -209,6 +211,7 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     _industryController.text = (org['industry'] ?? '').toString();
     _locationController.text = (org['location'] ?? '').toString();
     _contactPhoneController.text = (org['contactPhone'] ?? '').toString();
+    _publicPersonaController.text = (user?.publicPersona ?? '').trim();
     _selectedInterests = List<String>.from(user?.interests ?? const <String>[]);
 
     if (mounted) setState(() => _loading = false);
@@ -218,6 +221,21 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
     if (_saving) return;
     final uid = AuthService().currentUser?.uid;
     if (uid == null || uid.isEmpty) return;
+
+    final accountKey = _selectedAccountType.trim().toLowerCase();
+    if (accountKey == 'public') {
+      final persona = UserService.normalizePublicPersona(_publicPersonaController.text);
+      if (persona.length < 2) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'For a public account, add at least 2 characters describing your profile (e.g. creator, entrepreneur).',
+            ),
+          ),
+        );
+        return;
+      }
+    }
 
     setState(() => _saving = true);
     try {
@@ -245,6 +263,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
         phoneNumber: _phoneController.text.trim(),
         dob: _dobController.text.trim(),
         accountType: _selectedAccountType,
+        publicPersona: accountKey == 'public'
+            ? UserService.normalizePublicPersona(_publicPersonaController.text)
+            : '',
         interests: _selectedInterests,
         orgProfileCompleted: _showOrgFields ? hasOrgData : false,
         organizationDetails: _showOrgFields ? orgDetails : <String, dynamic>{},
@@ -375,6 +396,15 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
             setState(() => _selectedAccountType = value);
           },
         ),
+        if (_selectedAccountType == 'public') ...[
+          const SizedBox(height: AppSpacing.sm),
+          _EditableFieldRow(
+            label: 'Public profile type',
+            controller: _publicPersonaController,
+            hint: 'e.g. Entrepreneur, Celebrity, Content creator',
+            maxLength: UserService.publicPersonaMaxLength,
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Text(
           'Interests',
@@ -447,12 +477,14 @@ class _EditableFieldRow extends StatelessWidget {
     required this.controller,
     this.hint,
     this.maxLines = 1,
+    this.maxLength,
   });
 
   final String label;
   final TextEditingController controller;
   final String? hint;
   final int maxLines;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -461,6 +493,7 @@ class _EditableFieldRow extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        maxLength: maxLength,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           labelText: label,

@@ -504,12 +504,29 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
   }
 
   Future<void> _onBack() async {
-    if (_verifyInFlight || _sendInFlight) return;
+    if (_verifyInFlight) return;
     final nav = Navigator.of(context);
     if (nav.canPop()) {
       nav.pop();
       return;
     }
+    // [CreateAccountScreen] opens this screen with [pushReplacement], so there is
+    // no route to pop and [AuthWrapper] is no longer in the tree. [signOut] alone
+    // would not rebuild the UI; reset the root back to [AuthWrapper].
+    final embeddedInAuthWrapper =
+        context.findAncestorWidgetOfExactType<AuthWrapper>() != null;
+    SignupDraftService().clear();
+    final otpSession = OtpSessionService();
+    otpSession.abortEmailLoginHandshake();
+    await otpSession.clearSignupOtpPreference();
+    await otpSession.clearOtpRequirement();
     await _auth.signOut();
+    if (!mounted) return;
+    if (!embeddedInAuthWrapper) {
+      await nav.pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const AuthWrapper()),
+        (route) => false,
+      );
+    }
   }
 }
