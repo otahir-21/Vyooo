@@ -26,22 +26,23 @@ class ReelItemWidget extends StatefulWidget {
     required this.isVisible,
     this.thumbnailUrl,
     this.onVisibilityChanged,
+    this.onVideoCompleted,
+    this.onDoubleTap,
   });
 
   final String videoUrl;
   final bool isVisible;
   final String? thumbnailUrl;
   final VoidCallback? onVisibilityChanged;
+  final VoidCallback? onVideoCompleted;
+  final VoidCallback? onDoubleTap;
 
   @override
   State<ReelItemWidget> createState() => _ReelItemWidgetState();
 }
 
 class _ReelItemWidgetState extends State<ReelItemWidget>
-    with
-        AutomaticKeepAliveClientMixin,
-        WidgetsBindingObserver,
-        RouteAware {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver, RouteAware {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
   bool _showError = false;
@@ -52,6 +53,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Timer? _hideTimer;
   Timer? _retryTimer;
   bool _lastIsPlaying = false;
+  bool _hasNotifiedCompletion = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
   // Effective-visibility flags. Combined with [widget.isVisible] in
@@ -97,6 +99,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   void didUpdateWidget(ReelItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
+      _hasNotifiedCompletion = false;
       _disposePlayer();
       if (_shouldPlay) {
         _initializePlayer();
@@ -221,11 +224,22 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   void _onControllerValueChanged() {
-    final isPlaying = _controller?.value.isPlaying ?? false;
-    if (isPlaying == _lastIsPlaying) return;
-    _lastIsPlaying = isPlaying;
-    if (!mounted) return;
-    setState(() {});
+    final ctrl = _controller;
+    if (ctrl == null) return;
+    final isPlaying = ctrl.value.isPlaying;
+    if (isPlaying != _lastIsPlaying) {
+      _lastIsPlaying = isPlaying;
+      if (mounted) setState(() {});
+    }
+    if (!_hasNotifiedCompletion && widget.onVideoCompleted != null) {
+      final duration = ctrl.value.duration;
+      final position = ctrl.value.position;
+      if (duration > Duration.zero &&
+          position >= duration - const Duration(milliseconds: 300)) {
+        _hasNotifiedCompletion = true;
+        widget.onVideoCompleted!();
+      }
+    }
   }
 
   List<String> _candidateUrls(String raw) {
@@ -242,8 +256,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       final mp4 = '$hostBase/$videoId/downloads/default.mp4';
       if (VideoUploadPolicy.isPlayableUrl(mp4)) out.add(mp4);
       // Backward compatibility: if saved host is wrong, still try Cloudflare global domain.
-      final hlsFallback = 'https://videodelivery.net/$videoId/manifest/video.m3u8';
-      final mp4Fallback = 'https://videodelivery.net/$videoId/downloads/default.mp4';
+      final hlsFallback =
+          'https://videodelivery.net/$videoId/manifest/video.m3u8';
+      final mp4Fallback =
+          'https://videodelivery.net/$videoId/downloads/default.mp4';
       if (VideoUploadPolicy.isPlayableUrl(hlsFallback)) out.add(hlsFallback);
       if (VideoUploadPolicy.isPlayableUrl(mp4Fallback)) out.add(mp4Fallback);
     }
@@ -335,7 +351,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
                       SizedBox(height: AppSpacing.sm),
                       Text(
                         'Preparing video... ($_retryCount/$_maxRetries)',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ],
@@ -403,6 +422,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     final size = _controller!.value.size;
     return GestureDetector(
       onTap: _togglePlayPause,
+      onDoubleTap: widget.onDoubleTap,
       child: Container(
         width: double.infinity,
         height: double.infinity,

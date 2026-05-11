@@ -259,7 +259,11 @@ class CommentService {
   }
 
   /// Deletes subtree; returns number of comment documents removed (for feed count).
-  Future<int> deleteComment(String reelId, String commentId) async {
+  Future<int> deleteComment(
+    String reelId,
+    String commentId, {
+    String postOwnerId = '',
+  }) async {
     final uid = _uid;
     if (uid == null) return 0;
 
@@ -267,7 +271,7 @@ class CommentService {
     final snap = await ref.get();
     if (!snap.exists) return 0;
     final authorId = snap.data()?['userId'] as String? ?? '';
-    if (authorId != uid) return 0;
+    if (authorId != uid && postOwnerId != uid) return 0;
 
     final subtreeIds = await _collectSubtreeIds(reelId, commentId);
     final batch = _firestore.batch();

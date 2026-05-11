@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -19,15 +20,17 @@ import 'report_comment_sheet.dart';
 
 /// Opens Firestore-backed comments for [reelId].
 /// [onCommentCountChanged] is called with +1 per new comment (incl. reply) and -N when N comments removed.
-void showCommentsBottomSheet(
+Future<void> showCommentsBottomSheet(
   BuildContext context, {
   required String reelId,
+  String postOwnerId = '',
   void Function(int commentCountDelta)? onCommentCountChanged,
 }) {
-  _openCommentsSheet(
+  return _openCommentsSheet(
     context,
     contentId: reelId,
     forStory: false,
+    postOwnerId: postOwnerId,
     onCommentCountChanged: onCommentCountChanged,
   );
 }
@@ -36,23 +39,26 @@ void showCommentsBottomSheet(
 void showStoryCommentsBottomSheet(
   BuildContext context, {
   required String storyId,
+  String postOwnerId = '',
   void Function(int commentCountDelta)? onCommentCountChanged,
 }) {
   _openCommentsSheet(
     context,
     contentId: storyId,
     forStory: true,
+    postOwnerId: postOwnerId,
     onCommentCountChanged: onCommentCountChanged,
   );
 }
 
-void _openCommentsSheet(
+Future<void> _openCommentsSheet(
   BuildContext context, {
   required String contentId,
   required bool forStory,
+  String postOwnerId = '',
   void Function(int commentCountDelta)? onCommentCountChanged,
 }) {
-  showModalBottomSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -60,6 +66,7 @@ void _openCommentsSheet(
     builder: (context) => _CommentsBottomSheetBody(
       contentId: contentId,
       forStory: forStory,
+      postOwnerId: postOwnerId,
       onCommentCountChanged: onCommentCountChanged,
     ),
   );
@@ -108,11 +115,13 @@ class _CommentsBottomSheetBody extends StatefulWidget {
   const _CommentsBottomSheetBody({
     required this.contentId,
     required this.forStory,
+    this.postOwnerId = '',
     this.onCommentCountChanged,
   });
 
   final String contentId;
   final bool forStory;
+  final String postOwnerId;
   final void Function(int commentCountDelta)? onCommentCountChanged;
 
   @override
@@ -145,6 +154,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
   String? _replyParentId;
   String _replyUsername = '';
   bool _posting = false;
+  String _postOwnerId = '';
 
   final Set<String> _expandedReplyThreads = {};
 
@@ -156,8 +166,10 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
   @override
   void initState() {
     super.initState();
+    _postOwnerId = widget.postOwnerId;
     _textCtrl.addListener(() => setState(() {}));
     _subscribeTail();
+    if (_postOwnerId.isEmpty) _fetchPostOwnerId();
   }
 
   @override
@@ -168,19 +180,33 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
     super.dispose();
   }
 
+  Future<void> _fetchPostOwnerId() async {
+    try {
+      final collection = widget.forStory ? 'stories' : 'reels';
+      final snap = await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(widget.contentId)
+          .get();
+      if (!mounted) return;
+      final ownerId = (snap.data()?['userId'] as String?) ?? '';
+      if (ownerId.isNotEmpty) setState(() => _postOwnerId = ownerId);
+    } catch (_) {}
+  }
+
   // ── Stream / data ──────────────────────────────────────────────────────────
 
   void _subscribeTail() {
     _tailSub?.cancel();
-    _tailSub = (widget.forStory
-            ? _storyCommentService.watchRecentCommentsTail(widget.contentId)
-            : _reelCommentService.watchRecentCommentsTail(widget.contentId))
-        .listen(
-          _onTailSnapshot,
-          onError: (Object error, StackTrace stackTrace) {
-            if (mounted) setState(() => _streamError = true);
-          },
-        );
+    _tailSub =
+        (widget.forStory
+                ? _storyCommentService.watchRecentCommentsTail(widget.contentId)
+                : _reelCommentService.watchRecentCommentsTail(widget.contentId))
+            .listen(
+              _onTailSnapshot,
+              onError: (Object error, StackTrace stackTrace) {
+                if (mounted) setState(() => _streamError = true);
+              },
+            );
   }
 
   void _onTailSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
@@ -372,7 +398,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
           ),
         ),
         content: const Text(
-          'This cannot be undone.',
+          'This comment will be removed from the post.',
           style: TextStyle(color: Color(0x99FFFFFF), fontSize: 15),
         ),
         actions: [
@@ -405,10 +431,12 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
           ? await _storyCommentService.deleteComment(
               widget.contentId,
               commentId,
+              postOwnerId: _postOwnerId,
             )
           : await _reelCommentService.deleteComment(
               widget.contentId,
               commentId,
+              postOwnerId: _postOwnerId,
             );
       if (!mounted) return;
       if (removed <= 0) {
@@ -451,6 +479,137 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
       reelId: widget.forStory ? null : widget.contentId,
       storyId: widget.forStory ? widget.contentId : null,
       comment: c,
+    );
+  }
+
+  void _onLongPress(Comment c, bool signedIn) {
+    if (!signedIn) return;
+    final uid = AuthService().currentUser?.uid ?? '';
+    final isCommentAuthor = uid.isNotEmpty && uid == c.authorUserId;
+    final isPostOwner = uid.isNotEmpty && uid == _postOwnerId;
+    final canDelete = isCommentAuthor || isPostOwner;
+    final canReport = !isCommentAuthor;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF49113B), Color(0xFF210D1D), Color(0xFF0F040C)],
+          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (canDelete)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFF81945),
+                  ),
+                  title: const Text(
+                    'Delete comment',
+                    style: TextStyle(
+                      color: Color(0xFFF81945),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _onDelete(c.id);
+                  },
+                ),
+              if (canReport) ...[
+                if (canDelete)
+                  Divider(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.08),
+                  ),
+                ListTile(
+                  leading: Icon(
+                    Icons.flag_outlined,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                  title: Text(
+                    'Report comment',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _onReport(c);
+                  },
+                ),
+              ],
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+              ListTile(
+                leading: Icon(
+                  Icons.copy_rounded,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+                title: Text(
+                  'Copy text',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  Clipboard.setData(ClipboardData(text: c.text));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Copied to clipboard'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+              ListTile(
+                leading: Icon(
+                  Icons.close_rounded,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+                title: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                onTap: () => Navigator.of(ctx).pop(),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -716,14 +875,9 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                   isReply: isReply,
                   isHighlighted: comment.isOwnComment,
                   onReply: signedIn ? () => _startReply(comment) : null,
-                  onLike: signedIn && !comment.isOwnComment
-                      ? () => _onLike(comment)
-                      : null,
-                  onReport: signedIn && !comment.isOwnComment
-                      ? () => _onReport(comment)
-                      : null,
-                  onDelete: comment.isOwnComment
-                      ? () => _onDelete(comment.id)
+                  onLike: signedIn ? () => _onLike(comment) : null,
+                  onLongPress: signedIn
+                      ? () => _onLongPress(comment, signedIn)
                       : null,
                 );
             }

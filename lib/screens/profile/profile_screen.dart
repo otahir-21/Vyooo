@@ -1005,15 +1005,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       return _buildSavedGridSlivers();
     }
 
-    if (!canUploadContent) {
-      return [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: _buildEmptyPostsPrompt(context, showModalOnTap: true),
-        ),
-      ];
-    }
-
     switch (_selectedTabIndex) {
       case 0:
         return _buildPostsGridSlivers(uid: uid);

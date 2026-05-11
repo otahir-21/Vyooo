@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:provider/provider.dart';
 
@@ -139,6 +142,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   /// Set when the feed cannot load (e.g. offline); cleared on successful refresh.
   String? _reelsLoadError;
 
+  bool _autoScrollEnabled = true;
+  bool _userHoldingToPause = false;
+  bool _isBottomSheetOpen = false;
+  bool _videoCompletedForCurrentItem = false;
+  Timer? _autoScrollTimer;
+  int _activePointerCount = 0;
+
   @override
   void initState() {
     super.initState();
@@ -150,7 +160,25 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _followingStoriesCollapse.addListener(() {
       if (mounted) setState(() {});
     });
+    _loadAutoScrollPref();
     _loadReels();
+  }
+
+  Future<void> _loadAutoScrollPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool('auto_scroll_enabled');
+      if (saved != null && mounted) {
+        setState(() => _autoScrollEnabled = saved);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveAutoScrollPref(bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('auto_scroll_enabled', value);
+    } catch (_) {}
   }
 
   @override
@@ -168,7 +196,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void didUpdateWidget(HomeReelsScreen old) {
     super.didUpdateWidget(old);
     if (widget.refreshToken != old.refreshToken) {
-      // Switch to For You tab and scroll to top so the new video is visible.
+      _cancelAutoScrollTimer();
+      _videoCompletedForCurrentItem = false;
       _jumpPageControllerToStart();
       setState(() {
         currentTab = HomeTab.forYou;
@@ -178,6 +207,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         if (!mounted) return;
         _jumpPageControllerToStart();
         _ensurePageControllerMatchesFeed();
+        _scheduleAutoScroll();
       });
       _loadReels();
     }
@@ -195,106 +225,106 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       return;
     }
     try {
-    final forYou = await _reelsService.getReelsForYou();
-    final following = await _reelsService.getReelsFollowing();
-    final trending = await _reelsService.getReelsTrending();
-    final vr = await _reelsService.getReelsVR();
-    final storyGroups = await StoryService().getActiveStoryGroups();
-    final myStories = await StoryService().getMyStories();
-    final uid = AuthService().currentUser?.uid ?? '';
-    String avatarUrl = '';
-    var followingIds = <String>[];
-    var blockedIds = <String>[];
-    if (uid.isNotEmpty) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(uid)
-            .get();
-        avatarUrl = userDoc.data()?['profileImage'] as String? ?? '';
-      } catch (_) {}
-      followingIds = await UserService().getFollowing(uid);
-      blockedIds = await UserService().getBlockedUserIds(uid);
-    }
-    bool allowedByBlock(Map<String, dynamic> r) {
-      final id = (r['userId'] as String?) ?? '';
-      if (id.isEmpty) return true;
-      return !blockedIds.contains(id);
-    }
+      final forYou = await _reelsService.getReelsForYou();
+      final following = await _reelsService.getReelsFollowing();
+      final trending = await _reelsService.getReelsTrending();
+      final vr = await _reelsService.getReelsVR();
+      final storyGroups = await StoryService().getActiveStoryGroups();
+      final myStories = await StoryService().getMyStories();
+      final uid = AuthService().currentUser?.uid ?? '';
+      String avatarUrl = '';
+      var followingIds = <String>[];
+      var blockedIds = <String>[];
+      if (uid.isNotEmpty) {
+        try {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+          avatarUrl = userDoc.data()?['profileImage'] as String? ?? '';
+        } catch (_) {}
+        followingIds = await UserService().getFollowing(uid);
+        blockedIds = await UserService().getBlockedUserIds(uid);
+      }
+      bool allowedByBlock(Map<String, dynamic> r) {
+        final id = (r['userId'] as String?) ?? '';
+        if (id.isEmpty) return true;
+        return !blockedIds.contains(id);
+      }
 
-    final filteredForYou = forYou.where(allowedByBlock).toList();
-    final filteredFollowing = following.where(allowedByBlock).toList();
-    final filteredTrending = trending.where(allowedByBlock).toList();
-    final filteredVr = vr.where(allowedByBlock).toList();
-    final reelUserIds = <String>{
-      ...filteredForYou.map((r) => (r['userId'] as String?) ?? ''),
-      ...filteredFollowing.map((r) => (r['userId'] as String?) ?? ''),
-      ...filteredTrending.map((r) => (r['userId'] as String?) ?? ''),
-      ...filteredVr.map((r) => (r['userId'] as String?) ?? ''),
-    }..removeWhere((id) => id.isEmpty);
-    final latestAvatarByUid = await _fetchLatestProfileImages(reelUserIds);
-    // Following tab story strip: only people you follow (+ your own group for viewer indexing).
-    final followingSet = followingIds.toSet();
-    final filteredStories = storyGroups.where((g) {
-      if (blockedIds.contains(g.userId)) return false;
-      if (uid.isEmpty) return false;
-      if (g.userId == uid) return true;
-      return followingSet.contains(g.userId);
-    }).toList();
-    final reelIds = <String>{
-      ...filteredForYou.map((r) => (r['id'] as String?) ?? ''),
-      ...filteredFollowing.map((r) => (r['id'] as String?) ?? ''),
-      ...filteredTrending.map((r) => (r['id'] as String?) ?? ''),
-      ...filteredVr.map((r) => (r['id'] as String?) ?? ''),
-    }..removeWhere((id) => id.isEmpty);
-    final likedIds = await _reelsController.getLikedReelIds(reelIds);
-    final savedIds = await _reelsController.getSavedReelIds(reelIds);
-    final saveCounts = await _reelsController.getSaveCountsByReelIds(reelIds);
-    if (mounted) {
-      setState(() {
-        _reelsLoadError = null;
-        List<Map<String, dynamic>> withSaveCounts(
-          List<Map<String, dynamic>> src,
-        ) {
-          return src.map((r) {
-            final id = (r['id'] as String?) ?? '';
-            if (id.isEmpty) return r;
-            final remoteCount = saveCounts[id];
-            final cloned = Map<String, dynamic>.from(r);
-            final reelUid = (cloned['userId'] as String?) ?? '';
-            final latestAvatar = latestAvatarByUid[reelUid];
-            if (latestAvatar != null && latestAvatar.isNotEmpty) {
-              cloned['avatarUrl'] = latestAvatar;
-              cloned['profileImage'] = latestAvatar;
-            }
-            if (remoteCount != null) {
-              cloned['saves'] = remoteCount;
-            }
-            return cloned;
-          }).toList();
-        }
+      final filteredForYou = forYou.where(allowedByBlock).toList();
+      final filteredFollowing = following.where(allowedByBlock).toList();
+      final filteredTrending = trending.where(allowedByBlock).toList();
+      final filteredVr = vr.where(allowedByBlock).toList();
+      final reelUserIds = <String>{
+        ...filteredForYou.map((r) => (r['userId'] as String?) ?? ''),
+        ...filteredFollowing.map((r) => (r['userId'] as String?) ?? ''),
+        ...filteredTrending.map((r) => (r['userId'] as String?) ?? ''),
+        ...filteredVr.map((r) => (r['userId'] as String?) ?? ''),
+      }..removeWhere((id) => id.isEmpty);
+      final latestAvatarByUid = await _fetchLatestProfileImages(reelUserIds);
+      // Following tab story strip: only people you follow (+ your own group for viewer indexing).
+      final followingSet = followingIds.toSet();
+      final filteredStories = storyGroups.where((g) {
+        if (blockedIds.contains(g.userId)) return false;
+        if (uid.isEmpty) return false;
+        if (g.userId == uid) return true;
+        return followingSet.contains(g.userId);
+      }).toList();
+      final reelIds = <String>{
+        ...filteredForYou.map((r) => (r['id'] as String?) ?? ''),
+        ...filteredFollowing.map((r) => (r['id'] as String?) ?? ''),
+        ...filteredTrending.map((r) => (r['id'] as String?) ?? ''),
+        ...filteredVr.map((r) => (r['id'] as String?) ?? ''),
+      }..removeWhere((id) => id.isEmpty);
+      final likedIds = await _reelsController.getLikedReelIds(reelIds);
+      final savedIds = await _reelsController.getSavedReelIds(reelIds);
+      final saveCounts = await _reelsController.getSaveCountsByReelIds(reelIds);
+      if (mounted) {
+        setState(() {
+          _reelsLoadError = null;
+          List<Map<String, dynamic>> withSaveCounts(
+            List<Map<String, dynamic>> src,
+          ) {
+            return src.map((r) {
+              final id = (r['id'] as String?) ?? '';
+              if (id.isEmpty) return r;
+              final remoteCount = saveCounts[id];
+              final cloned = Map<String, dynamic>.from(r);
+              final reelUid = (cloned['userId'] as String?) ?? '';
+              final latestAvatar = latestAvatarByUid[reelUid];
+              if (latestAvatar != null && latestAvatar.isNotEmpty) {
+                cloned['avatarUrl'] = latestAvatar;
+                cloned['profileImage'] = latestAvatar;
+              }
+              if (remoteCount != null) {
+                cloned['saves'] = remoteCount;
+              }
+              return cloned;
+            }).toList();
+          }
 
-        // Always assign so empty API results clear lists (avoids stale / black feed).
-        _reelsForYou = withSaveCounts(filteredForYou);
-        _reelsFollowing = withSaveCounts(filteredFollowing);
-        if (filteredTrending.isNotEmpty) {
-          _reelsTrending = withSaveCounts(filteredTrending);
-        }
-        if (filteredVr.isNotEmpty) _reelsVR = withSaveCounts(filteredVr);
-        _storyGroups = filteredStories;
-        _myStories = myStories;
-        _myAvatarUrl = avatarUrl;
-        _followingIds = followingIds;
-        _tabCycleOrders.clear();
-        _likedReels
-          ..clear()
-          ..addEntries(likedIds.map((id) => MapEntry(id, true)));
-        _savedReels
-          ..clear()
-          ..addEntries(savedIds.map((id) => MapEntry(id, true)));
-      });
-      _handleIncomingDeepLink();
-    }
+          // Always assign so empty API results clear lists (avoids stale / black feed).
+          _reelsForYou = withSaveCounts(filteredForYou);
+          _reelsFollowing = withSaveCounts(filteredFollowing);
+          if (filteredTrending.isNotEmpty) {
+            _reelsTrending = withSaveCounts(filteredTrending);
+          }
+          if (filteredVr.isNotEmpty) _reelsVR = withSaveCounts(filteredVr);
+          _storyGroups = filteredStories;
+          _myStories = myStories;
+          _myAvatarUrl = avatarUrl;
+          _followingIds = followingIds;
+          _tabCycleOrders.clear();
+          _likedReels
+            ..clear()
+            ..addEntries(likedIds.map((id) => MapEntry(id, true)));
+          _savedReels
+            ..clear()
+            ..addEntries(savedIds.map((id) => MapEntry(id, true)));
+        });
+        _handleIncomingDeepLink();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _reelsLoadError = messageForFirestore(e));
@@ -381,6 +411,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   @override
   void dispose() {
+    _cancelAutoScrollTimer();
     WidgetsBinding.instance.removeObserver(this);
     if (_isRouteObserverSubscribed) {
       appRouteObserver.unsubscribe(this);
@@ -394,6 +425,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   @override
   void didPushNext() {
     if (!_isRouteVisible && mounted) return;
+    _cancelAutoScrollTimer();
     if (mounted) setState(() => _isRouteVisible = false);
   }
 
@@ -404,6 +436,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       setState(() => _isRouteVisible = true);
       // Refresh follow/story state after returning from profile/search screens.
       _loadReels();
+      _scheduleAutoScroll();
     }
   }
 
@@ -415,6 +448,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       setState(() => _isAppForeground = foreground);
     } else {
       _isAppForeground = foreground;
+    }
+    if (foreground) {
+      _scheduleAutoScroll();
+    } else {
+      _cancelAutoScrollTimer();
     }
   }
 
@@ -474,6 +512,72 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       if (reelId.isEmpty) return;
       _reelsController.incrementView(reelId: reelId);
     }
+    _cancelAutoScrollTimer();
+    _videoCompletedForCurrentItem = false;
+    _scheduleAutoScroll();
+  }
+
+  void _cancelAutoScrollTimer() {
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
+  }
+
+  bool get _canAutoScroll =>
+      _autoScrollEnabled &&
+      !_userHoldingToPause &&
+      !_isBottomSheetOpen &&
+      _isRouteVisible &&
+      _isAppForeground &&
+      widget.isActive &&
+      mounted;
+
+  String _currentItemMediaType() {
+    final reels = _currentReels;
+    if (reels.isEmpty) return 'video';
+    final reel = reels[_feedIndexForPage(_currentIndex, reels.length)];
+    return ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
+  }
+
+  void _scheduleAutoScroll() {
+    _cancelAutoScrollTimer();
+    if (!_canAutoScroll) return;
+    final mediaType = _currentItemMediaType();
+    if (mediaType == 'image') {
+      _autoScrollTimer = Timer(const Duration(seconds: 5), _performAutoScroll);
+    }
+  }
+
+  void _onVideoCompletedForAutoScroll() {
+    if (!mounted) return;
+    _videoCompletedForCurrentItem = true;
+    if (!_canAutoScroll) return;
+    _cancelAutoScrollTimer();
+    _autoScrollTimer = Timer(const Duration(seconds: 2), _performAutoScroll);
+  }
+
+  void _performAutoScroll() {
+    if (!_canAutoScroll) return;
+    final reels = _currentReels;
+    if (reels.isEmpty) return;
+    final nextPage = _currentIndex + 1;
+    if (nextPage >= reels.length) return;
+    if (!_pageController.hasClients) return;
+    _pageController.animateToPage(
+      nextPage,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _onAutoScrollToggled(bool value) {
+    setState(() => _autoScrollEnabled = value);
+    _saveAutoScrollPref(value);
+    if (value) {
+      _videoCompletedForCurrentItem = false;
+      _scheduleAutoScroll();
+    } else {
+      _cancelAutoScrollTimer();
+    }
   }
 
   Future<void> _onLike(String reelId, bool currentlyLiked) async {
@@ -489,6 +593,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _adjustReelStat(reelId, 'likes', delta);
       }
     });
+  }
+
+  void _onDoubleTapLike(int feedIndex) {
+    final reels = _currentReels;
+    if (reels.isEmpty) return;
+    final reel = reels[_feedIndexForPage(feedIndex, reels.length)];
+    final reelId = (reel['id'] as String?) ?? '';
+    if (reelId.isEmpty) return;
+    final alreadyLiked = _likedReels[reelId] ?? false;
+    if (alreadyLiked) return;
+    _onLike(reelId, false);
   }
 
   Future<void> _onSave(String reelId, bool currentlySaved) async {
@@ -517,6 +632,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final reel = _currentReels.isEmpty
         ? null
         : _currentReels[_feedIndexForPage(_currentIndex, _currentReels.length)];
+    _isBottomSheetOpen = true;
+    _cancelAutoScrollTimer();
     showShareBottomSheet(
       context,
       reelId: reelId,
@@ -533,15 +650,25 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           );
         }
       },
-    );
+    ).then((_) {
+      if (!mounted) return;
+      _isBottomSheetOpen = false;
+      _scheduleAutoScroll();
+    });
   }
 
   void _onComment(String reelId) {
+    _isBottomSheetOpen = true;
+    _cancelAutoScrollTimer();
     showCommentsBottomSheet(
       context,
       reelId: reelId,
       onCommentCountChanged: (delta) => _bumpReelCommentCount(reelId, delta),
-    );
+    ).then((_) {
+      if (!mounted) return;
+      _isBottomSheetOpen = false;
+      _scheduleAutoScroll();
+    });
   }
 
   void _bumpReelCommentCount(String reelId, int delta) {
@@ -612,6 +739,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       }
     }
     _jumpPageControllerToStart();
+    _cancelAutoScrollTimer();
+    _videoCompletedForCurrentItem = false;
     setState(() {
       currentTab = tab;
       _currentIndex = 0;
@@ -627,6 +756,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         if (!mounted || currentTab != tab) return;
         _jumpPageControllerToStart();
         _ensurePageControllerMatchesFeed();
+        _scheduleAutoScroll();
       });
     }
   }
@@ -827,63 +957,105 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     if (reels.isEmpty) {
       return _buildEmptyReelsPlaceholder();
     }
-    return PageView.builder(
-      controller: _pageController,
-      scrollDirection: Axis.vertical,
-      onPageChanged: _onPageChanged,
-      itemCount: reels.length,
-      itemBuilder: (context, index) {
-        final feedIndex = index;
-        final reel = reels[feedIndex];
-        final mediaType = ((reel['mediaType'] as String?) ?? 'video')
-            .toLowerCase();
-        if (mediaType == 'image') {
-          final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
-          final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
-          final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
-          if (displayUrl.isEmpty) {
-            return _buildMissingMediaPlaceholder('This reel has no image URL.');
-          }
-          return _buildImageReelItem(displayUrl);
-        }
-        final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
-        if (videoUrl.isEmpty) {
-          return _buildMissingMediaPlaceholder('This reel has no video URL.');
-        }
-        final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
-        final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
-        final loadingThumb = thumbnailUrl.isNotEmpty ? thumbnailUrl : imageUrl;
-        return ReelItemWidget(
-          key: ValueKey<String>((reel['id'] as String?) ?? videoUrl),
-          videoUrl: videoUrl,
-          thumbnailUrl: loadingThumb,
-          // Only play when this page is visible AND the home tab is active.
-          isVisible:
-              widget.isActive &&
-              _isRouteVisible &&
-              _isAppForeground &&
-              index == _currentIndex,
-        );
+    return Listener(
+      onPointerDown: (_) {
+        _activePointerCount++;
+        _userHoldingToPause = true;
+        _cancelAutoScrollTimer();
       },
+      onPointerUp: (_) {
+        _activePointerCount = (_activePointerCount - 1).clamp(0, 99);
+        if (_activePointerCount > 0) return;
+        _userHoldingToPause = false;
+        if (_videoCompletedForCurrentItem &&
+            _currentItemMediaType() != 'image') {
+          _onVideoCompletedForAutoScroll();
+        } else {
+          _scheduleAutoScroll();
+        }
+      },
+      onPointerCancel: (_) {
+        _activePointerCount = (_activePointerCount - 1).clamp(0, 99);
+        if (_activePointerCount > 0) return;
+        _userHoldingToPause = false;
+        if (_videoCompletedForCurrentItem &&
+            _currentItemMediaType() != 'image') {
+          _onVideoCompletedForAutoScroll();
+        } else {
+          _scheduleAutoScroll();
+        }
+      },
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        onPageChanged: _onPageChanged,
+        itemCount: reels.length,
+        itemBuilder: (context, index) {
+          final feedIndex = index;
+          final reel = reels[feedIndex];
+          final mediaType = ((reel['mediaType'] as String?) ?? 'video')
+              .toLowerCase();
+          if (mediaType == 'image') {
+            final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+            final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '')
+                .trim();
+            final displayUrl = imageUrl.isNotEmpty ? imageUrl : thumbnailUrl;
+            if (displayUrl.isEmpty) {
+              return _buildMissingMediaPlaceholder(
+                'This reel has no image URL.',
+              );
+            }
+            return _buildImageReelItem(displayUrl, feedIndex);
+          }
+          final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
+          if (videoUrl.isEmpty) {
+            return _buildMissingMediaPlaceholder('This reel has no video URL.');
+          }
+          final thumbnailUrl = ((reel['thumbnailUrl'] as String?) ?? '').trim();
+          final imageUrl = ((reel['imageUrl'] as String?) ?? '').trim();
+          final loadingThumb = thumbnailUrl.isNotEmpty
+              ? thumbnailUrl
+              : imageUrl;
+          return ReelItemWidget(
+            key: ValueKey<String>((reel['id'] as String?) ?? videoUrl),
+            videoUrl: videoUrl,
+            thumbnailUrl: loadingThumb,
+            // Only play when this page is visible AND the home tab is active.
+            isVisible:
+                widget.isActive &&
+                _isRouteVisible &&
+                _isAppForeground &&
+                index == _currentIndex,
+            onVideoCompleted: index == _currentIndex
+                ? _onVideoCompletedForAutoScroll
+                : null,
+            onDoubleTap: () => _onDoubleTapLike(feedIndex),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildImageReelItem(String imageUrl) {
-    return SizedBox.expand(
-      child: ColoredBox(
-        color: Colors.black,
-        child: InteractiveViewer(
-          minScale: 1.0,
-          maxScale: 4.0,
-          child: Center(
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildMissingMediaPlaceholder(
-                  'Failed to load image reel.',
-                );
-              },
+  Widget _buildImageReelItem(String imageUrl, int feedIndex) {
+    return GestureDetector(
+      onDoubleTap: () => _onDoubleTapLike(feedIndex),
+      child: SizedBox.expand(
+        child: ColoredBox(
+          color: Colors.black,
+          child: InteractiveViewer(
+            minScale: 1.0,
+            maxScale: 4.0,
+            panEnabled: false,
+            child: Center(
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildMissingMediaPlaceholder(
+                    'Failed to load image reel.',
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -1184,11 +1356,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void _onMoreOptions(String reelId) {
     final reel = _currentReels.firstWhere((r) => r['id'] == reelId);
     final authorId = _asString(reel['userId']);
+    _isBottomSheetOpen = true;
+    _cancelAutoScrollTimer();
     showReelMoreOptionsSheet(
       context,
       reelId: reelId,
       playbackSpeed: _playbackSpeedLabel,
       quality: _qualityLabel,
+      autoScrollEnabled: _autoScrollEnabled,
       onDownload: _onDownloadTapped,
       onReport: () => showReportSheet(
         context,
@@ -1203,7 +1378,12 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       onQuality: _openVideoQualitySheet,
       onManagePreferences: () => showManageContentPreferencesSheet(context),
       onWhyThisPost: () => showWhySeeingThisSheet(context),
-    );
+      onAutoScrollChanged: _onAutoScrollToggled,
+    ).then((_) {
+      if (!mounted) return;
+      _isBottomSheetOpen = false;
+      _scheduleAutoScroll();
+    });
   }
 
   void _onDownloadTapped() {

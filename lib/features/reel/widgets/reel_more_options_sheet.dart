@@ -4,11 +4,12 @@ import '../../../../core/theme/app_spacing.dart';
 
 /// Shows the three-dots "more options" bottom sheet: Download, Report, Not Interested,
 /// then Captions, Playback speed, Quality, Manage preferences, Why you're seeing this.
-void showReelMoreOptionsSheet(
+Future<void> showReelMoreOptionsSheet(
   BuildContext context, {
   required String reelId,
   String playbackSpeed = 'Normal',
   String quality = 'Auto (1080p HD)',
+  bool autoScrollEnabled = true,
   VoidCallback? onDownload,
   VoidCallback? onReport,
   VoidCallback? onNotInterested,
@@ -17,8 +18,9 @@ void showReelMoreOptionsSheet(
   VoidCallback? onQuality,
   VoidCallback? onManagePreferences,
   VoidCallback? onWhyThisPost,
+  ValueChanged<bool>? onAutoScrollChanged,
 }) {
-  showModalBottomSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -26,6 +28,7 @@ void showReelMoreOptionsSheet(
       reelId: reelId,
       playbackSpeed: playbackSpeed,
       quality: quality,
+      autoScrollEnabled: autoScrollEnabled,
       onDownload: onDownload,
       onReport: onReport,
       onNotInterested: onNotInterested,
@@ -34,6 +37,7 @@ void showReelMoreOptionsSheet(
       onQuality: onQuality,
       onManagePreferences: onManagePreferences,
       onWhyThisPost: onWhyThisPost,
+      onAutoScrollChanged: onAutoScrollChanged,
     ),
   );
 }
@@ -43,11 +47,12 @@ abstract final class _Layout {
   static const double dragHandleHeight = 4;
 }
 
-class _ReelMoreOptionsSheet extends StatelessWidget {
+class _ReelMoreOptionsSheet extends StatefulWidget {
   const _ReelMoreOptionsSheet({
     required this.reelId,
     required this.playbackSpeed,
     required this.quality,
+    required this.autoScrollEnabled,
     this.onDownload,
     this.onReport,
     this.onNotInterested,
@@ -56,11 +61,13 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
     this.onQuality,
     this.onManagePreferences,
     this.onWhyThisPost,
+    this.onAutoScrollChanged,
   });
 
   final String reelId;
   final String playbackSpeed;
   final String quality;
+  final bool autoScrollEnabled;
   final VoidCallback? onDownload;
   final VoidCallback? onReport;
   final VoidCallback? onNotInterested;
@@ -69,6 +76,20 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
   final VoidCallback? onQuality;
   final VoidCallback? onManagePreferences;
   final VoidCallback? onWhyThisPost;
+  final ValueChanged<bool>? onAutoScrollChanged;
+
+  @override
+  State<_ReelMoreOptionsSheet> createState() => _ReelMoreOptionsSheetState();
+}
+
+class _ReelMoreOptionsSheetState extends State<_ReelMoreOptionsSheet> {
+  late bool _autoScroll;
+
+  @override
+  void initState() {
+    super.initState();
+    _autoScroll = widget.autoScrollEnabled;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +105,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
               end: Alignment.bottomCenter,
               colors: [
                 Color(0xFF49113B), // Deep Magenta
-                Color(0xFF210D1D), 
+                Color(0xFF210D1D),
                 Color(0xFF0F040C),
               ],
             ),
@@ -95,7 +116,10 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
             children: [
               _DragHandle(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -104,7 +128,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                         label: 'Download',
                         onTap: () {
                           Navigator.of(context).pop();
-                          onDownload?.call();
+                          widget.onDownload?.call();
                         },
                       ),
                     ),
@@ -117,7 +141,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                         labelColor: const Color(0xFFEF4444),
                         onTap: () {
                           Navigator.of(context).pop();
-                          onReport?.call();
+                          widget.onReport?.call();
                         },
                       ),
                     ),
@@ -128,7 +152,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                         label: 'Not Interested',
                         onTap: () {
                           Navigator.of(context).pop();
-                          onNotInterested?.call();
+                          widget.onNotInterested?.call();
                         },
                       ),
                     ),
@@ -138,36 +162,47 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
                   children: [
                     _Section(
                       backgroundColor: Colors.white.withValues(alpha: 0.05),
                       borderRadius: 16,
                       children: [
+                        _AutoScrollTile(
+                          enabled: _autoScroll,
+                          onChanged: (value) {
+                            setState(() => _autoScroll = value);
+                            widget.onAutoScrollChanged?.call(value);
+                          },
+                        ),
                         _SettingTile(
                           icon: Icons.closed_caption_outlined,
                           label: 'Captions and translations',
                           onTap: () {
                             Navigator.of(context).pop();
-                            onCaptions?.call();
+                            widget.onCaptions?.call();
                           },
                         ),
                         _SettingTile(
                           icon: Icons.speed_rounded,
                           label: 'Playback speed',
-                          trailing: playbackSpeed,
+                          trailing: widget.playbackSpeed,
                           onTap: () {
                             Navigator.of(context).pop();
-                            onPlaybackSpeed?.call();
+                            widget.onPlaybackSpeed?.call();
                           },
                         ),
                         _SettingTile(
-                          icon: Icons.tune_rounded, // Better icon for Quality matching Figma
+                          icon: Icons
+                              .tune_rounded, // Better icon for Quality matching Figma
                           label: 'Quality',
-                          trailing: quality,
+                          trailing: widget.quality,
                           onTap: () {
                             Navigator.of(context).pop();
-                            onQuality?.call();
+                            widget.onQuality?.call();
                           },
                         ),
                       ],
@@ -182,7 +217,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                           label: 'Manage content preferences',
                           onTap: () {
                             Navigator.of(context).pop();
-                            onManagePreferences?.call();
+                            widget.onManagePreferences?.call();
                           },
                         ),
                         _SettingTile(
@@ -190,7 +225,7 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
                           label: "Why you're seeing this post",
                           onTap: () {
                             Navigator.of(context).pop();
-                            onWhyThisPost?.call();
+                            widget.onWhyThisPost?.call();
                           },
                         ),
                       ],
@@ -207,11 +242,61 @@ class _ReelMoreOptionsSheet extends StatelessWidget {
   }
 }
 
+class _AutoScrollTile extends StatelessWidget {
+  const _AutoScrollTile({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!enabled),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.play_circle_outline_rounded,
+              size: 22,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Text(
+                'Auto scroll',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 24,
+              width: 40,
+              child: Switch.adaptive(
+                value: enabled,
+                onChanged: onChanged,
+                activeTrackColor: const Color(0xFFEF4444),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DragHandle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.storyItem, bottom: AppSpacing.xs),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.storyItem,
+        bottom: AppSpacing.xs,
+      ),
       child: Center(
         child: Container(
           width: _Layout.dragHandleWidth,
@@ -295,10 +380,7 @@ class _Section extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
