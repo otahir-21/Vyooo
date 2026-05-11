@@ -359,7 +359,7 @@ class _ParentContactScreenState extends State<ParentContactScreen> {
                                 Text(
                                   widget.previousDenied
                                       ? 'Enter another email or phone for a parent or guardian who can approve your account.'
-                                      : 'Because you are under 16, a parent or guardian must approve your VyooO account. Enter their email or mobile number (tap the flag to choose country, same as signing up with phone). They can create a VyooO account when they open the approval link from Settings → Family approvals.',
+                                      : 'Because you are under 16, a parent or guardian must approve your VyooO account. Enter their email or mobile number (tap the flag to choose country, same as signing up with phone). They approve in their VyooO app (Settings → Family approvals); you do not verify them.',
                                   style: TextStyle(
                                     fontSize: 14,
                                     height: 1.45,

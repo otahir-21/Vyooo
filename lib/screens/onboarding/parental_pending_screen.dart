@@ -140,6 +140,41 @@ class _ParentalPendingScreenState extends State<ParentalPendingScreen> {
     return false;
   }
 
+  /// Invite targets stored on the minor's user doc (same values the parent must match).
+  List<Widget> _parentInviteLines(AppUserModel? u) {
+    final email = (u?.parentInviteEmail ?? '').trim();
+    final phone = (u?.parentInvitePhone ?? '').trim();
+    final lines = <Widget>[];
+    if (email.isNotEmpty) {
+      lines.add(
+        Text(
+          'Email: $email',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.9),
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+      );
+    }
+    if (phone.isNotEmpty && phone.startsWith('+')) {
+      lines.add(
+        Padding(
+          padding: EdgeInsets.only(top: email.isNotEmpty ? 6 : 0),
+          child: Text(
+            'Phone: $phone',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ),
+      );
+    }
+    return lines;
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = AuthService().currentUser?.uid ?? '';
@@ -178,7 +213,9 @@ class _ParentalPendingScreenState extends State<ParentalPendingScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Ask your parent or guardian to open VyooO → Settings → Family approvals and approve your account.',
+                    'Only your parent or guardian can approve this in their VyooO app '
+                    '(Settings → Family approvals). You do not verify them — remind them '
+                    'to sign in with the same email or phone you entered below.',
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.45,
@@ -218,6 +255,7 @@ class _ParentalPendingScreenState extends State<ParentalPendingScreen> {
                         final needsSync = _needsAccountSync(
                           accountSt.isEmpty ? null : accountSt,
                         );
+                        final parentLines = _parentInviteLines(u);
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -235,6 +273,25 @@ class _ParentalPendingScreenState extends State<ParentalPendingScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  if (parentLines.isNotEmpty) ...[
+                                    Text(
+                                      'Request sent to',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.7),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ...parentLines,
+                                    const SizedBox(height: 14),
+                                    Divider(
+                                      height: 1,
+                                      color: Colors.white.withValues(alpha: 0.12),
+                                    ),
+                                    const SizedBox(height: 14),
+                                  ],
                                   Text(
                                     'Request status: ${_statusLabel(_consentLiveStatus)}',
                                     style: const TextStyle(
@@ -308,7 +365,7 @@ class _ParentalPendingScreenState extends State<ParentalPendingScreen> {
                                   SizedBox(width: 12),
                                   Expanded(
                                     child: Text(
-                                      'Checking status…',
+                                      'Waiting for your parent to approve in their app…',
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 15,

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:vyooo/core/theme/app_gradients.dart';
+import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/user_service.dart';
+import '../../core/utils/dob_validation.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../account/account_screen.dart';
@@ -16,8 +19,22 @@ import 'parental_approvals_screen.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  /// Parents/guardians manage approvals; minors (under 16) do not see this row.
+  static bool _showFamilyApprovalsTile(AppUserModel? user) {
+    if (user == null) return true;
+    final dobRaw = (user.dob ?? '').trim();
+    if (dobRaw.isEmpty || !DobValidation.isValidDobString(dobRaw)) {
+      return true;
+    }
+    final birth = DobValidation.tryParseIsoDob(dobRaw);
+    if (birth == null) return true;
+    return !DobValidation.requiresParentalConsent(birth);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final uid = AuthService().currentUser?.uid ?? '';
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: AppGradientBackground(
@@ -27,13 +44,49 @@ class SettingsScreen extends StatelessWidget {
           children: [
             _buildAppBar(context),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                children: [
-                  Container(
+              child: uid.isEmpty
+                  ? ListView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      children: [
+                        _settingsCard(
+                          context,
+                          showFamilyApprovals: true,
+                        ),
+                      ],
+                    )
+                  : StreamBuilder<AppUserModel?>(
+                      stream: UserService().userStream(uid),
+                      builder: (context, snapshot) {
+                        return ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 16,
+                          ),
+                          children: [
+                            _settingsCard(
+                              context,
+                              showFamilyApprovals:
+                                  _showFamilyApprovalsTile(snapshot.data),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _settingsCard(
+    BuildContext context, {
+    required bool showFamilyApprovals,
+  }) {
+    return Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(16),
@@ -53,15 +106,17 @@ class SettingsScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _SettingsTile(
-                          iconPath: 'assets/vyooO_icons/Settings/About.png',
-                          label: 'Family approvals',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const ParentalApprovalsScreen(),
+                        if (showFamilyApprovals)
+                          _SettingsTile(
+                            iconPath: 'assets/vyooO_icons/Settings/About.png',
+                            label: 'Family approvals',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const ParentalApprovalsScreen(),
+                              ),
                             ),
                           ),
-                        ),
                         _SettingsTile(
                           iconPath:
                               'assets/vyooO_icons/Settings/Subscription.png',
@@ -143,13 +198,6 @@ class SettingsScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
