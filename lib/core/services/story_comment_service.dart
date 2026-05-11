@@ -240,7 +240,11 @@ class StoryCommentService {
     }
   }
 
-  Future<int> deleteComment(String storyId, String commentId) async {
+  Future<int> deleteComment(
+    String storyId,
+    String commentId, {
+    String postOwnerId = '',
+  }) async {
     final uid = _uid;
     if (uid == null) return 0;
 
@@ -248,15 +252,13 @@ class StoryCommentService {
     final snap = await ref.get();
     if (!snap.exists) return 0;
     final authorId = snap.data()?['userId'] as String? ?? '';
-    if (authorId != uid) return 0;
+    if (authorId != uid && postOwnerId != uid) return 0;
 
     final subtreeIds = await _collectSubtreeIds(storyId, commentId);
     final batch = _firestore.batch();
     for (final id in subtreeIds) {
       batch.delete(_comments(storyId).doc(id));
     }
-    // `comments` on the story doc is decremented by Cloud Function `syncStoryCommentCountOnDelete`
-    // once per removed comment doc.
     await batch.commit();
     return subtreeIds.length;
   }

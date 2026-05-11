@@ -8,7 +8,7 @@ import '../models/share_contact.dart';
 import '../models/share_action.dart';
 
 /// Opens the share sheet with a translucent "light black" glassmorphism effect.
-void showShareBottomSheet(
+Future<void> showShareBottomSheet(
   BuildContext context, {
   required String reelId,
   String? thumbnailUrl,
@@ -17,7 +17,7 @@ void showShareBottomSheet(
   required VoidCallback onCopyLink,
 }) {
   final shareUrl = DeepLinkConfig.reelWebUri(reelId).toString();
-  showModalBottomSheet<void>(
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 import '../services/deep_link_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
-import '../subscription/subscription_controller.dart';
 import '../widgets/app_bottom_navigation.dart';
 import '../../screens/home/home_reels_screen.dart';
 import '../navigation/search_tab_launcher.dart';
@@ -18,7 +16,6 @@ import '../../features/chat/services/chat_notification_service.dart';
 import '../../features/chat/services/presence_service.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/profile/user_profile_screen.dart';
-import '../../features/subscription/subscription_screen.dart';
 
 /// Main app shell: IndexedStack (0 Home, 1 Search, 2 placeholder, 3 Notifications, 4 Profile) + single bottom nav.
 /// Plus (index 2): subscribers → push Upload screen; standard users → push Membership screen.
@@ -162,44 +159,16 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
 
   Future<void> _onNavTap(int index) async {
     if (index == 2) {
-      final subscriptionController = context.read<SubscriptionController>();
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      // Fast path: allow known paid users immediately; reconcile in background.
-      if (subscriptionController.isPaid) {
-        unawaited(subscriptionController.reconcilePaidStatus(firebaseUid: uid));
-        Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
-            .then((_) {
-              if (!mounted) return;
-              setState(() {
-                _currentIndex = 0;
-                _lastSelectedIndex = 0;
-                _feedRefreshToken++;
-              });
+      Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
+          .then((_) {
+            if (!mounted) return;
+            setState(() {
+              _currentIndex = 0;
+              _lastSelectedIndex = 0;
+              _feedRefreshToken++;
             });
-        return;
-      }
-      final canUpload = await subscriptionController.reconcilePaidStatus(
-        firebaseUid: uid,
-      );
-      if (!mounted) return;
-      if (canUpload) {
-        Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => const UploadScreen()))
-            .then((_) {
-              // Refresh feed after returning from upload (whether posted or cancelled).
-              setState(() {
-                _currentIndex = 0;
-                _lastSelectedIndex = 0;
-                _feedRefreshToken++;
-              });
-            });
-      } else {
-        if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const SubscriptionScreen()),
-        );
-      }
+          });
       return;
     }
     setState(() {

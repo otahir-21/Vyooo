@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/comment.dart';
 
-/// Single comment row: avatar, username, time, text, Reply/View replies, like or delete.
+/// Single comment row: avatar, username, time, text, Reply/View replies, like.
 class CommentTile extends StatelessWidget {
   const CommentTile({
     super.key,
@@ -11,8 +12,7 @@ class CommentTile extends StatelessWidget {
     this.onReply,
     this.onLike,
     this.onViewReplies,
-    this.onReport,
-    this.onDelete,
+    this.onLongPress,
     this.isHighlighted = false,
   });
 
@@ -21,8 +21,7 @@ class CommentTile extends StatelessWidget {
   final VoidCallback? onReply;
   final VoidCallback? onLike;
   final VoidCallback? onViewReplies;
-  final VoidCallback? onReport;
-  final VoidCallback? onDelete;
+  final VoidCallback? onLongPress;
   final bool isHighlighted;
 
   static const double _avatarSize = 56;
@@ -35,164 +34,151 @@ class CommentTile extends StatelessWidget {
         ? comment.username.trim()[0].toUpperCase()
         : '?';
 
-    return Container(
-      color: isHighlighted
-          ? Colors.white.withValues(alpha: 0.05)
-          : Colors.transparent,
-      padding: EdgeInsets.only(
-        left: isReply ? 80 : 16,
-        right: 16,
-        top: 14,
-        bottom: 14,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Avatar ──────────────────────────────────────
-          _CommentAvatar(
-            avatarUrl: comment.avatarUrl,
-            size: avatarSize,
-            fallbackInitial: initial,
-          ),
-          const SizedBox(width: 12),
-
-          // ── Body ────────────────────────────────────────
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Username + verified + time
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      comment.username,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
-                    if (comment.isVerified) ...[
-                      const SizedBox(width: 6),
-                      const _VerifiedBadge(),
-                    ],
-                    const SizedBox(width: 10),
-                    Text(
-                      comment.timeAgo,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                // Comment text
-                Text(
-                  comment.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    height: 1.4,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Reply + View more replies
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: onReply,
-                      behavior: HitTestBehavior.opaque,
-                      child: Text(
-                        'Reply',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    if (comment.replyCount > 0 && onViewReplies != null) ...[
-                      const SizedBox(width: 24),
-                      GestureDetector(
-                        onTap: onViewReplies,
-                        behavior: HitTestBehavior.opaque,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'View more replies (${comment.replyCount})',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
+    return GestureDetector(
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        onLongPress?.call();
+      },
+      child: Container(
+        color: isHighlighted
+            ? Colors.white.withValues(alpha: 0.05)
+            : Colors.transparent,
+        padding: EdgeInsets.only(
+          left: isReply ? 80 : 16,
+          right: 16,
+          top: 14,
+          bottom: 14,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Avatar ──────────────────────────────────────
+            _CommentAvatar(
+              avatarUrl: comment.avatarUrl,
+              size: avatarSize,
+              fallbackInitial: initial,
             ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
 
-          // ── Right: like / delete ────────────────────────
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (comment.isOwnComment && onDelete != null)
-                GestureDetector(
-                  onTap: onDelete,
-                  behavior: HitTestBehavior.opaque,
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.delete_outline_rounded,
-                      size: 20,
-                      color: Color(0xFFF81945),
-                    ),
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: onLike,
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+            // ── Body ────────────────────────────────────────
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Username + verified + time
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Icon(
-                        comment.isLiked
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        size: 20,
-                        color: comment.isLiked
-                            ? const Color(0xFFF81945)
-                            : Colors.white.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(height: 4),
                       Text(
-                        '${comment.likeCount}',
+                        comment.username,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          letterSpacing: 0.1,
+                        ),
+                      ),
+                      if (comment.isVerified) ...[
+                        const SizedBox(width: 6),
+                        const _VerifiedBadge(),
+                      ],
+                      const SizedBox(width: 10),
+                      Text(
+                        comment.timeAgo,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ],
                   ),
-                ),
-            ],
-          ),
-        ],
+                  const SizedBox(height: 4),
+
+                  // Comment text
+                  Text(
+                    comment.text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.4,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Reply + View more replies
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: onReply,
+                        behavior: HitTestBehavior.opaque,
+                        child: Text(
+                          'Reply',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (comment.replyCount > 0 && onViewReplies != null) ...[
+                        const SizedBox(width: 24),
+                        GestureDetector(
+                          onTap: onViewReplies,
+                          behavior: HitTestBehavior.opaque,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'View more replies (${comment.replyCount})',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // ── Right: like ──────────────────────────────────
+            GestureDetector(
+              onTap: onLike,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    comment.isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    size: 20,
+                    color: comment.isLiked
+                        ? const Color(0xFFF81945)
+                        : Colors.white.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${comment.likeCount}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

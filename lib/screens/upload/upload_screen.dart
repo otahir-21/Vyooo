@@ -1,10 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/theme/app_gradients.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/subscription/subscription_controller.dart';
+import '../../features/subscription/subscription_screen.dart';
 import 'all_albums_screen.dart';
 import 'creator_live_route.dart';
 import '../../features/story/story_upload_screen.dart';
@@ -368,9 +372,23 @@ class _UploadScreenState extends State<UploadScreen> {
             label: 'Live',
             iconPath: 'assets/vyooO_icons/Upload_Story_Live/live.png',
             selected: _bottomSegment == 2,
-            onTap: () {
+            onTap: () async {
               setState(() => _bottomSegment = 2);
-              openCreatorLiveScreen(context);
+              final subCtrl = context.read<SubscriptionController>();
+              final uid = FirebaseAuth.instance.currentUser?.uid;
+              final canGoLive = await subCtrl.reconcilePaidStatus(
+                firebaseUid: uid,
+              );
+              if (!mounted) return;
+              if (canGoLive) {
+                openCreatorLiveScreen(context);
+              } else {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SubscriptionScreen(),
+                  ),
+                );
+              }
             },
           ),
         ],
