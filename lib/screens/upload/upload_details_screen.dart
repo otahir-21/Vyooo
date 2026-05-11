@@ -110,7 +110,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           ? userData['username'] as String
           : user.displayName ?? user.email?.split('@').first ?? 'User';
       final profileImage = (userData['profileImage'] as String?) ?? '';
-      final handle = '@${username.toLowerCase().replaceAll(' ', '_')}';
+      final handle = '@${username.replaceAll(' ', '_')}';
 
       // 4 — build caption from title + tags
       final tags = _tagsController.text.trim();

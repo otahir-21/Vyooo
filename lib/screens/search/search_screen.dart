@@ -152,7 +152,7 @@ class SearchScreenState extends State<SearchScreen>
           .map((r) {
             final username = (r['username']?.toString() ?? '').trim();
             final handleCore = username.isNotEmpty
-                ? username.toLowerCase().replaceAll(' ', '_')
+                ? username.replaceAll(' ', '_')
                 : (r['handle']?.toString() ?? '').replaceFirst('@', '').trim();
             final creatorHandle = handleCore.isEmpty
                 ? '@creator'
@@ -371,7 +371,7 @@ class SearchScreenState extends State<SearchScreen>
               : handleUsername;
           return _CreatorItem(
             name: displayName,
-            handle: '@${handleUsername.toLowerCase().replaceAll(' ', '_')}',
+            handle: '@${handleUsername.replaceAll(' ', '_')}',
             avatarUrl: avatar,
             followers: _formatCompactCount(followers),
             following: following,
@@ -396,7 +396,7 @@ class SearchScreenState extends State<SearchScreen>
     return _LiveCardItem(
       thumbnailUrl: avatar,
       name: displayName,
-      handle: '@${username.toLowerCase().replaceAll(' ', '_')}',
+      handle: '@${username.replaceAll(' ', '_')}',
       avatarUrl: avatar,
       viewerCount: stream.viewerCount,
     );

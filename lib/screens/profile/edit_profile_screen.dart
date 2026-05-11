@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_cropper/image_cropper.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -18,7 +19,8 @@ import '../music/music_picker_sheet.dart';
 import 'personal_information_screen.dart';
 
 /// Subscriber Edit Profile: avatar, Edit picture, Name/Username/Bio/Music, Personal information settings.
-/// Username shows green check (available) or red X + error text (taken). Bio has character counter.
+/// Username shows green check (available) or red X + error text (taken); handles are case-sensitive.
+/// Bio has character counter.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,
@@ -93,6 +95,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _onUsernameChanged() {
     _usernameDebounce?.cancel();
+    final raw = _usernameController.text;
+    final withoutSpaces = raw.replaceAll(RegExp(r'\s'), '');
+    if (withoutSpaces != raw) {
+      _usernameController
+        ..removeListener(_onUsernameChanged)
+        ..text = withoutSpaces
+        ..selection = TextSelection.collapsed(offset: withoutSpaces.length)
+        ..addListener(_onUsernameChanged);
+      return;
+    }
     final text = _usernameController.text.trim();
     if (text.isEmpty) {
       setState(() => _usernameStatus = _UsernameStatus.none);
@@ -440,6 +452,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           label: 'Username',
           child: TextField(
             controller: _usernameController,
+            autocorrect: false,
+            enableSuggestions: false,
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_.]')),
+            ],
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.95),
               fontSize: 16,
@@ -450,6 +467,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   : _usernameStatus == _UsernameStatus.taken
                       ? Icon(Icons.cancel_rounded, color: AppColors.deleteRed, size: 22)
                       : null,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Usernames are case-sensitive (e.g. Alex and alex are different).',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
             ),
           ),
         ),

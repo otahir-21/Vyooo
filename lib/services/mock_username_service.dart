@@ -7,16 +7,16 @@ class MockUsernameService implements UsernameService {
   Future<UsernameCheckResult> checkAvailability(String username) async {
     await Future<void>.delayed(const Duration(milliseconds: 800));
     final lower = username.toLowerCase();
-    // Simulate: "admin", "vyooo", "test" taken
+    // Simulate: reserved names (any case).
     const taken = {'admin', 'vyooo', 'test', 'user', 'support'};
     final available = !taken.contains(lower);
     final suggestions = available
         ? <String>[]
         : <String>[
-            '${lower}_official',
-            '${lower}123',
-            'the_$lower',
-            '${lower}_app',
+            '${username}_official',
+            '${username}123',
+            'the_$username',
+            '${username}_app',
           ];
     return UsernameCheckResult(available: available, suggestions: suggestions);
   }

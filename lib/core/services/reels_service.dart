@@ -283,7 +283,7 @@ class ReelsService {
         'videoUrl': videoUrl,
         'streamVideoId': id,
         'username': username,
-        'handle': '@${username.toLowerCase().replaceAll(' ', '_')}',
+        'handle': '@${username.replaceAll(' ', '_')}',
         'caption': 'Stream reel #${i + 1} · #vyooo',
         'likes': 0,
         'comments': 0,

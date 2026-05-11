@@ -6,12 +6,12 @@ class UsernameValidation {
   /// Minimum length to trigger API check.
   static const int minLengthForCheck = 3;
 
-  /// Allowed pattern: letters, numbers, underscore, dot.
-  static final RegExp _allowedPattern = RegExp(r'^[a-z0-9_.]*$');
+  /// Allowed pattern: letters, numbers, underscore, dot (case-sensitive storage).
+  static final RegExp _allowedPattern = RegExp(r'^[a-zA-Z0-9_.]*$');
 
-  /// Normalizes input: lowercase, no spaces.
+  /// Canonical form for checks and Firestore: trim, remove whitespace, preserve case.
   static String normalize(String input) {
-    return input.toLowerCase().replaceAll(RegExp(r'\s'), '');
+    return input.trim().replaceAll(RegExp(r'\s'), '');
   }
 
   /// Whether [input] is valid for display/API (length and pattern).

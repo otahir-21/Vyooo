@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'username_service.dart';
 import 'username_validation.dart';
 
-/// Live username availability using `users` + `username` field (lowercase).
+/// Live username availability using `users` + `username` field (case-sensitive).
 class FirestoreUsernameService implements UsernameService {
   static const Set<String> _reserved = {
     'admin',
@@ -43,14 +43,11 @@ class FirestoreUsernameService implements UsernameService {
 
   static bool _takenByOther(
     QuerySnapshot<Map<String, dynamic>> snap,
-    String normalized,
     String excludeUid,
   ) {
     for (final d in snap.docs) {
       final data = d.data();
       final docUid = (data['uid'] as String?)?.trim() ?? d.id;
-      final un = (data['username'] as String?)?.toLowerCase().trim() ?? '';
-      if (un != normalized) continue;
       if (docUid != excludeUid) return true;
     }
     return false;
@@ -62,7 +59,7 @@ class FirestoreUsernameService implements UsernameService {
     if (!UsernameValidation.shouldCheckAvailability(normalized)) {
       return const UsernameCheckResult(available: true);
     }
-    if (_reserved.contains(normalized)) {
+    if (_reserved.contains(normalized.toLowerCase())) {
       return _reservedResult(normalized);
     }
     final excludeUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -71,7 +68,7 @@ class FirestoreUsernameService implements UsernameService {
         .where('username', isEqualTo: normalized)
         .limit(25)
         .get();
-    final taken = _takenByOther(snap, normalized, excludeUid);
+    final taken = _takenByOther(snap, excludeUid);
     return UsernameCheckResult(
       available: !taken,
       suggestions: taken ? _suggestionsFor(normalized) : const [],
@@ -87,7 +84,7 @@ class FirestoreUsernameService implements UsernameService {
     if (!UsernameValidation.shouldCheckAvailability(normalized)) {
       return Stream.value(const UsernameCheckResult(available: true));
     }
-    if (_reserved.contains(normalized)) {
+    if (_reserved.contains(normalized.toLowerCase())) {
       return Stream.value(_reservedResult(normalized));
     }
     return FirebaseFirestore.instance
@@ -96,7 +93,7 @@ class FirestoreUsernameService implements UsernameService {
         .limit(25)
         .snapshots()
         .map((snap) {
-          final taken = _takenByOther(snap, normalized, excludeUid);
+          final taken = _takenByOther(snap, excludeUid);
           return UsernameCheckResult(
             available: !taken,
             suggestions: taken ? _suggestionsFor(normalized) : const [],

@@ -31,7 +31,7 @@ class ParentalConsentService {
     final ref = _db.collection(collectionName).doc();
     await ref.set({
       'minorUid': minorUid,
-      'minorUsername': minorUsername.trim().toLowerCase(),
+      'minorUsername': minorUsername.trim(),
       'parentEmailLower': email,
       'parentPhoneNormalized': phone,
       'status': 'pending',

@@ -90,7 +90,7 @@ class PexelsFeedService {
           'id': 'pexels_$id',
           'videoUrl': videoUrl,
           'username': name,
-          'handle': '@${name.toLowerCase().replaceAll(' ', '_')}',
+          'handle': '@${name.replaceAll(' ', '_')}',
           'caption': (v['url'] as String? ?? '').isNotEmpty
               ? 'Via Pexels · #vyooo'
               : 'Short clip #vyooo',

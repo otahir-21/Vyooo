@@ -74,7 +74,8 @@ class _SignInScreenState extends State<SignInScreen> {
       otpSession.abortEmailLoginHandshake();
       setState(() {
         _isLoading = false;
-        _errorMessage = 'No account found with this email/username/name.';
+        _errorMessage =
+            'No account found with this email/username/name. Usernames are case-sensitive.';
       });
       return;
     }

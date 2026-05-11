@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../services/username_validation.dart';
 import '../models/app_user_model.dart';
 import '../models/parent_consent_constants.dart';
 import 'notification_service.dart';
@@ -166,7 +167,7 @@ class UserService {
         data['displayName'] = displayName.trim();
       }
       if (username != null) {
-        data['username'] = username.trim().toLowerCase();
+        data['username'] = UsernameValidation.normalize(username);
       }
       if (bio != null) data['bio'] = bio.trim();
       if (dob != null) data['dob'] = dob;
@@ -248,17 +249,20 @@ class UserService {
     }
   }
 
-  /// Finds a user by normalized username (lowercase, without leading @).
+  /// Finds a user by exact username (case-sensitive; leading `@` and spaces ignored).
   Future<AppUserModel?> getUserByUsername(String username) async {
-    final normalized = username.trim().toLowerCase().replaceAll('@', '');
-    if (normalized.isEmpty) return null;
+    var key = username.trim();
+    if (key.startsWith('@')) key = key.substring(1);
+    key = UsernameValidation.normalize(key);
+    if (key.isEmpty) return null;
     try {
       final q = await _firestore
           .collection(_usersCollection)
-          .where('username', isEqualTo: normalized)
-          .limit(1)
+          .where('username', isEqualTo: key)
+          .limit(2)
           .get();
       if (q.docs.isEmpty) return null;
+      if (q.docs.length > 1) return null;
       return AppUserModel.fromJson(q.docs.first.data());
     } catch (_) {
       return null;
@@ -266,23 +270,30 @@ class UserService {
   }
 
   /// Resolve login identifier to email.
-  /// Accepts email, username, or display name.
+  /// Accepts email, username (case-sensitive), or display name.
   Future<String?> resolveEmailForLoginIdentifier(String identifier) async {
     final raw = identifier.trim();
     if (raw.isEmpty) return null;
-    if (raw.contains('@')) return raw.toLowerCase();
-    final normalizedUsername = raw.toLowerCase().replaceAll('@', '');
+    if (raw.contains('@') && !raw.startsWith('@')) {
+      return raw.toLowerCase();
+    }
+    final usernameKey = UsernameValidation.normalize(
+      raw.startsWith('@') ? raw.substring(1) : raw,
+    );
     final normalizedDisplayName = raw.toLowerCase();
     try {
-      final byUsername = await _firestore
-          .collection(_usersCollection)
-          .where('username', isEqualTo: normalizedUsername)
-          .limit(1)
-          .get();
-      if (byUsername.docs.isNotEmpty) {
-        final email = (byUsername.docs.first.data()['email'] as String? ?? '')
-            .trim();
-        if (email.isNotEmpty) return email;
+      if (usernameKey.isNotEmpty) {
+        final byUsername = await _firestore
+            .collection(_usersCollection)
+            .where('username', isEqualTo: usernameKey)
+            .limit(2)
+            .get();
+        if (byUsername.docs.length > 1) return null;
+        if (byUsername.docs.isNotEmpty) {
+          final email = (byUsername.docs.first.data()['email'] as String? ?? '')
+              .trim();
+          if (email.isNotEmpty) return email;
+        }
       }
 
       final byDisplayName = await _firestore
