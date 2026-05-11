@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../../core/utils/user_facing_errors.dart';
 import '../models/chat_summary_model.dart';
 import '../services/chat_service.dart';
 
@@ -38,7 +39,7 @@ class ChatController extends ChangeNotifier {
         notifyListeners();
       },
       onError: (Object e) {
-        _error = 'Failed to load messages';
+        _error = messageForFirestore(e);
         _loading = false;
         notifyListeners();
       },

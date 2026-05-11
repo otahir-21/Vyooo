@@ -16,6 +16,8 @@ import '../../core/services/story_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/subscription/subscription_controller.dart';
+import '../../core/utils/internet_availability.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../screens/notifications/notification_screen.dart';
 import '../../core/widgets/app_interaction_button.dart';
@@ -134,6 +136,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   int _lastHandledDeepLinkNonce = -1;
   late final AnimationController _followingStoriesCollapse;
 
+  /// Set when the feed cannot load (e.g. offline); cleared on successful refresh.
+  String? _reelsLoadError;
+
   @override
   void initState() {
     super.initState();
@@ -182,6 +187,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Future<void> _loadReels() async {
+    _reelsLoadError = null;
+    if (!await hasInternetAccess()) {
+      if (mounted) {
+        setState(() => _reelsLoadError = kNoInternetUserMessage);
+      }
+      return;
+    }
+    try {
     final forYou = await _reelsService.getReelsForYou();
     final following = await _reelsService.getReelsFollowing();
     final trending = await _reelsService.getReelsTrending();
@@ -239,6 +252,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final saveCounts = await _reelsController.getSaveCountsByReelIds(reelIds);
     if (mounted) {
       setState(() {
+        _reelsLoadError = null;
         List<Map<String, dynamic>> withSaveCounts(
           List<Map<String, dynamic>> src,
         ) {
@@ -280,6 +294,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           ..addEntries(savedIds.map((id) => MapEntry(id, true)));
       });
       _handleIncomingDeepLink();
+    }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _reelsLoadError = messageForFirestore(e));
     }
   }
 
@@ -700,6 +718,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildVrContent() {
+    if (_reelsLoadError != null) {
+      return _buildFeedLoadErrorPlaceholder(_reelsLoadError!);
+    }
     return Consumer<SubscriptionController>(
       builder: (context, subscriptionController, _) {
         if (!subscriptionController.hasVRAccess) {
@@ -799,6 +820,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildReelsFeed() {
+    if (_reelsLoadError != null) {
+      return _buildFeedLoadErrorPlaceholder(_reelsLoadError!);
+    }
     final reels = _currentReels;
     if (reels.isEmpty) {
       return _buildEmptyReelsPlaceholder();
@@ -877,6 +901,48 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.85),
             fontSize: 16,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedLoadErrorPlaceholder(String message) {
+    return SizedBox.expand(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.wifi_off_rounded,
+                size: 56,
+                color: Colors.white.withValues(alpha: 0.45),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 16,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.brandPink,
+                ),
+                onPressed: _loadReels,
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+              ),
+            ],
           ),
         ),
       ),

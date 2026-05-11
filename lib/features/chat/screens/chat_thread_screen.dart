@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/user_facing_errors.dart';
 import '../../../core/models/app_user_model.dart';
 import '../models/call_session_model.dart';
 import '../models/chat_model.dart';
@@ -812,10 +813,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
                     if (snapshot.hasError) {
                       return Center(
-                        child: Text(
-                          'Something went wrong',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.5),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            messageForFirestore(snapshot.error),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 15,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       );

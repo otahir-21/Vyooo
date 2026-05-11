@@ -1,5 +1,11 @@
 /// App-wide flags. Set [useMockSubscriptions] to false when App Store products are approved.
 abstract final class AppConfig {
+  /// Web OAuth client ID (`client_type`: 3) from Firebase Android app config — same value as
+  /// `default_web_client_id` merged from `google-services.json`. Android Credential Manager
+  /// uses this as [GoogleSignIn.initialize] `serverClientId` so ID tokens are issued for Firebase.
+  static const String googleOAuthWebClientId =
+      '177333950751-ul5dp69sih78ea0ebh03rr88gpt60vuu.apps.googleusercontent.com';
+
   /// When true, subscription screen uses mock plans and upgrade shows "Mock mode active".
   /// When false, uses RevenueCat offerings and real purchase.
   static const bool useMockSubscriptions = false;

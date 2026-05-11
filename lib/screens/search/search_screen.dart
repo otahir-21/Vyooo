@@ -16,6 +16,7 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/hashtag_utils.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../features/vr/vr_screen.dart';
 import '../../features/vr/vr_player_screen.dart';
 import '../content/live_stream_route.dart';
@@ -815,7 +816,7 @@ class SearchScreenState extends State<SearchScreen>
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'Could not load posts. Try again in a moment.',
+                messageForFirestore(snapshot.error),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
               ),

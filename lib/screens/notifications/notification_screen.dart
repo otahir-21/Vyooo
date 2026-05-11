@@ -6,6 +6,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/user_service.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
 
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
@@ -83,7 +84,7 @@ class _NotificationScreenState extends State<NotificationScreen>
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                'Could not load notifications.\nCheck Firestore rules/deploy and try again.',
+                messageForFirestore(snapshot.error),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),

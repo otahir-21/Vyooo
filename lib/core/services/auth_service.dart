@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../config/app_config.dart';
+import '../utils/internet_availability.dart';
 import 'email_otp_service.dart';
 import 'push_messaging_service.dart';
 import 'user_service.dart';
@@ -67,12 +69,21 @@ class AuthService {
   /// Current signed-in user, or null.
   User? get currentUser => _auth.currentUser;
 
+  Future<AuthResult?> _requireInternet() async {
+    if (!await hasInternetAccess()) {
+      return const AuthResult(success: false, message: kNoInternetUserMessage);
+    }
+    return null;
+  }
+
   Future<AuthResult> ensureAnonymousSession() async {
     try {
       final existing = _auth.currentUser;
       if (existing != null) {
         return AuthResult(success: true, user: existing);
       }
+      final offline = await _requireInternet();
+      if (offline != null) return offline;
       final cred = await _auth.signInAnonymously();
       return AuthResult(success: true, user: cred.user);
     } on FirebaseAuthException catch (e) {
@@ -87,6 +98,8 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -105,6 +118,8 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final cred = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
@@ -131,6 +146,8 @@ class AuthService {
         message: 'Enter phone number with country code, e.g. +971...',
       );
     }
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     final completer = Completer<AuthResult>();
     try {
       await _auth.verifyPhoneNumber(
@@ -188,6 +205,8 @@ class AuthService {
     if (verificationId.trim().isEmpty || code.isEmpty) {
       return const AuthResult(success: false, message: 'Enter the OTP code.');
     }
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final credential = PhoneAuthProvider.credential(
         verificationId: verificationId,
@@ -204,6 +223,8 @@ class AuthService {
 
   /// Send verification email to current user.
   Future<AuthResult> sendEmailVerification() async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -220,6 +241,8 @@ class AuthService {
 
   /// Send password reset email to the given address.
   Future<AuthResult> sendPasswordReset({required String email}) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
       return const AuthResult(success: true);
@@ -232,6 +255,8 @@ class AuthService {
 
   /// Sends a 4-digit OTP to the signed-in user's email (Firestore trigger + Resend).
   Future<AuthResult> sendSignupEmailOtp({String email = ''}) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -248,6 +273,8 @@ class AuthService {
   Future<AuthResult> sendSignupWhatsAppOtp({
     required String phoneNumber,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -270,6 +297,8 @@ class AuthService {
 
   /// Verifies the email OTP and sets [emailOtpVerified] on the user profile (server).
   Future<AuthResult> verifySignupEmailOtp(String code, {String email = ''}) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -287,6 +316,8 @@ class AuthService {
     required String code,
     required String phoneNumber,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -313,6 +344,8 @@ class AuthService {
     required String password,
     String phoneNumber = '',
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -410,6 +443,8 @@ class AuthService {
     required String oobCode,
     required String newPassword,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       await _auth.confirmPasswordReset(code: oobCode, newPassword: newPassword);
       return const AuthResult(success: true);
@@ -425,6 +460,8 @@ class AuthService {
     required String currentPassword,
     required String newPassword,
   }) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -460,6 +497,8 @@ class AuthService {
 
   /// Sign in with Apple ID (iOS). Uses Firebase OAuth + nonce for security.
   Future<AuthResult> signInWithApple() async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final rawNonce = _generateNonce();
       final nonce = _sha256ofString(rawNonce);
@@ -502,11 +541,17 @@ class AuthService {
 
   /// Sign in with Google.
   Future<AuthResult> signInWithGoogle() async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     final googleSignIn = GoogleSignIn.instance;
     try {
       // Primary path: GoogleSignIn plugin then Firebase credential sign-in.
       // This gives us explicit control over cancellation and token handling.
-      await googleSignIn.initialize();
+      // Pass serverClientId explicitly so Android Credential Manager always receives the
+      // Web client ID (Firebase) even if merged resources are missing on some builds.
+      await googleSignIn.initialize(
+        serverClientId: AppConfig.googleOAuthWebClientId,
+      );
       final googleUser = await googleSignIn.authenticate();
       final googleAuth = googleUser.authentication;
       if (googleAuth.idToken == null || googleAuth.idToken!.isEmpty) {
@@ -518,8 +563,13 @@ class AuthService {
       final userCredential = await _auth.signInWithCredential(credential);
       return AuthResult(success: true, user: userCredential.user);
     } on GoogleSignInException catch (e) {
-      // User dismissed the account picker.
+      // User dismissed the account picker — or Credential Manager reported cancel after an
+      // account was chosen (seen with GetCredentialResponse framework errors on some devices).
       if (e.code == GoogleSignInExceptionCode.canceled) {
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          final recovery = await _signInWithGoogleProviderFallback();
+          if (recovery.success) return recovery;
+        }
         return const AuthResult(success: false, message: '');
       }
       debugPrint('GoogleSignInException: ${e.code} ${e.description}');
@@ -545,6 +595,8 @@ class AuthService {
   }
 
   Future<AuthResult> _signInWithGoogleProviderFallback() async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     try {
       final provider = GoogleAuthProvider();
       provider.setCustomParameters({'prompt': 'select_account'});
@@ -579,6 +631,8 @@ class AuthService {
     if (user == null) {
       return const AuthResult(success: false, message: 'No user signed in.');
     }
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
     final uid = user.uid;
     final db = FirebaseFirestore.instance;
 

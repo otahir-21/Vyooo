@@ -80,7 +80,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
           _fcmBoundUid = null;
           InAppNotificationAlertService.instance.stop();
         }
-        if (!authSnapshot.hasData || user == null) {
+        // Do not use `hasData`: for a signed-out user Firebase emits `null`, and
+        // [AsyncSnapshot.hasData] is false whenever `data` is null — that would show
+        // the loader forever. Only treat [ConnectionState.waiting] as "not resolved yet".
+        if (authSnapshot.connectionState == ConnectionState.waiting) {
+          return const _AuthDeterminingScaffold();
+        }
+        if (user == null) {
           return const CreateAccountScreen();
         }
         if (user.isAnonymous) {
@@ -123,6 +129,23 @@ class _AuthWrapperState extends State<AuthWrapper> {
           isPasswordAccount: isPasswordAccount,
         );
       },
+    );
+  }
+}
+
+/// Shown only while [StreamBuilder] is still in [ConnectionState.waiting] for auth state.
+class _AuthDeterminingScaffold extends StatelessWidget {
+  const _AuthDeterminingScaffold();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFF0D0015),
+      body: Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      ),
     );
   }
 }

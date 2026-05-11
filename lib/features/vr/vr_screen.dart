@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/services/reels_service.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_gradient_background.dart';
@@ -565,7 +566,7 @@ class _VrGridViewState extends State<VrGridView> {
             return _VrGridMessage(
               icon: Icons.wifi_off_rounded,
               title: 'Could not load VR content',
-              subtitle: 'Please check your internet and try again.',
+              subtitle: messageForFirestore(snapshot.error),
               actionLabel: 'Retry',
               onAction: _refresh,
             );

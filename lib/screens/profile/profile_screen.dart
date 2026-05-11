@@ -20,6 +20,7 @@ import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/utils/user_facing_errors.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/wrappers/auth_wrapper.dart';
 import '../../features/subscription/subscription_screen.dart';
@@ -1057,6 +1058,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             }
             if (snapshot.hasError) {
               debugPrint('Saved reels load error: ${snapshot.error}');
+              return SizedBox(
+                height: 200,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      messageForFirestore(snapshot.error),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ),
+              );
             }
             final savedReels = snapshot.data ?? <Map<String, dynamic>>[];
             if (savedReels.isEmpty) {
@@ -1290,6 +1308,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             }
             if (snapshot.hasError) {
               debugPrint('Profile posts error: ${snapshot.error}');
+              return SizedBox(
+                height: 200,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      messageForFirestore(snapshot.error),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ),
+              );
             }
             final posts = snapshot.data ?? [];
             if (posts.isEmpty) return _buildEmptyPostsPrompt(context);
