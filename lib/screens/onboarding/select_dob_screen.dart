@@ -7,9 +7,6 @@ import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/dob_validation.dart';
 import '../../core/widgets/app_gradient_background.dart';
-import 'add_profile_screen.dart';
-import 'parent_contact_screen.dart';
-
 const List<String> _monthNames = [
   'January',
   'February',
@@ -116,11 +113,11 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
     if (!_isValid) return;
     widget.onDobSelected?.call(_selectedDate);
     final uid = AuthService().currentUser?.uid;
+    final needsParent = DobValidation.requiresParentalConsent(_selectedDate);
     if (uid != null && uid.isNotEmpty) {
       try {
         final dobString =
             '${_year.toString().padLeft(4, '0')}-${_month.toString().padLeft(2, '0')}-${_day.toString().padLeft(2, '0')}';
-        final needsParent = DobValidation.requiresParentalConsent(_selectedDate);
         await UserService().updateUserProfile(
           uid: uid,
           dob: dobString,
@@ -130,17 +127,24 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
         );
       } catch (_) {
         if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not save your date of birth. Check your connection and try again.',
+            ),
+          ),
+        );
+        return;
       }
     }
     if (!mounted) return;
-    final needsParent = DobValidation.requiresParentalConsent(_selectedDate);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => needsParent
-            ? const ParentContactScreen()
-            : const AddProfileScreen(),
-      ),
-    );
+    // Do not push ParentContact / AddProfile here. [AuthWrapper] rebuilds from the user
+    // stream after DOB saves and [OnboardingRouteResolver] already picks the next screen.
+    // Pushing duplicated routes (e.g. two ParentContact screens) broke navigation after
+    // "Send request" — the gate showed one instance while another stayed underneath.
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   @override

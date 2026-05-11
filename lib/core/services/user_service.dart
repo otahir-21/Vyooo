@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../services/username_validation.dart';
 import '../models/app_user_model.dart';
@@ -237,14 +238,23 @@ class UserService {
   }
 
   /// Fetches the user document. Returns null if not found or on error.
-  Future<AppUserModel?> getUser(String uid) async {
+  ///
+  /// Use [server] after a write when you need to avoid a briefly stale cache read.
+  Future<AppUserModel?> getUser(String uid, {bool server = false}) async {
     try {
-      final doc = await _firestore.collection(_usersCollection).doc(uid).get();
+      final doc = await _firestore.collection(_usersCollection).doc(uid).get(
+            GetOptions(
+              source: server ? Source.server : Source.serverAndCache,
+            ),
+          );
       if (doc.exists && doc.data() != null) {
         return AppUserModel.fromJson(doc.data()!);
       }
       return null;
-    } catch (_) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('getUser failed uid=$uid: $e\n$st');
+      }
       return null;
     }
   }
@@ -359,15 +369,30 @@ class UserService {
   }
 
   /// Stream of user document for reactive updates.
+  ///
+  /// If a snapshot fails to parse, the last successfully parsed model is kept so
+  /// [AuthWrapper] does not flash [CreateUsernameScreen] for transient bad payloads.
   Stream<AppUserModel?> userStream(String uid) {
-    return _firestore.collection(_usersCollection).doc(uid).snapshots().map((
-      snap,
-    ) {
-      if (snap.exists && snap.data() != null) {
-        return AppUserModel.fromJson(snap.data()!);
-      }
-      return null;
-    });
+    AppUserModel? lastGood;
+    return _firestore
+        .collection(_usersCollection)
+        .doc(uid)
+        .snapshots()
+        .map((snap) {
+          if (!snap.exists || snap.data() == null) {
+            lastGood = null;
+            return null;
+          }
+          try {
+            lastGood = AppUserModel.fromJson(snap.data()!);
+            return lastGood;
+          } catch (e, st) {
+            if (kDebugMode) {
+              debugPrint('userStream fromJson failed uid=$uid: $e\n$st');
+            }
+            return lastGood;
+          }
+        });
   }
 
   /// List of user IDs the current user is following. Source: users/{uid}.following (array).

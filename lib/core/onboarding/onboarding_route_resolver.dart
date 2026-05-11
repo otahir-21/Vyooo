@@ -41,15 +41,20 @@ class OnboardingRouteResolver {
       return _postDobRoute(user);
     }
 
-    final status = user.parentConsentStatus;
+    final status = user.parentConsentStatus.trim().toLowerCase();
     if (status == ParentConsentStatusValue.approved) {
       return _postDobRoute(user);
+    }
+    // Explicit: minor has not submitted parent contact yet.
+    if (status == ParentConsentStatusValue.pendingContact) {
+      return OnboardingRouteId.parentContact;
     }
     if (status == ParentConsentStatusValue.pending) {
       final id = user.parentConsentId.trim();
       if (id.isNotEmpty) {
         return OnboardingRouteId.parentalPending;
       }
+      // Status says pending but no consent id (corrupt / partial write): stay on contact.
       return OnboardingRouteId.parentContact;
     }
     if (status == ParentConsentStatusValue.denied) {

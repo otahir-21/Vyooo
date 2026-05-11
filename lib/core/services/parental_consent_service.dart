@@ -29,7 +29,11 @@ class ParentalConsentService {
       throw StateError('Enter your parent or guardian’s email or phone number.');
     }
     final ref = _db.collection(collectionName).doc();
-    await ref.set({
+    final consentId = ref.id;
+    // Single batch: if the user-doc rule check fails, the consent doc is not left
+    // orphaned without a linked profile (and rules can read the new consent from the batch).
+    final batch = _db.batch();
+    batch.set(ref, {
       'minorUid': minorUid,
       'minorUsername': minorUsername.trim(),
       'parentEmailLower': email,
@@ -37,14 +41,18 @@ class ParentalConsentService {
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
-    await UserService().updateUserProfile(
-      uid: minorUid,
-      parentConsentStatus: ParentConsentStatusValue.pending,
-      parentConsentId: ref.id,
-      parentInviteEmail: email,
-      parentInvitePhone: phone,
+    batch.set(
+      _db.collection('users').doc(minorUid),
+      {
+        'parentConsentStatus': ParentConsentStatusValue.pending,
+        'parentConsentId': consentId,
+        'parentInviteEmail': email,
+        'parentInvitePhone': phone,
+      },
+      SetOptions(merge: true),
     );
-    return ref.id;
+    await batch.commit();
+    return consentId;
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> consentStream(String consentId) {

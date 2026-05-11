@@ -2,6 +2,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'parent_consent_constants.dart';
 
+String _readFirestoreString(dynamic value, {String fallback = ''}) {
+  if (value == null) return fallback;
+  if (value is String) return value;
+  return value.toString();
+}
+
+String? _readFirestoreStringNullable(dynamic value) {
+  if (value == null) return null;
+  if (value is String) return value;
+  final s = value.toString();
+  return s.isEmpty ? null : s;
+}
+
+bool _readFirestoreBool(dynamic value, {bool fallback = false}) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final t = value.trim().toLowerCase();
+    return t == 'true' || t == '1' || t == 'yes';
+  }
+  return fallback;
+}
+
+int _readFirestoreInt(dynamic value, {int fallback = 0}) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value.trim()) ?? fallback;
+  return fallback;
+}
+
 /// Firestore user document model. Do NOT store password.
 class AppUserModel {
   const AppUserModel({
@@ -122,41 +152,59 @@ class AppUserModel {
       return [];
     }
 
+    final parentStatusRaw = _readFirestoreStringNullable(
+      json['parentConsentStatus'],
+    )?.trim();
     return AppUserModel(
-      uid: json['uid'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-      displayName: json['displayName'] as String?,
-      username: json['username'] as String?,
-      bio: json['bio'] as String?,
-      dob: json['dob'] as String?,
-      profileImage: json['profileImage'] as String?,
-      phoneNumber: json['phoneNumber'] as String?,
+      uid: _readFirestoreString(json['uid']),
+      email: _readFirestoreString(json['email']),
+      displayName: _readFirestoreStringNullable(json['displayName']),
+      username: _readFirestoreStringNullable(json['username']),
+      bio: _readFirestoreStringNullable(json['bio']),
+      dob: _readFirestoreStringNullable(json['dob']),
+      profileImage: _readFirestoreStringNullable(json['profileImage']),
+      phoneNumber: _readFirestoreStringNullable(json['phoneNumber']),
       interests: interestsList,
-      onboardingCompleted: json['onboardingCompleted'] as bool? ?? false,
-      emailOtpVerified: json['emailOtpVerified'] as bool? ?? true,
-      isVerified: json['isVerified'] as bool? ?? false,
-      verificationStatus: json['verificationStatus'] as String? ?? 'none',
-      accountType: json['accountType'] as String? ?? 'private',
-      publicPersona: (json['publicPersona'] as String?)?.trim() ?? '',
-      vipVerified: json['vipVerified'] as bool? ?? false,
-      orgProfileCompleted: json['orgProfileCompleted'] as bool? ?? false,
+      onboardingCompleted: _readFirestoreBool(
+        json['onboardingCompleted'],
+        fallback: false,
+      ),
+      emailOtpVerified: _readFirestoreBool(
+        json['emailOtpVerified'],
+        fallback: true,
+      ),
+      isVerified: _readFirestoreBool(json['isVerified'], fallback: false),
+      verificationStatus:
+          _readFirestoreString(json['verificationStatus'], fallback: 'none'),
+      accountType:
+          _readFirestoreString(json['accountType'], fallback: 'private'),
+      publicPersona:
+          _readFirestoreString(json['publicPersona']).trim(),
+      vipVerified: _readFirestoreBool(json['vipVerified'], fallback: false),
+      orgProfileCompleted: _readFirestoreBool(
+        json['orgProfileCompleted'],
+        fallback: false,
+      ),
       organizationDetails: json['organizationDetails'] is Map<String, dynamic>
-          ? (json['organizationDetails'] as Map<String, dynamic>)
+          ? Map<String, dynamic>.from(
+              json['organizationDetails'] as Map<String, dynamic>,
+            )
           : <String, dynamic>{},
       createdAt: json['createdAt'] is Timestamp
           ? json['createdAt'] as Timestamp
           : Timestamp.now(),
       following: listField('following'),
       blockedUsers: listField('blockedUsers'),
-      followersCount: (json['followersCount'] as num?)?.toInt() ?? 0,
-      parentConsentStatus:
-          (json['parentConsentStatus'] as String?)?.trim().isNotEmpty == true
-          ? (json['parentConsentStatus'] as String).trim()
+      followersCount: _readFirestoreInt(json['followersCount']),
+      parentConsentStatus: parentStatusRaw != null && parentStatusRaw.isNotEmpty
+          ? parentStatusRaw
           : ParentConsentStatusValue.notRequired,
-      parentConsentId: (json['parentConsentId'] as String?)?.trim() ?? '',
-      parentUid: (json['parentUid'] as String?)?.trim() ?? '',
-      parentInviteEmail: (json['parentInviteEmail'] as String?)?.trim() ?? '',
-      parentInvitePhone: (json['parentInvitePhone'] as String?)?.trim() ?? '',
+      parentConsentId: _readFirestoreString(json['parentConsentId']).trim(),
+      parentUid: _readFirestoreString(json['parentUid']).trim(),
+      parentInviteEmail:
+          _readFirestoreString(json['parentInviteEmail']).trim(),
+      parentInvitePhone:
+          _readFirestoreString(json['parentInvitePhone']).trim(),
       parentConsentAt: json['parentConsentAt'] is Timestamp
           ? json['parentConsentAt'] as Timestamp
           : null,

@@ -192,6 +192,8 @@ class _UserDocGateState extends State<_UserDocGate> {
   bool _lastOtpRequired = false;
   int _lastAuthNoticeRevision = -1;
   int _lastOtpSessionRevision = -1;
+  /// Bumps [StreamBuilder] key so Firestore `userStream` resubscribes after a hard error.
+  int _userDocStreamGeneration = 0;
 
   @override
   void initState() {
@@ -212,6 +214,7 @@ class _UserDocGateState extends State<_UserDocGate> {
       _lastOtpRequired = false;
       _lastAuthNoticeRevision = -1;
       _lastOtpSessionRevision = -1;
+      _userDocStreamGeneration = 0;
     }
   }
 
@@ -243,6 +246,7 @@ class _UserDocGateState extends State<_UserDocGate> {
           );
         }
         return StreamBuilder<AppUserModel?>(
+          key: ValueKey<String>('userDoc_${widget.uid}_$_userDocStreamGeneration'),
           stream: UserService().userStream(widget.uid),
           builder: (context, userSnapshot) {
             if (userSnapshot.connectionState == ConnectionState.waiting &&
@@ -252,6 +256,37 @@ class _UserDocGateState extends State<_UserDocGate> {
                 body: Center(
                   child: CircularProgressIndicator(
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              );
+            }
+            if (userSnapshot.hasError) {
+              return Scaffold(
+                backgroundColor: const Color(0xFF0D0015),
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Could not load your profile from the server.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton(
+                          onPressed: () {
+                            setState(() => _userDocStreamGeneration++);
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -10,8 +11,6 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../../services/firestore_username_service.dart';
 import '../../services/username_service.dart';
 import '../../services/username_validation.dart';
-import '../onboarding/organization_details_screen.dart';
-import '../onboarding/select_dob_screen.dart';
 
 enum _OnboardingAccountType { private, public, business, government }
 
@@ -37,6 +36,9 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   bool _isSubmitting = false;
   bool? _available;
   List<String> _suggestions = [];
+  /// After Firestore save, [AuthWrapper] + user stream advance onboarding; do not push routes here.
+  bool _awaitingGateHandoff = false;
+  Timer? _gateHandoffTimeout;
   UsernameService get _usernameService =>
       widget.usernameService ?? FirestoreUsernameService();
 
@@ -49,6 +51,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
 
   @override
   void dispose() {
+    _gateHandoffTimeout?.cancel();
     _debounceTimer?.cancel();
     _availabilitySub?.cancel();
     _usernameController.removeListener(_onUsernameChanged);
@@ -147,7 +150,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   bool get _isUsernameValid {
     final text = _usernameController.text.trim();
     if (!UsernameValidation.isValidFormat(text)) return false;
-    if (_isChecking || _isSubmitting) return false;
+    if (_isChecking || _isSubmitting || _awaitingGateHandoff) return false;
     return _available == true;
   }
 
@@ -221,6 +224,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
             ),
           ),
           Positioned(right: 24, bottom: 36, child: _buildNextButton()),
+          if (_awaitingGateHandoff) _buildGateHandoffOverlay(),
           // Temporary logout
           // Positioned(
           //   top: 16,
@@ -242,15 +246,15 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   Widget _buildLogo() {
     return Center(
       child: SizedBox(
-        height: 45,
+        height: 100,
         child: Image.asset(
-          'assets/BrandLogo/Vyooo logo (2).png',
+          'assets/BrandLogo/vyooo_white_transparent.png',
           fit: BoxFit.contain,
-          errorBuilder: (_, _, _) => const Text(
+          errorBuilder: (_, error, stackTrace) => const Text(
             'VyooO',
             style: TextStyle(
               color: AppTheme.primary,
-              fontSize: 38,
+              fontSize: 42,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
             ),
@@ -449,7 +453,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
   }
 
   Future<void> _onNext() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _awaitingGateHandoff) return;
     final username = UsernameValidation.normalize(_usernameController.text.trim());
     if (!UsernameValidation.isValidFormat(username)) {
       if (!mounted) return;
@@ -518,33 +522,132 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         publicPersonaUpdate = persona;
       }
 
+      // Write username + accountType alone first. If `publicPersona` is merged in the same
+      // request and production Firestore rules are older (no `publicPersona` in
+      // validUserDoc.keys().hasOnly), the **entire** update is rejected — username never
+      // saves and the user loops here. Persona is persisted in a follow-up write.
       await UserService().updateUserProfile(
         uid: uid,
         username: username,
         accountType: selectedType.name,
-        publicPersona: publicPersonaUpdate,
       );
 
+      // Server read: confirm `username` is visible before relying on userStream to advance
+      // [AuthWrapper] (avoids a cache race that kept users on this screen).
+      final userSvc = UserService();
+      AppUserModel? verified;
+      for (var i = 0; i < 3; i++) {
+        verified = await userSvc.getUser(uid, server: true);
+        final u = UsernameValidation.normalize((verified?.username ?? '').trim());
+        if (verified != null && u.isNotEmpty) break;
+        if (i < 2) {
+          await Future<void>.delayed(Duration(milliseconds: 250 * (i + 1)));
+        }
+        if (!mounted) return;
+      }
+
       if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              (selectedType == _OnboardingAccountType.private ||
-                  selectedType == _OnboardingAccountType.public)
-              ? const SelectDobScreen()
-              : OrganizationDetailsScreen(accountType: selectedType.name),
-        ),
+
+      final serverUsername = UsernameValidation.normalize(
+        (verified?.username ?? '').trim(),
       );
+      if (serverUsername.isEmpty || serverUsername != username) {
+        setState(() {
+          _isSubmitting = false;
+          _awaitingGateHandoff = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your profile did not update on the server. Check your connection and tap Continue again.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (publicPersonaUpdate != null && publicPersonaUpdate.isNotEmpty) {
+        try {
+          await userSvc.updateUserProfile(
+            uid: uid,
+            publicPersona: publicPersonaUpdate,
+          );
+        } catch (e, st) {
+          assert(() {
+            debugPrint(
+              'Onboarding: publicPersona write failed (deploy firestore.rules with publicPersona): $e\n$st',
+            );
+            return true;
+          }());
+        }
+      }
+
+      _gateHandoffTimeout?.cancel();
+      _gateHandoffTimeout = Timer(const Duration(seconds: 12), () {
+        if (!mounted) return;
+        if (!_awaitingGateHandoff) return;
+        setState(() => _awaitingGateHandoff = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open the next step. Check your connection and tap Continue again.',
+            ),
+          ),
+        );
+      });
+      setState(() {
+        _isSubmitting = false;
+        _awaitingGateHandoff = true;
+      });
+      // Single source of truth: [AuthWrapper] rebuilds from Firestore userStream
+      // and shows SelectDobScreen / OrganizationDetailsScreen via OnboardingGate.
+      // Imperative Navigator.push raced that stream and could leave users stuck here.
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isSubmitting = false);
+      _gateHandoffTimeout?.cancel();
+      setState(() {
+        _isSubmitting = false;
+        _awaitingGateHandoff = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not save username/account type. Please try again.'),
         ),
       );
     }
+  }
+
+  Widget _buildGateHandoffOverlay() {
+    return Positioned.fill(
+      child: AbsorbPointer(
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.45),
+          child: const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                ),
+                SizedBox(height: 20),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Saving your profile…',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<_OnboardingAccountType?> _showAccountTypeDialog() async {
