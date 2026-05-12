@@ -52,7 +52,8 @@ class PostFeedScreen extends StatefulWidget {
 class _PostFeedScreenState extends State<PostFeedScreen> {
   final ReelsController _reelsController = ReelsController();
   final Map<String, bool> _likedReels = {};
-  final Map<String, bool> _savedReels = {};
+  final Map<String, bool> _favoriteReels = {};
+  final Map<String, bool> _privateSavedReels = {};
   late final List<Map<String, dynamic>> _orderedPosts;
   int _currentBottomNavIndex = 4;
 
@@ -131,12 +132,14 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
         .toSet();
     if (ids.isEmpty) return;
     final liked = await _reelsController.getLikedReelIds(ids);
-    final saved = await _reelsController.getSavedReelIds(ids);
+    final favorite = await _reelsController.getFavoriteReelIds(ids);
+    final private = await _reelsController.getPrivateSavedReelIds(ids);
     if (!mounted) return;
     setState(() {
       for (final id in ids) {
         _likedReels[id] = liked.contains(id);
-        _savedReels[id] = saved.contains(id);
+        _favoriteReels[id] = favorite.contains(id);
+        _privateSavedReels[id] = private.contains(id);
       }
     });
   }
@@ -216,7 +219,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
       reelId: reelId,
       currentlyLiked: currentlyLiked,
     );
-    if (!mounted || newState == null) return;
+    if (!mounted) return;
     setState(() => _likedReels[reelId] = newState);
     _adjustPostStat(reelId, 'likes', newState ? 1 : -1);
   }
@@ -224,13 +227,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
   Future<void> _onSave(Map<String, dynamic> post) async {
     final reelId = _asString(post['id']).trim();
     if (reelId.isEmpty) return;
-    final currentlySaved = _savedReels[reelId] ?? false;
-    final newState = await _reelsController.saveReel(
+    final currentlyFavorite = _favoriteReels[reelId] ?? false;
+    final newState = await _reelsController.toggleFavoriteReel(
       reelId: reelId,
-      currentlySaved: currentlySaved,
+      currentlyFavorite: currentlyFavorite,
     );
-    if (!mounted || newState == null) return;
-    setState(() => _savedReels[reelId] = newState);
+    if (!mounted) return;
+    setState(() => _favoriteReels[reelId] = newState);
     _adjustPostStat(reelId, 'saves', newState ? 1 : -1);
   }
 
@@ -260,6 +263,22 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     );
   }
 
+  Future<void> _onPrivateSaveFromSheet(String reelId) async {
+    final currently = _privateSavedReels[reelId] ?? false;
+    final newState = await _reelsController.togglePrivateSavedReel(
+      reelId: reelId,
+      currentlySaved: currently,
+    );
+    if (!mounted) return;
+    setState(() => _privateSavedReels[reelId] = newState);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(newState ? 'Saved privately' : 'Removed from private saves'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _onMoreOptions(Map<String, dynamic> post) {
     final reelId = _asString(post['id']).trim();
     if (reelId.isEmpty) return;
@@ -274,6 +293,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
       playbackSpeed: 'Normal',
       quality: 'Auto (1080p HD)',
       onDownload: () {},
+      onSavePrivately: () => _onPrivateSaveFromSheet(reelId),
       onReport: () => showReportSheet(
         context,
         username: _asString(post['username']).isNotEmpty
@@ -472,7 +492,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                             fallbackAvatarUrl: p.avatarUrl,
                             fallbackIsVerified: p.isVerified,
                             isLiked: _likedReels[reelId] ?? false,
-                            isSaved: _savedReels[reelId] ?? false,
+                            isSaved: _favoriteReels[reelId] ?? false,
                             onLike: () => _onLike(post),
                             onComment: () => _onComment(post),
                             onSave: () => _onSave(post),

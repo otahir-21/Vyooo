@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:vyooo/core/services/creator_subscription_service.dart';
 
+import '../../core/controllers/reels_controller.dart';
 import '../../core/config/deep_link_config.dart';
 import '../../core/theme/app_gradients.dart';
 import '../../widgets/caption_with_hashtags.dart';
@@ -1118,7 +1119,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return [
       SliverToBoxAdapter(
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchSavedReels(uid),
+          future: ReelsController().fetchFavoriteReelsForProfile(uid),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -1131,7 +1132,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               );
             }
             if (snapshot.hasError) {
-              debugPrint('Saved reels load error: ${snapshot.error}');
+              debugPrint('Favorite reels load error: ${snapshot.error}');
               return SizedBox(
                 height: 200,
                 child: Center(
@@ -1233,68 +1234,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ),
     ];
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchSavedReels(String uid) async {
-    try {
-      final savesSnap = await FirebaseFirestore.instance
-          .collection('userSaves')
-          .where('userId', isEqualTo: uid)
-          .get();
-      if (savesSnap.docs.isEmpty) return <Map<String, dynamic>>[];
-
-      final saveMeta = <String, int>{};
-      final reelIds = <String>[];
-      for (final d in savesSnap.docs) {
-        final data = d.data();
-        final reelId = (data['reelId'] as String?)?.trim() ?? '';
-        if (reelId.isEmpty) continue;
-        final ts = data['savedAt'];
-        final epoch = ts is Timestamp ? ts.millisecondsSinceEpoch : 0;
-        saveMeta[reelId] = epoch;
-        reelIds.add(reelId);
-      }
-      if (reelIds.isEmpty) return <Map<String, dynamic>>[];
-
-      final reelsById = <String, Map<String, dynamic>>{};
-      for (var i = 0; i < reelIds.length; i += 10) {
-        final chunk = reelIds.sublist(
-          i,
-          (i + 10) > reelIds.length ? reelIds.length : (i + 10),
-        );
-        final q = await FirebaseFirestore.instance
-            .collection('reels')
-            .where(FieldPath.documentId, whereIn: chunk)
-            .get();
-        for (final doc in q.docs) {
-          final data = doc.data();
-          reelsById[doc.id] = {
-            'id': doc.id,
-            'videoUrl': data['videoUrl'] as String? ?? '',
-            'caption': data['caption'] as String? ?? '',
-            'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
-            'imageUrl': data['imageUrl'] as String? ?? '',
-            'mediaType': data['mediaType'] as String? ?? '',
-            'createdAt': data['createdAt'],
-          };
-        }
-      }
-
-      final out = <Map<String, dynamic>>[];
-      for (final id in reelIds) {
-        final reel = reelsById[id];
-        if (reel != null) out.add(reel);
-      }
-      out.sort((a, b) {
-        final aTs = saveMeta[a['id']] ?? 0;
-        final bTs = saveMeta[b['id']] ?? 0;
-        return bTs.compareTo(aTs);
-      });
-      return out;
-    } catch (e) {
-      debugPrint('Failed to fetch saved reels: $e');
-      return <Map<String, dynamic>>[];
-    }
   }
 
   static String _thumbnailFromSavedReel(Map<String, dynamic> reel) {
@@ -1935,7 +1874,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'No saved posts yet',
+            'No favorite posts yet',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.6),
               fontSize: 16,

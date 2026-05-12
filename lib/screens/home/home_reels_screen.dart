@@ -18,6 +18,7 @@ import '../../core/services/reels_service.dart';
 import '../../core/services/story_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/reel_download_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/internet_availability.dart';
 import '../../core/utils/user_facing_errors.dart';
@@ -121,9 +122,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return _reelsFollowing;
   }
 
-  // State for likes/saves (optimistic UI)
+  // State for likes / public favorites / private saves (optimistic UI)
   final Map<String, bool> _likedReels = {};
-  final Map<String, bool> _savedReels = {};
+  final Map<String, bool> _favoriteReels = {};
+  final Map<String, bool> _privateSavedReels = {};
 
   /// Cached for report / unfollow sheet (refreshed in [_loadReels]).
   List<String> _followingIds = [];
@@ -237,6 +239,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       var blockedIds = <String>[];
       if (uid.isNotEmpty) {
         try {
+          await _reelsController.migrateLegacyUserSavesIfNeeded();
+        } catch (_) {}
+        try {
           final userDoc = await FirebaseFirestore.instance
               .collection('users')
               .doc(uid)
@@ -272,24 +277,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         return followingSet.contains(g.userId);
       }).toList();
       final reelIds = <String>{
-        ...filteredForYou.map((r) => (r['id'] as String?) ?? ''),
-        ...filteredFollowing.map((r) => (r['id'] as String?) ?? ''),
-        ...filteredTrending.map((r) => (r['id'] as String?) ?? ''),
-        ...filteredVr.map((r) => (r['id'] as String?) ?? ''),
+        ...filteredForYou.map((r) => _asString(r['id'])),
+        ...filteredFollowing.map((r) => _asString(r['id'])),
+        ...filteredTrending.map((r) => _asString(r['id'])),
+        ...filteredVr.map((r) => _asString(r['id'])),
       }..removeWhere((id) => id.isEmpty);
       final likedIds = await _reelsController.getLikedReelIds(reelIds);
-      final savedIds = await _reelsController.getSavedReelIds(reelIds);
-      final saveCounts = await _reelsController.getSaveCountsByReelIds(reelIds);
+      final favoriteIds = await _reelsController.getFavoriteReelIds(reelIds);
+      final privateIds = await _reelsController.getPrivateSavedReelIds(reelIds);
       if (mounted) {
         setState(() {
           _reelsLoadError = null;
-          List<Map<String, dynamic>> withSaveCounts(
+          List<Map<String, dynamic>> withLatestAvatars(
             List<Map<String, dynamic>> src,
           ) {
             return src.map((r) {
-              final id = (r['id'] as String?) ?? '';
+              final id = _asString(r['id']);
               if (id.isEmpty) return r;
-              final remoteCount = saveCounts[id];
               final cloned = Map<String, dynamic>.from(r);
               final reelUid = (cloned['userId'] as String?) ?? '';
               final latestAvatar = latestAvatarByUid[reelUid];
@@ -297,20 +301,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 cloned['avatarUrl'] = latestAvatar;
                 cloned['profileImage'] = latestAvatar;
               }
-              if (remoteCount != null) {
-                cloned['saves'] = remoteCount;
-              }
               return cloned;
             }).toList();
           }
 
           // Always assign so empty API results clear lists (avoids stale / black feed).
-          _reelsForYou = withSaveCounts(filteredForYou);
-          _reelsFollowing = withSaveCounts(filteredFollowing);
+          _reelsForYou = withLatestAvatars(filteredForYou);
+          _reelsFollowing = withLatestAvatars(filteredFollowing);
           if (filteredTrending.isNotEmpty) {
-            _reelsTrending = withSaveCounts(filteredTrending);
+            _reelsTrending = withLatestAvatars(filteredTrending);
           }
-          if (filteredVr.isNotEmpty) _reelsVR = withSaveCounts(filteredVr);
+          if (filteredVr.isNotEmpty) _reelsVR = withLatestAvatars(filteredVr);
           _storyGroups = filteredStories;
           _myStories = myStories;
           _myAvatarUrl = avatarUrl;
@@ -319,9 +320,12 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           _likedReels
             ..clear()
             ..addEntries(likedIds.map((id) => MapEntry(id, true)));
-          _savedReels
+          _favoriteReels
             ..clear()
-            ..addEntries(savedIds.map((id) => MapEntry(id, true)));
+            ..addEntries(favoriteIds.map((id) => MapEntry(id, true)));
+          _privateSavedReels
+            ..clear()
+            ..addEntries(privateIds.map((id) => MapEntry(id, true)));
         });
         _handleIncomingDeepLink();
       }
@@ -370,7 +374,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       if (!mounted) return;
       if (fetched != null) {
         setState(() {
-          final exists = _reelsForYou.any((r) => r['id'] == reelId);
+          final exists = _reelsForYou.any((r) => _asString(r['id']) == reelId);
           if (!exists) {
             _reelsForYou = [fetched, ..._reelsForYou];
           }
@@ -394,16 +398,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   _ReelTarget? _findReelTarget(String reelId) {
-    int idx = _reelsForYou.indexWhere((r) => r['id'] == reelId);
+    int idx = _reelsForYou.indexWhere((r) => _asString(r['id']) == reelId);
     if (idx >= 0) return _ReelTarget(HomeTab.forYou, idx);
 
-    idx = _reelsFollowing.indexWhere((r) => r['id'] == reelId);
+    idx = _reelsFollowing.indexWhere((r) => _asString(r['id']) == reelId);
     if (idx >= 0) return _ReelTarget(HomeTab.following, idx);
 
-    idx = _reelsTrending.indexWhere((r) => r['id'] == reelId);
+    idx = _reelsTrending.indexWhere((r) => _asString(r['id']) == reelId);
     if (idx >= 0) return _ReelTarget(HomeTab.trending, idx);
 
-    idx = _reelsVR.indexWhere((r) => r['id'] == reelId);
+    idx = _reelsVR.indexWhere((r) => _asString(r['id']) == reelId);
     if (idx >= 0) return _ReelTarget(HomeTab.vr, idx);
 
     return null;
@@ -599,31 +603,62 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final reels = _currentReels;
     if (reels.isEmpty) return;
     final reel = reels[_feedIndexForPage(feedIndex, reels.length)];
-    final reelId = (reel['id'] as String?) ?? '';
+    final reelId = _asString(reel['id']);
     if (reelId.isEmpty) return;
     final alreadyLiked = _likedReels[reelId] ?? false;
     if (alreadyLiked) return;
     _onLike(reelId, false);
   }
 
-  Future<void> _onSave(String reelId, bool currentlySaved) async {
-    final newState = await _reelsController.saveReel(
+  Future<void> _onFavorite(String reelId, bool currentlyFavorite) async {
+    final newState = await _reelsController.toggleFavoriteReel(
       reelId: reelId,
-      currentlySaved: currentlySaved,
+      currentlyFavorite: currentlyFavorite,
     );
     if (!mounted) return;
-    final delta = newState == currentlySaved ? 0 : (newState ? 1 : -1);
+    final changed = newState != currentlyFavorite;
+    final delta = changed ? (newState ? 1 : -1) : 0;
     setState(() {
-      _savedReels[reelId] = newState;
+      _favoriteReels[reelId] = newState;
       if (delta != 0) {
         _adjustReelStat(reelId, 'saves', delta);
       }
     });
+    if (!mounted) return;
+    if (!changed) {
+      debugPrint(
+        '[HomeReels._onFavorite] toggle had no effect reelId=$reelId '
+        '(check terminal for [Vyooo][toggleFavoriteReel] — often Firestore rules or network)',
+      );
+      _showSnackBar('Could not update favorites. Try again.');
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(newState ? 'Saved to profile' : 'Removed from saved'),
+        content: Text(
+          newState ? 'Added to favorites (public on profile)' : 'Removed from favorites',
+        ),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1200),
+        duration: const Duration(milliseconds: 1600),
+      ),
+    );
+  }
+
+  Future<void> _onPrivateSaveFromSheet(String reelId) async {
+    final currently = _privateSavedReels[reelId] ?? false;
+    final newState = await _reelsController.togglePrivateSavedReel(
+      reelId: reelId,
+      currentlySaved: currently,
+    );
+    if (!mounted) return;
+    setState(() => _privateSavedReels[reelId] = newState);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          newState ? 'Saved privately (only you can see this list)' : 'Removed from private saves',
+        ),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1600),
       ),
     );
   }
@@ -675,7 +710,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     if (delta == 0 || !mounted) return;
     void bump(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
-        if (list[i]['id'] != reelId) continue;
+        if (_asString(list[i]['id']) != reelId) continue;
         final cur = (list[i]['comments'] as num?)?.toInt() ?? 0;
         final next = (cur + delta).clamp(0, 999999999);
         list[i] = Map<String, dynamic>.from(list[i])..['comments'] = next;
@@ -694,7 +729,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void _adjustReelStat(String reelId, String key, int delta) {
     void bump(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
-        if (list[i]['id'] != reelId) continue;
+        if (_asString(list[i]['id']) != reelId) continue;
         final cur = (list[i][key] as num?)?.toInt() ?? 0;
         final next = (cur + delta).clamp(0, 999999999);
         list[i] = Map<String, dynamic>.from(list[i])..[key] = next;
@@ -1017,7 +1052,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               ? thumbnailUrl
               : imageUrl;
           return ReelItemWidget(
-            key: ValueKey<String>((reel['id'] as String?) ?? videoUrl),
+            key: ValueKey<String>(_asString(reel['id'], fallback: videoUrl)),
             videoUrl: videoUrl,
             thumbnailUrl: loadingThumb,
             // Only play when this page is visible AND the home tab is active.
@@ -1283,7 +1318,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final reelId = _asString(reel['id']);
     if (reelId.isEmpty) return const SizedBox.shrink();
     final isLiked = _likedReels[reelId] ?? false;
-    final isSaved = _savedReels[reelId] ?? false;
+    final isFavorite = _favoriteReels[reelId] ?? false;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     // Keep action stack clearly above the bottom nav bar.
     final interactionBottom = 18.0 + bottomSafeInset;
@@ -1323,11 +1358,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           ),
           const SizedBox(height: 12),
           AppInteractionButton(
-            icon: isSaved ? Icons.star : Icons.star_border,
+            icon: isFavorite ? Icons.star : Icons.star_border,
             count: _formatCount(_asInt(reel['saves'])),
-            isActive: isSaved,
+            isActive: isFavorite,
             activeColor: const Color(0xFFFFD700),
-            onTap: () => _onSave(reelId, isSaved),
+            onTap: () => _onFavorite(reelId, isFavorite),
             iconSize: 24,
             textSize: 10,
             spacing: 3,
@@ -1354,7 +1389,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onMoreOptions(String reelId) {
-    final reel = _currentReels.firstWhere((r) => r['id'] == reelId);
+    final reel = _currentReels.firstWhere((r) => _asString(r['id']) == reelId);
     final authorId = _asString(reel['userId']);
     _isBottomSheetOpen = true;
     _cancelAutoScrollTimer();
@@ -1365,6 +1400,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       quality: _qualityLabel,
       autoScrollEnabled: _autoScrollEnabled,
       onDownload: _onDownloadTapped,
+      onSavePrivately: () => _onPrivateSaveFromSheet(reelId),
       onReport: () => showReportSheet(
         context,
         username: _asString(reel['username'], fallback: 'User'),
@@ -1386,14 +1422,32 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     });
   }
 
-  void _onDownloadTapped() {
+  Future<void> _onDownloadTapped() async {
     final subscriptionController = context.read<SubscriptionController>();
-    if (subscriptionController.isSubscriber ||
-        subscriptionController.isCreator) {
-      _showSnackBar('Download started');
-    } else {
+    if (!subscriptionController.isSubscriber &&
+        !subscriptionController.isCreator) {
       showDownloadSubscriptionSheet(context);
+      return;
     }
+    final reel = _currentFeedReel();
+    if (reel == null) return;
+    final reelId = _asString(reel['id']);
+    final videoUrl = _asString(reel['videoUrl']);
+    final thumb = _asString(reel['thumbnailUrl']);
+    if (reelId.isEmpty || videoUrl.isEmpty) {
+      _showSnackBar('Download unavailable for this post');
+      return;
+    }
+    _showSnackBar('Downloading…');
+    final ok = await ReelDownloadService.instance.downloadVideo(
+      reelId: reelId,
+      videoUrl: videoUrl,
+      thumbnailUrl: thumb,
+    );
+    if (!mounted) return;
+    _showSnackBar(
+      ok ? 'Saved under Settings → Downloaded Videos' : 'Download failed',
+    );
   }
 
   void _openPlaybackSpeedSheet() {

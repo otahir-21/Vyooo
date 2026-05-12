@@ -1590,7 +1590,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return [
       SliverToBoxAdapter(
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _fetchSavedReels(targetUid),
+          future: ReelsController().fetchFavoriteReelsForProfile(targetUid),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -1682,73 +1682,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         ),
       ),
     ];
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchSavedReels(String uid) async {
-    try {
-      final savesSnap = await FirebaseFirestore.instance
-          .collection('userSaves')
-          .where('userId', isEqualTo: uid)
-          .get();
-      if (savesSnap.docs.isEmpty) return <Map<String, dynamic>>[];
-
-      final saveMeta = <String, int>{};
-      final reelIds = <String>[];
-      for (final d in savesSnap.docs) {
-        final data = d.data();
-        final reelId = (data['reelId'] as String?)?.trim() ?? '';
-        if (reelId.isEmpty) continue;
-        final ts = data['savedAt'];
-        final epoch = ts is Timestamp ? ts.millisecondsSinceEpoch : 0;
-        saveMeta[reelId] = epoch;
-        reelIds.add(reelId);
-      }
-      if (reelIds.isEmpty) return <Map<String, dynamic>>[];
-
-      final reelsById = <String, Map<String, dynamic>>{};
-      for (var i = 0; i < reelIds.length; i += 10) {
-        final chunk = reelIds.sublist(
-          i,
-          (i + 10) > reelIds.length ? reelIds.length : (i + 10),
-        );
-        final q = await FirebaseFirestore.instance
-            .collection('reels')
-            .where(FieldPath.documentId, whereIn: chunk)
-            .get();
-        for (final doc in q.docs) {
-          final data = doc.data();
-          reelsById[doc.id] = {
-            'id': doc.id,
-            'videoUrl': data['videoUrl'] as String? ?? '',
-            'caption': data['caption'] as String? ?? '',
-            'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
-            'imageUrl': data['imageUrl'] as String? ?? '',
-            'mediaType': data['mediaType'] as String? ?? '',
-            'username': data['username'] as String? ?? '',
-            'avatarUrl': data['profileImage'] as String? ??
-                data['avatarUrl'] as String? ??
-                '',
-            'isVerified': data['isVerified'] == true,
-            'createdAt': data['createdAt'],
-          };
-        }
-      }
-
-      final out = <Map<String, dynamic>>[];
-      for (final id in reelIds) {
-        final reel = reelsById[id];
-        if (reel != null) out.add(reel);
-      }
-      out.sort((a, b) {
-        final aTs = saveMeta[a['id']] ?? 0;
-        final bTs = saveMeta[b['id']] ?? 0;
-        return bTs.compareTo(aTs);
-      });
-      return out;
-    } catch (e) {
-      dev.log('Failed to fetch user profile saved reels', error: e);
-      return <Map<String, dynamic>>[];
-    }
   }
 
   Widget _buildEmptyTab() {
@@ -2243,7 +2176,8 @@ class _UserProfileReelFeedScreenState
   late int _currentIndex;
   final ReelsController _reelsController = ReelsController();
   final Map<String, bool> _likedReels = {};
-  final Map<String, bool> _savedReels = {};
+  final Map<String, bool> _favoriteReels = {};
+  final Map<String, bool> _privateSavedReels = {};
 
   @override
   void didChangeDependencies() {
@@ -2271,12 +2205,14 @@ class _UserProfileReelFeedScreenState
         .toSet();
     if (reelIds.isEmpty) return;
     final likedIds = await _reelsController.getLikedReelIds(reelIds);
-    final savedIds = await _reelsController.getSavedReelIds(reelIds);
+    final favoriteIds = await _reelsController.getFavoriteReelIds(reelIds);
+    final privateIds = await _reelsController.getPrivateSavedReelIds(reelIds);
     if (!mounted) return;
     setState(() {
       for (final id in reelIds) {
         _likedReels[id] = likedIds.contains(id);
-        _savedReels[id] = savedIds.contains(id);
+        _favoriteReels[id] = favoriteIds.contains(id);
+        _privateSavedReels[id] = privateIds.contains(id);
       }
     });
   }
@@ -2309,19 +2245,38 @@ class _UserProfileReelFeedScreenState
       reelId: reelId,
       currentlyLiked: currentlyLiked,
     );
-    if (!mounted || newState == null) return;
+    if (!mounted) return;
     setState(() => _likedReels[reelId] = newState);
     _adjustReelStat(reelId, 'likes', newState ? 1 : -1);
   }
 
-  Future<void> _onSave(String reelId, bool currentlySaved) async {
-    final newState = await _reelsController.saveReel(
+  Future<void> _onFavorite(String reelId, bool currentlyFavorite) async {
+    final newState = await _reelsController.toggleFavoriteReel(
       reelId: reelId,
-      currentlySaved: currentlySaved,
+      currentlyFavorite: currentlyFavorite,
     );
-    if (!mounted || newState == null) return;
-    setState(() => _savedReels[reelId] = newState);
+    if (!mounted) return;
+    setState(() => _favoriteReels[reelId] = newState);
     _adjustReelStat(reelId, 'saves', newState ? 1 : -1);
+  }
+
+  Future<void> _onPrivateSave(String reelId) async {
+    final currently = _privateSavedReels[reelId] ?? false;
+    final newState = await _reelsController.togglePrivateSavedReel(
+      reelId: reelId,
+      currentlySaved: currently,
+    );
+    if (!mounted) return;
+    setState(() => _privateSavedReels[reelId] = newState);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          newState ? 'Saved privately' : 'Removed from private saves',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _onShare(String reelId, Map<String, dynamic> reel) {
@@ -2353,6 +2308,7 @@ class _UserProfileReelFeedScreenState
       playbackSpeed: 'Normal',
       quality: 'Auto (1080p HD)',
       onDownload: () {},
+      onSavePrivately: () => _onPrivateSave(reelId),
       onReport: () => showReportSheet(
         context,
         username: _asString(reel['username']).isEmpty
@@ -2450,7 +2406,7 @@ class _UserProfileReelFeedScreenState
     final reelId = _asString(reel['id']).trim();
     if (reelId.isEmpty) return const SizedBox.shrink();
     final isLiked = _likedReels[reelId] ?? false;
-    final isSaved = _savedReels[reelId] ?? false;
+    final isFavorite = _favoriteReels[reelId] ?? false;
 
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     final interactionBottom = 18.0 + bottomSafeInset;
@@ -2490,11 +2446,11 @@ class _UserProfileReelFeedScreenState
           ),
           const SizedBox(height: 12),
           AppInteractionButton(
-            icon: isSaved ? Icons.star : Icons.star_border,
+            icon: isFavorite ? Icons.star : Icons.star_border,
             count: _formatCount(_asInt(reel['saves'])),
-            isActive: isSaved,
+            isActive: isFavorite,
             activeColor: const Color(0xFFFFD700),
-            onTap: () => _onSave(reelId, isSaved),
+            onTap: () => _onFavorite(reelId, isFavorite),
             iconSize: 24,
             textSize: 10,
             spacing: 3,

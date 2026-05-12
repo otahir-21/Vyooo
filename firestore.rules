@@ -633,6 +633,32 @@ service cloud.firestore {
       allow create, update, delete: if isOwner(userId);
     }
 
+    // Public favorites (profile star tab). Same visibility as story highlights.
+    match /users/{userId}/favoriteReels/{reelId} {
+      allow read: if isSignedIn() && highlightsPathReadable(userId);
+      // Do not require favoritedAt to be a literal timestamp: client may send
+      // serverTimestamp sentinel which rules do not always classify as timestamp.
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasOnly(['reelId', 'favoritedAt'])
+                    && request.resource.data.reelId == reelId
+                    && request.resource.data.reelId is string
+                    && request.resource.data.reelId.size() > 0;
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
+    // Private bookmarks — only the account owner may list or modify.
+    match /users/{userId}/privateSavedReels/{reelId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasOnly(['reelId', 'savedAt'])
+                    && request.resource.data.reelId == reelId
+                    && request.resource.data.reelId is string
+                    && request.resource.data.reelId.size() > 0;
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
     match /reels/{reelId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn();
@@ -655,8 +681,17 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // Legacy collection — kept for one client-side migration into privateSavedReels.
     match /userSaves/{id} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+                    && request.resource.data.keys().hasOnly(['userId', 'reelId', 'savedAt'])
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.reelId is string
+                    && request.resource.data.reelId.size() > 0
+                    && id == request.auth.uid + '_' + request.resource.data.reelId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if false;
     }
 
     match /comment_reports/{id} {

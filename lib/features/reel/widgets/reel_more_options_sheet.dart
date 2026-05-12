@@ -11,6 +11,7 @@ Future<void> showReelMoreOptionsSheet(
   String quality = 'Auto (1080p HD)',
   bool autoScrollEnabled = true,
   VoidCallback? onDownload,
+  VoidCallback? onSavePrivately,
   VoidCallback? onReport,
   VoidCallback? onNotInterested,
   VoidCallback? onCaptions,
@@ -30,6 +31,7 @@ Future<void> showReelMoreOptionsSheet(
       quality: quality,
       autoScrollEnabled: autoScrollEnabled,
       onDownload: onDownload,
+      onSavePrivately: onSavePrivately,
       onReport: onReport,
       onNotInterested: onNotInterested,
       onCaptions: onCaptions,
@@ -54,6 +56,7 @@ class _ReelMoreOptionsSheet extends StatefulWidget {
     required this.quality,
     required this.autoScrollEnabled,
     this.onDownload,
+    this.onSavePrivately,
     this.onReport,
     this.onNotInterested,
     this.onCaptions,
@@ -69,6 +72,7 @@ class _ReelMoreOptionsSheet extends StatefulWidget {
   final String quality;
   final bool autoScrollEnabled;
   final VoidCallback? onDownload;
+  final VoidCallback? onSavePrivately;
   final VoidCallback? onReport;
   final VoidCallback? onNotInterested;
   final VoidCallback? onCaptions;
@@ -170,8 +174,17 @@ class _ReelMoreOptionsSheetState extends State<_ReelMoreOptionsSheet> {
                     _Section(
                       backgroundColor: Colors.white.withValues(alpha: 0.05),
                       borderRadius: 16,
-                      children: [
-                        _AutoScrollTile(
+                  children: [
+                    if (widget.onSavePrivately != null)
+                      _SettingTile(
+                        icon: Icons.bookmark_add_outlined,
+                        label: 'Save privately',
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          widget.onSavePrivately?.call();
+                        },
+                      ),
+                    _AutoScrollTile(
                           enabled: _autoScroll,
                           onChanged: (value) {
                             setState(() => _autoScroll = value);

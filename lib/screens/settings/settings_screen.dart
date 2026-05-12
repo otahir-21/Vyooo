@@ -9,6 +9,7 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../account/account_screen.dart';
 import 'settings_subscriptions_screen.dart';
 import 'downloaded_videos_screen.dart';
+import 'saved_posts_screen.dart';
 import 'notifications_settings_screen.dart';
 import 'contact_support_screen.dart';
 import 'report_problem_screen.dart';
@@ -136,6 +137,15 @@ class SettingsScreen extends StatelessWidget {
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const WalletScreen(),
+                            ),
+                          ),
+                        ),
+                        _SettingsTile(
+                          iconPath: 'assets/vyooO_icons/Home/Save.png',
+                          label: 'Saved posts (private)',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SavedPostsScreen(),
                             ),
                           ),
                         ),
