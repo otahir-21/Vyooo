@@ -51,6 +51,9 @@ android/key.properties
 *.jks
 *.keystore
 
+# Never paste API keys into the Flutter tree (invalid Dart / accidental commit)
+**/.env*.dart
+
 # Firebase Functions — env files contain secrets, never commit
 functions/.env.*
 functions/lib/

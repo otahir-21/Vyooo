@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -25,13 +26,40 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
   bool firebaseInitialized = false;
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    // After Firebase init (recommended order). Hot restart can still log
+    // "duplicate background isolate" on Android — harmless; use full app restart to clear.
+    if (!kIsWeb) {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    }
+    // Local stack: `firebase emulators:start --only firestore,functions` from repo root,
+    // then `flutter run --dart-define=USE_FIRESTORE_EMULATOR=true` (debug only).
+    if (kDebugMode) {
+      const useFirestoreEmu = bool.fromEnvironment(
+        'USE_FIRESTORE_EMULATOR',
+        defaultValue: false,
+      );
+      if (!kIsWeb && useFirestoreEmu) {
+        const hostOverride = String.fromEnvironment(
+          'FIRESTORE_EMULATOR_HOST',
+          defaultValue: '',
+        );
+        final host = hostOverride.trim().isNotEmpty
+            ? hostOverride.trim()
+            : (Platform.isAndroid ? '10.0.2.2' : 'localhost');
+        const port = int.fromEnvironment(
+          'FIRESTORE_EMULATOR_PORT',
+          defaultValue: 8080,
+        );
+        FirebaseFirestore.instance.useFirestoreEmulator(host, port);
+        debugPrint('Firestore: emulator at $host:$port');
+      }
+    }
     await _configureFirebaseAppCheck();
     firebaseInitialized = true;
     await PushMessagingService.instance.configure();

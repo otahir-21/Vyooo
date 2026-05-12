@@ -3,14 +3,15 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/services/user_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import '../../core/services/hashtag_generation_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/utils/upload_tag_suggestions.dart';
 import '../../core/utils/video_upload_policy.dart';
@@ -56,24 +57,27 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   final List<String> _selectedTags = <String>[];
   List<String> _suggestedTags = <String>[];
   File? _customThumbnailFile;
+  bool _aiGenerating = false;
   bool get _isVideoAsset => widget.asset.type == AssetType.video;
 
   @override
   void initState() {
     super.initState();
     _titleController.addListener(_refreshSuggestedTags);
+    _descController.addListener(_refreshSuggestedTags);
     _suggestedTags = UploadTagSuggestions.build(
       title: _titleController.text,
+      description: _descController.text,
       category: _selectedCategory,
-      minCount: UploadTagSuggestions.defaultMinCount,
     );
   }
 
   void _refreshSuggestedTags() {
+    if (_aiGenerating) return;
     final next = UploadTagSuggestions.build(
       title: _titleController.text,
+      description: _descController.text,
       category: _selectedCategory,
-      minCount: UploadTagSuggestions.defaultMinCount,
     );
     if (!_listEq(_suggestedTags, next)) {
       setState(() => _suggestedTags = next);
@@ -91,6 +95,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   @override
   void dispose() {
     _titleController.removeListener(_refreshSuggestedTags);
+    _descController.removeListener(_refreshSuggestedTags);
     _titleController.dispose();
     _descController.dispose();
     _tagsController.dispose();
@@ -609,6 +614,48 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     _addTag(tag, clearInput: false);
   }
 
+  Future<void> _generateAiHashtags() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter a title first, then run AI hashtags.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _aiGenerating = true);
+    try {
+      final tags = await HashtagGenerationService.generate(
+        title: title,
+        description: _descController.text,
+        category: _selectedCategory,
+      );
+      if (!mounted) return;
+      setState(() => _suggestedTags = tags);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${tags.length} AI hashtag ideas ready. Tap to add.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e, st) {
+      debugPrint('[UploadDetails] AI hashtags failed: $e');
+      debugPrint('$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('AI hashtags: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _aiGenerating = false);
+    }
+  }
+
   Widget _buildTagChips() {
     if (_selectedTags.isEmpty) {
       return Text(
@@ -699,26 +746,63 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Suggested tags',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Suggested tags',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        '${_suggestedTags.length} ideas',
+                        style: const TextStyle(color: Colors.white38, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Local suggestions update as you type. AI 30+ asks the server for at least ${HashtagGenerationService.minHashtagCount} tags (Gemini or OpenAI, configured in Cloud Functions).',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 11),
+                  ),
+                ],
               ),
             ),
-            Text(
-              '${_suggestedTags.length} ideas',
-              style: const TextStyle(color: Colors.white38, fontSize: 13),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: (_aiGenerating || _isUploading) ? null : _generateAiHashtags,
+              style: TextButton.styleFrom(
+                foregroundColor: _pink,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: _aiGenerating
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: _pink),
+                    )
+                  : const Text(
+                      'AI 30+',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
         Text(
-          'Tap to add or remove. Title and category refresh this list.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 11),
+          'Tap a chip to add or remove.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
         ),
         const SizedBox(height: 12),
         Wrap(

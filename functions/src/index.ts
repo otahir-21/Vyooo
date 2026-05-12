@@ -2337,3 +2337,5 @@ export const cleanupStaleRingingCalls = onSchedule(
     logger.info('cleanupStaleRingingCalls: done', { processed: staleSnap.size });
   },
 );
+
+export { processHashtagGenerationRequest } from './hashtag_generation';

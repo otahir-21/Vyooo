@@ -685,6 +685,34 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // AI hashtag suggestions (Firestore-triggered Cloud Function; keys stay on server).
+    match /hashtag_generation_requests/{requestId} {
+      // minCount: accept int or float from clients (SDKs may encode 30 as double).
+      // createdAt: do not require it on create (avoid serverTimestamp sentinel edge cases).
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 200
+                    && request.resource.data.status == 'pending'
+                    && (!('description' in request.resource.data)
+                        || (request.resource.data.description is string
+                            && request.resource.data.description.size() <= 500))
+                    && (!('category' in request.resource.data)
+                        || (request.resource.data.category is string
+                            && request.resource.data.category.size() <= 50))
+                    && (!('minCount' in request.resource.data)
+                        || (
+                          (request.resource.data.minCount is int
+                            || request.resource.data.minCount is float)
+                          && request.resource.data.minCount >= 30
+                          && request.resource.data.minCount <= 40
+                        ));
+      allow read, delete: if isSignedIn()
+                          && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
     // User verification requests (manual CRM/admin review workflow).
     match /verification_requests/{requestId} {
       allow create: if isSignedIn()
