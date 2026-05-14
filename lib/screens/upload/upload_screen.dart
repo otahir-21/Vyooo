@@ -13,6 +13,9 @@ import 'upload_video_preview_screen.dart';
 
 /// Upload screen for subscribers: media grid from gallery, album dropdown, Story / Post / Live actions.
 /// Opened from bottom nav plus; standard users are redirected to membership instead.
+///
+/// Defaults to **Post** so the gallery (or permission flow) starts immediately — no extra tap
+/// through instructional copy. Story / Live use the bottom actions only.
 class UploadScreen extends StatefulWidget {
   const UploadScreen({super.key});
 
@@ -20,15 +23,20 @@ class UploadScreen extends StatefulWidget {
   State<UploadScreen> createState() => _UploadScreenState();
 }
 
-class _UploadScreenState extends State<UploadScreen> {
+class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver {
   String _selectedAlbum = 'Recents';
   int? _selectedIndex;
-  int _bottomSegment = 1; // 0 Story, 1 Post (device gallery grid), 2 Live
+  /// 0 Story (opens separate screen from bar), 1 Post (gallery), 2 Live.
+  /// Default Post so opening from + starts the library flow right away.
+  int _bottomSegment = 1;
 
   List<AssetPathEntity> _paths = [];
   List<AssetEntity> _assets = [];
+  /// Start true: first frame is spinner until [_loadGallery] resolves (avoids a flash of
+  /// "No photos or videos" before the first fetch).
   bool _loading = true;
   String? _permissionError;
+  PermissionState? _lastPhotoPermission;
 
   /// When user picks an album from All Albums screen.
   AssetPathEntity? _pathOverride;
@@ -63,17 +71,41 @@ class _UploadScreenState extends State<UploadScreen> {
   @override
   void initState() {
     super.initState();
-    _loadGallery();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadGallery();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        _bottomSegment == 1 &&
+        _permissionError != null) {
+      _loadGallery();
+    }
   }
 
   Future<void> _loadGallery() async {
+    if (_bottomSegment != 1) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     setState(() {
       _loading = true;
       _permissionError = null;
     });
     try {
       final perm = await PhotoManager.requestPermissionExtend();
-      if (!perm.isAuth) {
+      _lastPhotoPermission = perm;
+      if (!perm.hasAccess) {
         setState(() {
           _loading = false;
           _permissionError =
@@ -96,6 +128,7 @@ class _UploadScreenState extends State<UploadScreen> {
         setState(() {
           _loading = false;
           _permissionError = e.toString();
+          _lastPhotoPermission = null;
         });
       }
     }
@@ -146,6 +179,7 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final isPost = _bottomSegment == 1;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
@@ -166,92 +200,104 @@ class _UploadScreenState extends State<UploadScreen> {
               ),
             ),
           ),
-          _AlbumDropdown(
-            value: _selectedAlbum,
-            paths: _paths,
-            onChanged: (v) async {
-              if (v == null) return;
-              if (v == 'All Albums') {
-                if (_paths.isEmpty) return;
-                final path = await Navigator.of(context).push<AssetPathEntity>(
-                  MaterialPageRoute<AssetPathEntity>(
-                    builder: (_) => AllAlbumsScreen(paths: _paths),
-                  ),
-                );
-                if (!mounted) return;
-                if (path != null) {
-                  setState(() {
-                    _pathOverride = path;
-                    _selectedAlbum = path.name;
-                  });
-                  await _loadAssetsForCurrentPath();
-                }
-                return;
-              }
-              setState(() {
-                _pathOverride = null;
-                _selectedAlbum = v;
-              });
-              await _loadAssetsForCurrentPath();
-            },
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () {
-                if (_selectedIndex != null &&
-                    _selectedIndex! < _assets.length) {
-                  final selected = _assets[_selectedIndex!];
-                  if (_isVideoAsset(selected)) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            UploadVideoPreviewScreen(asset: selected),
-                      ),
-                    );
-                  } else if (selected.type == AssetType.image) {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            UploadPhotoPreviewScreen(asset: selected),
-                      ),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Unsupported media selected.'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Select photo or video'),
-                      behavior: SnackBarBehavior.floating,
+          if (isPost)
+            _AlbumDropdown(
+              value: _selectedAlbum,
+              paths: _paths,
+              onChanged: (v) async {
+                if (v == null) return;
+                if (v == 'All Albums') {
+                  if (_paths.isEmpty) return;
+                  final path = await Navigator.of(context).push<AssetPathEntity>(
+                    MaterialPageRoute<AssetPathEntity>(
+                      builder: (_) => AllAlbumsScreen(paths: _paths),
                     ),
                   );
+                  if (!mounted) return;
+                  if (path != null) {
+                    setState(() {
+                      _pathOverride = path;
+                      _selectedAlbum = path.name;
+                    });
+                    await _loadAssetsForCurrentPath();
+                  }
+                  return;
                 }
+                setState(() {
+                  _pathOverride = null;
+                  _selectedAlbum = v;
+                });
+                await _loadAssetsForCurrentPath();
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Next',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
+            )
+          else
+            Text(
+              _bottomSegment == 2 ? 'Live' : 'Story',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
               ),
             ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: isPost
+                ? GestureDetector(
+                    onTap: () {
+                      if (_selectedIndex != null &&
+                          _selectedIndex! < _assets.length) {
+                        final selected = _assets[_selectedIndex!];
+                        if (_isVideoAsset(selected)) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  UploadVideoPreviewScreen(asset: selected),
+                            ),
+                          );
+                        } else if (selected.type == AssetType.image) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  UploadPhotoPreviewScreen(asset: selected),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Unsupported media selected.'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Select photo or video'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox(width: 48),
           ),
         ],
       ),
@@ -259,7 +305,22 @@ class _UploadScreenState extends State<UploadScreen> {
   }
 
   Widget _buildBody() {
+    if (_bottomSegment != 1) {
+      // No "tap below" instructional layer — Story / Live are started from the bottom bar.
+      final icon = _bottomSegment == 0
+          ? Icons.auto_stories_outlined
+          : Icons.live_tv_outlined;
+      return Center(
+        child: Icon(
+          icon,
+          size: 56,
+          color: Colors.white.withValues(alpha: 0.14),
+        ),
+      );
+    }
     if (_permissionError != null) {
+      final needsSettings = _lastPhotoPermission == PermissionState.denied ||
+          _lastPhotoPermission == PermissionState.restricted;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -274,7 +335,33 @@ class _UploadScreenState extends State<UploadScreen> {
                   fontSize: 15,
                 ),
               ),
+              if (needsSettings) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'If you already tapped Don\'t Allow, use Settings to enable Photos access, then return here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
+              if (needsSettings)
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  onPressed: () => PhotoManager.openSetting(),
+                  child: const Text(
+                    'Open Settings',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              if (needsSettings) const SizedBox(height: AppSpacing.sm),
               TextButton(
                 onPressed: _loadGallery,
                 child: const Text(
@@ -362,7 +449,13 @@ class _UploadScreenState extends State<UploadScreen> {
             label: 'Post',
             iconPath: 'assets/vyooO_icons/Upload_Story_Live/gallery.png',
             selected: _bottomSegment == 1,
-            onTap: () => setState(() => _bottomSegment = 1),
+            onTap: () {
+              final wasPost = _bottomSegment == 1;
+              setState(() => _bottomSegment = 1);
+              if (!wasPost || _permissionError != null) {
+                _loadGallery();
+              }
+            },
           ),
           _BottomSegmentButton(
             label: 'Live',

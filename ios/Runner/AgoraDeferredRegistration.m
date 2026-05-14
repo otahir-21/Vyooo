@@ -15,12 +15,22 @@
 
 @implementation AgoraDeferredRegistration
 
+/// Idempotent: `GeneratedPluginRegistrant` may still register Agora/Iris at launch if the
+/// strip script did not run for that build (ordering, `flutter run` edge cases, or a stale
+/// registrant). Calling `registrarForPlugin:` when the key already exists throws
+/// `NSInternalInconsistencyException` ("Duplicate plugin key"). Skip any plugin already
+/// present via `hasPlugin:` (FlutterEngine sets the key when registration completes).
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry> *)registry {
-  static dispatch_once_t onceToken;
-  dispatch_once(&onceToken, ^{
-    [AgoraRtcNgPlugin registerWithRegistrar:[registry registrarForPlugin:@"AgoraRtcNgPlugin"]];
-    [IrisMethodChannelPlugin registerWithRegistrar:[registry registrarForPlugin:@"IrisMethodChannelPlugin"]];
-  });
+  static NSString *const kAgoraKey = @"AgoraRtcNgPlugin";
+  static NSString *const kIrisKey = @"IrisMethodChannelPlugin";
+  @synchronized([AgoraDeferredRegistration class]) {
+    if (![registry hasPlugin:kAgoraKey]) {
+      [AgoraRtcNgPlugin registerWithRegistrar:[registry registrarForPlugin:kAgoraKey]];
+    }
+    if (![registry hasPlugin:kIrisKey]) {
+      [IrisMethodChannelPlugin registerWithRegistrar:[registry registrarForPlugin:kIrisKey]];
+    }
+  }
 }
 
 @end

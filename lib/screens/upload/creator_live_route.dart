@@ -11,23 +11,42 @@ import 'creator_live_screen.dart' deferred as creator;
 Future<void> openCreatorLiveScreen(BuildContext context) async {
   final subCtrl = context.read<SubscriptionController>();
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  final canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
+
+  Future<void> pushCreatorLive() async {
+    await registerDeferredAgoraPluginsIfNeeded();
+    await creator.loadLibrary();
+    if (!context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => creator.CreatorLiveScreen(),
+      ),
+    );
+  }
+
+  var canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
   if (!context.mounted) return;
   if (!canGoLive) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
+    final subscribed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
         builder: (_) => const SubscriptionScreen(),
       ),
     );
-    return;
+    if (!context.mounted) return;
+    if (subscribed != true) return;
+    canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
+    if (!context.mounted) return;
+    if (!canGoLive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Subscription is still activating. Try Live again in a moment.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
   }
 
-  await registerDeferredAgoraPluginsIfNeeded();
-  await creator.loadLibrary();
-  if (!context.mounted) return;
-  await Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => creator.CreatorLiveScreen(),
-    ),
-  );
+  await pushCreatorLive();
 }

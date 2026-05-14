@@ -2,6 +2,9 @@
 # Defer Agora + Iris registration until Dart calls registerAgora (live flows),
 # so cold start avoids loading those native plugins too early.
 #
+# AgoraDeferredRegistration.m also guards duplicate registration (hasPlugin) if this
+# script did not strip lines for a given build artifact.
+#
 # Note: Physical iPhone + Debug (JIT) + Agora can still hit DartWorker crashes
 # during live calls — use `flutter run --profile` or scheme Runner-Device-Profile
 # when testing camera/live. Debug must embed Agora frameworks or dyld fails with

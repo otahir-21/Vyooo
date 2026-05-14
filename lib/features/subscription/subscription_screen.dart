@@ -43,7 +43,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     if (!mounted) return;
     if (isPaid) {
       setState(() => _closingForActivePlan = true);
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
       return;
     }
     await _loadOfferings();
@@ -84,7 +84,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     }
     final selectedTier = _selectedTierFromIndex(selectedIndex);
     if (controller.currentTier == selectedTier) {
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
       return;
     }
     try {
@@ -97,7 +97,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Subscription activated! Welcome 🎉')),
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
       }
     } catch (_) {
       if (!mounted) return;
@@ -120,6 +120,17 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         _offerings = results;
         _fetchingOfferings = false;
       });
+    }
+  }
+
+  Future<void> _onRestorePressed(SubscriptionController controller) async {
+    await controller.restorePurchases();
+    if (!mounted) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final paid = await controller.reconcilePaidStatus(firebaseUid: uid);
+    if (!mounted) return;
+    if (paid) {
+      Navigator.of(context).pop(true);
     }
   }
 
@@ -205,7 +216,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                         children: [
                           if (widget.showRestoreButton)
                             TextButton(
-                              onPressed: () => controller.restorePurchases(),
+                              onPressed: () => _onRestorePressed(controller),
                               child: const Text(
                                 'Restore',
                                 style: TextStyle(
@@ -217,7 +228,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                           else
                             const SizedBox.shrink(),
                           IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
+                            onPressed: () => Navigator.of(context).pop(false),
                             icon: const Icon(Icons.close, color: Colors.white),
                           ),
                         ],
