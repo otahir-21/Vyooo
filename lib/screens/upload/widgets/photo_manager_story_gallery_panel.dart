@@ -7,6 +7,7 @@ import 'package:photo_manager/photo_manager.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../all_albums_screen.dart';
+import '../photo_gallery_permission.dart';
 
 /// In-app gallery matching [UploadScreen] Post flow: album menu + 3-column grid.
 ///
@@ -39,13 +40,15 @@ class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGallery
   List<AssetEntity> _assets = [];
   bool _loading = true;
   String? _permissionError;
-  PermissionState? _lastPhotoPermission;
   AssetPathEntity? _pathOverride;
 
   /// Selection order for multi-photo (indices into [_assets]).
   final List<int> _selectedImageIndexes = [];
   int? _selectedVideoIndex;
   bool _submitting = false;
+
+  /// Ignores stale [setState] when [_loadGallery] is invoked concurrently.
+  int _galleryLoadGeneration = 0;
 
   int get _remainingPhotoSlots => (10 - widget.existingPhotoCount).clamp(0, 10);
 
@@ -103,13 +106,15 @@ class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGallery
   }
 
   Future<void> _loadGallery() async {
+    final gen = ++_galleryLoadGeneration;
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _permissionError = null;
     });
     try {
-      final perm = await PhotoManager.requestPermissionExtend();
-      _lastPhotoPermission = perm;
+      final perm = await requestGalleryReadAccess();
+      if (!mounted || gen != _galleryLoadGeneration) return;
       if (!perm.hasAccess) {
         setState(() {
           _loading = false;
@@ -122,18 +127,17 @@ class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGallery
         type: RequestType.common,
         hasAll: true,
       );
-      if (!mounted) return;
+      if (!mounted || gen != _galleryLoadGeneration) return;
       setState(() {
         _paths = paths;
         _loading = false;
       });
       await _loadAssetsForCurrentPath();
     } catch (e) {
-      if (mounted) {
+      if (mounted && gen == _galleryLoadGeneration) {
         setState(() {
           _loading = false;
           _permissionError = e.toString();
-          _lastPhotoPermission = null;
         });
       }
     }
@@ -378,8 +382,6 @@ class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGallery
     }
 
     if (_permissionError != null) {
-      final needsSettings = _lastPhotoPermission == PermissionState.denied ||
-          _lastPhotoPermission == PermissionState.restricted;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -394,41 +396,48 @@ class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGallery
                   fontSize: 15,
                 ),
               ),
-              if (needsSettings) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'If you already tapped Don\'t Allow, use Settings to enable Photos access, then return here.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Tap Try again to show the system prompt. If nothing changes, '
+                'use Open Settings and allow Photos or media access for Vyooo, '
+                'then return here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  fontSize: 13,
+                  height: 1.35,
                 ),
-              ],
+              ),
               const SizedBox(height: AppSpacing.lg),
-              if (needsSettings)
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                  onPressed: () => PhotoManager.openSetting(),
-                  child: const Text(
-                    'Open Settings',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  minimumSize: const Size(200, 48),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
                   ),
                 ),
-              if (needsSettings) const SizedBox(height: AppSpacing.sm),
-              TextButton(
-                onPressed: _loadGallery,
+                onPressed: openGalleryRelatedAppSettings,
                 child: const Text(
-                  'Retry',
-                  style: TextStyle(color: Colors.white),
+                  'Open Settings',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(200, 48),
+                ),
+                onPressed: _loading ? null : _loadGallery,
+                child: const Text(
+                  'Try again',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

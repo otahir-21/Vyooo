@@ -1782,7 +1782,7 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
         const Divider(color: Colors.white24, height: 1, thickness: 0.8),
         const SizedBox(height: 8),
         Text(
-          'All content must be categorized for better search experience.',
+          'Adding a category helps others find your content in search.',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.45),
             fontSize: 11,
@@ -1843,7 +1843,7 @@ class _LiveSettingsSheetState extends State<_LiveSettingsSheet> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tags are visible by others and are used to make you discoverable on vyoo.',
+          'Tags are visible by others and are used to make you discoverable on Vyooo.',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.45),
             fontSize: 11,

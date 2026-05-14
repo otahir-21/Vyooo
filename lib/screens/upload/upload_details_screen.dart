@@ -741,7 +741,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'All content must be categorized for better search experience.',
+          'Adding a category helps others find your content in search.',
           style: TextStyle(color: Colors.white38, fontSize: 11),
         ),
       ],
