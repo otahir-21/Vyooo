@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
@@ -15,8 +14,9 @@ import '../../core/models/story_model.dart';
 import '../../core/services/story_service.dart';
 import '../../core/utils/story_video_splitter.dart';
 import '../../screens/upload/creator_live_route.dart';
-
-enum _Tab { story, gallery, live }
+import '../../screens/upload/upload_screen.dart';
+import '../../screens/upload/widgets/photo_manager_story_gallery_panel.dart';
+import '../../screens/upload/widgets/upload_create_bottom_bar.dart';
 
 /// Story camera: still capture vs video recording (same pipeline as gallery video).
 enum _StoryCameraMode { photo, video }
@@ -43,10 +43,8 @@ class _StoryImageEdit {
   }
 }
 
-/// Story upload (Figma): camera + Story/Gallery/Live tabs, caption + Post,
-/// multi-image strip, camera **Photo / Video** modes, gallery photos + one video.
-/// Gallery uses the system photo picker (`pickMultiImage`) for photos; video uses
-/// gallery pick or camera recording, then FFmpeg splits clips longer than 60s.
+/// Story upload: camera + **Story | Post | Live** bottom bar (same as + upload hub),
+/// multi-image strip, **Photo / Video** modes, library via in-app [PhotoManager] grid.
 class StoryUploadScreen extends StatefulWidget {
   const StoryUploadScreen({super.key});
 
@@ -68,8 +66,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   Timer? _recordTicker;
   Timer? _recordMaxTimer;
 
-  _Tab _tab = _Tab.story;
-
   List<File> _images = [];
   List<_StoryImageEdit> _imageEdits = [];
   int _previewIdx = 0;
@@ -77,8 +73,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   List<File> _videoStorySegments = [];
   final _captionCtrl = TextEditingController();
   bool _uploading = false;
-
-  final _picker = ImagePicker();
 
   static const Map<_StoryFilter, String> _filterLabels = <_StoryFilter, String>{
     _StoryFilter.normal: 'Normal',
@@ -142,7 +136,9 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
         }
         break;
       case AppLifecycleState.resumed:
-        if (_tab == _Tab.story && _images.isEmpty && !_camPermDenied) {
+        if (_images.isEmpty &&
+            _videoStorySegments.isEmpty &&
+            !_camPermDenied) {
           _initCamera();
         }
         break;
@@ -394,55 +390,82 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     }
   }
 
-  /// System picker: **images only** (OS gallery in photo mode — not a video grid in-app).
+  /// Same in-app library grid as upload Post (+): [PhotoManagerStoryGalleryPanel].
   Future<void> _pickFromLibrary({required bool append}) async {
-    final list = await _picker.pickMultiImage(imageQuality: 85);
-    if (!mounted || list.isEmpty) return;
-
-    final maxAdd = append ? (10 - _images.length).clamp(0, 10) : 10;
-    if (maxAdd <= 0) {
+    final existing = append ? _images.length : 0;
+    if (append && existing >= 10) {
       _showSnack('You can add up to 10 photos.');
       return;
     }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (ctx) => Scaffold(
+          backgroundColor: Colors.black,
+          body: PhotoManagerStoryGalleryPanel(
+            existingPhotoCount: existing,
+            onBack: () => Navigator.of(ctx).pop(),
+            onImagesPicked: (files) async {
+              final ok = await _applyPickedStoryImages(files, append: append);
+              if (ctx.mounted && ok) Navigator.of(ctx).pop();
+            },
+            onVideoPicked: (file) async {
+              await _ingestVideoFile(file);
+              if (ctx.mounted && _videoStorySegments.isNotEmpty) {
+                Navigator.of(ctx).pop();
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
-    final files = <File>[];
-    for (final x in list) {
-      if (files.length >= maxAdd) break;
-      if (!_isImagePath(x.path)) continue;
-      files.add(File(x.path));
+  Future<bool> _applyPickedStoryImages(
+    List<File> files, {
+    required bool append,
+  }) async {
+    if (!mounted) return false;
+    final maxAdd = append ? (10 - _images.length).clamp(0, 10) : 10;
+    if (maxAdd <= 0) {
+      _showSnack('You can add up to 10 photos.');
+      return false;
     }
 
-    if (files.isEmpty) {
-      if (mounted) {
-        _showSnack('Only photos can be used in stories.');
-      }
-      return;
+    final picked = <File>[];
+    for (final f in files) {
+      if (picked.length >= maxAdd) break;
+      if (!_isImagePath(f.path)) continue;
+      picked.add(f);
     }
 
-    if (mounted) {
-      setState(() {
-        _videoStorySegments = [];
-        if (append) {
-          final prevLen = _images.length;
-          _images = [..._images, ...files];
-          _imageEdits = [
-            ..._imageEdits,
-            ...List<_StoryImageEdit>.generate(
-              _images.length - prevLen,
-              (_) => const _StoryImageEdit(),
-            ),
-          ];
-          _previewIdx = _images.length - 1;
-        } else {
-          _images = files;
-          _imageEdits = List<_StoryImageEdit>.generate(
-            files.length,
+    if (picked.isEmpty) {
+      _showSnack('Only photos can be used in stories.');
+      return false;
+    }
+
+    setState(() {
+      _videoStorySegments = [];
+      if (append) {
+        final prevLen = _images.length;
+        _images = [..._images, ...picked];
+        _imageEdits = [
+          ..._imageEdits,
+          ...List<_StoryImageEdit>.generate(
+            _images.length - prevLen,
             (_) => const _StoryImageEdit(),
-          );
-          _previewIdx = 0;
-        }
-      });
-    }
+          ),
+        ];
+        _previewIdx = _images.length - 1;
+      } else {
+        _images = picked;
+        _imageEdits = List<_StoryImageEdit>.generate(
+          picked.length,
+          (_) => const _StoryImageEdit(),
+        );
+        _previewIdx = 0;
+      }
+    });
+    return true;
   }
 
   Future<int> _videoDurationMs(File f) async {
@@ -453,12 +476,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     } finally {
       await c.dispose();
     }
-  }
-
-  Future<void> _pickVideoForStory() async {
-    final x = await _picker.pickVideo(source: ImageSource.gallery);
-    if (!mounted || x == null) return;
-    await _ingestVideoFile(File(x.path));
   }
 
   Future<void> _post() async {
@@ -855,30 +872,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     return lines;
   }
 
-  void _onTabChanged(_Tab tab) {
-    if (tab == _Tab.live) {
-      openCreatorLiveScreen(context);
-      return;
-    }
-    setState(() => _tab = tab);
-    if (tab == _Tab.gallery) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            _tab == _Tab.gallery &&
-            _images.isEmpty &&
-            _videoStorySegments.isEmpty) {
-          _pickFromLibrary(append: false);
-        }
-      });
-    } else if (tab == _Tab.story && _images.isEmpty && !_camPermDenied) {
-      // Picker / app switch disposes the camera; resume + tab switch must reopen preview.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _tab != _Tab.story || _images.isNotEmpty) return;
-        if (!_cameraHealthy()) _initCamera();
-      });
-    }
-  }
-
   String _formatRecordDuration(Duration d) {
     final m = d.inMinutes;
     final s = d.inSeconds.remainder(60);
@@ -902,127 +895,26 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
   Widget build(BuildContext context) {
     if (_videoStorySegments.isNotEmpty) return _buildVideoPostPreview();
     if (_images.isNotEmpty) return _buildPreview();
-    if (_tab == _Tab.gallery) return _buildGalleryPickerChrome();
     return _buildCameraView();
   }
 
-  // ── Gallery = story chrome + system picker (no grid) ────────────────────
-
-  Widget _buildGalleryPickerChrome() {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: Image.asset(
-                      'assets/vyooO_icons/Home/chevron_left.png',
-                      width: 22,
-                      height: 22,
-                      color: Colors.white,
-                    ),
-                    onPressed: () => setState(() => _tab = _Tab.story),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Photos',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/vyooO_icons/Upload_Story_Live/gallery.png',
-                      width: 72,
-                      height: 72,
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Choose media for your story',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Photos (up to 10) or one gallery video. Videos longer than 60s are split into multiple stories.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 14,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFDE106B),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        onPressed: () => _pickFromLibrary(append: false),
-                        child: const Text(
-                          'Open photo library',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white38),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        onPressed: _uploading ? null : _pickVideoForStory,
-                        child: const Text(
-                          'Pick one video',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(56, 8, 56, 20),
-              child: _buildTabBar(),
-            ),
-          ],
-        ),
-      ),
+  /// Same **Story | Post | Live** row as [UploadScreen] (+ hub).
+  Widget _buildUploadCreateBottomBar() {
+    return UploadCreateBottomBar(
+      selectedSegment: 0,
+      onStoryTap: () {
+        if (_images.isNotEmpty || _videoStorySegments.isNotEmpty) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted ||
+              _images.isNotEmpty ||
+              _videoStorySegments.isNotEmpty) {
+            return;
+          }
+          if (!_cameraHealthy()) _initCamera();
+        });
+      },
+      onPostTap: () => UploadScreen.openPostHub(context),
+      onLiveTap: () => openCreatorLiveScreen(context),
     );
   }
 
@@ -1145,6 +1037,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                   ),
                 ],
               ),
+            ),
+            SafeArea(
+              top: false,
+              child: _buildUploadCreateBottomBar(),
             ),
           ],
         ),
@@ -1399,8 +1295,11 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(56, 0, 56, 20),
-                  child: _buildTabBar(),
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: SafeArea(
+                    top: false,
+                    child: _buildUploadCreateBottomBar(),
+                  ),
                 ),
               ],
             ),
@@ -1583,7 +1482,6 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                           _imageEdits.clear();
                           _previewIdx = 0;
                           _captionCtrl.clear();
-                          _tab = _Tab.story;
                         }),
                       ),
                       const SizedBox(width: 8),
@@ -1620,54 +1518,14 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     ],
                   ),
                 ),
+                SafeArea(
+                  top: false,
+                  child: _buildUploadCreateBottomBar(),
+                ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          _tabItem('Story', _Tab.story),
-          _tabItem('Gallery', _Tab.gallery),
-          _tabItem('Live', _Tab.live),
-        ],
-      ),
-    );
-  }
-
-  Widget _tabItem(String label, _Tab tab) {
-    final isSelected = _tab == tab;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onTabChanged(tab),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFDE106B) : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -15,6 +15,9 @@ import '../../core/services/live_stream_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../features/story/story_upload_screen.dart';
+import 'upload_screen.dart';
+import 'widgets/upload_create_bottom_bar.dart';
 
 // ── State enum ─────────────────────────────────────────────────────────────────
 
@@ -433,6 +436,28 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  /// Same **Story | Post | Live** row as [UploadScreen] (+ hub); Live is selected here.
+  Widget _createHubBottomBar() {
+    return UploadCreateBottomBar(
+      selectedSegment: 2,
+      onStoryTap: () {
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute<void>(
+            builder: (_) => const StoryUploadScreen(),
+          ),
+        );
+      },
+      onPostTap: () {
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute<void>(
+            builder: (_) => const UploadScreen(initialBottomSegment: 1),
+          ),
+        );
+      },
+      onLiveTap: () {},
+    );
+  }
+
   void _showToast(String msg) {
     setState(() => _toast = msg);
     _toastTimer?.cancel();
@@ -508,44 +533,55 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
 
   Widget _buildPermissionDenied() {
     return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.videocam_off_rounded,
-                color: Colors.white54,
-                size: 64,
+      child: Stack(
+        children: [
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.videocam_off_rounded,
+                    color: Colors.white54,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Camera & microphone access is required to go live.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _GradientButton(
+                    label: 'Open Settings',
+                    icon: Icons.settings_rounded,
+                    onTap: () => openAppSettings(),
+                  ),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Camera & microphone access is required to go live.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _GradientButton(
-                label: 'Open Settings',
-                icon: Icons.settings_rounded,
-                onTap: () => openAppSettings(),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _createHubBottomBar(),
+          ),
+        ],
       ),
     );
   }
@@ -669,8 +705,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                     isWhite: true,
                   ),
                 ),
-                const _LiveSegmentBar(),
-                const SizedBox(height: 10),
+                _createHubBottomBar(),
               ],
             ),
           ),
@@ -743,43 +778,49 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 100,
-              color: const Color(0xFF490038), // brandPurple/Plum bar
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Center(
-                child: GestureDetector(
-                  onTap: _cancelCountdown,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.close, color: Colors.white, size: 16),
-                        SizedBox(width: 8),
-                        Text(
-                          'Cancel',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _createHubBottomBar(),
+                Container(
+                  height: 100,
+                  color: const Color(0xFF490038), // brandPurple/Plum bar
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: _cancelCountdown,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.1),
                           ),
                         ),
-                      ],
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.close, color: Colors.white, size: 16),
+                            SizedBox(width: 8),
+                            Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
@@ -899,27 +940,39 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                 ),
               ),
             ),
-          // Bottom: chat + input + end button
+          // Bottom: chat + input + end button (inset) + create hub bar (full bleed, matches + Post)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildChatList(),
-                  const SizedBox(height: 8),
-                  _buildCommentRow(likes, viewers),
-                  const SizedBox(height: 10),
-                  _buildEndStreamButton(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildChatList(),
+                        const SizedBox(height: 8),
+                        _buildCommentRow(likes, viewers),
+                        const SizedBox(height: 10),
+                        _buildEndStreamButton(),
+                      ],
+                    ),
+                  ),
+                  _createHubBottomBar(),
                 ],
               ),
             ),
@@ -1239,89 +1292,6 @@ class _GradientButton extends StatelessWidget {
                 color: isWhite ? Colors.black : Colors.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LiveSegmentBar extends StatelessWidget {
-  const _LiveSegmentBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: const Color(0xFF490038), // brandPurple/Plum color from AppColors
-      padding: const EdgeInsets.only(top: 12, bottom: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _SegBtn(
-            label: 'Post',
-            icon: Icons.grid_view_rounded,
-            selected: false,
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: 20),
-          _SegBtn(
-            label: 'Videos',
-            icon: Icons.video_library_outlined,
-            selected: false,
-            onTap: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: 20),
-          const _SegBtn(
-            label: 'Live',
-            icon: Icons.sensors_rounded,
-            selected: true,
-            onTap: null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegBtn extends StatelessWidget {
-  const _SegBtn({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? Colors.white : Colors.white.withValues(alpha: 0.5);
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brandPink : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],

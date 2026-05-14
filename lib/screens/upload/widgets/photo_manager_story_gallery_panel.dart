@@ -1,60 +1,55 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-import '../../core/theme/app_gradients.dart';
-import '../../core/theme/app_spacing.dart';
-import 'all_albums_screen.dart';
-import '../../features/story/story_upload_screen.dart';
-import 'creator_live_route.dart';
-import 'upload_photo_preview_screen.dart';
-import 'upload_video_preview_screen.dart';
-import 'widgets/upload_create_bottom_bar.dart';
+import '../../../core/theme/app_gradients.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../all_albums_screen.dart';
 
-/// Upload screen for subscribers: media grid from gallery, album dropdown, Story / Post / Live actions.
-/// Opened from bottom nav plus; standard users are redirected to membership instead.
+/// In-app gallery matching [UploadScreen] Post flow: album menu + 3-column grid.
 ///
-/// Defaults to **Post** so the gallery (or permission flow) starts immediately — no extra tap
-/// through instructional copy. Story / Live use the bottom actions only.
-class UploadScreen extends StatefulWidget {
-  const UploadScreen({
+/// Story rules: multi-select **photos** (up to [remainingPhotoSlots]) or **one video**
+/// when [existingPhotoCount] is 0. Append mode ([existingPhotoCount] > 0) is images only.
+class PhotoManagerStoryGalleryPanel extends StatefulWidget {
+  const PhotoManagerStoryGalleryPanel({
     super.key,
-    this.initialBottomSegment = 1,
+    required this.existingPhotoCount,
+    required this.onImagesPicked,
+    required this.onVideoPicked,
+    required this.onBack,
   });
 
-  /// `0` Story, `1` Post (gallery), `2` Live — used when opening from Story/Live hub bar.
-  final int initialBottomSegment;
-
-  /// Opens the Post (gallery) hub without pulling [StoryUploadScreen] into this library’s import graph.
-  static void openPostHub(BuildContext context) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const UploadScreen(initialBottomSegment: 1),
-      ),
-    );
-  }
+  /// Photos already in the editor; append picks may add at most `10 - this`.
+  final int existingPhotoCount;
+  final Future<void> Function(List<File> files) onImagesPicked;
+  final Future<void> Function(File file) onVideoPicked;
+  final VoidCallback onBack;
 
   @override
-  State<UploadScreen> createState() => _UploadScreenState();
+  State<PhotoManagerStoryGalleryPanel> createState() =>
+      _PhotoManagerStoryGalleryPanelState();
 }
 
-class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver {
+class _PhotoManagerStoryGalleryPanelState extends State<PhotoManagerStoryGalleryPanel>
+    with WidgetsBindingObserver {
   String _selectedAlbum = 'Recents';
-  int? _selectedIndex;
-  /// 0 Story (opens separate screen from bar), 1 Post (gallery), 2 Live.
-  late int _bottomSegment;
-
   List<AssetPathEntity> _paths = [];
   List<AssetEntity> _assets = [];
-  /// Start true: first frame is spinner until [_loadGallery] resolves (avoids a flash of
-  /// "No photos or videos" before the first fetch).
   bool _loading = true;
   String? _permissionError;
   PermissionState? _lastPhotoPermission;
-
-  /// When user picks an album from All Albums screen.
   AssetPathEntity? _pathOverride;
+
+  /// Selection order for multi-photo (indices into [_assets]).
+  final List<int> _selectedImageIndexes = [];
+  int? _selectedVideoIndex;
+  bool _submitting = false;
+
+  int get _remainingPhotoSlots => (10 - widget.existingPhotoCount).clamp(0, 10);
+
+  bool get _appendMode => widget.existingPhotoCount > 0;
 
   AssetPathEntity? get _currentPath {
     if (_pathOverride != null) return _pathOverride;
@@ -66,7 +61,7 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
             .toList();
         return list.isNotEmpty ? list.first : _paths.first;
       case 'All Albums':
-        return _paths.first; // fallback "All" / root
+        return _paths.first;
       case 'Recents':
       default:
         final list = _paths.where((p) {
@@ -86,11 +81,9 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
   @override
   void initState() {
     super.initState();
-    _bottomSegment = widget.initialBottomSegment.clamp(0, 2);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (_bottomSegment == 1) _loadGallery();
+      if (mounted) _loadGallery();
     });
   }
 
@@ -104,17 +97,12 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed &&
         mounted &&
-        _bottomSegment == 1 &&
         _permissionError != null) {
       _loadGallery();
     }
   }
 
   Future<void> _loadGallery() async {
-    if (_bottomSegment != 1) {
-      if (mounted) setState(() => _loading = false);
-      return;
-    }
     setState(() {
       _loading = true;
       _permissionError = null;
@@ -164,7 +152,8 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
       setState(() {
         _assets = media;
         _loading = false;
-        _selectedIndex = null;
+        _selectedImageIndexes.clear();
+        _selectedVideoIndex = null;
       });
     } catch (e) {
       if (mounted) {
@@ -176,27 +165,114 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
     }
   }
 
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _onCellTap(int index) {
+    if (index < 0 || index >= _assets.length) return;
+    final entity = _assets[index];
+    if (_isVideoAsset(entity)) {
+      if (_appendMode) {
+        _showSnack('Add more photos only here, or clear photos to pick a video.');
+        return;
+      }
+      if (_selectedImageIndexes.isNotEmpty) {
+        _showSnack('Deselect photos to choose a video.');
+        return;
+      }
+      setState(() {
+        _selectedVideoIndex = _selectedVideoIndex == index ? null : index;
+      });
+      return;
+    }
+
+    if (_selectedVideoIndex != null) {
+      setState(() => _selectedVideoIndex = null);
+    }
+    setState(() {
+      final i = _selectedImageIndexes.indexOf(index);
+      if (i >= 0) {
+        _selectedImageIndexes.removeAt(i);
+      } else {
+        if (_selectedImageIndexes.length >= _remainingPhotoSlots) {
+          _showSnack(
+            _appendMode
+                ? 'You can add up to $_remainingPhotoSlots more photo(s).'
+                : 'You can select up to 10 photos.',
+          );
+          return;
+        }
+        _selectedImageIndexes.add(index);
+      }
+    });
+  }
+
+  Future<void> _onNext() async {
+    if (_submitting) return;
+    if (_selectedVideoIndex != null) {
+      final entity = _assets[_selectedVideoIndex!];
+      setState(() => _submitting = true);
+      try {
+        final file = await entity.file;
+        if (!mounted) return;
+        if (file == null) {
+          _showSnack('Could not load that video.');
+          setState(() => _submitting = false);
+          return;
+        }
+        await widget.onVideoPicked(file);
+      } finally {
+        if (mounted) setState(() => _submitting = false);
+      }
+      return;
+    }
+
+    if (_selectedImageIndexes.isEmpty) {
+      _showSnack('Select photo(s) or one video');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final files = <File>[];
+      for (final i in _selectedImageIndexes) {
+        final entity = _assets[i];
+        if (_isVideoAsset(entity)) continue;
+        final file = await entity.file;
+        if (file != null) files.add(file);
+      }
+      if (!mounted) return;
+      if (files.isEmpty) {
+        _showSnack('Could not load the selected photos.');
+        setState(() => _submitting = false);
+        return;
+      }
+      await widget.onImagesPicked(files);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.premiumDarkGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(child: _buildBody()),
-              _buildBottomBar(),
-            ],
-          ),
+    return Container(
+      decoration: BoxDecoration(gradient: AppGradients.premiumDarkGradient),
+      child: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(child: _buildBody()),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
-    final isPost = _bottomSegment == 1;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
@@ -208,93 +284,60 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
           Align(
             alignment: Alignment.centerLeft,
             child: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: widget.onBack,
               icon: Image.asset(
-                'assets/vyooO_icons/Search/close.png',
-                width: 24,
-                height: 24,
+                'assets/vyooO_icons/Home/chevron_left.png',
+                width: 22,
+                height: 22,
                 color: Colors.white,
               ),
             ),
           ),
-          if (isPost)
-            _AlbumDropdown(
-              value: _selectedAlbum,
-              paths: _paths,
-              onChanged: (v) async {
-                if (v == null) return;
-                if (v == 'All Albums') {
-                  if (_paths.isEmpty) return;
-                  final path = await Navigator.of(context).push<AssetPathEntity>(
-                    MaterialPageRoute<AssetPathEntity>(
-                      builder: (_) => AllAlbumsScreen(paths: _paths),
-                    ),
-                  );
-                  if (!mounted) return;
-                  if (path != null) {
-                    setState(() {
-                      _pathOverride = path;
-                      _selectedAlbum = path.name;
-                    });
-                    await _loadAssetsForCurrentPath();
-                  }
-                  return;
+          _GalleryAlbumPopup(
+            value: _selectedAlbum,
+            paths: _paths,
+            onChanged: (v) async {
+              if (v == null) return;
+              if (v == 'All Albums') {
+                if (_paths.isEmpty) return;
+                final path = await Navigator.of(context).push<AssetPathEntity>(
+                  MaterialPageRoute<AssetPathEntity>(
+                    builder: (_) => AllAlbumsScreen(paths: _paths),
+                  ),
+                );
+                if (!mounted) return;
+                if (path != null) {
+                  setState(() {
+                    _pathOverride = path;
+                    _selectedAlbum = path.name;
+                  });
+                  await _loadAssetsForCurrentPath();
                 }
-                setState(() {
-                  _pathOverride = null;
-                  _selectedAlbum = v;
-                });
-                await _loadAssetsForCurrentPath();
-              },
-            )
-          else
-            Text(
-              _bottomSegment == 2 ? 'Live' : 'Story',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+                return;
+              }
+              setState(() {
+                _pathOverride = null;
+                _selectedAlbum = v;
+              });
+              await _loadAssetsForCurrentPath();
+            },
+          ),
           Align(
             alignment: Alignment.centerRight,
-            child: isPost
-                ? GestureDetector(
-                    onTap: () {
-                      if (_selectedIndex != null &&
-                          _selectedIndex! < _assets.length) {
-                        final selected = _assets[_selectedIndex!];
-                        if (_isVideoAsset(selected)) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  UploadVideoPreviewScreen(asset: selected),
-                            ),
-                          );
-                        } else if (selected.type == AssetType.image) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  UploadPhotoPreviewScreen(asset: selected),
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Unsupported media selected.'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Select photo or video'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    },
+            child: _submitting
+                ? const Padding(
+                    padding: EdgeInsets.only(right: 12),
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  )
+                : GestureDetector(
+                    onTap: _onNext,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -304,7 +347,7 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Next',
                         style: TextStyle(
                           color: Colors.black,
@@ -313,8 +356,7 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
                         ),
                       ),
                     ),
-                  )
-                : const SizedBox(width: 48),
+                  ),
           ),
         ],
       ),
@@ -322,19 +364,19 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
   }
 
   Widget _buildBody() {
-    if (_bottomSegment != 1) {
-      // No "tap below" instructional layer — Story / Live are started from the bottom bar.
-      final icon = _bottomSegment == 0
-          ? Icons.auto_stories_outlined
-          : Icons.live_tv_outlined;
-      return Center(
-        child: Icon(
-          icon,
-          size: 56,
-          color: Colors.white.withValues(alpha: 0.14),
+    if (_appendMode && _remainingPhotoSlots <= 0) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xl),
+          child: Text(
+            'You already have 10 photos.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
         ),
       );
     }
+
     if (_permissionError != null) {
       final needsSettings = _lastPhotoPermission == PermissionState.denied ||
           _lastPhotoPermission == PermissionState.restricted;
@@ -370,7 +412,10 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
                   style: FilledButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   onPressed: () => PhotoManager.openSetting(),
                   child: const Text(
@@ -407,59 +452,58 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
         ),
       );
     }
-    return _buildGrid();
-  }
-
-  Widget _buildGrid() {
-    const spacing = 1.0;
     return GridView.builder(
       padding: EdgeInsets.zero,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: spacing,
-        crossAxisSpacing: spacing,
+        mainAxisSpacing: 1,
+        crossAxisSpacing: 1,
         childAspectRatio: 1,
       ),
       itemCount: _assets.length,
       itemBuilder: (context, index) {
         final entity = _assets[index];
-        final selected = _selectedIndex == index;
+        final isVideo = _isVideoAsset(entity);
+        final vi = _selectedVideoIndex == index;
+        final photoOrder = _selectedImageIndexes.indexOf(index);
+        final selectedPhoto = photoOrder >= 0;
         return GestureDetector(
-          onTap: () => setState(() => _selectedIndex = selected ? null : index),
+          onTap: () => _onCellTap(index),
           child: Stack(
             fit: StackFit.expand,
             children: [
               _GalleryThumbnail(entity: entity),
-              if (_isVideoAsset(entity)) _VideoDuration(entity: entity),
-              if (selected) _SelectedBadge(),
+              if (isVideo) _VideoDuration(entity: entity),
+              if (vi)
+                Container(
+                  color: Colors.black45,
+                  child: const Center(
+                    child: Icon(Icons.check_circle, color: Colors.white, size: 40),
+                  ),
+                )
+              else if (selectedPhoto)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDE106B),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${photoOrder + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
-      },
-    );
-  }
-
-  Widget _buildBottomBar() {
-    return UploadCreateBottomBar(
-      selectedSegment: _bottomSegment,
-      onStoryTap: () {
-        setState(() => _bottomSegment = 0);
-        Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => const StoryUploadScreen(),
-          ),
-        );
-      },
-      onPostTap: () {
-        final wasPost = _bottomSegment == 1;
-        setState(() => _bottomSegment = 1);
-        if (!wasPost || _permissionError != null) {
-          _loadGallery();
-        }
-      },
-      onLiveTap: () {
-        setState(() => _bottomSegment = 2);
-        openCreatorLiveScreen(context);
       },
     );
   }
@@ -527,26 +571,8 @@ class _VideoDuration extends StatelessWidget {
   }
 }
 
-class _SelectedBadge extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: 8,
-      right: 8,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: const BoxDecoration(
-          color: Color(0xFF27AE60),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.check, size: 16, color: Colors.white),
-      ),
-    );
-  }
-}
-
-class _AlbumDropdown extends StatelessWidget {
-  const _AlbumDropdown({
+class _GalleryAlbumPopup extends StatelessWidget {
+  const _GalleryAlbumPopup({
     required this.value,
     required this.paths,
     required this.onChanged,
@@ -620,4 +646,3 @@ class _AlbumDropdown extends StatelessWidget {
     );
   }
 }
-
