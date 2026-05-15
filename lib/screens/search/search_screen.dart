@@ -609,11 +609,13 @@ class SearchScreenState extends State<SearchScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildTabs(),
-        if (_liveStreams.isNotEmpty) ...[
+        if (_selectedTabIndex == 0 && _liveStreams.isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildLiveNowStrip(),
+          const SizedBox(height: 16),
+        ] else ...[
+          const SizedBox(height: 24),
         ],
-        const SizedBox(height: 16),
         Expanded(
           child: _selectedTabIndex == 0
               ? _buildIdleLiveContent()
