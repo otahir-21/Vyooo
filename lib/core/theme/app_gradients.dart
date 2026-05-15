@@ -70,6 +70,21 @@ class AppGradients {
     ],
   );
 
+  /// Other-user profile header — Figma overlay (dark plum top → magenta bottom).
+  static const LinearGradient otherUserProfileBackgroundGradient =
+      LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF0D010D),
+      Color(0xFF1F0818),
+      Color(0xFF450A2E),
+      Color(0xFF750B3C),
+      Color(0xFFB00648),
+    ],
+    stops: [0.0, 0.28, 0.55, 0.78, 1.0],
+  );
+
   /// Subscription plan cards (dark purple to pink).
   static const LinearGradient subscriptionCardGradient = LinearGradient(
     begin: Alignment.topLeft,

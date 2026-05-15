@@ -772,27 +772,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: DecoratedBox(
+            child: const DecoratedBox(
               decoration: BoxDecoration(
-                gradient: AppGradients.mainBackgroundGradient,
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -0.35),
-                    radius: 0.95,
-                    colors: [
-                      _profileAccentMagenta.withValues(alpha: 0.35),
-                      _profileAccentMagenta.withValues(alpha: 0.08),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
-                  ),
-                ),
+                gradient: AppGradients.otherUserProfileBackgroundGradient,
               ),
             ),
           ),
@@ -801,6 +783,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               SliverAppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
+                centerTitle: false,
+                titleSpacing: 0,
+                leadingWidth: 44,
                 leading: IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(
@@ -810,14 +795,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                 ),
                 title: Text(
-                  '@${p.username}',
+                  p.username.replaceAll('@', '').trim(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                centerTitle: true,
                 actions: [
                   IconButton(
                     onPressed: () => _showProfileMenu(context),
