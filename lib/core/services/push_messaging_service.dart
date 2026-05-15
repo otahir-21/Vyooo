@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'local_notification_service.dart';
+import 'notification_preferences_service.dart';
+import '../navigation/push_notification_router.dart';
 import '../../firebase_options.dart';
 
 /// Top-level handler required by [FirebaseMessaging.onBackgroundMessage].
@@ -193,10 +195,23 @@ class PushMessagingService {
     if (kDebugMode) {
       debugPrint('FCM foreground: ${message.notification?.title} ${message.data}');
     }
+    unawaited(_handleForegroundMessage(message));
+  }
+
+  Future<void> _handleForegroundMessage(RemoteMessage message) async {
+    final type = (message.data['type'] ?? '').toString();
+    try {
+      final prefs =
+          await NotificationPreferencesService.instance.getForCurrentUser();
+      if (!prefs.allowsCategoryForType(type)) return;
+    } catch (_) {
+      return;
+    }
+
     final body = message.notification?.body?.trim() ?? '';
     final title = message.notification?.title?.trim() ?? 'Vyooo';
     final text = body.isNotEmpty ? body : 'You have a new notification.';
-    LocalNotificationService.instance.show(title: title, body: text);
+    await LocalNotificationService.instance.show(title: title, body: text);
     unawaited(
       _logDeliveryEvent(
         eventType: 'foreground_received',
@@ -209,6 +224,7 @@ class PushMessagingService {
     if (kDebugMode) {
       debugPrint('FCM opened from background: ${message.data}');
     }
+    PushNotificationRouter.handleMessage(message);
     unawaited(
       _logDeliveryEvent(
         eventType: 'opened_from_notification',
@@ -224,6 +240,7 @@ class PushMessagingService {
       debugPrint('FCM initial message: ${initial.data}');
     }
     if (initial != null) {
+      PushNotificationRouter.handleMessage(initial);
       unawaited(
         _logDeliveryEvent(
           eventType: 'cold_start_open',
@@ -237,6 +254,7 @@ class PushMessagingService {
     required String eventType,
     required RemoteMessage message,
   }) async {
+    if (!kDebugMode) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) return;
     try {

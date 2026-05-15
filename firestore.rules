@@ -10,6 +10,26 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function validNotificationSettingsWrite() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'pushEnabled',
+          'activity',
+          'postsFromFollowing',
+          'live',
+          'subscriptions',
+          'recommended',
+          'updatedAt',
+        ])
+        && d.pushEnabled is bool
+        && d.activity is bool
+        && d.postsFromFollowing is bool
+        && d.live is bool
+        && d.subscriptions is bool
+        && d.recommended is bool
+        && d.updatedAt is timestamp;
+    }
+
     // Merge updates must not change follower count; [==] fails when the field is
     // missing on legacy docs or when numeric types differ slightly.
     function followersCountUnchanged() {
@@ -464,6 +484,15 @@ service cloud.firestore {
     // FCM device tokens (one doc per device; Cloud Functions read to send pushes).
     match /users/{userId}/push_tokens/{docId} {
       allow read, write, delete: if isOwner(userId);
+    }
+
+    // Notification category preferences (owner only; Functions read via Admin SDK).
+    match /users/{userId}/settings/{settingId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+                            && settingId == 'notifications'
+                            && validNotificationSettingsWrite();
+      allow delete: if isOwner(userId) && settingId == 'notifications';
     }
 
     // Per-user chat summaries (Cloud Functions manage most writes).

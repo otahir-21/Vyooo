@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/notification_preferences.dart';
 import 'local_notification_service.dart';
+import 'notification_preferences_service.dart';
 
 class InAppNotificationAlertService {
   InAppNotificationAlertService._();
@@ -10,17 +13,22 @@ class InAppNotificationAlertService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
+  StreamSubscription<NotificationPreferences>? _prefsSub;
   String? _uid;
   bool _primed = false;
   final Set<String> _shownIds = <String>{};
   final List<String> _pendingTexts = <String>[];
   bool _showingBanner = false;
+  NotificationPreferences _prefs = const NotificationPreferences();
 
   void startForUser(String uid) {
     if (uid.isEmpty) return;
     if (_uid == uid && _sub != null) return;
     stop();
     _uid = uid;
+    _prefsSub = NotificationPreferencesService.instance
+        .watchForCurrentUser()
+        .listen((prefs) => _prefs = prefs);
     _sub = _db
         .collection('notifications')
         .where('recipientId', isEqualTo: uid)
@@ -32,11 +40,14 @@ class InAppNotificationAlertService {
   void stop() {
     _sub?.cancel();
     _sub = null;
+    _prefsSub?.cancel();
+    _prefsSub = null;
     _uid = null;
     _primed = false;
     _shownIds.clear();
     _pendingTexts.clear();
     _showingBanner = false;
+    _prefs = const NotificationPreferences();
   }
 
   void _onSnapshot(QuerySnapshot<Map<String, dynamic>> snap) {
@@ -48,7 +59,10 @@ class InAppNotificationAlertService {
       if (change.type != DocumentChangeType.added) continue;
       final id = change.doc.id;
       if (_shownIds.contains(id)) continue;
-      final text = _textFromData(change.doc.data() ?? const <String, dynamic>{});
+      final data = change.doc.data() ?? const <String, dynamic>{};
+      final type = ((data['type'] as String?) ?? '').trim();
+      if (!_prefs.allowsCategoryForType(type)) continue;
+      final text = _textFromData(data);
       if (text.isEmpty) continue;
       _shownIds.add(id);
       _pendingTexts.add(text);

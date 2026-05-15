@@ -10,6 +10,10 @@ import {
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import { RtcTokenBuilder, RtcRole } from 'agora-access-token';
+import {
+  loadNotificationPrefs,
+  shouldSendPushForType,
+} from './notification_preferences';
 
 admin.initializeApp();
 
@@ -1401,6 +1405,21 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
         ? `${actor} ${data.message.trim()}`
         : `${actor} sent you a notification`;
     const type = typeof data.type === 'string' ? data.type.trim() : 'notification';
+
+    const prefs = await loadNotificationPrefs(admin.firestore(), recipientId);
+    if (!shouldSendPushForType(prefs, type)) {
+      await snap.ref.set(
+        {
+          pushDelivery: {
+            status: 'suppressed_preferences',
+            type,
+            attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        { merge: true },
+      );
+      return;
+    }
 
     const tokenSnap = await admin
       .firestore()
