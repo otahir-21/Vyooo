@@ -22,6 +22,7 @@ import '../../features/vr/vr_player_screen.dart';
 import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
 import '../profile/user_profile_screen.dart';
+import '../upload/creator_live_route.dart';
 
 /// Search tab: search bar, Live/VR/Camera tabs, Ongoing Now & Recommended sections.
 /// Matches Figma: search field + # button, pink gradient active tab, live cards.
@@ -294,8 +295,26 @@ class SearchScreenState extends State<SearchScreen>
         .toList();
   }
 
+  bool get _isLiveDiscoverEmpty => _liveStreams.isEmpty;
+
+  static const int _liveSectionViewAllMinItems = 4;
+
   List<_LiveCardItem> get _dynamicLiveItems =>
       _liveStreams.map(_toLiveCardItem).toList(growable: false);
+
+  Future<void> _refreshLiveTab() async {
+    await _refreshLiveHostProfiles(_liveStreams);
+    _ensureUsersLoaded();
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+  }
+
+  void _selectSearchTab(int index) {
+    final safe = index.clamp(0, _tabs.length - 1);
+    setState(() {
+      _selectedTabIndex = safe;
+      _lastSelectedTabIndex = safe;
+    });
+  }
 
   List<_LiveCardItem> get _dynamicRecommendedItems {
     final items = List<_LiveCardItem>.from(_dynamicLiveItems);
@@ -643,22 +662,212 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildIdleLiveContent() {
-    return ListView(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-      children: [
-        _buildLiveNowSection(),
-        const SizedBox(height: AppSpacing.xl),
-        _buildSection(
-          'Recommended For you',
-          _dynamicRecommendedItems,
-          showViewAll: true,
+    if (_isLiveDiscoverEmpty) {
+      _ensureUsersLoaded();
+      return RefreshIndicator(
+        color: AppColors.brandMagenta,
+        onRefresh: _refreshLiveTab,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          children: [
+            _buildLiveDiscoverEmptyState(),
+            if (_allUsers.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xl),
+              _buildDiscoverCreatorsPrompt(),
+            ],
+          ],
         ),
-        const SizedBox(height: AppSpacing.xl),
-        _buildLiveCategoriesSection(),
-        const SizedBox(height: AppSpacing.xl),
-        _buildTopCreatorsSection(),
-        const SizedBox(height: AppSpacing.xl),
-        _buildSection('Explore More', _dynamicExploreItems, showViewAll: true),
+      );
+    }
+
+    final recommended = _dynamicRecommendedItems;
+    final explore = _dynamicExploreItems;
+    final categories = _dynamicCategoryItems;
+    final creators = _dynamicCreatorItems;
+
+    return RefreshIndicator(
+      color: AppColors.brandMagenta,
+      onRefresh: _refreshLiveTab,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+        children: [
+          _buildLiveNowSection(),
+          if (recommended.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _buildSection(
+              'Recommended For you',
+              recommended,
+              showViewAll: recommended.length >= _liveSectionViewAllMinItems,
+            ),
+          ],
+          if (categories.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _buildLiveCategoriesSection(),
+          ],
+          if (creators.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _buildTopCreatorsSection(),
+          ],
+          if (explore.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.xl),
+            _buildSection(
+              'Explore More',
+              explore,
+              showViewAll: explore.length >= _liveSectionViewAllMinItems,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveDiscoverEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.sensors_rounded,
+            size: 56,
+            color: Colors.white.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'No one\'s live right now',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'When creators go live, they\'ll show up here. '
+            'Start a stream or browse posts while you wait.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.65),
+              fontSize: 15,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 28),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandMagenta,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(200, 48),
+              shape: RoundedRectangleBorder(
+                borderRadius: AppRadius.buttonRadius,
+              ),
+            ),
+            onPressed: () => openCreatorLiveScreen(context),
+            child: const Text(
+              'Go Live',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.brandPink,
+              minimumSize: const Size(200, 44),
+            ),
+            onPressed: () => _selectSearchTab(1),
+            child: const Text(
+              'Browse posts',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscoverCreatorsPrompt() {
+    final preview = _allUsers.take(8).toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Discover creators',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _selectSearchTab(3),
+                child: Text(
+                  'See all',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        SizedBox(
+          height: 88,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: preview.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+            itemBuilder: (context, index) {
+              final user = preview[index];
+              return GestureDetector(
+                onTap: () => _openUserProfile(user),
+                child: SizedBox(
+                  width: 72,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white.withValues(alpha: 0.12),
+                        backgroundImage: user.avatarUrl.isNotEmpty
+                            ? NetworkImage(user.avatarUrl)
+                            : null,
+                        child: user.avatarUrl.isEmpty
+                            ? Icon(
+                                Icons.person,
+                                color: Colors.white.withValues(alpha: 0.5),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        user.username,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -1230,32 +1439,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildLiveNowSection() {
-    if (_liveStreams.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ongoing Now',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No live streams right now. Check back soon!',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    if (_liveStreams.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1296,9 +1480,10 @@ class SearchScreenState extends State<SearchScreen>
   Widget _buildSection(
     String title,
     List<_LiveCardItem> items, {
-    bool showViewAll = true,
+    bool showViewAll = false,
   }) {
-    final hasItems = items.isNotEmpty;
+    if (items.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1316,50 +1501,62 @@ class SearchScreenState extends State<SearchScreen>
                 ),
               ),
               if (showViewAll)
-                GestureDetector(
-                  onTap: () {},
-                  child: Text(
-                    'View All',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.5),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                Text(
+                  'View All',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (!hasItems)
-          Padding(
+        SizedBox(
+          height: 260,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'No live streams available right now.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: 260,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: items.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) => _LiveCard(item: items[index]),
-            ),
+            itemCount: items.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: AppSpacing.md),
+            itemBuilder: (context, index) {
+              final card = items[index];
+              final stream = _liveStreamForCard(card);
+              return _LiveCard(
+                item: card,
+                onTap: stream == null
+                    ? null
+                    : () => openLiveStreamScreen(context, stream),
+              );
+            },
           ),
+        ),
       ],
     );
   }
 
+  LiveStreamModel? _liveStreamForCard(_LiveCardItem card) {
+    for (final stream in _liveStreams) {
+      final profile = _liveHostProfiles[stream.hostId];
+      final handleUsername = (profile?.username?.trim().isNotEmpty == true)
+          ? profile!.username!.trim()
+          : stream.hostUsername;
+      final handle = handleUsername.isEmpty
+          ? ''
+          : (handleUsername.startsWith('@')
+              ? handleUsername
+              : '@$handleUsername');
+      if (handle == card.handle) return stream;
+    }
+    return null;
+  }
+
   Widget _buildLiveCategoriesSection() {
     final categories = _dynamicCategoryItems;
+    if (categories.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1375,36 +1572,26 @@ class SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (categories.isEmpty)
-          Padding(
+        SizedBox(
+          height: 120,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'No categories yet. Categories appear when hosts set stream categories.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: 120,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) =>
-                  _CategoryCard(item: categories[index]),
-            ),
+            itemCount: categories.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: AppSpacing.md),
+            itemBuilder: (context, index) =>
+                _CategoryCard(item: categories[index]),
           ),
+        ),
       ],
     );
   }
 
   Widget _buildTopCreatorsSection() {
     final creators = _dynamicCreatorItems;
+    if (creators.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1420,30 +1607,18 @@ class SearchScreenState extends State<SearchScreen>
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        if (creators.isEmpty)
-          Padding(
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Top creators will appear when users go live.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 14,
-              ),
-            ),
-          )
-        else
-          SizedBox(
-            height: 300,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: creators.length,
-              separatorBuilder: (context, index) =>
-                  const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) =>
-                  _CreatorCard(item: creators[index]),
-            ),
+            itemCount: creators.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(width: AppSpacing.md),
+            itemBuilder: (context, index) =>
+                _CreatorCard(item: creators[index]),
           ),
+        ),
       ],
     );
   }
