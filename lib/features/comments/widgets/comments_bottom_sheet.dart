@@ -7,11 +7,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_gradients.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/comment_service.dart';
 import '../../../core/services/story_comment_service.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/user_facing_errors.dart';
+import '../comment_text_styles.dart';
 import '../models/comment.dart';
 import 'comment_tile.dart';
 import 'report_comment_sheet.dart';
@@ -630,118 +632,120 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
 
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
-      minChildSize: 0.4,
+      // Keep enough height for header + input when dragged down (avoids Column overflow).
+      minChildSize: 0.48,
       maxChildSize: 0.95,
       builder: (context, scrollController) {
+        const sheetRadius = BorderRadius.vertical(top: Radius.circular(16));
         return ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+          borderRadius: sheetRadius,
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+            filter: ImageFilter.blur(sigmaX: 17.75, sigmaY: 17.75),
             child: Padding(
               padding: EdgeInsets.only(bottom: keyboardBottom),
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(36),
-                  ),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF5A1531), Color(0xFF200226)],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    width: 0.5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // ── Drag handle ──────────────────────────────────────
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        width: 50,
-                        height: 4.5,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(2.5),
-                        ),
-                      ),
-                    ),
-
-                    // ── Title ────────────────────────────────────────────
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text(
-                        'Comments',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-
-                    // ── Comment list ─────────────────────────────────────
-                    Expanded(
-                      child: StreamBuilder<User?>(
-                        stream: FirebaseAuth.instance.authStateChanges(),
-                        builder: (context, authSnap) {
-                          final signedIn = authSnap.data != null;
-                          return _buildCommentList(scrollController, signedIn);
-                        },
-                      ),
-                    ),
-
-                    // ── Reply banner ─────────────────────────────────────
-                    if (_replyParentId != null)
-                      _ReplyBanner(
-                        username: _replyUsername,
-                        onCancel: () => setState(() {
-                          _replyParentId = null;
-                          _replyUsername = '';
-                        }),
-                      ),
-
-                    // ── Input ────────────────────────────────────────────
-                    StreamBuilder<User?>(
-                      stream: FirebaseAuth.instance.authStateChanges(),
-                      builder: (context, authSnap) {
-                        final signedIn = authSnap.data != null;
-                        if (!signedIn) {
-                          return Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              16,
-                              0,
-                              16,
-                              16 + safeBottom,
-                            ),
-                            child: const Text(
-                              'Sign in to comment.',
-                              style: TextStyle(
-                                color: Color(0x80FFFFFF),
-                                fontSize: 14,
-                              ),
-                            ),
-                          );
-                        }
-                        return _InputBar(
-                          controller: _textCtrl,
-                          focusNode: _focusNode,
-                          isReply: _replyParentId != null,
-                          maxLen: maxLen,
-                          textLen: textLen,
-                          overLimit: overLimit,
-                          canSend: canSend,
-                          posting: _posting,
-                          safeBottom: safeBottom,
-                          onPost: _post,
-                        );
-                      },
+                  borderRadius: sheetRadius,
+                  gradient: AppGradients.commentsSheetGlassGradient,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      offset: const Offset(0, -1),
+                      blurRadius: 2,
                     ),
                   ],
+                ),
+                foregroundDecoration: const BoxDecoration(
+                  borderRadius: sheetRadius,
+                  gradient: AppGradients.commentsSheetGlassHighlight,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxHeight < 260;
+                    final hideTitle = constraints.maxHeight < 210;
+
+                    return Column(
+                      children: [
+                        Center(
+                          child: Container(
+                            margin: EdgeInsets.only(top: compact ? 8 : 10),
+                            width: 66,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                          ),
+                        ),
+                        if (!hideTitle)
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: compact ? 2 : 4,
+                              bottom: compact ? 6 : 10,
+                            ),
+                            child: const Text(
+                              'Comments',
+                              textAlign: TextAlign.center,
+                              style: CommentTextStyles.sheetTitle,
+                            ),
+                          ),
+                        Expanded(
+                          child: StreamBuilder<User?>(
+                            stream: FirebaseAuth.instance.authStateChanges(),
+                            builder: (context, authSnap) {
+                              final signedIn = authSnap.data != null;
+                              return _buildCommentList(
+                                scrollController,
+                                signedIn,
+                              );
+                            },
+                          ),
+                        ),
+                        if (_replyParentId != null)
+                          _ReplyBanner(
+                            username: _replyUsername,
+                            compact: compact,
+                            onCancel: () => setState(() {
+                              _replyParentId = null;
+                              _replyUsername = '';
+                            }),
+                          ),
+                        StreamBuilder<User?>(
+                          stream: FirebaseAuth.instance.authStateChanges(),
+                          builder: (context, authSnap) {
+                            final signedIn = authSnap.data != null;
+                            if (!signedIn) {
+                              return Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  (compact ? 8 : 12) + safeBottom,
+                                ),
+                                child: const Text(
+                                  'Sign in to comment.',
+                                  style: CommentTextStyles.emptyState,
+                                ),
+                              );
+                            }
+                            return _InputBar(
+                              controller: _textCtrl,
+                              focusNode: _focusNode,
+                              isReply: _replyParentId != null,
+                              maxLen: maxLen,
+                              textLen: textLen,
+                              overLimit: overLimit,
+                              canSend: canSend,
+                              posting: _posting,
+                              safeBottom: safeBottom,
+                              compact: compact,
+                              onPost: _post,
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -807,14 +811,10 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
         controller: scrollController,
         children: [
           const SizedBox(height: 56),
-          Text(
+          const Text(
             'No comments yet.\nBe the first to say something.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.45),
-              fontSize: 15,
-              height: 1.5,
-            ),
+            style: CommentTextStyles.emptyState,
           ),
         ],
       );
@@ -849,13 +849,13 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
               }
               return TextButton(
                 onPressed: _loadOlder,
-                child: Text(
+                style: TextButton.styleFrom(
+                  foregroundColor: CommentTextStyles.secondary,
+                  overlayColor: Colors.white.withValues(alpha: 0.08),
+                ),
+                child: const Text(
                   'Load earlier comments',
-                  style: TextStyle(
-                    color: AppColors.brandPink,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                  style: CommentTextStyles.metaAction,
                 ),
               );
             }
@@ -907,36 +907,38 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
 
 /// "Replying to @username" banner with Cancel
 class _ReplyBanner extends StatelessWidget {
-  const _ReplyBanner({required this.username, required this.onCancel});
+  const _ReplyBanner({
+    required this.username,
+    required this.onCancel,
+    this.compact = false,
+  });
 
   final String username;
   final VoidCallback onCancel;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 6, 8, 2),
+      padding: EdgeInsets.fromLTRB(16, compact ? 4 : 6, 8, compact ? 0 : 2),
       child: Row(
         children: [
           Expanded(
             child: Text(
               'Replying to $username',
-              style: const TextStyle(
-                color: Color(0xA6FFFFFF), // ~65%
-                fontSize: 13,
-              ),
+              style: CommentTextStyles.replyBanner,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           TextButton(
             onPressed: onCancel,
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0x80FFFFFF),
+              foregroundColor: CommentTextStyles.secondary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             ),
             child: const Text(
               'Cancel',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              style: CommentTextStyles.metaAction,
             ),
           ),
         ],
@@ -958,6 +960,7 @@ class _InputBar extends StatelessWidget {
     required this.posting,
     required this.safeBottom,
     required this.onPost,
+    this.compact = false,
   });
 
   final TextEditingController controller;
@@ -970,11 +973,13 @@ class _InputBar extends StatelessWidget {
   final bool posting;
   final double safeBottom;
   final VoidCallback onPost;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final fieldPadding = compact ? 8.0 : 12.0;
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 4, 12, 12 + safeBottom),
+      padding: EdgeInsets.fromLTRB(12, 4, 12, (compact ? 8 : 12) + safeBottom),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -986,13 +991,10 @@ class _InputBar extends StatelessWidget {
               minLines: 1,
               maxLines: 4,
               // maxLength: maxLen,
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: CommentTextStyles.input,
               decoration: InputDecoration(
                 hintText: isReply ? 'Write a reply…' : 'Add a comment…',
-                hintStyle: const TextStyle(
-                  color: Color(0x59FFFFFF), // 35%
-                  fontSize: 15,
-                ),
+                hintStyle: CommentTextStyles.inputHint,
                 filled: true,
                 fillColor: const Color(0x14FFFFFF), // 8%
                 border: OutlineInputBorder(
@@ -1010,9 +1012,9 @@ class _InputBar extends StatelessWidget {
                     width: 1,
                   ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
+                contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
-                  vertical: 12,
+                  vertical: fieldPadding,
                 ),
                 // counterText: '$textLen / $maxLen',
                 counterStyle: TextStyle(
@@ -1087,27 +1089,23 @@ class _ViewMoreRepliesRow extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.only(
-          left: 116,
-          right: 20,
+          left: 96,
+          right: 13,
           top: 4,
-          bottom: 12,
+          bottom: 10,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'View more replies ($hiddenCount)',
-              style: const TextStyle(
-                color: Color(0x80FFFFFF),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: CommentTextStyles.metaAction,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             const Icon(
               Icons.keyboard_arrow_down_rounded,
-              size: 16,
-              color: Color(0x80FFFFFF),
+              size: 15,
+              color: CommentTextStyles.secondary,
             ),
           ],
         ),

@@ -130,4 +130,18 @@ class AppGradients {
     colors: [Color(0xFFE81E57), Color(0xFF380D2D), Color(0xFF130412)],
     stops: [0.0, 0.3, 1.0],
   );
+
+  /// Comments bottom sheet — Figma "Comment section" glass fill (69% opacity).
+  static const LinearGradient commentsSheetGlassGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xB3200226), Color(0xB35A1531)],
+  );
+
+  /// Subtle white sheen on top of [commentsSheetGlassGradient].
+  static const LinearGradient commentsSheetGlassHighlight = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0x0AFFFFFF), Color(0x0AFFFFFF)],
+  );
 }
