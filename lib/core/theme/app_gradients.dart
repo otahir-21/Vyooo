@@ -102,6 +102,13 @@ class AppGradients {
     colors: [Color(0xFFD10057), Color(0xFFFF6B9D)],
   );
 
+  /// Live broadcast ring (warmer red — distinct from story ring).
+  static const LinearGradient liveRingGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF3B30), Color(0xFFE11066), Color(0xFFDE106B)],
+  );
+
   /// Pink primary button (e.g. Get started).
   static const LinearGradient vrGetStartedButtonGradient = LinearGradient(
     begin: Alignment.centerLeft,

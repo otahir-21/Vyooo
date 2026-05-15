@@ -24,6 +24,8 @@ import '../../core/utils/user_facing_errors.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/widgets/app_interaction_button.dart';
 import '../../core/widgets/app_bottom_navigation.dart';
+import '../../core/widgets/live_avatar_ring.dart';
+import '../../core/widgets/live_now_strip.dart';
 import '../../core/wrappers/main_nav_wrapper.dart';
 import '../../features/chat/services/chat_service.dart';
 import '../../features/chat/screens/chat_thread_screen.dart';
@@ -126,6 +128,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final LiveStreamService _liveStreamService = LiveStreamService();
   final CreatorSubscriptionService _creatorSubscriptionService =
       CreatorSubscriptionService();
+  StreamSubscription<List<LiveStreamModel>>? _discoverLiveSub;
+  LiveStreamModel? _hostActiveLive;
   String? _otherHighlightsStreamUid;
   Stream<List<StoryHighlightModel>>? _otherHighlightsStream;
 
@@ -141,6 +145,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _refreshCreatorSubscriptionFromFirestore();
     _loadPublicCounts();
     _bindLiveCountStreams();
+    _bindHostLiveStatus();
   }
 
   @override
@@ -166,7 +171,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _refreshCreatorSubscriptionFromFirestore();
       _loadPublicCounts();
       _bindLiveCountStreams();
+      _bindHostLiveStatus();
     }
+  }
+
+  void _bindHostLiveStatus() {
+    _discoverLiveSub?.cancel();
+    _discoverLiveSub = null;
+    final id = widget.payload.targetUserId?.trim() ?? '';
+    if (id.isEmpty) {
+      if (_hostActiveLive != null && mounted) {
+        setState(() => _hostActiveLive = null);
+      }
+      return;
+    }
+    _discoverLiveSub = _liveStreamService.liveStreams().listen((streams) {
+      if (!mounted) return;
+      LiveStreamModel? match;
+      for (final stream in streams) {
+        if (stream.hostId == id) {
+          match = stream;
+          break;
+        }
+      }
+      if (_hostActiveLive?.id == match?.id) return;
+      setState(() => _hostActiveLive = match);
+    });
   }
 
   @override
@@ -178,6 +208,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     _postCountSub?.cancel();
     _subscriberCountSub?.cancel();
     _targetUserSub?.cancel();
+    _discoverLiveSub?.cancel();
     super.dispose();
   }
 
@@ -791,7 +822,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   child: Column(
                     children: [
                       const SizedBox(height: 12),
-                      _buildAvatar(p.avatarUrl),
+                      _buildAvatar(p.avatarUrl, isLive: _hostActiveLive != null),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -875,6 +906,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           ),
                         ),
                       const SizedBox(height: 24),
+                      if (_hostActiveLive != null) ...[
+                        ProfileLiveJoinBanner(
+                          streamTitle: _hostActiveLive!.title,
+                          viewerCount: _hostActiveLive!.viewerCount,
+                          thumbnailUrl: _hostActiveLive!.hostProfileImage?.trim().isNotEmpty == true
+                              ? _hostActiveLive!.hostProfileImage!
+                              : p.avatarUrl,
+                          onJoinTap: () => openLiveStreamScreen(
+                            context,
+                            _hostActiveLive!,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _buildActionButtons(p),
                       const SizedBox(height: 12),
                     ],
@@ -917,29 +962,41 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
-  Widget _buildAvatar(String avatarUrl) {
+  Widget _buildAvatar(String avatarUrl, {required bool isLive}) {
+    const radius = 56.0;
+    const ringSize = radius * 2 + 12;
+
+    final avatar = CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white.withValues(alpha: 0.1),
+      backgroundImage:
+          _isValidNetworkUrl(avatarUrl) ? NetworkImage(avatarUrl) : null,
+      child: !_isValidNetworkUrl(avatarUrl)
+          ? Icon(
+              Icons.person_rounded,
+              size: 56,
+              color: Colors.white.withValues(alpha: 0.4),
+            )
+          : null,
+    );
+
+    if (isLive) {
+      return LiveAvatarRing(
+        size: ringSize,
+        showLivePill: true,
+        child: avatar,
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE81E57), width: 3),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: CircleAvatar(
-          radius: 56,
-          backgroundColor: Colors.white.withValues(alpha: 0.1),
-          backgroundImage: _isValidNetworkUrl(avatarUrl)
-              ? NetworkImage(avatarUrl)
-              : null,
-          child: !_isValidNetworkUrl(avatarUrl)
-              ? Icon(
-                  Icons.person_rounded,
-                  size: 56,
-                  color: Colors.white.withValues(alpha: 0.4),
-                )
-              : null,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.2),
+          width: 2,
         ),
       ),
+      child: avatar,
     );
   }
 
@@ -1538,7 +1595,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               );
             }
-            final streams = snapshot.data ?? const <LiveStreamModel>[];
+            var streams = snapshot.data ?? const <LiveStreamModel>[];
+            final active = _hostActiveLive;
+            if (active != null && !streams.any((s) => s.id == active.id)) {
+              streams = [active, ...streams];
+            }
             if (streams.isEmpty) return _buildEmptyTab();
             return ListView.separated(
               shrinkWrap: true,

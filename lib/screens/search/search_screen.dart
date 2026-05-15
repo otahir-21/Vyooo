@@ -13,6 +13,7 @@ import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/widgets/app_gradient_background.dart';
+import '../../core/widgets/live_now_strip.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/utils/hashtag_utils.dart';
@@ -302,6 +303,17 @@ class SearchScreenState extends State<SearchScreen>
   List<_LiveCardItem> get _dynamicLiveItems =>
       _liveStreams.map(_toLiveCardItem).toList(growable: false);
 
+  List<LiveStreamModel> get _liveStreamsForStrip {
+    final streams = List<LiveStreamModel>.from(_liveStreams);
+    streams.sort((a, b) {
+      final aFollowing = _myFollowingIds.contains(a.hostId);
+      final bFollowing = _myFollowingIds.contains(b.hostId);
+      if (aFollowing != bFollowing) return aFollowing ? -1 : 1;
+      return b.viewerCount.compareTo(a.viewerCount);
+    });
+    return streams.take(12).toList(growable: false);
+  }
+
   Future<void> _refreshLiveTab() async {
     await _refreshLiveHostProfiles(_liveStreams);
     _ensureUsersLoaded();
@@ -367,44 +379,6 @@ class SearchScreenState extends State<SearchScreen>
     return categories.take(8).toList(growable: false);
   }
 
-  List<_CreatorItem> get _dynamicCreatorItems {
-    final byHost = <String, LiveStreamModel>{};
-    for (final stream in _liveStreams) {
-      final existing = byHost[stream.hostId];
-      if (existing == null || stream.viewerCount > existing.viewerCount) {
-        byHost[stream.hostId] = stream;
-      }
-    }
-    final ranked = byHost.values.toList()
-      ..sort((a, b) => b.viewerCount.compareTo(a.viewerCount));
-    return ranked
-        .take(8)
-        .map((s) {
-          final profile = _liveHostProfiles[s.hostId];
-          final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
-              ? (profile!.profileImage!).trim()
-              : (s.hostProfileImage?.isNotEmpty == true)
-              ? s.hostProfileImage!
-              : 'https://i.pravatar.cc/120?u=${s.hostId}';
-          final followers = profile?.followersCount ?? s.viewerCount;
-          final following = profile?.following.length ?? 0;
-          final handleUsername = (profile?.username?.trim().isNotEmpty == true)
-              ? profile!.username!.trim()
-              : s.hostUsername;
-          final displayName = (profile?.displayName?.trim().isNotEmpty == true)
-              ? profile!.displayName!.trim()
-              : handleUsername;
-          return _CreatorItem(
-            name: displayName,
-            handle: '@${handleUsername.replaceAll(' ', '_')}',
-            avatarUrl: avatar,
-            followers: _formatCompactCount(followers),
-            following: following,
-          );
-        })
-        .toList(growable: false);
-  }
-
   _LiveCardItem _toLiveCardItem(LiveStreamModel stream) {
     final profile = _liveHostProfiles[stream.hostId];
     final username = (profile?.username?.trim().isNotEmpty == true)
@@ -425,18 +399,6 @@ class SearchScreenState extends State<SearchScreen>
       avatarUrl: avatar,
       viewerCount: stream.viewerCount,
     );
-  }
-
-  static String _formatCompactCount(int n) {
-    if (n >= 1000000) {
-      final v = n / 1000000;
-      return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}M';
-    }
-    if (n >= 1000) {
-      final v = n / 1000;
-      return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}K';
-    }
-    return '$n';
   }
 
   static IconData _categoryIconFor(String category) {
@@ -647,7 +609,11 @@ class SearchScreenState extends State<SearchScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildTabs(),
-        const SizedBox(height: 24),
+        if (_liveStreams.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _buildLiveNowStrip(),
+        ],
+        const SizedBox(height: 16),
         Expanded(
           child: _selectedTabIndex == 0
               ? _buildIdleLiveContent()
@@ -684,7 +650,6 @@ class SearchScreenState extends State<SearchScreen>
     final recommended = _dynamicRecommendedItems;
     final explore = _dynamicExploreItems;
     final categories = _dynamicCategoryItems;
-    final creators = _dynamicCreatorItems;
 
     return RefreshIndicator(
       color: AppColors.brandMagenta,
@@ -706,10 +671,6 @@ class SearchScreenState extends State<SearchScreen>
             const SizedBox(height: AppSpacing.xl),
             _buildLiveCategoriesSection(),
           ],
-          if (creators.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
-            _buildTopCreatorsSection(),
-          ],
           if (explore.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xl),
             _buildSection(
@@ -721,6 +682,28 @@ class SearchScreenState extends State<SearchScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildLiveNowStrip() {
+    final streams = _liveStreamsForStrip;
+    final items = streams.map((stream) {
+      final profile = _liveHostProfiles[stream.hostId];
+      final username = (profile?.username?.trim().isNotEmpty == true)
+          ? profile!.username!.trim()
+          : stream.hostUsername;
+      final avatar = ((profile?.profileImage ?? '').trim().isNotEmpty)
+          ? profile!.profileImage!.trim()
+          : (stream.hostProfileImage?.trim().isNotEmpty == true)
+          ? stream.hostProfileImage!.trim()
+          : '';
+      return LiveNowStripItem(
+        avatarUrl: avatar,
+        username: username,
+        onTap: () => openLiveStreamScreen(context, stream),
+      );
+    }).toList(growable: false);
+
+    return LiveNowStrip(items: items);
   }
 
   Widget _buildLiveDiscoverEmptyState() {
@@ -1587,41 +1570,6 @@ class SearchScreenState extends State<SearchScreen>
       ],
     );
   }
-
-  Widget _buildTopCreatorsSection() {
-    final creators = _dynamicCreatorItems;
-    if (creators.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Top Live Creators',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SizedBox(
-          height: 300,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: creators.length,
-            separatorBuilder: (context, index) =>
-                const SizedBox(width: AppSpacing.md),
-            itemBuilder: (context, index) =>
-                _CreatorCard(item: creators[index]),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _RecentSearchTile extends StatelessWidget {
@@ -2404,21 +2352,6 @@ class _CategoryItem {
   final IconData icon;
 }
 
-class _CreatorItem {
-  const _CreatorItem({
-    required this.name,
-    required this.handle,
-    required this.avatarUrl,
-    required this.followers,
-    required this.following,
-  });
-  final String name;
-  final String handle;
-  final String avatarUrl;
-  final String followers;
-  final int following;
-}
-
 class _LiveCard extends StatelessWidget {
   const _LiveCard({required this.item, this.onTap});
 
@@ -2649,165 +2582,6 @@ class _CategoryCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CreatorCard extends StatefulWidget {
-  const _CreatorCard({required this.item});
-
-  final _CreatorItem item;
-
-  @override
-  State<_CreatorCard> createState() => _CreatorCardState();
-}
-
-class _CreatorCardState extends State<_CreatorCard> {
-  bool _isFollowing = false;
-
-  static const double cardWidth = 160;
-
-  @override
-  Widget build(BuildContext context) {
-    final item = widget.item;
-    return GestureDetector(
-      onTap: () {},
-      child: Container(
-        width: cardWidth,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.sm,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: Colors.grey.shade800,
-                  backgroundImage:
-                      Uri.tryParse(item.avatarUrl)?.isAbsolute == true
-                      ? NetworkImage(item.avatarUrl)
-                      : null,
-                  onBackgroundImageError: (_, _) {},
-                ),
-                Positioned(
-                  bottom: 2,
-                  right: 2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/vyooO_icons/Search/verified_account.png',
-                      width: 8,
-                      height: 8,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              item.name,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            Text(
-              item.handle,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
-                  children: [
-                    Text(
-                      item.followers,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Followers',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 20),
-                Column(
-                  children: [
-                    Text(
-                      '${item.following}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      'Following',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: 120,
-              height: 36,
-              child: TextButton(
-                onPressed: () => setState(() => _isFollowing = !_isFollowing),
-                style: TextButton.styleFrom(
-                  backgroundColor: _isFollowing
-                      ? Colors.white.withValues(alpha: 0.12)
-                      : const Color(0xFFEF4444),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: Text(
-                  _isFollowing ? 'Following' : 'Follow',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ),
           ],
         ),
