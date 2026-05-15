@@ -116,11 +116,16 @@ class AppGradients {
     colors: [Color(0xFFDE106B), Color(0xFFF81945)],
   );
 
-  /// Download prompt "Subscribe Now" button (gold to orange-brown).
+  /// Subscribe CTA (profile + sheets) — Figma gold linear, 90% fill opacity.
   static const LinearGradient subscribeNowButtonGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [Color(0xFFE8C547), Color(0xFFD4A84B), Color(0xFFB8862E)],
+    colors: [
+      Color(0xE6F7CA39),
+      Color(0xE6FFE695),
+      Color(0xE6F7CA3A),
+    ],
+    stops: [0.17, 0.72, 0.98],
   );
 
   /// Premium dark pink-to-purple background (used in Settings, Search, Notifications)
