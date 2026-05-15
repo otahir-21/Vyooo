@@ -41,10 +41,12 @@ class AppGradients {
     ],
   );
 
+  /// Profile screen fill — Figma linear 0% → 40% → 97%.
   static const LinearGradient profileCardBackground = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
     colors: [Color(0xFF000000), Color(0xFF352037), Color(0xFFD22C6C)],
+    stops: [0.0, 0.40, 0.97],
   );
 
   static const LinearGradient dobGradient = LinearGradient(
@@ -68,6 +70,17 @@ class AppGradients {
       Color(0xFFDE106B),
       Color(0xFFF81945),
     ],
+  );
+
+  /// Own-profile tab — Figma fill (#000000 → #352037 → #D22C6C).
+  static const LinearGradient personalProfileBackgroundGradient =
+      profileCardBackground;
+
+  /// Active profile tab pill — Figma pink → magenta horizontal.
+  static const LinearGradient profileTabActiveGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFE81E57), Color(0xFFD22C6C)],
   );
 
   /// Other-user profile header — Figma overlay (dark plum top → magenta bottom).

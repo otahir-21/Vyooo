@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:vyooo/core/services/creator_subscription_service.dart';
-
 import '../../core/controllers/reels_controller.dart';
 import '../../core/config/deep_link_config.dart';
 import '../../core/theme/app_gradients.dart';
@@ -37,14 +35,9 @@ import '../content/vr_detail_screen.dart';
 import '../music/music_library_screen.dart';
 import 'edit_profile_screen.dart';
 import 'followers_following_screen.dart';
+import 'profile_figma_tokens.dart';
+import 'profile_figma_widgets.dart';
 import '../settings/settings_screen.dart';
-
-// Profile palette tuned to match the provided UI reference.
-const Color _profileBgTop = Color(0xFF3B0B30);
-const Color _profileBgMid = Color(0xFF190624);
-const Color _profileBgGlow = Color(0xFFE81E57);
-const Color _profileBgBottom = Color(0xFF33092C);
-const Color _profileSurface = Color(0xFF1A0B1E);
 
 /// Own profile tab: header, stats, Edit Profile/Share, Posts/VR/Streams, empty or Become Member.
 class ProfileScreen extends StatefulWidget {
@@ -529,37 +522,13 @@ class _ProfileScreenState extends State<ProfileScreen>
     final canUploadContent = subscriptionController.canUploadContent;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFFD22C6C),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_profileBgTop, _profileBgMid, _profileBgBottom],
-                  stops: [0.0, 0.58, 1.0],
-                ),
-              ),
-            ),
-          ),
-          // Center-right magenta glow like the reference screenshot.
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(-0.8, -0.2),
-                    radius: 1.0,
-                    colors: [
-                      _profileBgGlow.withValues(alpha: 0.4),
-                      _profileBgGlow.withValues(alpha: 0.1),
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                  ),
-                ),
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AppGradients.personalProfileBackgroundGradient,
               ),
             ),
           ),
@@ -588,23 +557,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                             stream: UserService().reelCountStream(uid),
                             builder: (context, postSnap) {
                               final pc = postSnap.data ?? 0;
-                              return StreamBuilder<int>(
-                                stream: CreatorSubscriptionService()
-                                    .subscriberCountStream(uid),
-                                builder: (context, subSnap) {
-                                  final sc = subSnap.data ?? 0;
-                                  final following = user?.following.length ?? 0;
-                                  return _buildProfileBody(
-                                    context,
-                                    user: user,
-                                    profileUid: uid,
-                                    canUploadContent: canUploadContent,
-                                    followerCount: fc,
-                                    followingCount: following,
-                                    postCount: pc,
-                                    subscriberCount: sc,
-                                  );
-                                },
+                              final following = user?.following.length ?? 0;
+                              return _buildProfileBody(
+                                context,
+                                user: user,
+                                profileUid: uid,
+                                canUploadContent: canUploadContent,
+                                followerCount: fc,
+                                followingCount: following,
+                                postCount: pc,
                               );
                             },
                           );
@@ -629,7 +590,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       followerCount: 0,
       followingCount: 0,
       postCount: 0,
-      subscriberCount: 0,
     );
   }
 
@@ -641,7 +601,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     required int followerCount,
     required int followingCount,
     required int postCount,
-    required int subscriberCount,
   }) {
     final username = user?.username?.isNotEmpty == true
         ? user!.username!
@@ -656,11 +615,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       accountType: user?.accountType ?? 'personal',
       vipVerified: user?.vipVerified ?? false,
     );
-    final accountTypeKey = (user?.accountType ?? 'personal')
-        .trim()
-        .toLowerCase();
-    final accountTypeLabel = _accountTypeLabel(accountTypeKey);
     final bio = (user?.bio ?? '').trim();
+    final handle = username.startsWith('@') ? username : '@$username';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -670,293 +626,203 @@ class _ProfileScreenState extends State<ProfileScreen>
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                  ),
                   child: Column(
                     children: [
                       const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => _showProfileMenu(context),
-                      icon: const Icon(
-                        Icons.menu_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      padding: EdgeInsets.zero,
-                      alignment: Alignment.centerRight,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                FutureBuilder<List<StoryModel>>(
-                  future: StoryService().getMyStories(),
-                  builder: (context, snapshot) {
-                    final hasStory =
-                        (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
-                    return GestureDetector(
-                      onTap: () => _openMyStoryComposerOrViewer(
-                        context,
-                        userId: profileUid,
-                        username: user?.username ?? 'you',
-                        avatarUrl: user?.profileImage ?? '',
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: hasStory
-                              ? AppGradients.storyRingGradient
-                              : null,
-                          border: null,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(hasStory ? 2 : 0),
-                          child: CircleAvatar(
-                            radius: 54,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.1,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              handle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize:
+                                    ProfileFigmaTokens.headerUsernameFontSize,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            backgroundImage: _isValidNetworkUrl(avatarUrl)
-                                ? NetworkImage(avatarUrl!)
-                                : null,
-                            child: !_isValidNetworkUrl(avatarUrl)
-                                ? Icon(
-                                    Icons.person_rounded,
-                                    size: 54,
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                  )
-                                : null,
+                          ),
+                          IconButton(
+                            onPressed: () => _showProfileMenu(context),
+                            icon: const Icon(
+                              Icons.menu_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                            padding: EdgeInsets.zero,
+                            alignment: Alignment.centerRight,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ProfileFigmaAvatar(imageUrl: avatarUrl),
+                      const SizedBox(height: 16),
+                      ProfileFigmaDisplayNameRow(
+                        displayName: displayName,
+                        isVerified: isVerified,
+                        badgeColor: badgeColor,
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ProfileFigmaStatChip(
+                            label: 'Posts',
+                            value: _formatStatCount(postCount),
+                          ),
+                          const SizedBox(width: 12),
+                          ProfileFigmaStatChip(
+                            label: 'Followers',
+                            value: _formatStatCount(followerCount),
+                            onTap: () {
+                              if (profileUid.isEmpty) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => FollowersFollowingScreen(
+                                    initialTab: 0,
+                                    profileUserId: profileUid,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 12),
+                          ProfileFigmaStatChip(
+                            label: 'Following',
+                            value: _formatStatCount(followingCount),
+                            onTap: () {
+                              if (profileUid.isEmpty) return;
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => FollowersFollowingScreen(
+                                    initialTab: 1,
+                                    profileUserId: profileUid,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      if (bio.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            bio,
+                            textAlign: TextAlign.center,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: ProfileFigmaTokens.bioFontSize,
+                              height: 1.35,
+                              fontWeight: FontWeight.w400,
+                            ),
                           ),
                         ),
+                      ],
+                      const ProfileFigmaMusicLine(
+                        label: 'Zulfein • Mehul Mahesh, DJ A...',
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                FutureBuilder<List<StoryModel>>(
-                  future: StoryService().getMyStories(),
-                  builder: (context, snapshot) {
-                    final hasStory =
-                        (snapshot.data ?? const <StoryModel>[]).isNotEmpty;
-                    return GestureDetector(
-                      onTap: () => _openMyStoryComposerOrViewer(
-                        context,
-                        userId: profileUid,
-                        username: user?.username ?? 'you',
-                        avatarUrl: user?.profileImage ?? '',
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ProfileFigmaActionButton(
+                            label: 'Edit Profile',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => EditProfileScreen(
+                                    initialName: user?.displayName ??
+                                        user?.username ??
+                                        '',
+                                    initialUsername: user?.username ?? '',
+                                    initialBio: user?.bio ?? '',
+                                    initialMusic:
+                                        'Zulfein • Mehul Mahesh, DJ A...',
+                                    avatarUrl: user?.profileImage,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(
+                            width: ProfileFigmaTokens.actionButtonGap,
+                          ),
+                          ProfileFigmaActionButton(
+                            label: 'Share',
+                            iconAssetPath:
+                                'assets/vyooO_icons/Profile/share.png',
+                            onPressed: () => _shareProfile(
+                              uid: profileUid,
+                              username: user?.username,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        hasStory ? 'View story' : 'Add story',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (isVerified) ...[
-                      const SizedBox(width: 6),
-                      Icon(
-                        Icons.check_circle_rounded,
-                        size: 18,
-                        color: badgeColor,
-                      ),
+                      const SizedBox(height: 12),
                     ],
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.14),
-                    ),
-                  ),
-                  child: Text(
-                    accountTypeLabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
                   ),
                 ),
-                if (bio.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xl,
-                    ),
-                    child: Text(
-                      bio,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 13,
-                        height: 1.35,
-                      ),
+              ),
+              SliverFillRemaining(
+                hasScrollBody: true,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: ProfileFigmaTokens.contentSurface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(ProfileFigmaTokens.contentTopRadius),
                     ),
                   ),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _StatChip(
-                      label: 'Posts',
-                      value: _formatStatCount(postCount),
-                    ),
-                    const SizedBox(width: 12),
-                    _StatChip(
-                      label: 'Followers',
-                      value: _formatStatCount(followerCount),
-                      onTap: () {
-                        if (profileUid.isEmpty) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => FollowersFollowingScreen(
-                              initialTab: 0,
-                              profileUserId: profileUid,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final h = constraints.maxHeight;
+                      final compactTabs = h < 140;
+                      final topPad = compactTabs ? 8.0 : 24.0;
+                      final tabGap = compactTabs ? 8.0 : 16.0;
+                      return Column(
+                        children: [
+                          SizedBox(height: topPad),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                            ),
+                            child: ProfileFigmaTabBar(
+                              tabs: _tabs,
+                              selectedIndex: _selectedTabIndex,
+                              onTabSelected: (i) =>
+                                  setState(() => _selectedTabIndex = i),
+                              savedTabIndex: _savedTabIndex,
+                              onSavedTap: () => setState(
+                                () => _selectedTabIndex = _savedTabIndex,
+                              ),
+                              compact: compactTabs,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _StatChip(
-                      label: 'Following',
-                      value: _formatStatCount(followingCount),
-                      onTap: () {
-                        if (profileUid.isEmpty) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => FollowersFollowingScreen(
-                              initialTab: 1,
-                              profileUserId: profileUid,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _StatChip(
-                      label: 'Subscriptions',
-                      value: _formatStatCount(subscriberCount),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _OutlineButton(
-                        label: 'Edit Profile',
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => EditProfileScreen(
-                                initialName:
-                                    user?.displayName ?? user?.username ?? '',
-                                initialUsername: user?.username ?? '',
-                                initialBio: user?.bio ?? '',
-                                initialMusic: 'Zulfein • Mehul Mahesh, DJ A...',
-                                avatarUrl: user?.profileImage,
+                          SizedBox(height: tabGap),
+                          Expanded(
+                            child: CustomScrollView(
+                              physics: const NeverScrollableScrollPhysics(),
+                              slivers: _buildProfileContentSlivers(
+                                context,
+                                canUploadContent,
+                                uid: profileUid,
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: _OutlineButton(
-                        label: 'Share',
-                        icon: Icons.share_outlined,
-                        onPressed: () => _shareProfile(
-                          uid: profileUid,
-                          username: user?.username,
-                        ),
-                      ),
-                    ),
-                  ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        ),
-        SliverFillRemaining(
-          hasScrollBody: true,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: _profileSurface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final h = constraints.maxHeight;
-                final compactTabs = h < 140;
-                final topPad = compactTabs ? 8.0 : 24.0;
-                final tabGap = compactTabs ? 8.0 : 16.0;
-                return Column(
-                  children: [
-                    SizedBox(height: topPad),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                      ),
-                      child: _buildTabs(compact: compactTabs),
-                    ),
-                    SizedBox(height: tabGap),
-                    Expanded(
-                      child: CustomScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        slivers: _buildProfileContentSlivers(
-                          context,
-                          canUploadContent,
-                          uid: profileUid,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
-      ],
+              ),
+            ],
           ),
         ),
         _buildHighlightsAboveNavBar(context, profileUid, user),
@@ -971,7 +837,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   ) {
     if (profileUid.isEmpty) return const SizedBox.shrink();
     return Material(
-      color: _profileSurface,
+      color: ProfileFigmaTokens.contentSurface,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
@@ -1341,81 +1207,71 @@ class _ProfileScreenState extends State<ProfileScreen>
             }
             final posts = snapshot.data ?? [];
             if (posts.isEmpty) return _buildEmptyPostsPrompt(context);
-            return Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 0,
+                crossAxisSpacing: 0,
+                childAspectRatio: 1,
               ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1,
-                ),
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final reel = posts[index];
-                  final thumbnailUrl = _thumbnailFromReel(reel);
-                  final mediaType = ((reel['mediaType'] as String?) ?? '')
-                      .toLowerCase();
-                  final isVideo = mediaType != 'image';
-                  final username = (reel['username'] as String? ?? '').trim();
-                  final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
-                  final handle = username.isNotEmpty
-                      ? '@${username.replaceAll('@', '')}'
-                      : '@profile';
-                  final isVerified = reel['isVerified'] == true;
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PostFeedScreen(
-                          payload: PostFeedPayload(
-                            posts: posts,
-                            initialIndex: index,
-                            creatorName: username.isNotEmpty
-                                ? username
-                                : 'Profile User',
-                            creatorHandle: handle,
-                            avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : '',
-                            isVerified: isVerified,
-                          ),
+              itemCount: posts.length,
+              itemBuilder: (context, index) {
+                final reel = posts[index];
+                final thumbnailUrl = _thumbnailFromReel(reel);
+                final mediaType =
+                    ((reel['mediaType'] as String?) ?? '').toLowerCase();
+                final isVideo = mediaType != 'image';
+                final username = (reel['username'] as String? ?? '').trim();
+                final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
+                final handle = username.isNotEmpty
+                    ? '@${username.replaceAll('@', '')}'
+                    : '@profile';
+                final isVerified = reel['isVerified'] == true;
+                return GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => PostFeedScreen(
+                        payload: PostFeedPayload(
+                          posts: posts,
+                          initialIndex: index,
+                          creatorName: username.isNotEmpty
+                              ? username
+                              : 'Profile User',
+                          creatorHandle: handle,
+                          avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : '',
+                          isVerified: isVerified,
                         ),
                       ),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(color: Colors.grey[900]),
-                          if (thumbnailUrl.isNotEmpty)
-                            Image.network(
-                              thumbnailUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(color: Colors.grey[900]),
+                      if (thumbnailUrl.isNotEmpty)
+                        Image.network(
+                          thumbnailUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                        ),
+                      if (isVideo)
+                        const Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.play_arrow_rounded,
+                              color: Colors.white70,
+                              size: 18,
                             ),
-                          if (isVideo)
-                            const Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white70,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
             );
           },
         ),
@@ -1584,106 +1440,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ),
     ];
-  }
-
-  Widget _buildTabs({bool compact = false}) {
-    final outerPad = compact ? 2.0 : 4.0;
-    final tabVPad = compact ? 6.0 : 10.0;
-    final tabFont = compact ? 12.0 : 13.0;
-    final dividerH = compact ? 12.0 : 16.0;
-    final starPad = compact ? 8.0 : 10.0;
-    final starIcon = compact ? 18.0 : 20.0;
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: EdgeInsets.all(outerPad),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2B1C2D),
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Row(
-              children: List.generate(_tabs.length, (index) {
-                final isSelected = index == _selectedTabIndex;
-                return Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () =>
-                                setState(() => _selectedTabIndex = index),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(vertical: tabVPad),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFFFF1E5E)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.card,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  _tabs[index],
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Colors.white.withValues(alpha: 0.8),
-                                    fontSize: tabFont,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (index < _tabs.length - 1 &&
-                          !isSelected &&
-                          _selectedTabIndex != index + 1)
-                        Container(
-                          height: dividerH,
-                          width: 1,
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                    ],
-                  ),
-                );
-              }),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => setState(() => _selectedTabIndex = _savedTabIndex),
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: EdgeInsets.all(starPad),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2B1C2D),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                _selectedTabIndex == _savedTabIndex
-                    ? Icons.star_rounded
-                    : Icons.star_border_rounded,
-                color: _selectedTabIndex == _savedTabIndex
-                    ? const Color(0xFFFF1E5E)
-                    : Colors.white.withValues(alpha: 0.8),
-                size: starIcon,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildEmptyPostsPrompt(
@@ -2184,107 +1940,6 @@ class _ProfileStreamCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  const _StatChip({required this.label, required this.value, this.onTap});
-
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          width: 76,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF3B1D3D),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OutlineButton extends StatelessWidget {
-  const _OutlineButton({
-    required this.label,
-    required this.onPressed,
-    this.icon,
-  });
-
-  final String label;
-  final VoidCallback onPressed;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.25),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.15),
-              width: 1.0,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (icon != null) ...[
-                const SizedBox(width: 8),
-                Icon(icon, size: 16, color: Colors.white),
-              ],
-            ],
-          ),
         ),
       ),
     );
