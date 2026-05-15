@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Figma profile screen measurements (Personal profile / @mattrife_x frame).
+/// Figma profile screen measurements (Personal profile frame).
 abstract final class ProfileFigmaTokens {
+  /// Username/handle for profile UI (no leading `@`).
+  static String displayUsername(String? raw) =>
+      (raw ?? '').replaceAll('@', '').trim();
   // Background gradient stops — see [AppGradients.personalProfileBackgroundGradient].
 
   /// Profile ring / accents — Figma selection (#D22C6C).

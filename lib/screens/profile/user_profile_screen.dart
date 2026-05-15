@@ -39,6 +39,7 @@ import '../content/live_stream_route.dart';
 import '../content/post_feed_screen.dart';
 import '../content/vr_detail_screen.dart';
 import 'followers_following_screen.dart';
+import 'profile_figma_tokens.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../features/reel/widgets/block_user_sheet.dart';
 import '../../features/story/highlight_viewer_screen.dart';
@@ -795,7 +796,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                 ),
                 title: Text(
-                  p.username.replaceAll('@', '').trim(),
+                  ProfileFigmaTokens.displayUsername(p.username),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -991,7 +992,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       MaterialPageRoute<bool>(
         builder: (_) => CreatorSubscriptionScreen(
           name: p.displayName,
-          handle: '@${p.username}',
+          handle: ProfileFigmaTokens.displayUsername(p.username),
           avatarUrl: p.avatarUrl,
           creatorUserId: p.targetUserId,
           isVerified: p.isVerified,
@@ -1505,8 +1506,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       ? username
                       : widget.payload.displayName;
                   final handle = username.isNotEmpty
-                      ? '@${username.replaceAll('@', '')}'
-                      : '@${widget.payload.username.replaceAll('@', '')}';
+                      ? ProfileFigmaTokens.displayUsername(username)
+                      : ProfileFigmaTokens.displayUsername(
+                          widget.payload.username,
+                        );
                   final isVerified = reel['isVerified'] == true ||
                       _liveIsVerified == true ||
                       widget.payload.isVerified;
@@ -1644,8 +1647,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ? creatorName
                         : 'Creator',
                     creatorHandle: creatorHandle.isNotEmpty
-                        ? creatorHandle
-                        : '@creator',
+                        ? ProfileFigmaTokens.displayUsername(creatorHandle)
+                        : 'creator',
                     avatarUrl: avatar,
                     viewCount: (item['views'] as num?)?.toInt() ?? 0,
                     isVerified: false,
@@ -1658,8 +1661,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                               ? creatorName
                               : 'Creator',
                           creatorHandle: creatorHandle.isNotEmpty
-                              ? creatorHandle
-                              : '@creator',
+                              ? ProfileFigmaTokens.displayUsername(
+                                  creatorHandle,
+                                )
+                              : 'creator',
                           avatarUrl: avatar,
                           thumbnailUrl: thumb,
                           likeCount: (item['likes'] as num?)?.toInt() ?? 0,
@@ -1802,8 +1807,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     .isNotEmpty
                                 ? (reel['username'] as String).trim()
                                 : widget.payload.displayName,
-                            creatorHandle:
-                                '@${((reel['username'] as String?) ?? widget.payload.username).replaceAll('@', '')}',
+                            creatorHandle: ProfileFigmaTokens.displayUsername(
+                              (reel['username'] as String?) ??
+                                  widget.payload.username,
+                            ),
                             avatarUrl:
                                 (reel['avatarUrl'] as String? ?? '').trim(),
                             isVerified: reel['isVerified'] == true,
@@ -2311,7 +2318,9 @@ class _UserProfileVRCard extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          item.creatorHandle,
+                          ProfileFigmaTokens.displayUsername(
+                            item.creatorHandle,
+                          ),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 11,

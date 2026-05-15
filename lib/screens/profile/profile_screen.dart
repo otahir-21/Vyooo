@@ -616,7 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       vipVerified: user?.vipVerified ?? false,
     );
     final bio = (user?.bio ?? '').trim();
-    final handle = username.startsWith('@') ? username : '@$username';
+    final handle = ProfileFigmaTokens.displayUsername(username);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1056,7 +1056,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ? (reel['username'] as String).trim()
                                 : 'Profile User',
                             creatorHandle:
-                                '@${((reel['username'] as String?) ?? 'profile').replaceAll('@', '')}',
+                                ProfileFigmaTokens.displayUsername(
+                                  (reel['username'] as String?) ?? 'profile',
+                                ),
                             avatarUrl: (reel['avatarUrl'] as String? ?? '')
                                 .trim(),
                             isVerified: reel['isVerified'] == true,
@@ -1226,8 +1228,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 final username = (reel['username'] as String? ?? '').trim();
                 final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
                 final handle = username.isNotEmpty
-                    ? '@${username.replaceAll('@', '')}'
-                    : '@profile';
+                    ? ProfileFigmaTokens.displayUsername(username)
+                    : 'profile';
                 final isVerified = reel['isVerified'] == true;
                 return GestureDetector(
                   onTap: () => Navigator.of(context).push(
@@ -1346,7 +1348,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                   item: _ProfileVRItem(
                     thumbnailUrl: thumb,
                     creatorName: username.isNotEmpty ? username : 'Creator',
-                    creatorHandle: handle.isNotEmpty ? handle : '@creator',
+                    creatorHandle:
+                        handle.isNotEmpty ? handle : 'creator',
                     avatarUrl: avatar,
                     viewCount: (item['views'] as num?)?.toInt() ?? 0,
                     isVerified: false,
@@ -1358,9 +1361,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                           creatorName: username.isNotEmpty
                               ? username
                               : 'Creator',
-                          creatorHandle: handle.isNotEmpty
-                              ? handle
-                              : '@creator',
+                          creatorHandle:
+                              handle.isNotEmpty ? handle : 'creator',
                           avatarUrl: avatar,
                           thumbnailUrl: thumb,
                           likeCount: likes,
@@ -1809,7 +1811,9 @@ class _ProfileVRCard extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          item.creatorHandle,
+                          ProfileFigmaTokens.displayUsername(
+                            item.creatorHandle,
+                          ),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.7),
                             fontSize: 11,
@@ -2153,7 +2157,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
     final username = ((currentReel?['username'] as String?) ?? '').trim();
     final handle = ((currentReel?['handle'] as String?) ?? '').trim();
     final caption = ((currentReel?['caption'] as String?) ?? '').trim();
-    final normalizedHandle = handle.startsWith('@') ? handle : '@$handle';
+    final normalizedHandle = ProfileFigmaTokens.displayUsername(handle);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -2329,7 +2333,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
                             Text(
                               handle.isNotEmpty
                                   ? normalizedHandle
-                                  : '@myprofile',
+                                  : 'myprofile',
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 14,
