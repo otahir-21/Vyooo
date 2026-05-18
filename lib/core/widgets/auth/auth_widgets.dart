@@ -6,6 +6,7 @@ export 'auth_floating_circle_button.dart';
 export 'auth_labeled_divider.dart';
 export 'auth_screen_header.dart';
 export 'auth_link_prompt.dart';
+export 'auth_otp_input_row.dart';
 export 'auth_password_field.dart';
 export 'auth_password_visibility_button.dart';
 export 'auth_phone_field.dart';

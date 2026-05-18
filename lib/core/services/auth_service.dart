@@ -455,6 +455,24 @@ class AuthService {
     }
   }
 
+  /// Validates the code from the password reset email before setting a new password.
+  Future<AuthResult> verifyPasswordResetCode(String code) async {
+    final offline = await _requireInternet();
+    if (offline != null) return offline;
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) {
+      return const AuthResult(success: false, message: 'Enter the code from your email.');
+    }
+    try {
+      await _auth.verifyPasswordResetCode(trimmed);
+      return const AuthResult(success: true);
+    } on FirebaseAuthException catch (e) {
+      return AuthResult(success: false, message: _mapAuthException(e.code));
+    } catch (e) {
+      return AuthResult(success: false, message: _genericMessage(e));
+    }
+  }
+
   /// Confirm password reset using the code from the reset email link.
   Future<AuthResult> confirmPasswordReset({
     required String oobCode,

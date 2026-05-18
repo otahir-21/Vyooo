@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_spacing.dart';
@@ -144,10 +143,6 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.authDividerBlock),
-                const AuthLabeledDivider(label: 'Or Login with'),
-                const SizedBox(height: AppSpacing.authDividerBlock),
-                _buildSocialRow(),
-                const SizedBox(height: AppSpacing.authDividerBlock),
               ],
             ),
           ),
@@ -160,19 +155,6 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSocialRow() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        AuthSocialIconButton(icon: FontAwesomeIcons.google),
-        SizedBox(width: AppSpacing.socialRowGap),
-        AuthSocialIconButton(icon: FontAwesomeIcons.apple),
-        SizedBox(width: AppSpacing.socialRowGap),
-        AuthSocialIconButton(icon: FontAwesomeIcons.facebook),
-      ],
     );
   }
 }

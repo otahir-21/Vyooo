@@ -58,6 +58,15 @@ abstract final class AppTypography {
     fontWeight: FontWeight.w500,
   );
 
+  /// OTP digit in verify boxes — DM Sans Semi Bold 32.
+  static const TextStyle authOtpDigit = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 32,
+    height: 1.0,
+    fontWeight: FontWeight.w600,
+    color: AppTheme.primary,
+  );
+
   /// Register / Verify CTA — DM Sans Regular 20.
   static const TextStyle primaryButton = TextStyle(
     fontFamily: AppFonts.body,

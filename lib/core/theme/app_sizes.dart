@@ -15,4 +15,7 @@ abstract final class AppSizes {
   static const double socialIcon = 24;
   static const double socialIconContainer = 40;
   static const double iconTapTarget = 40;
+
+  // — OTP —
+  static const double authOtpBoxSize = 70;
 }
