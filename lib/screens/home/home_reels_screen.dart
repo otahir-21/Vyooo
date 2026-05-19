@@ -23,6 +23,7 @@ import '../../core/services/reel_download_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/internet_availability.dart';
 import '../../core/utils/user_facing_errors.dart';
+import '../../core/theme/app_background_assets.dart';
 import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
@@ -835,17 +836,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
-        decoration: BoxDecoration(
-          gradient: (isFollowing || isVrTab)
-              ? const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF49113B), // Dark magenta
-                    Color(0xFF000000),
-                  ],
-                )
-              : null,
+        decoration: _homeFeedBackgroundDecoration(
+          isFollowing: isFollowing,
+          isVrTab: isVrTab,
         ),
         child: Stack(
           children: [
@@ -1689,6 +1682,30 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       ),
     );
   }
+}
+
+BoxDecoration? _homeFeedBackgroundDecoration({
+  required bool isFollowing,
+  required bool isVrTab,
+}) {
+  if (isFollowing) {
+    return const BoxDecoration(
+      image: DecorationImage(
+        image: AssetImage(AppBackgroundAssets.followingFeed),
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+  if (isVrTab) {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF49113B), Color(0xFF000000)],
+      ),
+    );
+  }
+  return null;
 }
 
 class _CaptionWithSeeMore extends StatefulWidget {

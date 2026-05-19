@@ -17,6 +17,9 @@ class AppBackgroundAssets {
   /// Main shell bottom nav (Home, Search, Create, Chat, Profile).
   static const String mainNavBar = 'assets/bgImages/Nav bar.png';
 
+  /// Home feed — Following tab behind stories + reels.
+  static const String followingFeed = 'assets/bgImages/usernameBG.png';
+
   static String randomAuthFlowBackground() {
     return authFlowBackgrounds[_random.nextInt(authFlowBackgrounds.length)];
   }
