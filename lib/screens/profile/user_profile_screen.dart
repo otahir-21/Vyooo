@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:async';
 
+import '../../core/config/app_config.dart';
 import '../../core/config/deep_link_config.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_gradients.dart';
@@ -1190,7 +1191,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   onPressed: _followActionBusy ? () {} : _onFollowTap,
                 ),
               ),
-              if (p.isCreator) ...[
+              if (p.isCreator && AppConfig.showCreatorSubscribeButton) ...[
                 const SizedBox(width: 8),
                 Expanded(
                   child: _ProfileSubscribeButton(

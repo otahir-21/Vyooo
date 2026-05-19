@@ -7,6 +7,12 @@ import '../../core/subscription/subscription_controller.dart';
 import '../../features/subscription/subscription_screen.dart';
 import 'creator_live_screen.dart' deferred as creator;
 
+// Temporary product decision:
+// Standard live streaming is currently free (ungated).
+// Set to `true` to re-enable the subscription/payment gate for standard live.
+// Subscription gating will return later for VR streaming / premium streaming.
+const bool kRequireSubscriptionForStandardLive = false;
+
 /// Opens creator live broadcast. Deferred so Agora is not loaded at app/tab startup.
 Future<void> openCreatorLiveScreen(BuildContext context) async {
   final subCtrl = context.read<SubscriptionController>();
@@ -23,28 +29,30 @@ Future<void> openCreatorLiveScreen(BuildContext context) async {
     );
   }
 
-  var canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
-  if (!context.mounted) return;
-  if (!canGoLive) {
-    final subscribed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const SubscriptionScreen(),
-      ),
-    );
-    if (!context.mounted) return;
-    if (subscribed != true) return;
-    canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
+  if (kRequireSubscriptionForStandardLive) {
+    var canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
     if (!context.mounted) return;
     if (!canGoLive) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Subscription is still activating. Try Live again in a moment.',
-          ),
-          behavior: SnackBarBehavior.floating,
+      final subscribed = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (_) => const SubscriptionScreen(),
         ),
       );
-      return;
+      if (!context.mounted) return;
+      if (subscribed != true) return;
+      canGoLive = await subCtrl.reconcilePaidStatus(firebaseUid: uid);
+      if (!context.mounted) return;
+      if (!canGoLive) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Subscription is still activating. Try Live again in a moment.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
   }
 

@@ -141,22 +141,28 @@ class ChatService {
         createdBy: currentUser.uid,
       );
 
-      // Avoid unconditional set() on an existing chat because that becomes an
-      // update and can violate chat update rules.
-      final existing = await chatRef.get();
-      if (existing.exists) {
-        final data = existing.data() ?? const <String, dynamic>{};
-        final ids = (data['participantIds'] as List<dynamic>? ?? const [])
-            .whereType<String>()
-            .toList();
-        if (!ids.contains(currentUser.uid)) {
-          throw FirebaseException(
-            plugin: 'cloud_firestore',
-            code: 'permission-denied',
-            message: 'You are not a participant in this chat.',
-          );
+      // Try to read an existing chat first. When the doc does not exist
+      // Firestore denies the read because the rule
+      //   `request.auth.uid in resource.data.participantIds`
+      // evaluates resource as null. We catch that and fall through to create.
+      try {
+        final existing = await chatRef.get();
+        if (existing.exists) {
+          final data = existing.data() ?? const <String, dynamic>{};
+          final ids = (data['participantIds'] as List<dynamic>? ?? const [])
+              .whereType<String>()
+              .toList();
+          if (!ids.contains(currentUser.uid)) {
+            throw FirebaseException(
+              plugin: 'cloud_firestore',
+              code: 'permission-denied',
+              message: 'You are not a participant in this chat.',
+            );
+          }
+          return chatId;
         }
-        return chatId;
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') rethrow;
       }
 
       debugPrint('[ChatService] getOrCreateDirectChat: create chats/$chatId');
