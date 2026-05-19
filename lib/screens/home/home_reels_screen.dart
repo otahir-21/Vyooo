@@ -34,6 +34,7 @@ import '../../screens/notifications/notification_screen.dart';
 import '../../core/widgets/app_interaction_button.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
 import '../../features/home/widgets/following_header_stories.dart';
+import '../../features/home/widgets/for_you_ai_verified_badge.dart';
 import '../../features/story/story_upload_screen.dart';
 import '../../features/story/story_viewer_screen.dart';
 import '../../features/reel/widgets/download_subscription_sheet.dart';
@@ -154,6 +155,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   bool _autoScrollEnabled = true;
   bool _userHoldingToPause = false;
   bool _isBottomSheetOpen = false;
+  bool _showForYouAiVerifiedTooltip = false;
   bool _videoCompletedForCurrentItem = false;
   Timer? _autoScrollTimer;
   int _activePointerCount = 0;
@@ -509,7 +511,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   void _onPageChanged(int index) {
     final previous = _currentIndex;
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _showForYouAiVerifiedTooltip = false;
+    });
     if (currentTab == HomeTab.following) {
       if (index > previous) {
         _followingStoriesCollapse.forward();
@@ -786,6 +791,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     setState(() {
       currentTab = tab;
       _currentIndex = 0;
+      if (tab != HomeTab.forYou) {
+        _showForYouAiVerifiedTooltip = false;
+      }
     });
     if (tab == HomeTab.following) {
       // Ensure "Following" tab reflects latest follows immediately.
@@ -868,6 +876,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                   opacity: 1 - collapseT,
                   ignorePointer: collapseT > 0.95,
                 ),
+            if (currentTab == HomeTab.forYou && _showForYouAiVerifiedTooltip)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () => setState(() => _showForYouAiVerifiedTooltip = false),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            if (currentTab == HomeTab.forYou && !isVrTab)
+              Positioned(
+                top: topPadding + headerEstimate + AppSpacing.sm,
+                right: AppSpacing.md,
+                left: AppSpacing.md,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: ForYouAiVerifiedBadge(
+                    showTooltip: _showForYouAiVerifiedTooltip,
+                    onIconTap: () =>
+                        setState(() => _showForYouAiVerifiedTooltip = true),
+                  ),
+                ),
+              ),
             if (!isVrTab) ...[
               _buildInteractionButtons(),
               _buildBottomUserInfo(),

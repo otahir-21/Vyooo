@@ -6,4 +6,5 @@ abstract final class FeedInteractionAssets {
   static const String share = '$_home/Foward icon.png';
   static const String savePost = '$_home/savePost.png';
   static const String unsavePost = '$_home/unsavePost.png';
+  static const String factCheck = '$_home/Fact check.png';
 }
