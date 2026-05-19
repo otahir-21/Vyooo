@@ -1459,6 +1459,8 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
           recipientId,
           notificationId: snap.id,
         },
+        android: { priority: 'high' },
+        apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } } },
       });
 
       const errorCodes = new Set<string>();

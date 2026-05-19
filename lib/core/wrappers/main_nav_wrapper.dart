@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 import '../services/deep_link_service.dart';
+import '../services/global_incoming_call_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../widgets/app_bottom_navigation.dart';
@@ -65,6 +66,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     if (uid != null) {
       ChatNotificationService.instance.startForUser(uid);
       PresenceService.instance.start(uid);
+      GlobalIncomingCallService.instance.startForUser(uid);
     }
 
     final pending = DeepLinkService.instance.takePendingReelId();
@@ -121,6 +123,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     _profileDeepLinkSub?.cancel();
     PresenceService.instance.stop();
     ChatNotificationService.instance.stop();
+    GlobalIncomingCallService.instance.stop();
     super.dispose();
   }
 

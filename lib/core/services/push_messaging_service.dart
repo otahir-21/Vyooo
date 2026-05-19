@@ -200,6 +200,9 @@ class PushMessagingService {
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final type = (message.data['type'] ?? '').toString();
+
+    if (type == 'incoming_call') return;
+
     try {
       final prefs =
           await NotificationPreferencesService.instance.getForCurrentUser();
