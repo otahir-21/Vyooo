@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/wrappers/auth_wrapper.dart';
@@ -170,46 +171,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Delete Account',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Text(
-            'VyooO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsInnerAppBar(title: 'Delete Account');
   }
 
   Future<void> _confirmDelete() async {

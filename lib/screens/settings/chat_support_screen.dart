@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 class ChatSupportScreen extends StatefulWidget {
@@ -94,56 +95,7 @@ class _ChatSupportScreenState extends State<ChatSupportScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Small chat bubble icon representing the logo
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF81945),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.chat_bubble_rounded,
-              size: 14,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Text(
-            'VyooO Support',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            'VyooO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsInnerAppBar(title: 'Support');
   }
 
   Widget _buildInputArea() {

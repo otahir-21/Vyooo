@@ -208,8 +208,16 @@ class AppBottomNavigation extends StatelessWidget {
     );
   }
 
-  /// Bar content height — same on iOS and Android (no extra SafeArea bottom inset).
+  /// Nav icons + artwork height (excludes Android/iOS system nav inset).
   static const double barHeight = 79;
+
+  /// Matches [_fallbackBarGradient] end — fills area under gesture/3-button bar.
+  static const Color systemNavExtensionColor = Color(0xFF6D0D45);
+
+  /// Total bottom chrome: [barHeight] + system navigation inset (gesture bar, etc.).
+  static double totalHeightFor(BuildContext context) {
+    return barHeight + MediaQuery.viewPaddingOf(context).bottom;
+  }
 
   static const LinearGradient _fallbackBarGradient = LinearGradient(
     begin: Alignment.topCenter,
@@ -232,48 +240,63 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // viewPadding is not cleared by Scaffold's removePadding — use for gesture/3-button bar.
+    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
+
     return SizedBox(
-      height: barHeight,
-      child: Stack(
-        fit: StackFit.expand,
+      height: barHeight + systemBottom,
+      child: Column(
         children: [
-          _buildBarBackground(),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                unselectedAsset: _NavAssets.homeUnselected,
-                selectedAsset: _NavAssets.homeSelected,
-                isSelected: currentIndex == 0,
-                onTap: () => onTap(0),
-                splashColor: _splashColor,
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.searchUnselected,
-                selectedAsset: _NavAssets.searchSelected,
-                isSelected: currentIndex == 1,
-                onTap: () => onTap(1),
-                splashColor: _splashColor,
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.addUnselected,
-                selectedAsset: _NavAssets.addSelected,
-                isSelected: currentIndex == 2,
-                onTap: () => onTap(2),
-                splashColor: _splashColor,
-              ),
-              _NavItem(
-                isSelected: currentIndex == 3,
-                onTap: () => onTap(3),
-                splashColor: _splashColor,
-                customChild: _buildChatIcon(currentIndex == 3),
-              ),
-              _buildNavTap(
-                onPressed: () => onTap(4),
-                child: _buildProfileIcon(currentIndex == 4),
-              ),
-            ],
+          SizedBox(
+            height: barHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildBarBackground(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _NavItem(
+                      unselectedAsset: _NavAssets.homeUnselected,
+                      selectedAsset: _NavAssets.homeSelected,
+                      isSelected: currentIndex == 0,
+                      onTap: () => onTap(0),
+                      splashColor: _splashColor,
+                    ),
+                    _NavItem(
+                      unselectedAsset: _NavAssets.searchUnselected,
+                      selectedAsset: _NavAssets.searchSelected,
+                      isSelected: currentIndex == 1,
+                      onTap: () => onTap(1),
+                      splashColor: _splashColor,
+                    ),
+                    _NavItem(
+                      unselectedAsset: _NavAssets.addUnselected,
+                      selectedAsset: _NavAssets.addSelected,
+                      isSelected: currentIndex == 2,
+                      onTap: () => onTap(2),
+                      splashColor: _splashColor,
+                    ),
+                    _NavItem(
+                      isSelected: currentIndex == 3,
+                      onTap: () => onTap(3),
+                      splashColor: _splashColor,
+                      customChild: _buildChatIcon(currentIndex == 3),
+                    ),
+                    _buildNavTap(
+                      onPressed: () => onTap(4),
+                      child: _buildProfileIcon(currentIndex == 4),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          if (systemBottom > 0)
+            ColoredBox(
+              color: systemNavExtensionColor,
+              child: SizedBox(height: systemBottom),
+            ),
         ],
       ),
     );

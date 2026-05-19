@@ -34,7 +34,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
   String? _errorMessage;
-  String _selectedLoginMethod = _loginMethodEmail;
+  String _selectedLoginMethod = _loginMethodPhone;
   String _selectedCountryDialCode = '44';
   String _selectedCountryFlag = '🇬🇧';
 
@@ -229,13 +229,13 @@ class _SignInScreenState extends State<SignInScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
             AuthSegmentedToggle(
-                leftLabel: 'Email',
-                rightLabel: 'Phone',
-                isLeftSelected: _isEmailLogin,
+                leftLabel: 'Phone',
+                rightLabel: 'Email',
+                isLeftSelected: !_isEmailLogin,
                 onLeftTap: () =>
-                    setState(() => _selectedLoginMethod = _loginMethodEmail),
-                onRightTap: () =>
                     setState(() => _selectedLoginMethod = _loginMethodPhone),
+                onRightTap: () =>
+                    setState(() => _selectedLoginMethod = _loginMethodEmail),
               ),
               const SizedBox(height: AppSpacing.xxl),
               _buildForm(),

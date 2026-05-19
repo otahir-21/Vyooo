@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import 'chat_support_screen.dart';
 
@@ -134,37 +135,6 @@ class ContactSupportScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Contact Support',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          const Text(
-            'VyooO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsInnerAppBar(title: 'Contact Support');
   }
 }

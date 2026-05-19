@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_sizes.dart';
 import '../theme/app_typography.dart';
 
 /// Vyooo wordmark for auth and onboarding headers.
@@ -25,6 +26,17 @@ class VyoooBrandLogo extends StatelessWidget {
 
   /// Zoom inside the layout box to offset square-asset transparent padding.
   static const double defaultContentScale = 2.25;
+
+  /// Inner settings/account header — smaller slot, less zoom (matches title scale).
+  static const double innerHeaderContentScale = 1.55;
+
+  /// Compact wordmark for [SettingsInnerAppBar] and similar inner screens.
+  const VyoooBrandLogo.innerHeader({super.key})
+      : width = null,
+        size = AppSizes.settingsInnerLogoHeight,
+        height = null,
+        contentScale = innerHeaderContentScale,
+        center = false;
 
   final double? width;
   final double? size;
@@ -66,11 +78,12 @@ class VyoooBrandLogo extends StatelessWidget {
     Object error,
     StackTrace? stackTrace,
   ) {
+    final fallbackSize = _resolvedHeight <= AppSizes.settingsInnerLogoHeight
+        ? 14.0
+        : (_resolvedHeight * 0.85).clamp(22.0, 42.0);
     return Text(
       'VyooO',
-      style: AppTypography.brandFallback.copyWith(
-        fontSize: (_resolvedHeight * 0.85).clamp(22.0, 42.0),
-      ),
+      style: AppTypography.brandFallback.copyWith(fontSize: fallbackSize),
     );
   }
 }

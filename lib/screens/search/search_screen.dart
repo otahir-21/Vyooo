@@ -2,15 +2,12 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
 import '../../core/constants/app_colors.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
-import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/theme/app_background_assets.dart';
 import '../../core/widgets/app_gradient_background.dart';
@@ -878,44 +875,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildIdleVRContent() {
-    return Consumer<SubscriptionController>(
-      builder: (context, subscriptionController, _) {
-        if (!subscriptionController.hasVRAccess) {
-          return const VrLockedView();
-        }
-        if (_vrLoading) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white54),
-          );
-        }
-        if (_vrSearchItems.isEmpty) {
-          return Center(
-            child: Text(
-              'No VR content yet',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
-                fontSize: 14,
-              ),
-            ),
-          );
-        }
-        return GridView.builder(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: AppSpacing.xs,
-          ),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.67,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: _filteredVrSearchItems.length,
-          itemBuilder: (context, index) =>
-              _VRSearchResultGridCard(item: _filteredVrSearchItems[index]),
-        );
-      },
-    );
+    return const VrComingSoonView(compact: true);
   }
 
   Widget _buildIdleUsersContent() {
@@ -1094,41 +1054,7 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildVRSearchResultsGrid() {
-    return Consumer<SubscriptionController>(
-      builder: (context, subscriptionController, _) {
-        if (!subscriptionController.hasVRAccess) {
-          return const VrLockedView();
-        }
-        if (_vrLoading) {
-          return const Center(
-            child: CircularProgressIndicator(color: Colors.white54),
-          );
-        }
-        if (_filteredVrSearchItems.isEmpty) {
-          return const Center(
-            child: Text(
-              'No VR results found',
-              style: TextStyle(color: Colors.white70),
-            ),
-          );
-        }
-        return GridView.builder(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: AppSpacing.xs,
-          ),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 0.65,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: _filteredVrSearchItems.length,
-          itemBuilder: (context, index) =>
-              _VRSearchResultGridCard(item: _filteredVrSearchItems[index]),
-        );
-      },
-    );
+    return const VrComingSoonView(compact: true);
   }
 
   void _openUserProfile(_UserSearchItem user) {

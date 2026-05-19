@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/controllers/reels_controller.dart';
 import '../../core/widgets/app_gradient_background.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 import '../content/post_feed_screen.dart';
 
 /// Only the signed-in user can open this screen; data comes from [privateSavedReels].
@@ -145,28 +146,6 @@ class SavedPostsScreen extends StatelessWidget {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 12, 16, 12),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 20),
-          ),
-          const Expanded(
-            child: Text(
-              'Saved posts (private)',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsInnerAppBar(title: 'Saved posts (private)');
   }
 }

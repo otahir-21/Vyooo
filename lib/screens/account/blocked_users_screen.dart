@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 
 import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
@@ -21,7 +22,7 @@ class BlockedUsersScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _BlockedUsersAppBar(onBack: () => Navigator.pop(context)),
+              SettingsInnerAppBar(title: 'Blocked Users', onBack: () => Navigator.pop(context)),
               Expanded(
                 child: uid == null || uid.isEmpty
                     ? const Center(
@@ -213,48 +214,3 @@ class _BlockedListRow {
   final String avatarUrl;
 }
 
-class _BlockedUsersAppBar extends StatelessWidget {
-  const _BlockedUsersAppBar({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: onBack,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 22),
-                SizedBox(width: 12),
-                Text(
-                  'Blocked Users',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Text(
-            'VyooO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

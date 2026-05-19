@@ -9,6 +9,7 @@ import '../../core/services/user_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_gradient_background.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 
 /// Lets Creator-plan users enable subscriptions on their public profile.
 class CreatorMonetizationScreen extends StatefulWidget {
@@ -62,15 +63,7 @@ class _CreatorMonetizationScreenState extends State<CreatorMonetizationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              title: const Text(
-                'Creator subscriptions',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-              iconTheme: const IconThemeData(color: Colors.white),
-            ),
+            const SettingsInnerAppBar(title: 'Creator subscriptions'),
             Expanded(
               child: uid.isEmpty
                   ? const Center(

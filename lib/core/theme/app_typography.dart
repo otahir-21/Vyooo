@@ -115,6 +115,15 @@ abstract final class AppTypography {
     color: AppColors.brandPink,
   );
 
+  /// Settings / account inner screen app bar title — DM Sans Bold 16.
+  static const TextStyle settingsInnerAppBarTitle = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 16,
+    height: 1.2,
+    fontWeight: FontWeight.w700,
+    color: AppTheme.defaultTextColor,
+  );
+
   /// Auth modal title — DM Sans Semi Bold 18.
   static const TextStyle authDialogTitle = TextStyle(
     fontFamily: AppFonts.body,

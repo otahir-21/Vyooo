@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../core/widgets/settings/settings_inner_app_bar.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
 
 import '../../core/models/app_user_model.dart';
@@ -47,32 +48,9 @@ class _NotificationScreenState extends State<NotificationScreen>
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, right: 16, top: 4, bottom: 4),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () {
-              if (Navigator.of(context).canPop()) Navigator.of(context).pop();
-            },
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          ),
-          const Text(
-            'Notifications',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return const SettingsInnerAppBar(
+      title: 'Notifications',
+      showLogo: false,
     );
   }
 

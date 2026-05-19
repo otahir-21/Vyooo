@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:vyooo/core/widgets/app_gradient_background.dart';
+import 'package:vyooo/core/widgets/settings/settings_inner_app_bar.dart';
 
 class ChangePlanScreen extends StatefulWidget {
   const ChangePlanScreen({
@@ -111,36 +112,7 @@ class _ChangePlanScreenState extends State<ChangePlanScreen> {
   }
 
   Widget _buildAppBar(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: Colors.white,
-                  size: 22,
-                ),
-                SizedBox(width: 12),
-                Text(
-                  'Change plan',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SettingsInnerAppBar(title: 'Change plan');
   }
 
   Widget _buildProfileHeader() {

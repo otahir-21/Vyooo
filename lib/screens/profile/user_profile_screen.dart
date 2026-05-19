@@ -10,6 +10,7 @@ import '../../core/profile/creator_monetization.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/feed_interaction_assets.dart';
 import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/profile/profile_screen_background.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -826,13 +827,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: AppGradients.otherUserProfileBackgroundGradient,
-              ),
-            ),
-          ),
+          const Positioned.fill(child: ProfileScreenBackground()),
           CustomScrollView(
             slivers: [
               SliverAppBar(

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/services/reels_service.dart';
+import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/utils/user_facing_errors.dart';
-import '../../core/subscription/subscription_controller.dart';
 import '../../core/widgets/app_feed_header.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../screens/content/vr_detail_screen.dart';
@@ -250,7 +251,7 @@ class _VrLockedBottomPanel extends StatelessWidget {
   }
 }
 
-/// VR feature screen. Subscription-gated: Standard → locked, Subscriber/Creator → grid.
+/// VR feature screen — immersive content launching soon.
 class VrScreen extends StatelessWidget {
   const VrScreen({super.key});
 
@@ -263,18 +264,127 @@ class VrScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppFeedHeader(selectedIndex: 1),
-            Expanded(
-              child: Consumer<SubscriptionController>(
-                builder: (context, subscriptionController, _) {
-                  if (!subscriptionController.hasVRAccess) {
-                    return const VrLockedView();
-                  }
-                  return const VrGridView();
-                },
-              ),
-            ),
+            const Expanded(child: VrComingSoonView()),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Placeholder while VR is not yet available in production.
+class VrComingSoonView extends StatelessWidget {
+  const VrComingSoonView({super.key, this.compact = false});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = compact
+        ? AppTypography.onboardingSectionTitle.copyWith(fontSize: 20)
+        : AppTypography.onboardingSectionTitle;
+
+    return Container(
+      margin: EdgeInsets.only(top: compact ? 0 : 8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF5A1245), Colors.black],
+          stops: [0.0, 0.45],
+        ),
+        borderRadius: compact
+            ? null
+            : const BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
+              ),
+      ),
+      clipBehavior: compact ? Clip.none : Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Positioned.fill(child: _VrFallbackBackground()),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.15),
+                    Colors.black.withValues(alpha: 0.55),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: compact ? 72 : 88,
+                    height: compact ? 72 : 88,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.08),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Center(
+                      child: Image.asset(
+                        'assets/vyooO_icons/Home/vr.png',
+                        width: compact ? 36 : 44,
+                        height: compact ? 36 : 44,
+                        color: Colors.white.withValues(alpha: 0.92),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: compact ? AppSpacing.md : AppSpacing.xl),
+                  Text(
+                    'Coming Soon',
+                    textAlign: TextAlign.center,
+                    style: titleStyle,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Immersive 360° VR experiences are on the way.\nStay tuned!',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.onboardingPrivacyBody,
+                  ),
+                  if (!compact) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: AppRadius.pillRadius,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Text(
+                        'VR',
+                        style: AppTypography.caption.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

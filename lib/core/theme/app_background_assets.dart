@@ -29,6 +29,9 @@ class AppBackgroundAssets {
   /// Search tab (Live, Posts, VR, Users).
   static const String search = otpScreen;
 
+  /// Own profile and other-user profile full-screen background.
+  static const String profile = 'assets/bgImages/2.png';
+
   static String randomAuthFlowBackground() {
     return authFlowBackgrounds[_random.nextInt(authFlowBackgrounds.length)];
   }

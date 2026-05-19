@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/config/deep_link_config.dart';
 import '../../core/theme/app_gradients.dart';
+import '../../core/widgets/profile/profile_screen_background.dart';
 import '../../widgets/caption_with_hashtags.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../core/constants/app_colors.dart';
@@ -38,6 +39,10 @@ import 'followers_following_screen.dart';
 import 'profile_figma_tokens.dart';
 import 'profile_figma_widgets.dart';
 import '../settings/settings_screen.dart';
+import '../settings/payout_screen.dart';
+import '../settings/wallet/wallet_screen.dart';
+import '../../core/widgets/profile/profile_menu_bottom_sheet.dart';
+import '../../features/vr/vr_screen.dart';
 
 /// Own profile tab: header, stats, Edit Profile/Share, Posts/VR/Streams, empty or Become Member.
 class ProfileScreen extends StatefulWidget {
@@ -403,114 +408,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _showProfileMenu(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF2A1B2E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(
-                Icons.settings_rounded,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              title: Text(
-                'Settings',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 16,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const SettingsScreen(),
-                  ),
-                );
-              },
+    showProfileMenuBottomSheet(
+      context,
+      onVr: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(
+              backgroundColor: Colors.black,
+              body: SafeArea(child: VrComingSoonView()),
             ),
-            ListTile(
-              leading: Icon(
-                Icons.music_note_rounded,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              title: Text(
-                'Music library',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 16,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const MusicLibraryScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.upload_rounded,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              title: Text(
-                'Upload Stream videos',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 16,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _showUploadStreamDialog(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.logout_rounded,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-              title: Text(
-                'Log out',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 16,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _logout(context);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_forever_rounded,
-                color: Colors.red.withValues(alpha: 0.9),
-              ),
-              title: const Text(
-                'Delete account',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _requestAccountDeletion(context);
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
+      onVyoooCoin: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const WalletScreen()),
+        );
+      },
+      onRevenue: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const PayoutScreen()),
+        );
+      },
+      onSettings: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+        );
+      },
+      onMusicLibrary: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const MusicLibraryScreen()),
+        );
+      },
+      onUploadStreamVideos: () => _showUploadStreamDialog(context),
+      onLogout: () => _logout(context),
+      onDeleteAccount: () => _requestAccountDeletion(context),
     );
   }
 
@@ -522,16 +454,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     final canUploadContent = subscriptionController.canUploadContent;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFD22C6C),
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          const Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: AppGradients.personalProfileBackgroundGradient,
-              ),
-            ),
-          ),
+          const Positioned.fill(child: ProfileScreenBackground()),
           SafeArea(
             child: uid == null
                 ? _buildFallbackProfile(context)

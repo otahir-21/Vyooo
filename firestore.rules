@@ -30,6 +30,41 @@ service cloud.firestore {
         && d.updatedAt is timestamp;
     }
 
+    function validAppSettingsWrite() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'autoArchiveStories',
+          'saveStoryToArchive',
+          'showActivityStatus',
+          'allowSharingLikesToFeed',
+          'saveSearchHistory',
+          'messageRequests',
+          'storyReplies',
+          'allowTagsFrom',
+          'allowCommentsFrom',
+          'filterOffensiveComments',
+          'allowStoryReshare',
+          'allowReelsRemix',
+          'closeFriendIds',
+          'updatedAt',
+        ])
+        && d.autoArchiveStories is bool
+        && d.saveStoryToArchive is bool
+        && d.showActivityStatus is bool
+        && d.allowSharingLikesToFeed is bool
+        && d.saveSearchHistory is bool
+        && d.messageRequests is string
+        && d.storyReplies is string
+        && d.allowTagsFrom is string
+        && d.allowCommentsFrom is string
+        && d.filterOffensiveComments is bool
+        && d.allowStoryReshare is bool
+        && d.allowReelsRemix is bool
+        && d.closeFriendIds is list
+        && d.closeFriendIds.size() <= 50
+        && d.updatedAt is timestamp;
+    }
+
     // Merge updates must not change follower count; [==] fails when the field is
     // missing on legacy docs or when numeric types differ slightly.
     function followersCountUnchanged() {
@@ -506,9 +541,14 @@ service cloud.firestore {
     match /users/{userId}/settings/{settingId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
-                            && settingId == 'notifications'
-                            && validNotificationSettingsWrite();
-      allow delete: if isOwner(userId) && settingId == 'notifications';
+                            && (
+                              (settingId == 'notifications'
+                                && validNotificationSettingsWrite())
+                              || (settingId == 'app'
+                                && validAppSettingsWrite())
+                            );
+      allow delete: if isOwner(userId)
+                    && settingId in ['notifications', 'app'];
     }
 
     // Per-user chat summaries (Cloud Functions manage most writes).

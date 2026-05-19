@@ -777,14 +777,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _onTabChanged(HomeTab tab) {
-    if (tab == HomeTab.vr) {
-      final hasVrAccess = context.read<SubscriptionController>().hasVRAccess;
-      if (!hasVrAccess) {
-        final bg = _currentFeedReel()?['thumbnailUrl'] as String?;
-        showVrLockedOverlaySheet(context, backgroundImageUrl: bg);
-        return;
-      }
-    }
     _jumpPageControllerToStart();
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
@@ -909,17 +901,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildVrContent() {
-    if (_reelsLoadError != null) {
-      return _buildFeedLoadErrorPlaceholder(_reelsLoadError!);
-    }
-    return Consumer<SubscriptionController>(
-      builder: (context, subscriptionController, _) {
-        if (!subscriptionController.hasVRAccess) {
-          return const VrLockedView();
-        }
-        return const VrGridView();
-      },
-    );
+    return const VrComingSoonView();
   }
 
   void _openStoryViewer(int groupIndex) {

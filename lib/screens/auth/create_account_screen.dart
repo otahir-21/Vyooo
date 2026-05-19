@@ -46,7 +46,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   String? _errorMessage;
   String _selectedCountryDialCode = '44';
   String _selectedCountryFlag = '🇬🇧';
-  String _selectedSignupMethod = _signupMethodEmail;
+  String _selectedSignupMethod = _signupMethodPhone;
 
   bool get _isEmailSignup => _selectedSignupMethod == _signupMethodEmail;
 
@@ -86,14 +86,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 _buildHeader(),
                 const SizedBox(height: AppSpacing.md),
                 AuthSegmentedToggle(
-                  leftLabel: 'Email',
-                  rightLabel: 'Phone',
-                  isLeftSelected: _isEmailSignup,
+                  leftLabel: 'Phone',
+                  rightLabel: 'Email',
+                  isLeftSelected: !_isEmailSignup,
                   onLeftTap: () => setState(
-                    () => _selectedSignupMethod = _signupMethodEmail,
+                    () => _selectedSignupMethod = _signupMethodPhone,
                   ),
                   onRightTap: () => setState(
-                    () => _selectedSignupMethod = _signupMethodPhone,
+                    () => _selectedSignupMethod = _signupMethodEmail,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),

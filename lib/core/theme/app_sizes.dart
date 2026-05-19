@@ -10,6 +10,9 @@ abstract final class AppSizes {
   static const double authLogoHeight = 30;
   static const double feedLogoHeight = 28;
 
+  /// Settings / account inner app bar — compact wordmark on the right.
+  static const double settingsInnerLogoHeight = 20;
+
   /// Nav tab chip height ≈ 16px label + 12px vertical padding (Figma hug ~33).
   static const double feedTabChipHeight = 33;
 
