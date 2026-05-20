@@ -176,6 +176,6 @@ flutter_launcher_icons:
   # Android adaptive icon (foreground + background color)
   android: true
   image_path_android: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#F03C2E"   # red background matching logo
+  adaptive_icon_background: "#21002B"   # dark purple matching app icon gradient
   adaptive_icon_foreground: "assets/icon/app_icon.png"
   min_sdk_android: 21
