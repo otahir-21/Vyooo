@@ -224,6 +224,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _liveMonetizationEnabled = null;
       _otherHighlightsStreamUid = null;
       _otherHighlightsStream = null;
+      final nextUid = widget.payload.targetUserId?.trim() ?? '';
+      if (nextUid.isNotEmpty) {
+        ProfileCachedPostsGrid.invalidateCacheFor(nextUid);
+      }
       unawaited(_refreshFollowFromFirestore(server: true));
       _bindPendingFollowRequest();
       _bindFollowEdgeDoc();
@@ -1474,99 +1478,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
     return [
       SliverToBoxAdapter(
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: FirebaseFirestore.instance
-              .collection('reels')
-              .where('userId', isEqualTo: targetUid)
-              .get()
-              .then((q) {
-                final docs = q.docs.map((d) {
-                  final data = d.data();
-                  return {
-                    'id': d.id,
-                    'videoUrl': data['videoUrl'] as String? ?? '',
-                    'imageUrl': data['imageUrl'] as String? ?? '',
-                    'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
-                    'mediaType': data['mediaType'] as String? ?? '',
-                    'caption': data['caption'] as String? ?? '',
-                    'likes': (data['likes'] as num?)?.toInt() ?? 0,
-                    'comments': (data['comments'] as num?)?.toInt() ?? 0,
-                    'shares': (data['shares'] as num?)?.toInt() ?? 0,
-                    'saves': (data['saves'] as num?)?.toInt() ?? 0,
-                    'views': (data['views'] as num?)?.toInt() ?? 0,
-                    'userId': data['userId'] as String? ?? targetUid,
-                    'username': data['username'] as String? ?? '',
-                    'avatarUrl': data['avatarUrl'] as String? ?? '',
-                    'hideLikeCount': data['hideLikeCount'] == true,
-                    'hideViewCount': data['hideViewCount'] == true,
-                    'hideShareCount': data['hideShareCount'] == true,
-                    'hideCommentCount': data['hideCommentCount'] == true,
-                    'hideSaveCount': data['hideSaveCount'] == true,
-                    'reposts': (data['reposts'] as num?)?.toInt() ??
-                        (data['shares'] as num?)?.toInt() ??
-                        0,
-                    'isRepost': data['isRepost'] == true,
-                    'repostOf': data['repostOf'] as String? ?? '',
-                    'repostOfUserId': data['repostOfUserId'] as String? ?? '',
-                    'repostOfUsername': data['repostOfUsername'] as String? ?? '',
-                    'createdAt': data['createdAt'],
-                  };
-                }).toList();
-                docs.sort((a, b) {
-                  final aTs = a['createdAt'] as Timestamp?;
-                  final bTs = b['createdAt'] as Timestamp?;
-                  if (aTs == null && bTs == null) return 0;
-                  if (aTs == null) return 1;
-                  if (bTs == null) return -1;
-                  return bTs.compareTo(aTs);
-                });
-                return ReelsService().hydrateRepostEngagementStats(docs);
-              }),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 200,
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.white54),
+        child: ProfileCachedPostsGrid(
+          key: ValueKey('user-profile-posts-$targetUid'),
+          userId: targetUid,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
+          onItemTap: (context, posts, index) =>
+              ProfileReelGridNavigation.openPostFeed(
+            context: context,
+            posts: posts,
+            index: index,
+            fallbackDisplayName: widget.payload.displayName,
+            fallbackUsername: widget.payload.username,
+            fallbackAvatarUrl: widget.payload.avatarUrl,
+            fallbackIsVerified: widget.payload.isVerified,
+            liveIsVerified: _liveIsVerified,
+          ),
+          empty: SizedBox(
+            height: 280,
+            child: Center(
+              child: Text(
+                'No posts made yet',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 16,
                 ),
-              );
-            }
-            final posts = snapshot.data ?? <Map<String, dynamic>>[];
-            if (posts.isEmpty) {
-              return SizedBox(
-                height: 280,
-                child: Center(
-                  child: Text(
-                    'No posts made yet',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              );
-            }
-            return ProfileModularGrid(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
               ),
-              items: profileGridItemsFromReels(
-                reels: posts,
-                thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
-              ),
-              onItemTap: (index) => ProfileReelGridNavigation.openPostFeed(
-                context: context,
-                posts: posts,
-                index: index,
-                fallbackDisplayName: widget.payload.displayName,
-                fallbackUsername: widget.payload.username,
-                fallbackAvatarUrl: widget.payload.avatarUrl,
-                fallbackIsVerified: widget.payload.isVerified,
-                liveIsVerified: _liveIsVerified,
-              ),
-            );
-          },
+            ),
+          ),
         ),
       ),
     ];

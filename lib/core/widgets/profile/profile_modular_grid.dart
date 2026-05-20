@@ -6,6 +6,7 @@ import '../../theme/app_spacing.dart';
 import '../../utils/reel_engagement.dart';
 import 'profile_grid_layout_engine.dart';
 import 'profile_grid_models.dart';
+import 'profile_grid_posts.dart';
 import 'profile_grid_tile.dart';
 
 /// Modular square grid (1×1 and 2×2) for profile Posts / VR / Saved tabs.
@@ -54,9 +55,14 @@ class ProfileModularGrid extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
 
     final viewsByIndex = List<int>.filled(items.length, 0);
+    final spanOverrideByIndex = List<ProfileGridSpanOverride>.filled(
+      items.length,
+      ProfileGridSpanOverride.auto,
+    );
     for (final item in items) {
       if (item.sourceIndex >= 0 && item.sourceIndex < viewsByIndex.length) {
         viewsByIndex[item.sourceIndex] = item.views;
+        spanOverrideByIndex[item.sourceIndex] = item.spanOverride;
       }
     }
 
@@ -65,15 +71,22 @@ class ProfileModularGrid extends StatelessWidget {
       viewsByIndex: viewsByIndex,
       mode: layoutMode,
       minViewsForDouble: minViewsForDouble,
+      spanOverrideByIndex: spanOverrideByIndex,
     );
 
     final bySourceIndex = <int, ProfileGridItem>{
       for (final item in items) item.sourceIndex: item,
     };
 
-    final pattern = layoutMode == ProfileGridLayoutMode.artistModern
-        ? artistQuiltedPattern
-        : uniformQuiltedPattern;
+    final pattern = placements
+        .map(
+          (p) => p.span == ProfileGridSpan.double
+              ? const QuiltedGridTile(2, 2)
+              : const QuiltedGridTile(1, 1),
+        )
+        .toList(growable: false);
+
+    if (pattern.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: padding,
@@ -96,12 +109,7 @@ class ProfileModularGrid extends StatelessWidget {
             final gridItem = bySourceIndex[placement.sourceIndex];
             if (gridItem == null) return const SizedBox.shrink();
 
-            final patternIndex = layoutMode == ProfileGridLayoutMode.artistModern
-                ? visualIndex % artistQuiltedPattern.length
-                : 0;
-            final tileSpec = pattern[patternIndex];
-            final isHero = tileSpec.mainAxisCount > 1 &&
-                tileSpec.crossAxisCount > 1;
+            final isHero = placement.span == ProfileGridSpan.double;
 
             return ProfileGridTile(
               thumbnailUrl: gridItem.thumbnailUrl,
@@ -123,6 +131,17 @@ class ProfileModularGrid extends StatelessWidget {
   }
 }
 
+ProfileGridSpanOverride profileGridSpanOverrideFromReel(
+  Map<String, dynamic> reel,
+) {
+  final raw = ((reel['profileGridSpan'] as String?) ?? '').toLowerCase().trim();
+  return switch (raw) {
+    'double' || 'large' || 'hero' => ProfileGridSpanOverride.double,
+    'unit' || 'small' => ProfileGridSpanOverride.unit,
+    _ => ProfileGridSpanOverride.auto,
+  };
+}
+
 List<ProfileGridItem> profileGridItemsFromReels({
   required List<Map<String, dynamic>> reels,
   required String Function(Map<String, dynamic> reel) thumbnailFor,
@@ -130,7 +149,7 @@ List<ProfileGridItem> profileGridItemsFromReels({
 }) {
   return List.generate(reels.length, (index) {
     final reel = reels[index];
-    final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
+    final mediaType = ProfileGridPosts.mediaType(reel);
     return ProfileGridItem(
       sourceIndex: index,
       thumbnailUrl: thumbnailFor(reel),
@@ -138,9 +157,10 @@ List<ProfileGridItem> profileGridItemsFromReels({
       likes: (reel['likes'] as num?)?.toInt() ?? 0,
       shares: ReelEngagement.repostCount(reel),
       privacy: ReelCountPrivacy.fromMap(reel),
-      isVideo: mediaType != 'image',
-      showVrBadge: showVrBadge,
+      isVideo: mediaType == 'video',
+      showVrBadge: showVrBadge || reel['isVR'] == true,
       isRepost: reel['isRepost'] == true,
+      spanOverride: profileGridSpanOverrideFromReel(reel),
     );
   });
 }

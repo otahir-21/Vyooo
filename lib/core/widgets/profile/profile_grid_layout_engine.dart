@@ -12,6 +12,7 @@ abstract final class ProfileGridLayoutEngine {
     required List<int> viewsByIndex,
     required ProfileGridLayoutMode mode,
     int minViewsForDouble = 0,
+    List<ProfileGridSpanOverride> spanOverrideByIndex = const [],
   }) {
     switch (mode) {
       case ProfileGridLayoutMode.uniform:
@@ -19,7 +20,10 @@ abstract final class ProfileGridLayoutEngine {
           itemCount,
           (i) => ProfileGridPlacement(
             sourceIndex: i,
-            span: ProfileGridSpan.unit,
+            span: _spanForUniformIndex(
+              i,
+              spanOverrideByIndex: spanOverrideByIndex,
+            ),
           ),
         );
       case ProfileGridLayoutMode.artistModern:
@@ -27,14 +31,52 @@ abstract final class ProfileGridLayoutEngine {
           itemCount: itemCount,
           viewsByIndex: viewsByIndex,
           minViewsForDouble: minViewsForDouble,
+          spanOverrideByIndex: spanOverrideByIndex,
         );
     }
+  }
+
+  static ProfileGridSpan _spanForUniformIndex(
+    int index, {
+    required List<ProfileGridSpanOverride> spanOverrideByIndex,
+  }) {
+    final override = _overrideAt(index, spanOverrideByIndex);
+    return switch (override) {
+      ProfileGridSpanOverride.double => ProfileGridSpan.double,
+      ProfileGridSpanOverride.unit => ProfileGridSpan.unit,
+      ProfileGridSpanOverride.auto => ProfileGridSpan.unit,
+    };
+  }
+
+  static ProfileGridSpanOverride _overrideAt(
+    int index,
+    List<ProfileGridSpanOverride> spanOverrideByIndex,
+  ) {
+    if (index < 0 || index >= spanOverrideByIndex.length) {
+      return ProfileGridSpanOverride.auto;
+    }
+    return spanOverrideByIndex[index];
+  }
+
+  static bool _mayUseDoubleHero({
+    required int index,
+    required List<int> viewsByIndex,
+    required int minViewsForDouble,
+    required List<ProfileGridSpanOverride> spanOverrideByIndex,
+  }) {
+    return switch (_overrideAt(index, spanOverrideByIndex)) {
+      ProfileGridSpanOverride.double => true,
+      ProfileGridSpanOverride.unit => false,
+      ProfileGridSpanOverride.auto =>
+        viewsByIndex[index] >= minViewsForDouble,
+    };
   }
 
   static List<ProfileGridPlacement> _artistModern({
     required int itemCount,
     required List<int> viewsByIndex,
     required int minViewsForDouble,
+    required List<ProfileGridSpanOverride> spanOverrideByIndex,
   }) {
     if (itemCount <= 0) return const [];
 
@@ -56,7 +98,12 @@ abstract final class ProfileGridLayoutEngine {
         placements.add(
           ProfileGridPlacement(
             sourceIndex: index,
-            span: viewsByIndex[index] >= minViewsForDouble
+            span: _mayUseDoubleHero(
+                  index: index,
+                  viewsByIndex: viewsByIndex,
+                  minViewsForDouble: minViewsForDouble,
+                  spanOverrideByIndex: spanOverrideByIndex,
+                )
                 ? ProfileGridSpan.double
                 : ProfileGridSpan.unit,
           ),
@@ -71,9 +118,22 @@ abstract final class ProfileGridLayoutEngine {
           return a.compareTo(b);
         });
 
-      final heroIndex = ranked.first;
-      final useDoubleHero =
-          viewsByIndex[heroIndex] >= minViewsForDouble &&
+      final pinnedDoubles = ranked
+          .where(
+            (i) =>
+                _overrideAt(i, spanOverrideByIndex) ==
+                ProfileGridSpanOverride.double,
+          )
+          .toList(growable: false);
+
+      final heroIndex =
+          pinnedDoubles.isNotEmpty ? pinnedDoubles.first : ranked.first;
+      final useDoubleHero = _mayUseDoubleHero(
+            index: heroIndex,
+            viewsByIndex: viewsByIndex,
+            minViewsForDouble: minViewsForDouble,
+            spanOverrideByIndex: spanOverrideByIndex,
+          ) &&
           chunkIndices.length >= 2;
 
       final featured = <int>[];

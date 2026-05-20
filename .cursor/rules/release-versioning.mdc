@@ -1,0 +1,43 @@
+---
+description: Play Store and App Store version bumps — build number only unless told otherwise
+globs:
+  - pubspec.yaml
+  - docs/VERSIONING.md
+alwaysApply: true
+---
+
+# Release versioning (Vyooo)
+
+## Source of truth
+
+**`pubspec.yaml`** → `version: <marketing>+<build>` (e.g. `1.2.0+36`).
+
+| Part | Android | iOS |
+|------|---------|-----|
+| Before `+` (marketing) | `versionName` | `CFBundleShortVersionString` |
+| After `+` (build) | `versionCode` | `CFBundleVersion` |
+
+## Default rule for store uploads
+
+- **Only bump the build number** — change `+N` to `+(N+1)`.
+- **Keep marketing version unchanged** (e.g. stay on `1.2.0`) unless the user explicitly requests a new `x.y.z`.
+- Do **not** edit `ios/Runner.xcodeproj` version fields for routine uploads; Flutter injects from pubspec.
+- After changing pubspec, run `flutter pub get`.
+
+## Play Console “version code already used”
+
+If Google says *“Version code 35 has already been used”*, set build to **36** (or higher than the rejected code):
+
+```yaml
+version: 1.2.0+36   # marketing unchanged; build must be new
+```
+
+Check the **highest versionCode already uploaded** in Play Console and use **that + 1**.
+
+## When to change marketing version
+
+Only when the user asks for a visible release like `1.2.1` or `1.3.0`, or product policy requires it. Still increment build on every binary upload.
+
+## Docs
+
+Update `docs/VERSIONING.md` **current release** build row when bumping; add a history row only for uploads that actually ship.

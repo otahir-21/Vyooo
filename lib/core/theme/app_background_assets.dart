@@ -23,8 +23,11 @@ class AppBackgroundAssets {
   /// Home feed — Following tab behind stories + reels.
   static const String followingFeed = 'assets/bgImages/usernameBG.png';
 
-  /// Comments bottom sheet (gradient card).
+  /// Comments, post settings, profile menu, and profile screen backgrounds.
   static const String commentsSection = 'assets/bgImages/Comment_section.png';
+
+  /// Owner post settings bottom sheet.
+  static const String postSettings = commentsSection;
 
   /// OTP verify, username onboarding, and search tab.
   static const String otpScreen = 'assets/bgImages/OTPScreenBG.png';

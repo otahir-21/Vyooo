@@ -22,23 +22,25 @@ Flutter injects these into Android Gradle and iOS `Info.plist` (`FLUTTER_BUILD_N
 | Field | Value |
 |-------|--------|
 | Marketing version | **1.2.0** |
-| Build number | **34** |
-| `pubspec.yaml` | `1.2.0+34` |
+| Build number | **36** |
+| `pubspec.yaml` | `1.2.0+36` |
 
 ## Release history
 
 | Marketing | Build | Date | Channels | Notes |
 |-----------|-------|------|----------|--------|
+| 1.2.0 | 36 | 2026-05-20 | Play Store | Repost to profile, post counter privacy, feed repost button |
+| 1.2.0 | 35 | 2026-05-20 | Play Store | (rejected — versionCode 35 already used) |
 | 1.2.0 | 34 | 2026-05-20 | Play Store, TestFlight / Xcode | Version gate, profile grid, TestFlight update URL |
 | 1.1.9 | 33 | — | — | Previous shipped build |
 
 ## Before each store upload
 
-1. Bump **`pubspec.yaml`**: increase **build** every upload; increase **marketing** when users should see a new x.y.z.
+1. Bump **`pubspec.yaml`**: increase **build only** (`+N`) every Play/App Store upload. **Do not** change marketing (`1.2.0`) unless the user explicitly asks for a new x.y.z.
 2. Run `flutter pub get` (regenerates iOS `Generated.xcconfig`).
 3. Add a row to **Release history** above.
 4. **Android:** build app bundle (`flutter build appbundle`) — version comes from pubspec.
-5. **iOS:** Archive in Xcode — version/build come from pubspec via Flutter; confirm **Runner → General** shows 1.2.0 (34).
+5. **iOS:** Archive in Xcode — version/build come from pubspec via Flutter; confirm **Runner → General** shows 1.2.0 (36).
 
 ## After the build is live (version gate)
 

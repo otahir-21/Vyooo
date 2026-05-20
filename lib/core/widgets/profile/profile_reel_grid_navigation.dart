@@ -9,6 +9,46 @@ import '../../../screens/profile/profile_figma_tokens.dart';
 abstract final class ProfileReelGridNavigation {
   ProfileReelGridNavigation._();
 
+  /// Maps a `reels` document for profile grids (image + video posts).
+  static Map<String, dynamic> reelMapFromFirestore(
+    String docId,
+    Map<String, dynamic> data, {
+    String fallbackUserId = '',
+  }) {
+    return {
+      'id': docId,
+      'userId': data['userId'] as String? ?? fallbackUserId,
+      'username': data['username'] as String? ?? '',
+      'handle': data['handle'] as String? ?? '',
+      'avatarUrl': data['avatarUrl'] as String? ?? '',
+      'videoUrl': data['videoUrl'] as String? ?? '',
+      'imageUrl': data['imageUrl'] as String? ?? '',
+      'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
+      'mediaType': data['mediaType'] as String? ?? '',
+      'caption': data['caption'] as String? ?? '',
+      'likes': (data['likes'] as num?)?.toInt() ?? 0,
+      'comments': (data['comments'] as num?)?.toInt() ?? 0,
+      'shares': (data['shares'] as num?)?.toInt() ?? 0,
+      'views': (data['views'] as num?)?.toInt() ?? 0,
+      'saves': (data['saves'] as num?)?.toInt() ?? 0,
+      'createdAt': data['createdAt'],
+      'isVR': data['isVR'] == true,
+      'profileGridSpan': data['profileGridSpan'] as String? ?? '',
+      'hideLikeCount': data['hideLikeCount'] == true,
+      'hideViewCount': data['hideViewCount'] == true,
+      'hideShareCount': data['hideShareCount'] == true,
+      'hideCommentCount': data['hideCommentCount'] == true,
+      'hideSaveCount': data['hideSaveCount'] == true,
+      'reposts': (data['reposts'] as num?)?.toInt() ??
+          (data['shares'] as num?)?.toInt() ??
+          0,
+      'isRepost': data['isRepost'] == true,
+      'repostOf': data['repostOf'] as String? ?? '',
+      'repostOfUserId': data['repostOfUserId'] as String? ?? '',
+      'repostOfUsername': data['repostOfUsername'] as String? ?? '',
+    };
+  }
+
   static String thumbnailFromReel(Map<String, dynamic> reel) {
     final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
     final imageUrl = (reel['imageUrl'] as String?)?.trim() ?? '';

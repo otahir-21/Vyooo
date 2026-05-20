@@ -78,6 +78,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   final LiveStreamService _liveStreamService = LiveStreamService();
   String? _highlightsStreamUid;
   Stream<List<StoryHighlightModel>>? _highlightsStream;
+  Future<List<Map<String, dynamic>>>? _savedReelsFuture;
+  String? _savedReelsFutureUid;
+  Future<List<Map<String, dynamic>>>? _vrReelsFuture;
 
   Stream<List<StoryHighlightModel>> _highlightsStreamFor(String uid) {
     if (_highlightsStreamUid != uid || _highlightsStream == null) {
@@ -901,6 +904,20 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  Future<List<Map<String, dynamic>>> _savedReelsFutureFor(String uid) {
+    if (_savedReelsFuture != null && _savedReelsFutureUid == uid) {
+      return _savedReelsFuture!;
+    }
+    _savedReelsFutureUid = uid;
+    _savedReelsFuture =
+        ReelsController().fetchFavoriteReelsForProfile(uid);
+    return _savedReelsFuture!;
+  }
+
+  Future<List<Map<String, dynamic>>> _vrReelsFutureOnce() {
+    return _vrReelsFuture ??= ReelsService().getReelsVR(limit: 120);
+  }
+
   List<Widget> _buildSavedGridSlivers() {
     final uid = AuthService().currentUser?.uid;
     if (uid == null || uid.isEmpty) {
@@ -914,7 +931,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return [
       SliverToBoxAdapter(
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: ReelsController().fetchFavoriteReelsForProfile(uid),
+          future: _savedReelsFutureFor(uid),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SizedBox(
@@ -1026,95 +1043,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     return [
       SliverToBoxAdapter(
-        child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: FirebaseFirestore.instance
-              .collection('reels')
-              .where('userId', isEqualTo: uid)
-              .get()
-              .then((q) {
-                final docs = q.docs.map((d) {
-                  final data = d.data();
-                  return {
-                    'id': d.id,
-                    'userId': data['userId'] as String? ?? '',
-                    'username': data['username'] as String? ?? '',
-                    'handle': data['handle'] as String? ?? '',
-                    'avatarUrl': data['avatarUrl'] as String? ?? '',
-                    'videoUrl': data['videoUrl'] as String? ?? '',
-                    'imageUrl': data['imageUrl'] as String? ?? '',
-                    'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
-                    'mediaType': data['mediaType'] as String? ?? '',
-                    'caption': data['caption'] as String? ?? '',
-                    'likes': (data['likes'] as num?)?.toInt() ?? 0,
-                    'comments': (data['comments'] as num?)?.toInt() ?? 0,
-                    'shares': (data['shares'] as num?)?.toInt() ?? 0,
-                    'views': (data['views'] as num?)?.toInt() ?? 0,
-                    'saves': (data['saves'] as num?)?.toInt() ?? 0,
-                    'createdAt': data['createdAt'],
-                    'hideLikeCount': data['hideLikeCount'] == true,
-                    'hideViewCount': data['hideViewCount'] == true,
-                    'hideShareCount': data['hideShareCount'] == true,
-                    'hideCommentCount': data['hideCommentCount'] == true,
-                    'hideSaveCount': data['hideSaveCount'] == true,
-                    'reposts': (data['reposts'] as num?)?.toInt() ??
-                        (data['shares'] as num?)?.toInt() ??
-                        0,
-                    'isRepost': data['isRepost'] == true,
-                    'repostOf': data['repostOf'] as String? ?? '',
-                    'repostOfUserId': data['repostOfUserId'] as String? ?? '',
-                    'repostOfUsername': data['repostOfUsername'] as String? ?? '',
-                  };
-                }).toList();
-                docs.sort((a, b) {
-                  final aTs = a['createdAt'] as Timestamp?;
-                  final bTs = b['createdAt'] as Timestamp?;
-                  if (aTs == null && bTs == null) return 0;
-                  if (aTs == null) return 1;
-                  if (bTs == null) return -1;
-                  return bTs.compareTo(aTs);
-                });
-                return ReelsService().hydrateRepostEngagementStats(docs);
-              }),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 200,
-                child: Center(
-                  child: CircularProgressIndicator(color: Colors.white54),
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              debugPrint('Profile posts error: ${snapshot.error}');
-              return SizedBox(
-                height: 200,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      messageForFirestore(snapshot.error),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: 14,
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }
-            final posts = snapshot.data ?? [];
-            if (posts.isEmpty) return _buildEmptyPostsPrompt(context);
-            return ProfileModularGrid(
-              gap: 0,
-              items: profileGridItemsFromReels(
-                reels: posts,
-                thumbnailFor: _thumbnailFromReel,
-              ),
-              onItemTap: (index) => _openPostFeedFromReels(context, posts, index),
-            );
-          },
+        child: ProfileCachedPostsGrid(
+          key: ValueKey('profile-posts-$uid'),
+          userId: uid,
+          thumbnailFor: _thumbnailFromReel,
+          onItemTap: _openPostFeedFromReels,
+          empty: _buildEmptyPostsPrompt(context),
         ),
       ),
     ];
@@ -1199,7 +1133,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return [
       SliverToBoxAdapter(
         child: FutureBuilder<List<Map<String, dynamic>>>(
-          future: ReelsService().getReelsVR(limit: 120),
+          future: _vrReelsFutureOnce(),
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Padding(

@@ -9,6 +9,13 @@ enum ProfileGridSpan {
   double,
 }
 
+/// Per-post profile tile size. [auto] uses layout mode (e.g. views for artist grid).
+enum ProfileGridSpanOverride {
+  auto,
+  unit,
+  double,
+}
+
 /// One tile in the profile grid (index matches the caller's post list).
 class ProfileGridItem {
   const ProfileGridItem({
@@ -21,6 +28,7 @@ class ProfileGridItem {
     this.isVideo = false,
     this.showVrBadge = false,
     this.isRepost = false,
+    this.spanOverride = ProfileGridSpanOverride.auto,
   });
 
   final int sourceIndex;
@@ -32,6 +40,7 @@ class ProfileGridItem {
   final bool isVideo;
   final bool showVrBadge;
   final bool isRepost;
+  final ProfileGridSpanOverride spanOverride;
 }
 
 /// Visual placement produced by [ProfileGridLayoutEngine].
