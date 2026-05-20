@@ -2029,33 +2029,31 @@ class _ProfileFollowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(_profileActionRadius);
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(_profileActionRadius),
+        borderRadius: radius,
         child: Ink(
-          height: 44,
+          height: ProfileFigmaTokens.profileFollowButtonHeight,
           decoration: BoxDecoration(
             color: outlined ? Colors.transparent : _profileAccentMagenta,
-            borderRadius: BorderRadius.circular(_profileActionRadius),
-            border: outlined
-                ? Border.all(
-                    color: _profileAccentMagenta,
-                    width: _profileOutlineWidth,
-                  )
-                : Border.all(
-                    color: const Color(0xFFC4185A),
-                    width: 1,
-                  ),
+            borderRadius: radius,
+            border: Border.all(
+              color: outlined
+                  ? ProfileFigmaTokens.profileFollowingBorder
+                  : const Color(0xFFC4185A),
+              width: outlined ? 1 : 1,
+            ),
           ),
           child: Center(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontSize: ProfileFigmaTokens.profileFollowLabelFontSize,
+                fontWeight: outlined ? FontWeight.w500 : FontWeight.w600,
               ),
             ),
           ),

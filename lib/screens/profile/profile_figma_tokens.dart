@@ -65,4 +65,9 @@ abstract final class ProfileFigmaTokens {
   static const double otherUserHeaderFollowFontSize = 13;
   static const Color otherUserHeaderHandleColor = Color(0xA6FFFFFF);
   static const Color otherUserHeaderFollowBorder = Color(0x4DFFFFFF);
+
+  /// Other-user profile action row — Following / Requested pill (Figma).
+  static const double profileFollowButtonHeight = 45;
+  static const double profileFollowLabelFontSize = 14;
+  static const Color profileFollowingBorder = Color(0x4DFFFFFF);
 }
