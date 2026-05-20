@@ -6,9 +6,12 @@ class AppBackgroundAssets {
 
   static final Random _random = Random();
 
+  /// Help center (Contact Support).
+  static const String contactSupport = 'assets/bgImages/2.png';
+
   /// Auth, registration, OTP, password recovery, and post-sign-up onboarding.
   static const List<String> authFlowBackgrounds = [
-    'assets/bgImages/2.png',
+    contactSupport,
     'assets/bgImages/3.png',
     'assets/bgImages/OTPScreenBG.png',
     'assets/bgImages/usernameBG.png',

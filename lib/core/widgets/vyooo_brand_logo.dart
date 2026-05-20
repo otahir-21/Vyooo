@@ -16,6 +16,7 @@ class VyoooBrandLogo extends StatelessWidget {
     this.height,
     this.contentScale = defaultContentScale,
     this.center = true,
+    this.alignment = Alignment.center,
   });
 
   static const String assetPath =
@@ -36,13 +37,15 @@ class VyoooBrandLogo extends StatelessWidget {
         size = AppSizes.settingsInnerLogoHeight,
         height = null,
         contentScale = innerHeaderContentScale,
-        center = false;
+        center = false,
+        alignment = Alignment.centerRight;
 
   final double? width;
   final double? size;
   final double? height;
   final double contentScale;
   final bool center;
+  final AlignmentGeometry alignment;
 
   double get _resolvedHeight => height ?? size ?? defaultHeight;
 
@@ -54,7 +57,7 @@ class VyoooBrandLogo extends StatelessWidget {
       height: _resolvedHeight,
       child: ClipRect(
         child: Align(
-          alignment: Alignment.center,
+          alignment: alignment,
           child: Image.asset(
             assetPath,
             width: width,
