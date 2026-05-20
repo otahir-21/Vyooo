@@ -11,7 +11,6 @@ import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
-import '../../core/utils/verification_badge.dart';
 import '../../core/theme/app_background_assets.dart';
 import '../../core/widgets/app_gradient_background.dart';
 import '../../core/widgets/live_now_strip.dart';
@@ -1092,13 +1091,11 @@ class SearchScreenState extends State<SearchScreen>
           Builder(
             builder: (context) {
               final users = _filteredUsers;
-              return ListView.separated(
+              return ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: users.length,
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: AppSpacing.sm),
                 itemBuilder: (context, index) => _UserSearchResultTile(
                   user: users[index],
                   isFollowBusy: _followInFlightIds.contains(users[index].uid),
@@ -1290,14 +1287,12 @@ class SearchScreenState extends State<SearchScreen>
         child: Text('No users found.', style: TextStyle(color: Colors.white70)),
       );
     }
-    return ListView.separated(
+    return ListView.builder(
       padding: const EdgeInsets.symmetric(
         horizontal: 16,
         vertical: AppSpacing.xs,
       ),
       itemCount: users.length,
-      separatorBuilder: (context, index) =>
-          const SizedBox(height: AppSpacing.sm),
       itemBuilder: (context, index) => _UserSearchResultTile(
         user: users[index],
         isFollowBusy: _followInFlightIds.contains(users[index].uid),
@@ -2207,176 +2202,192 @@ class _UserSearchResultTile extends StatelessWidget {
   final bool isFollowBusy;
   final VoidCallback? onTap;
   final VoidCallback? onFollowTap;
+
   static const String _defaultAvatarAsset =
       'assets/vyooO_icons/Home/profile_icon.png';
 
-  // static String _formatFollowers(int n) {
-  //   if (n >= 1000000) {
-  //     final v = n / 1000000;
-  //     return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}M';
-  //   }
-  //   if (n >= 1000) {
-  //     final v = n / 1000;
-  //     return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}K';
-  //   }
-  //   return '$n';
-  // }
+  static String _displayHandle(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.startsWith('@')) return trimmed.substring(1);
+    return trimmed;
+  }
+
+  static String _formatFollowerCount(int n) {
+    if (n >= 1000000) {
+      final v = n / 1000000;
+      return '${v >= 10 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}M';
+    }
+    if (n >= 1000) {
+      final v = n / 1000;
+      return '${v >= 100 ? v.toStringAsFixed(0) : v.toStringAsFixed(1)}K';
+    }
+    return '$n';
+  }
+
+  String get _subtitleLine {
+    final handle = _displayHandle(user.username);
+    final name = user.fullName.trim().isNotEmpty
+        ? user.fullName.trim()
+        : handle;
+    final followers = _formatFollowerCount(user.followerCount);
+    return '$name • $followers followers';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    final handle = _displayHandle(user.username);
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.1),
+            width: 0.8,
+          ),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: InkWell(
                 onTap: isFollowBusy ? null : onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: CircleAvatar(
-                          radius: 28,
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
-                          backgroundImage:
-                              Uri.tryParse(user.avatarUrl)?.isAbsolute == true
-                              ? NetworkImage(user.avatarUrl)
-                              : const AssetImage(_defaultAvatarAsset),
-                          onBackgroundImageError: (_, _) {},
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    user.username,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.1,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                      backgroundImage:
+                          Uri.tryParse(user.avatarUrl)?.isAbsolute == true
+                          ? NetworkImage(user.avatarUrl)
+                          : const AssetImage(_defaultAvatarAsset),
+                      onBackgroundImageError: (_, _) {},
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  handle,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
-                                if (user.isVerified) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: verificationBadgeColor(
-                                        isVerified: user.isVerified,
-                                        accountType: user.accountType,
-                                        vipVerified: user.vipVerified,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      size: 9,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              user.fullName,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
                               ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                              if (user.isVerified) ...[
+                                const SizedBox(width: 6),
+                                Image.asset(
+                                  'assets/vyooO_icons/Search/verified_account.png',
+                                  width: 14,
+                                  height: 14,
+                                  color: AppColors.brandPink,
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _subtitleLine,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.55),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
                             ),
-                          ],
-                        ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(20),
-                // Keep tap consumed even while busy so row onTap never fires.
-                onTap: isFollowBusy ? () {} : onFollowTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: user.isFollowing ||
-                            (UserService.accountTypeRequiresFollowApproval(
-                                  user.accountType,
-                                ) &&
-                                user.outgoingFollowRequestPending)
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : const Color(0xFFF81945),
-                    borderRadius: BorderRadius.circular(20),
-                    border: UserService.accountTypeRequiresFollowApproval(
-                              user.accountType,
-                            ) &&
-                            user.outgoingFollowRequestPending &&
-                            !user.isFollowing
-                        ? Border.all(color: Colors.white.withValues(alpha: 0.35))
-                        : null,
-                  ),
-                  child: isFollowBusy
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          user.isFollowing
-                              ? 'Following'
-                              : (UserService.accountTypeRequiresFollowApproval(
-                                        user.accountType,
-                                      ) &&
-                                      user.outgoingFollowRequestPending
-                                  ? 'Requested'
-                                  : 'Follow'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
+            const SizedBox(width: 10),
+            _SearchUserFollowButton(
+              user: user,
+              isBusy: isFollowBusy,
+              onTap: onFollowTap,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Follow / Following / Requested pill for search user rows (Figma Users tab).
+class _SearchUserFollowButton extends StatelessWidget {
+  const _SearchUserFollowButton({
+    required this.user,
+    required this.isBusy,
+    this.onTap,
+  });
+
+  final _UserSearchItem user;
+  final bool isBusy;
+  final VoidCallback? onTap;
+
+  bool get _isRequested =>
+      !user.isFollowing &&
+      UserService.accountTypeRequiresFollowApproval(user.accountType) &&
+      user.outgoingFollowRequestPending;
+
+  String get _label {
+    if (user.isFollowing) return 'Following';
+    if (_isRequested) return 'Requested';
+    return 'Follow';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFollowing = user.isFollowing;
+    final background = isFollowing || _isRequested
+        ? Colors.white.withValues(alpha: 0.12)
+        : AppColors.brandPink;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isBusy ? () {} : onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: _isRequested
+                ? Border.all(color: Colors.white.withValues(alpha: 0.35))
+                : null,
+          ),
+          child: isBusy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text(
+                  _label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ),
     );
