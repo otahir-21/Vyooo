@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/search_history_storage.dart';
 import '../../core/services/search_voice_input.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
@@ -62,6 +63,7 @@ class SearchScreenState extends State<SearchScreen>
   Set<String> _myFollowingIds = <String>{};
   bool _usersLoadAttempted = false;
   final Set<String> _followInFlightIds = <String>{};
+  final SearchHistoryStorage _searchHistory = SearchHistoryStorage();
   List<String> _recentSearches = <String>[];
   List<_VRSearchItem> _vrSearchItems = <_VRSearchItem>[];
   bool _vrLoading = false;
@@ -99,6 +101,32 @@ class SearchScreenState extends State<SearchScreen>
     _selectedTabIndex = _lastSelectedTabIndex;
     _loadUsers();
     _loadVrItems();
+    unawaited(_loadRecentSearches());
+  }
+
+  Future<void> _loadRecentSearches() async {
+    try {
+      final items = await _searchHistory.load();
+      if (!mounted) return;
+      setState(() => _recentSearches = items);
+    } catch (_) {
+      // Keep empty list on storage failure.
+    }
+  }
+
+  Future<void> _recordRecentSearch([String? query]) async {
+    final trimmed = (query ?? _searchController.text).trim();
+    if (trimmed.isEmpty) return;
+    try {
+      final updated = await _searchHistory.add(
+        trimmed,
+        current: _recentSearches,
+      );
+      if (!mounted) return;
+      setState(() => _recentSearches = updated);
+    } catch (_) {
+      // Non-blocking; search still works without history.
+    }
   }
 
   /// Called from [MainNavWrapper] when user taps a hashtag elsewhere.
@@ -578,6 +606,9 @@ class SearchScreenState extends State<SearchScreen>
       if (_isVoiceListening) {
         setState(() => _isVoiceListening = false);
       }
+      if (status == 'done' && _searchController.text.trim().isNotEmpty) {
+        unawaited(_recordRecentSearch());
+      }
       if (status == 'doneNoResult' &&
           _searchController.text.trim().isEmpty) {
         _voiceInput.noteNoSpeechHeard();
@@ -666,18 +697,35 @@ class SearchScreenState extends State<SearchScreen>
   }
 
   void _onSearchFocusChange() {
-    setState(() => _isSearchActive = _searchFocusNode.hasFocus);
+    final hasFocus = _searchFocusNode.hasFocus;
+    if (!hasFocus && _searchController.text.trim().isNotEmpty) {
+      unawaited(_recordRecentSearch());
+    }
+    setState(() => _isSearchActive = hasFocus);
   }
 
   void _exitSearchMode() {
+    if (_searchController.text.trim().isNotEmpty) {
+      unawaited(_recordRecentSearch());
+    }
     _searchFocusNode.unfocus();
     setState(() => _isSearchActive = false);
   }
 
-  void _removeRecentSearch(int index) {
-    setState(() {
-      _recentSearches = List<String>.from(_recentSearches)..removeAt(index);
-    });
+  Future<void> _removeRecentSearch(int index) async {
+    try {
+      final updated = await _searchHistory.removeAt(
+        index,
+        current: _recentSearches,
+      );
+      if (!mounted) return;
+      setState(() => _recentSearches = updated);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _recentSearches = List<String>.from(_recentSearches)..removeAt(index);
+      });
+    }
   }
 
   /// While typing a query, show tabbed results. Empty query + focus shows recents;
@@ -1298,11 +1346,17 @@ class SearchScreenState extends State<SearchScreen>
                   itemBuilder: (context, index) => _RecentSearchTile(
                     query: _recentSearches[index],
                     onTap: () {
-                      _searchController.text = _recentSearches[index];
+                      final q = _recentSearches[index];
+                      _searchController.text = q;
+                      _searchController.selection = TextSelection.collapsed(
+                        offset: q.length,
+                      );
+                      _lastSearchQuery = q;
                       _searchFocusNode.unfocus();
                       setState(() => _isSearchActive = false);
+                      unawaited(_recordRecentSearch(q));
                     },
-                    onRemove: () => _removeRecentSearch(index),
+                    onRemove: () => unawaited(_removeRecentSearch(index)),
                   ),
                 ),
         ),
@@ -1356,6 +1410,13 @@ class SearchScreenState extends State<SearchScreen>
                         child: TextField(
                           controller: _searchController,
                           focusNode: _searchFocusNode,
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (value) {
+                            final trimmed = value.trim();
+                            if (trimmed.isEmpty) return;
+                            unawaited(_recordRecentSearch(trimmed));
+                            _searchFocusNode.unfocus();
+                          },
                           textAlignVertical: TextAlignVertical.center,
                           cursorColor: Colors.white70,
                           cursorWidth: 1.2,
