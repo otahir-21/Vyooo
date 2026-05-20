@@ -252,7 +252,7 @@ export const getCloudflareUploadUrl = onDocumentCreated(
             'Authorization': `Bearer ${CF_API_TOKEN}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ maxDurationSeconds: 600, requireSignedURLs: false }),
+          body: JSON.stringify({ maxDurationSeconds: -1, requireSignedURLs: false }),
         },
       );
 

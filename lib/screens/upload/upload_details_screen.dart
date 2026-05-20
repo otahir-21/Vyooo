@@ -15,7 +15,6 @@ import 'package:photo_manager/photo_manager.dart';
 import '../../core/services/hashtag_generation_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/utils/upload_tag_suggestions.dart';
-import '../../core/utils/video_upload_policy.dart';
 import 'location_picker_sheet.dart';
 import 'upload_success_screen.dart';
 
@@ -129,17 +128,6 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
-    if (_isVideoAsset) {
-      final validation = widget.videoFileOverride != null
-          ? await VideoUploadPolicy.validateFile(widget.videoFileOverride!)
-          : await VideoUploadPolicy.validateAsset(widget.asset);
-      if (validation != null) {
-        if (!mounted) return;
-        await _showValidationFixDialog(validation);
-        return;
-      }
-    }
 
     setState(() {
       _isUploading = true;
@@ -281,14 +269,13 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
     await reqRef.delete(); // clean up request doc
 
-    // 3 — upload video directly to Cloudflare Stream
-    final fileBytes = await file.readAsBytes();
+    // 3 — upload video directly to Cloudflare Stream (stream from disk; no size cap in app)
     if (mounted) setState(() => _uploadProgress = 0.1);
 
     final request = http.MultipartRequest('POST', Uri.parse(uploadUrl))
-      ..files.add(http.MultipartFile.fromBytes(
+      ..files.add(await http.MultipartFile.fromPath(
         'file',
-        fileBytes,
+        file.path,
         filename: '${DateTime.now().millisecondsSinceEpoch}.mp4',
       ));
 
@@ -330,49 +317,6 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     if (lower.endsWith('.heic')) return 'heic';
     if (lower.endsWith('.heif')) return 'heif';
     return 'jpg';
-  }
-
-  Future<void> _showValidationFixDialog(VideoValidationResult validation) async {
-    final canEdit = validation.canOpenEditorFix;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A0020),
-        title: const Text('Video needs adjustment', style: TextStyle(color: Colors.white)),
-        content: Text(
-          '${validation.message}\n\n${_fixHintForIssue(validation.issue)}',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), height: 1.35),
-        ),
-        actions: [
-          if (canEdit)
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Back to editor'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _fixHintForIssue(VideoValidationIssue issue) {
-    switch (issue) {
-      case VideoValidationIssue.tooLong:
-        return 'Trim the clip to 2 minutes or less.';
-      case VideoValidationIssue.invalidAspectRatio:
-        return 'Any orientation is supported. Pick another file if this keeps showing.';
-      case VideoValidationIssue.tooLarge:
-        return 'Compress/export to under 100 MB.';
-      case VideoValidationIssue.unreadableDimensions:
-      case VideoValidationIssue.inaccessibleFile:
-        return 'Pick a different video from gallery.';
-    }
   }
 
   @override
