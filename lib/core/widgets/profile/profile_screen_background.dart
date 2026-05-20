@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_background_assets.dart';
 import '../../theme/app_gradients.dart';
 
-/// Full-screen profile background (`assets/bgImages/2.png`).
+/// Full-screen profile background (`assets/bgImages/Comment_section.png`).
 class ProfileScreenBackground extends StatelessWidget {
   const ProfileScreenBackground({super.key});
 

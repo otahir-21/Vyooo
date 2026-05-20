@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/search_voice_input.dart';
 import '../../core/models/app_user_model.dart';
 import '../../core/models/live_stream_model.dart';
 import '../../core/services/live_stream_service.dart';
@@ -43,6 +45,8 @@ class SearchScreenState extends State<SearchScreen>
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearchActive = false;
+  final SearchVoiceInput _voiceInput = SearchVoiceInput();
+  bool _isVoiceListening = false;
 
   // ── Live streams from Firestore ───────────────────────────────────────────
   final _liveService = LiveStreamService();
@@ -526,6 +530,7 @@ class SearchScreenState extends State<SearchScreen>
 
   @override
   void dispose() {
+    _voiceInput.dispose();
     _liveStreamsSub?.cancel();
     _meUserSub?.cancel();
     _searchFocusNode.removeListener(_onSearchFocusChange);
@@ -533,6 +538,131 @@ class SearchScreenState extends State<SearchScreen>
     _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showVoiceSearchSnack(String message, {bool openSettings = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: openSettings
+            ? SnackBarAction(
+                label: 'Settings',
+                onPressed: openAppSettings,
+              )
+            : null,
+      ),
+    );
+  }
+
+  void _applyVoiceTranscript(String words) {
+    final trimmed = words.trim();
+    if (trimmed == _searchController.text) return;
+    _searchController.text = trimmed;
+    _searchController.selection = TextSelection.collapsed(
+      offset: trimmed.length,
+    );
+  }
+
+  void _onVoiceStatus(String status) {
+    if (!mounted) return;
+    if (status == 'listening') {
+      if (!_isVoiceListening) {
+        setState(() => _isVoiceListening = true);
+      }
+      return;
+    }
+    if (status == 'notListening' ||
+        status == 'done' ||
+        status == 'doneNoResult') {
+      if (_isVoiceListening) {
+        setState(() => _isVoiceListening = false);
+      }
+      if (status == 'doneNoResult' &&
+          _searchController.text.trim().isEmpty) {
+        _voiceInput.noteNoSpeechHeard();
+        _showVoiceSearchSnack(
+          _voiceInput.messageForFailure(
+            SearchVoiceInputFailure.noSpeechHeard,
+          ),
+        );
+      }
+    }
+  }
+
+  void _onVoiceRecognitionError(String message) {
+    if (!mounted) return;
+    setState(() => _isVoiceListening = false);
+    final lower = message.toLowerCase();
+    if (lower.contains('permission')) {
+      _showVoiceSearchSnack(
+        'Allow microphone access to search by voice.',
+        openSettings: true,
+      );
+      return;
+    }
+    if (lower.contains('error_no_match') ||
+        lower.contains('no_match') ||
+        lower.contains('speech_timeout')) {
+      _voiceInput.noteNoSpeechHeard();
+      _showVoiceSearchSnack(
+        _voiceInput.messageForFailure(SearchVoiceInputFailure.noSpeechHeard),
+      );
+      return;
+    }
+    _showVoiceSearchSnack('Voice search failed. Try again.');
+  }
+
+  Future<void> _toggleVoiceSearch() async {
+    try {
+      if (_voiceInput.isListening || _isVoiceListening) {
+        await _voiceInput.stopListening();
+        if (mounted) setState(() => _isVoiceListening = false);
+        return;
+      }
+
+      final ready = await _voiceInput.ensureReady(
+        onStatus: _onVoiceStatus,
+        onError: _onVoiceRecognitionError,
+      );
+      if (!ready) {
+        final failure = _voiceInput.lastFailure;
+        final openSettings = failure == SearchVoiceInputFailure.permissionDenied &&
+            (await Permission.microphone.status).isPermanentlyDenied;
+        _showVoiceSearchSnack(
+          failure != null
+              ? _voiceInput.messageForFailure(failure)
+              : 'Voice search is not available.',
+          openSettings: openSettings,
+        );
+        return;
+      }
+
+      _searchFocusNode.unfocus();
+      final started = await _voiceInput.startListening(
+        onTranscript: _applyVoiceTranscript,
+        onError: _onVoiceRecognitionError,
+      );
+      if (!mounted) return;
+      if (!started) {
+        final failure = _voiceInput.lastFailure;
+        if (failure != null) {
+          _showVoiceSearchSnack(_voiceInput.messageForFailure(failure));
+        }
+        return;
+      }
+      setState(() {
+        _isVoiceListening = true;
+        _isSearchActive = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isVoiceListening = false);
+      _showVoiceSearchSnack(
+        'Voice search is not loaded. Fully quit Vyooo, then run again '
+        'from Xcode or flutter run.',
+      );
+    }
   }
 
   void _onSearchFocusChange() {
@@ -1210,19 +1340,11 @@ class SearchScreenState extends State<SearchScreen>
                 child: Container(
                   height: 48,
                   color: Colors.white.withValues(alpha: 0.12),
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    cursorColor: Colors.white70,
-                    cursorWidth: 1.2,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    decoration: InputDecoration(
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
                         child: Image.asset(
                           'assets/vyooO_icons/Home/nav_bar_icons/search.png',
                           color: Colors.white.withValues(alpha: 0.5),
@@ -1230,34 +1352,56 @@ class SearchScreenState extends State<SearchScreen>
                           height: 24,
                         ),
                       ),
-                      hintText: 'Search',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/vyooO_icons/Search/microphone.png',
-                              color: Colors.white.withValues(alpha: 0.5),
-                              width: 22,
-                              height: 22,
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          textAlignVertical: TextAlignVertical.center,
+                          cursorColor: Colors.white70,
+                          cursorWidth: 1.2,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            height: 1.0,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            hintText: _isVoiceListening ? 'Listening…' : 'Search',
+                            hintStyle: TextStyle(
+                              color: _isVoiceListening
+                                  ? AppColors.brandMagenta.withValues(alpha: 0.9)
+                                  : Colors.white.withValues(alpha: 0.4),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              height: 1.0,
                             ),
-                          ],
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            disabledBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
                       ),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      disabledBorder: InputBorder.none,
-                      errorBorder: InputBorder.none,
-                      focusedErrorBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                      GestureDetector(
+                        onTap: _toggleVoiceSearch,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 8, right: 12),
+                          child: Image.asset(
+                            'assets/vyooO_icons/Search/microphone.png',
+                            color: _isVoiceListening
+                                ? AppColors.brandMagenta
+                                : Colors.white.withValues(alpha: 0.5),
+                            width: 22,
+                            height: 22,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

@@ -63,7 +63,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Vyooo needs the camera to record stories, profile photos, live streams, and video calls.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Microphone is used for live streaming audio, story videos, and voice/video calls.</string>
+	<string>Microphone is used for live streaming audio, story videos, voice/video calls, and voice search.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition turns your voice into search text in Vyooo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Vyooo needs photo library access to add images to your story and profile.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

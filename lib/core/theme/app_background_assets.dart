@@ -30,7 +30,7 @@ class AppBackgroundAssets {
   static const String search = otpScreen;
 
   /// Own profile and other-user profile full-screen background.
-  static const String profile = 'assets/bgImages/2.png';
+  static const String profile = commentsSection;
 
   static String randomAuthFlowBackground() {
     return authFlowBackgrounds[_random.nextInt(authFlowBackgrounds.length)];
