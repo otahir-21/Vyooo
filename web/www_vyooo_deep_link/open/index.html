@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open in Vyooo</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #120018;
+      color: #fff;
+      text-align: center;
+      padding: 24px;
+    }
+    a {
+      color: #f81945;
+      font-weight: 600;
+    }
+  </style>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var profile = (params.get("profile") || "").trim();
+      var reel = (params.get("reel") || "").trim();
+      var ref = profile || reel;
+      if (!ref) {
+        document.getElementById("status").textContent = "Invalid link.";
+        return;
+      }
+      var appUrl = profile
+        ? "vyooo://profile/" + encodeURIComponent(profile)
+        : "vyooo://reel/" + encodeURIComponent(reel);
+      var playStore =
+        "https://play.google.com/store/apps/details?id=com.vyooo";
+      var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      var isAndroid = /Android/i.test(navigator.userAgent);
+      var storeUrl = isIOS ? playStore : isAndroid ? playStore : playStore;
+
+      function openStore() {
+        window.location.replace(storeUrl);
+      }
+
+      document.getElementById("status").textContent = "Opening Vyooo…";
+      window.location.replace(appUrl);
+
+      setTimeout(function () {
+        document.getElementById("status").textContent =
+          "If Vyooo did not open, install the app:";
+        document.getElementById("store").style.display = "inline-block";
+      }, 1400);
+
+      document.getElementById("store").onclick = function (e) {
+        e.preventDefault();
+        openStore();
+      };
+    })();
+  </script>
+</head>
+<body>
+  <div>
+    <p id="status">Opening Vyooo…</p>
+    <p><a id="store" href="#" style="display: none">Get Vyooo</a></p>
+  </div>
+</body>
+</html>

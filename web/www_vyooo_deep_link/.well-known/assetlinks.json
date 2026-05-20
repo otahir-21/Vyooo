@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vyooo",
+      "sha256_cert_fingerprints": [
+        "6D:E8:DA:3C:70:B3:74:44:74:7D:83:0C:41:70:39:E5:DA:C8:09:63:7C:10:F7:EC:9B:B2:32:07:16:82:1D:E1"
+      ]
+    }
+  }
+]

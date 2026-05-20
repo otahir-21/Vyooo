@@ -57,4 +57,12 @@ abstract final class ProfileFigmaTokens {
   static const double tabFontSize = 13;
 
   static const double headerUsernameFontSize = 18;
+
+  /// Compact other-user profile top bar (Figma).
+  static const double otherUserHeaderAvatarRadius = 18;
+  static const double otherUserHeaderNameFontSize = 15;
+  static const double otherUserHeaderHandleFontSize = 13;
+  static const double otherUserHeaderFollowFontSize = 13;
+  static const Color otherUserHeaderHandleColor = Color(0xA6FFFFFF);
+  static const Color otherUserHeaderFollowBorder = Color(0x4DFFFFFF);
 }

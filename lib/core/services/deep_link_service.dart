@@ -4,6 +4,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../config/deep_link_config.dart';
+
 /// Handles incoming app/universal links and extracts reel ids.
 class DeepLinkService {
   DeepLinkService._();
@@ -66,8 +68,19 @@ class DeepLinkService {
     return profile;
   }
 
+  static bool _isAllowedDeepLinkUri(Uri uri) {
+    if (uri.scheme == 'vyooo') return true;
+    if (uri.scheme == 'https' || uri.scheme == 'http') {
+      final host = uri.host.toLowerCase();
+      return host == DeepLinkConfig.webHost ||
+          host == 'vyooo.com' ||
+          host == 'www.vyooo.com';
+    }
+    return false;
+  }
+
   void _handleUri(Uri? uri) {
-    if (uri == null) return;
+    if (uri == null || !_isAllowedDeepLinkUri(uri)) return;
     final reelId = _extractReelId(uri);
     if (reelId != null && reelId.isNotEmpty) {
       _pendingReelId = reelId;

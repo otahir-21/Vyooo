@@ -2,8 +2,10 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_colors.dart';
 import '../../core/theme/app_gradients.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
 import 'profile_figma_tokens.dart';
 
 /// Circular profile photo with Figma 169×169 frame and magenta ring.
@@ -380,6 +382,164 @@ class ProfileFigmaDisplayNameRow extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Figma other-user profile top bar: avatar, name, handle, follow chip, close.
+class OtherUserProfileTopBar extends StatelessWidget {
+  const OtherUserProfileTopBar({
+    super.key,
+    required this.displayName,
+    required this.username,
+    required this.avatarUrl,
+    required this.followLabel,
+    required this.followOutlined,
+    required this.followBusy,
+    required this.onFollowTap,
+    required this.onClose,
+  });
+
+  final String displayName;
+  final String username;
+  final String avatarUrl;
+  final String followLabel;
+  final bool followOutlined;
+  final bool followBusy;
+  final VoidCallback onFollowTap;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        top + AppSpacing.xs,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: ProfileFigmaTokens.otherUserHeaderAvatarRadius,
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+            backgroundImage: ProfileFigmaAvatar.isValidNetworkUrl(avatarUrl)
+                ? NetworkImage(avatarUrl)
+                : null,
+            child: !ProfileFigmaAvatar.isValidNetworkUrl(avatarUrl)
+                ? Icon(
+                    Icons.person_rounded,
+                    size: ProfileFigmaTokens.otherUserHeaderAvatarRadius,
+                    color: Colors.white.withValues(alpha: 0.45),
+                  )
+                : null,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: ProfileFigmaTokens.otherUserHeaderNameFontSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '@${ProfileFigmaTokens.displayUsername(username)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: ProfileFigmaTokens.otherUserHeaderHandleColor,
+                    fontSize: ProfileFigmaTokens.otherUserHeaderHandleFontSize,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          ProfileFigmaHeaderFollowChip(
+            label: followLabel,
+            outlined: followOutlined,
+            busy: followBusy,
+            onTap: followBusy ? () {} : onFollowTap,
+          ),
+          IconButton(
+            onPressed: onClose,
+            icon: Icon(
+              Icons.close_rounded,
+              size: 22,
+              color: Colors.white.withValues(alpha: 0.65),
+            ),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Outlined "Following" / filled "Follow" chip for profile header (Figma).
+class ProfileFigmaHeaderFollowChip extends StatelessWidget {
+  const ProfileFigmaHeaderFollowChip({
+    super.key,
+    required this.label,
+    required this.outlined,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool outlined;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: outlined ? Colors.transparent : AppColors.brandPink,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: outlined
+                ? Border.all(
+                    color: ProfileFigmaTokens.otherUserHeaderFollowBorder,
+                    width: 1,
+                  )
+                : null,
+          ),
+          child: busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: ProfileFigmaTokens.otherUserHeaderFollowFontSize,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+        ),
+      ),
     );
   }
 }

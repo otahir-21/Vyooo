@@ -133,7 +133,13 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     final appUser =
         await _userService.getUser(ref) ??
         await _userService.getUserByUsername(ref);
-    if (!mounted || appUser == null) return;
+    if (!mounted) return;
+    if (appUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This profile is no longer available.')),
+      );
+      return;
+    }
     final followerCount = await _userService.getFollowerCount(appUser.uid);
     final postCount = await _userService.getReelCountForUser(appUser.uid);
     if (!mounted) return;

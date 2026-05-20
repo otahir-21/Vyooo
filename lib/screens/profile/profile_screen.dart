@@ -111,11 +111,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _shareProfile({required String uid, String? username}) async {
     final ref = uid.trim();
     if (ref.isEmpty) return;
-    final link = DeepLinkConfig.profileWebUri(ref).toString();
-    final handle = (username ?? '').trim();
-    final message = handle.isNotEmpty
-        ? 'Check out @$handle on Vyooo:\n$link'
-        : 'Check out this profile on Vyooo:\n$link';
+    final message = DeepLinkConfig.profileShareMessage(
+      profileRef: ref,
+      username: username,
+    );
     final box = context.findRenderObject() as RenderBox?;
     final origin = box == null
         ? Rect.fromLTWH(0, 0, MediaQuery.sizeOf(context).width, 1)

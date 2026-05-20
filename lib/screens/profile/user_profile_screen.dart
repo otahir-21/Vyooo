@@ -749,8 +749,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final p = widget.payload;
     final ref = (p.targetUserId ?? p.username).trim();
     if (ref.isEmpty) return;
-    final link = DeepLinkConfig.profileWebUri(ref).toString();
-    final message = 'Check out @${p.username} on Vyooo:\n$link';
+    final message = DeepLinkConfig.profileShareMessage(
+      profileRef: ref,
+      username: p.username,
+    );
     final box = context.findRenderObject() as RenderBox?;
     final origin = box == null
         ? Rect.fromLTWH(0, 0, MediaQuery.sizeOf(context).width, 1)
@@ -833,7 +835,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               SliverAppBar(
                 backgroundColor: Colors.transparent,
                 elevation: 0,
-                centerTitle: false,
+                centerTitle: true,
                 titleSpacing: 0,
                 leadingWidth: 44,
                 leading: IconButton(
@@ -845,10 +847,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   ),
                 ),
                 title: Text(
-                  ProfileFigmaTokens.displayUsername(p.username),
+                  '@${ProfileFigmaTokens.displayUsername(p.username)}',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: ProfileFigmaTokens.headerUsernameFontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
