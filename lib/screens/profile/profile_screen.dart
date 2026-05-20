@@ -4,6 +4,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/controllers/reels_controller.dart';
+import '../../core/models/reel_count_privacy.dart';
+import '../../core/utils/reel_engagement.dart';
+import '../../features/reel/widgets/owner_post_options_sheet.dart';
 import '../../core/config/deep_link_config.dart';
 import '../../core/theme/app_gradients.dart';
 import '../../core/widgets/profile/profile_screen_background.dart';
@@ -1048,6 +1051,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                     'views': (data['views'] as num?)?.toInt() ?? 0,
                     'saves': (data['saves'] as num?)?.toInt() ?? 0,
                     'createdAt': data['createdAt'],
+                    'hideLikeCount': data['hideLikeCount'] == true,
+                    'hideViewCount': data['hideViewCount'] == true,
+                    'hideShareCount': data['hideShareCount'] == true,
+                    'hideCommentCount': data['hideCommentCount'] == true,
+                    'hideSaveCount': data['hideSaveCount'] == true,
+                    'reposts': (data['reposts'] as num?)?.toInt() ??
+                        (data['shares'] as num?)?.toInt() ??
+                        0,
+                    'isRepost': data['isRepost'] == true,
+                    'repostOf': data['repostOf'] as String? ?? '',
+                    'repostOfUserId': data['repostOfUserId'] as String? ?? '',
+                    'repostOfUsername': data['repostOfUsername'] as String? ?? '',
                   };
                 }).toList();
                 docs.sort((a, b) {
@@ -1058,7 +1073,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   if (bTs == null) return -1;
                   return bTs.compareTo(aTs);
                 });
-                return docs;
+                return ReelsService().hydrateRepostEngagementStats(docs);
               }),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1793,42 +1808,50 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
     }
   }
 
-  void _openPostOptions(Map<String, dynamic> reel) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF141414),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_rounded, color: Colors.white),
-              title: const Text(
-                'Edit caption',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _editCaption(reel);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline_rounded,
-                color: AppColors.deleteRed,
-              ),
-              title: const Text(
-                'Delete post',
-                style: TextStyle(color: AppColors.deleteRed),
-              ),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _deletePost(reel);
-              },
-            ),
-          ],
+  Future<void> _updateCountPrivacy(
+    Map<String, dynamic> reel,
+    String field,
+    bool hidden,
+  ) async {
+    final reelId = (reel['id'] as String?)?.trim() ?? '';
+    if (reelId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('reels')
+          .doc(reelId)
+          .update({field: hidden});
+      if (!mounted) return;
+      setState(() {
+        reel[field] = hidden;
+        for (final item in _seedReels) {
+          if (item['id'] == reelId) item[field] = hidden;
+        }
+        for (final item in _loopedReels) {
+          if (item['id'] == reelId) item[field] = hidden;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update privacy. Please try again.'),
         ),
-      ),
+      );
+    }
+  }
+
+  void _openPostOptions(Map<String, dynamic> reel) {
+    final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
+    final isVideo = mediaType == 'video' ||
+        ((reel['videoUrl'] as String?) ?? '').trim().isNotEmpty;
+    showOwnerPostOptionsSheet(
+      context: context,
+      post: reel,
+      isVideo: isVideo,
+      onPrivacyChanged: (field, hidden) =>
+          _updateCountPrivacy(reel, field, hidden),
+      onEditCaption: () => _editCaption(reel),
+      onDelete: () => _deletePost(reel),
     );
   }
 
@@ -1848,6 +1871,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
     final handle = ((currentReel?['handle'] as String?) ?? '').trim();
     final caption = ((currentReel?['caption'] as String?) ?? '').trim();
     final normalizedHandle = ProfileFigmaTokens.displayUsername(handle);
+    final privacy = ReelCountPrivacy.fromMap(currentReel);
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -1956,30 +1980,54 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _OverlayMetric(
-                    icon: Icons.remove_red_eye_outlined,
-                    value: _formatCount((currentReel['views'] as int?) ?? 0),
-                  ),
-                  const SizedBox(height: 14),
-                  _OverlayMetric(
-                    icon: Icons.favorite_rounded,
-                    value: _formatCount((currentReel['likes'] as int?) ?? 0),
-                  ),
-                  const SizedBox(height: 14),
-                  _OverlayMetric(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    value: _formatCount((currentReel['comments'] as int?) ?? 0),
-                  ),
-                  const SizedBox(height: 14),
-                  _OverlayMetric(
-                    icon: Icons.reply_rounded,
-                    value: _formatCount((currentReel['shares'] as int?) ?? 0),
-                  ),
-                  const SizedBox(height: 14),
-                  _OverlayMetric(
-                    icon: Icons.star_outline_rounded,
-                    value: _formatCount((currentReel['saves'] as int?) ?? 0),
-                  ),
+                  if (privacy.showViews())
+                    _OverlayMetric(
+                      icon: Icons.remove_red_eye_outlined,
+                      value: privacy.displayCount(
+                        ReelCountMetric.views,
+                        (currentReel['views'] as int?) ?? 0,
+                      ),
+                    ),
+                  if (privacy.showViews() && privacy.showLikes())
+                    const SizedBox(height: 14),
+                  if (privacy.showLikes())
+                    _OverlayMetric(
+                      icon: Icons.favorite_rounded,
+                      value: privacy.displayCount(
+                        ReelCountMetric.likes,
+                        (currentReel['likes'] as int?) ?? 0,
+                      ),
+                    ),
+                  if (privacy.showLikes() && privacy.showComments())
+                    const SizedBox(height: 14),
+                  if (privacy.showComments())
+                    _OverlayMetric(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      value: privacy.displayCount(
+                        ReelCountMetric.comments,
+                        (currentReel['comments'] as int?) ?? 0,
+                      ),
+                    ),
+                  if (privacy.showComments() && privacy.showShares())
+                    const SizedBox(height: 14),
+                  if (privacy.showShares())
+                    _OverlayMetric(
+                      icon: Icons.reply_rounded,
+                      value: privacy.displayCount(
+                        ReelCountMetric.shares,
+                        ReelEngagement.repostCount(currentReel),
+                      ),
+                    ),
+                  if (privacy.showShares() && privacy.showSaves())
+                    const SizedBox(height: 14),
+                  if (privacy.showSaves())
+                    _OverlayMetric(
+                      icon: Icons.star_outline_rounded,
+                      value: privacy.displayCount(
+                        ReelCountMetric.saves,
+                        (currentReel['saves'] as int?) ?? 0,
+                      ),
+                    ),
                 ],
               ),
             ),

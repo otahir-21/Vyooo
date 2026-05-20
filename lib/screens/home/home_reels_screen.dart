@@ -12,6 +12,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/feed_interaction_assets.dart';
 import '../../core/controllers/reels_controller.dart';
+import '../../core/models/reel_count_privacy.dart';
+import '../../core/utils/reel_engagement.dart';
 import '../../core/models/story_model.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/services/auth_service.dart';
@@ -134,6 +136,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   final Map<String, bool> _likedReels = {};
   final Map<String, bool> _favoriteReels = {};
   final Map<String, bool> _privateSavedReels = {};
+  final Map<String, bool> _repostedSourceReels = {};
 
   /// Cached for report / unfollow sheet (refreshed in [_loadReels]).
   List<String> _followingIds = [];
@@ -291,9 +294,27 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         ...filteredTrending.map((r) => _asString(r['id'])),
         ...filteredVr.map((r) => _asString(r['id'])),
       }..removeWhere((id) => id.isEmpty);
-      final likedIds = await _reelsController.getLikedReelIds(reelIds);
-      final favoriteIds = await _reelsController.getFavoriteReelIds(reelIds);
-      final privateIds = await _reelsController.getPrivateSavedReelIds(reelIds);
+      final engagementIds = <String>{
+        for (final r in [...filteredForYou, ...filteredFollowing, ...filteredTrending, ...filteredVr])
+          ReelEngagement.sourceReelId(r),
+      }..removeWhere((id) => id.isEmpty);
+      final likedIds = await _reelsController.getLikedReelIds(engagementIds);
+      final favoriteIds =
+          await _reelsController.getFavoriteReelIds(engagementIds);
+      final privateIds =
+          await _reelsController.getPrivateSavedReelIds(engagementIds);
+      final repostedIds =
+          await _reelsController.getRepostedSourceReelIds(engagementIds);
+
+      final hydratedForYou =
+          await _reelsService.hydrateRepostEngagementStats(filteredForYou);
+      final hydratedFollowing = await _reelsService.hydrateRepostEngagementStats(
+        filteredFollowing,
+      );
+      final hydratedTrending =
+          await _reelsService.hydrateRepostEngagementStats(filteredTrending);
+      final hydratedVr =
+          await _reelsService.hydrateRepostEngagementStats(filteredVr);
       if (mounted) {
         setState(() {
           _reelsLoadError = null;
@@ -315,12 +336,12 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           }
 
           // Always assign so empty API results clear lists (avoids stale / black feed).
-          _reelsForYou = withLatestAvatars(filteredForYou);
-          _reelsFollowing = withLatestAvatars(filteredFollowing);
-          if (filteredTrending.isNotEmpty) {
-            _reelsTrending = withLatestAvatars(filteredTrending);
+          _reelsForYou = withLatestAvatars(hydratedForYou);
+          _reelsFollowing = withLatestAvatars(hydratedFollowing);
+          if (hydratedTrending.isNotEmpty) {
+            _reelsTrending = withLatestAvatars(hydratedTrending);
           }
-          if (filteredVr.isNotEmpty) _reelsVR = withLatestAvatars(filteredVr);
+          if (hydratedVr.isNotEmpty) _reelsVR = withLatestAvatars(hydratedVr);
           _storyGroups = filteredStories;
           _myStories = myStories;
           _myAvatarUrl = avatarUrl;
@@ -335,6 +356,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           _privateSavedReels
             ..clear()
             ..addEntries(privateIds.map((id) => MapEntry(id, true)));
+          _repostedSourceReels
+            ..clear()
+            ..addEntries(repostedIds.map((id) => MapEntry(id, true)));
         });
         _handleIncomingDeepLink();
       }
@@ -524,9 +548,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
     if (_currentReels.isNotEmpty) {
       final feedIndex = _feedIndexForPage(index, _currentReels.length);
-      final reelId = _asString(_currentReels[feedIndex]['id']);
-      if (reelId.isEmpty) return;
-      _reelsController.incrementView(reelId: reelId);
+      final viewId = ReelEngagement.sourceReelId(_currentReels[feedIndex]);
+      if (viewId.isEmpty) return;
+      _reelsController.incrementView(reelId: viewId);
     }
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
@@ -675,18 +699,64 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
+  String _sourceOwnerId(Map<String, dynamic> reel) {
+    if (ReelEngagement.isRepostStub(reel)) {
+      return _asString(reel['repostOfUserId']).trim();
+    }
+    return _asString(reel['userId']).trim();
+  }
+
+  Future<void> _onRepostToggle(Map<String, dynamic> reel) async {
+    final sourceId = ReelEngagement.sourceReelId(reel);
+    if (sourceId.isEmpty) return;
+    final wasReposted = _repostedSourceReels[sourceId] ?? false;
+    if (wasReposted) {
+      final ok = await _reelsController.unrepostReel(sourceReelId: sourceId);
+      if (!mounted) return;
+      if (!ok) {
+        _showSnackBar('Could not remove repost. Try again.');
+        return;
+      }
+      setState(() {
+        _repostedSourceReels[sourceId] = false;
+        _adjustReelStat(sourceId, 'reposts', -1);
+      });
+      _showSnackBar('Removed from your profile');
+      return;
+    }
+    final stubId = await _reelsController.repostReel(sourceReelId: sourceId);
+    if (!mounted) return;
+    if (stubId == null) {
+      _showSnackBar('Could not repost. Try again.');
+      return;
+    }
+    setState(() {
+      _repostedSourceReels[sourceId] = true;
+      _adjustReelStat(sourceId, 'reposts', 1);
+    });
+    _showSnackBar('Reposted to your profile');
+  }
+
   void _onShare(String reelId) {
     final reel = _currentReels.isEmpty
         ? null
         : _currentReels[_feedIndexForPage(_currentIndex, _currentReels.length)];
+    if (reel == null) return;
+    final sourceId = ReelEngagement.sourceReelId(reel);
+    final uid = AuthService().currentUser?.uid ?? '';
+    final isOwnPost = _sourceOwnerId(reel) == uid;
     _isBottomSheetOpen = true;
     _cancelAutoScrollTimer();
     showShareBottomSheet(
       context,
-      reelId: reelId,
-      authorName: reel?['username'] as String?,
-      thumbnailUrl: reel?['thumbnailUrl'] as String?,
-      onShareViaNative: () => _reelsController.shareReel(reelId: reelId),
+      reelId: sourceId,
+      authorName: reel['username'] as String?,
+      thumbnailUrl: reel['thumbnailUrl'] as String?,
+      isOwnPost: isOwnPost,
+      isReposted: _repostedSourceReels[sourceId] ?? false,
+      onRepost: () => _onRepostToggle(reel),
+      onRemoveRepost: () => _onRepostToggle(reel),
+      onShareViaNative: () => _reelsController.shareReel(reelId: sourceId),
       onCopyLink: () {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -741,11 +811,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void _adjustReelStat(String reelId, String key, int delta) {
     void bump(List<Map<String, dynamic>> list) {
       for (var i = 0; i < list.length; i++) {
-        if (_asString(list[i]['id']) != reelId) continue;
+        final matchesDoc = _asString(list[i]['id']) == reelId;
+        final matchesSource =
+            ReelEngagement.sourceReelId(list[i]) == reelId;
+        if (!matchesDoc && !matchesSource) continue;
         final cur = (list[i][key] as num?)?.toInt() ?? 0;
         final next = (cur + delta).clamp(0, 999999999);
         list[i] = Map<String, dynamic>.from(list[i])..[key] = next;
-        break;
+        if (key == 'reposts' || key == 'shares') {
+          list[i]['reposts'] = next;
+          list[i]['shares'] = next;
+        }
       }
     }
 
@@ -1306,8 +1382,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     if (reel == null) return const SizedBox.shrink();
     final reelId = _asString(reel['id']);
     if (reelId.isEmpty) return const SizedBox.shrink();
-    final isLiked = _likedReels[reelId] ?? false;
-    final isFavorite = _favoriteReels[reelId] ?? false;
+    final engagementId = ReelEngagement.sourceReelId(reel);
+    final isLiked = _likedReels[engagementId] ?? false;
+    final isFavorite = _favoriteReels[engagementId] ?? false;
+    final privacy = ReelCountPrivacy.fromMap(reel);
+    final uid = AuthService().currentUser?.uid ?? '';
+    final canRepost =
+        engagementId.isNotEmpty && _sourceOwnerId(reel) != uid;
+    final isReposted = _repostedSourceReels[engagementId] ?? false;
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     // Keep action stack clearly above the bottom nav bar.
     final interactionBottom = 18.0 + bottomSafeInset;
@@ -1320,7 +1402,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         children: [
           AppInteractionButton(
             icon: Icons.visibility_outlined,
-            count: _formatCount(_asInt(reel['views'])),
+            count: privacy.displayCount(
+              ReelCountMetric.views,
+              _asInt(reel['views']),
+            ),
             iconSize: 24,
             countTextStyle: AppTypography.feedReelMetric,
             spacing: 3,
@@ -1328,11 +1413,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           const SizedBox(height: 12),
           AppInteractionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
-            count: _formatCount(_asInt(reel['likes'])),
+            count: privacy.displayCount(
+              ReelCountMetric.likes,
+              _asInt(reel['likes']),
+            ),
             isActive: isLiked,
             activeColor: const Color(0xFFEF4444),
             countColor: AppTheme.primary,
-            onTap: () => _onLike(reelId, isLiked),
+            onTap: () => _onLike(engagementId, isLiked),
             iconSize: 24,
             countTextStyle: AppTypography.feedReelMetric,
             spacing: 3,
@@ -1340,8 +1428,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           const SizedBox(height: 12),
           AppInteractionButton(
             iconAsset: FeedInteractionAssets.comments,
-            count: _formatCount(_asInt(reel['comments'])),
-            onTap: () => _onComment(reelId),
+            count: privacy.displayCount(
+              ReelCountMetric.comments,
+              _asInt(reel['comments']),
+            ),
+            onTap: () => _onComment(engagementId),
             iconSize: 24,
             countTextStyle: AppTypography.feedReelMetric,
             spacing: 3,
@@ -1350,19 +1441,39 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           AppInteractionButton(
             iconAsset: FeedInteractionAssets.unsavePost,
             iconAssetActive: FeedInteractionAssets.savePost,
-            count: _formatCount(_asInt(reel['saves'])),
+            count: privacy.displayCount(
+              ReelCountMetric.saves,
+              _asInt(reel['saves']),
+            ),
             isActive: isFavorite,
             colorizeAsset: false,
             countColor: AppTheme.primary,
-            onTap: () => _onFavorite(reelId, isFavorite),
+            onTap: () => _onFavorite(engagementId, isFavorite),
             iconSize: 24,
             countTextStyle: AppTypography.feedReelMetric,
             spacing: 3,
           ),
+          if (canRepost) ...[
+            const SizedBox(height: 12),
+            AppInteractionButton(
+              icon: Icons.repeat_rounded,
+              count: privacy.displayCount(
+                ReelCountMetric.shares,
+                ReelEngagement.repostCount(reel),
+              ),
+              isActive: isReposted,
+              activeColor: AppTheme.primary,
+              countColor: AppTheme.primary,
+              onTap: () => _onRepostToggle(reel),
+              iconSize: 24,
+              countTextStyle: AppTypography.feedReelMetric,
+              spacing: 3,
+            ),
+          ],
           const SizedBox(height: 12),
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.share,
-            count: _formatCount(_asInt(reel['shares'])),
+            icon: Icons.ios_share_rounded,
+            count: '',
             onTap: () => _onShare(reelId),
             iconSize: 24,
             countTextStyle: AppTypography.feedReelMetric,

@@ -744,9 +744,39 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Profile reposts — owner only; doc id is the source reel id.
+    match /users/{userId}/reposts/{sourceReelId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasOnly(['sourceReelId', 'repostReelId', 'repostedAt'])
+                    && request.resource.data.sourceReelId == sourceReelId
+                    && request.resource.data.sourceReelId is string
+                    && request.resource.data.sourceReelId.size() > 0
+                    && request.resource.data.repostReelId is string
+                    && request.resource.data.repostReelId.size() > 0;
+      allow delete: if isOwner(userId);
+      allow update: if false;
+    }
+
+    // Repost index (doc id: {uid}_{sourceReelId}) — same access model as userLikes.
+    match /userReposts/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.sourceReelId is string
+                    && request.resource.data.sourceReelId.size() > 0
+                    && request.resource.data.repostReelId is string
+                    && request.resource.data.repostReelId.size() > 0
+                    && id == request.auth.uid + '_' + request.resource.data.sourceReelId;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
     match /reels/{reelId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
     match /reels/{reelId}/{document=**} {
       allow read: if isSignedIn();

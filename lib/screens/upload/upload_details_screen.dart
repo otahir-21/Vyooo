@@ -207,6 +207,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         'views': 0,
         'viewsCount': 0,
         'shares': 0,
+        'reposts': 0,
         'avatarUrl': profileImage,
         'profileImage': profileImage,
         'userId': user.uid,

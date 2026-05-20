@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../models/reel_count_privacy.dart';
 import '../../theme/app_spacing.dart';
+import 'profile_grid_metric_overlay.dart';
 
 /// Square thumbnail for profile modular grids.
 class ProfileGridTile extends StatelessWidget {
@@ -10,7 +12,11 @@ class ProfileGridTile extends StatelessWidget {
     this.isVideo = false,
     this.showVrBadge = false,
     this.viewCount,
+    this.likeCount,
+    this.shareCount,
+    this.privacy = ReelCountPrivacy.visible,
     this.isHero = false,
+    this.isRepost = false,
     this.onTap,
   });
 
@@ -18,18 +24,14 @@ class ProfileGridTile extends StatelessWidget {
   final bool isVideo;
   final bool showVrBadge;
   final int? viewCount;
+  final int? likeCount;
+  final int? shareCount;
+  final ReelCountPrivacy privacy;
   final bool isHero;
+  final bool isRepost;
   final VoidCallback? onTap;
 
-  static String formatViewCount(int n) {
-    if (n >= 1000000) {
-      return '${(n / 1000000).toStringAsFixed(1)}M';
-    }
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(1)}k';
-    }
-    return '$n';
-  }
+  static String formatViewCount(int n) => ReelCountPrivacy.formatCount(n);
 
   @override
   Widget build(BuildContext context) {
@@ -46,10 +48,41 @@ class ProfileGridTile extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
-          if (showVrBadge)
+          if (isRepost)
             Positioned(
               top: AppSpacing.sm,
               left: AppSpacing.sm,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.repeat_rounded,
+                      size: isHero ? 12 : 10,
+                      color: Colors.white.withValues(alpha: 0.95),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Repost',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: isHero ? 10 : 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (showVrBadge)
+            Positioned(
+              top: AppSpacing.sm,
+              left: isRepost ? 56 : AppSpacing.sm,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 6,
@@ -69,30 +102,13 @@ class ProfileGridTile extends StatelessWidget {
                 ),
               ),
             ),
-          if (viewCount != null && viewCount! > 0)
-            Positioned(
-              top: AppSpacing.sm,
-              right: AppSpacing.sm,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: isHero ? 14 : 12,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    formatViewCount(viewCount!),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: isHero ? 12 : 11,
-                      fontWeight:
-                          isHero ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
+          if (viewCount != null)
+            ProfileGridMetricOverlay(
+              views: viewCount!,
+              likes: likeCount ?? 0,
+              shares: shareCount ?? 0,
+              privacy: privacy,
+              isHero: isHero,
             ),
           if (isVideo)
             const Align(

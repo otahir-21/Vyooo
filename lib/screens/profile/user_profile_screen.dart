@@ -28,6 +28,8 @@ import '../../core/services/creator_subscription_service.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../../core/controllers/reels_controller.dart';
+import '../../core/models/reel_count_privacy.dart';
+import '../../core/utils/reel_engagement.dart';
 import '../../core/widgets/app_interaction_button.dart';
 import '../../core/widgets/app_bottom_navigation.dart';
 import '../../core/widgets/live_avatar_ring.dart';
@@ -1492,6 +1494,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     'shares': (data['shares'] as num?)?.toInt() ?? 0,
                     'saves': (data['saves'] as num?)?.toInt() ?? 0,
                     'views': (data['views'] as num?)?.toInt() ?? 0,
+                    'userId': data['userId'] as String? ?? targetUid,
+                    'username': data['username'] as String? ?? '',
+                    'avatarUrl': data['avatarUrl'] as String? ?? '',
+                    'hideLikeCount': data['hideLikeCount'] == true,
+                    'hideViewCount': data['hideViewCount'] == true,
+                    'hideShareCount': data['hideShareCount'] == true,
+                    'hideCommentCount': data['hideCommentCount'] == true,
+                    'hideSaveCount': data['hideSaveCount'] == true,
+                    'reposts': (data['reposts'] as num?)?.toInt() ??
+                        (data['shares'] as num?)?.toInt() ??
+                        0,
+                    'isRepost': data['isRepost'] == true,
+                    'repostOf': data['repostOf'] as String? ?? '',
+                    'repostOfUserId': data['repostOfUserId'] as String? ?? '',
+                    'repostOfUsername': data['repostOfUsername'] as String? ?? '',
                     'createdAt': data['createdAt'],
                   };
                 }).toList();
@@ -1503,7 +1520,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                   if (bTs == null) return -1;
                   return bTs.compareTo(aTs);
                 });
-                return docs;
+                return ReelsService().hydrateRepostEngagementStats(docs);
               }),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -2174,6 +2191,7 @@ class _UserProfileReelFeedScreenState
   final Map<String, bool> _likedReels = {};
   final Map<String, bool> _favoriteReels = {};
   final Map<String, bool> _privateSavedReels = {};
+  final Map<String, bool> _repostedSourceReels = {};
 
   @override
   void didChangeDependencies() {
@@ -2195,20 +2213,23 @@ class _UserProfileReelFeedScreenState
   }
 
   Future<void> _warmInteractionState() async {
-    final reelIds = widget.reels
-        .map((r) => (r['id'] as String? ?? '').trim())
-        .where((id) => id.isNotEmpty)
-        .toSet();
-    if (reelIds.isEmpty) return;
-    final likedIds = await _reelsController.getLikedReelIds(reelIds);
-    final favoriteIds = await _reelsController.getFavoriteReelIds(reelIds);
-    final privateIds = await _reelsController.getPrivateSavedReelIds(reelIds);
+    final engagementIds = <String>{
+      for (final r in widget.reels) ReelEngagement.sourceReelId(r),
+    }..removeWhere((id) => id.isEmpty);
+    if (engagementIds.isEmpty) return;
+    final likedIds = await _reelsController.getLikedReelIds(engagementIds);
+    final favoriteIds = await _reelsController.getFavoriteReelIds(engagementIds);
+    final privateIds =
+        await _reelsController.getPrivateSavedReelIds(engagementIds);
+    final repostedIds =
+        await _reelsController.getRepostedSourceReelIds(engagementIds);
     if (!mounted) return;
     setState(() {
-      for (final id in reelIds) {
+      for (final id in engagementIds) {
         _likedReels[id] = likedIds.contains(id);
         _favoriteReels[id] = favoriteIds.contains(id);
         _privateSavedReels[id] = privateIds.contains(id);
+        _repostedSourceReels[id] = repostedIds.contains(id);
       }
     });
   }
@@ -2227,13 +2248,52 @@ class _UserProfileReelFeedScreenState
     return '$n';
   }
 
-  void _adjustReelStat(String reelId, String key, int delta) {
-    final i = widget.reels.indexWhere((r) => _asString(r['id']) == reelId);
-    if (i < 0) return;
-    final current = _asInt(widget.reels[i][key]);
+  void _adjustReelStat(String engagementId, String key, int delta) {
     setState(() {
-      widget.reels[i][key] = (current + delta).clamp(0, 1 << 30);
+      for (var i = 0; i < widget.reels.length; i++) {
+        if (ReelEngagement.sourceReelId(widget.reels[i]) != engagementId) {
+          continue;
+        }
+        final current = _asInt(widget.reels[i][key]);
+        final next = (current + delta).clamp(0, 1 << 30);
+        widget.reels[i][key] = next;
+        if (key == 'reposts' || key == 'shares') {
+          widget.reels[i]['reposts'] = next;
+          widget.reels[i]['shares'] = next;
+        }
+      }
     });
+  }
+
+  String _sourceOwnerId(Map<String, dynamic> reel) {
+    if (ReelEngagement.isRepostStub(reel)) {
+      return _asString(reel['repostOfUserId']).trim();
+    }
+    return _asString(reel['userId']).trim();
+  }
+
+  Future<void> _onRepostToggle(Map<String, dynamic> reel) async {
+    final sourceId = ReelEngagement.sourceReelId(reel);
+    if (sourceId.isEmpty) return;
+    final wasReposted = _repostedSourceReels[sourceId] ?? false;
+    if (wasReposted) {
+      final ok = await _reelsController.unrepostReel(sourceReelId: sourceId);
+      if (!mounted) return;
+      if (!ok) return;
+      setState(() {
+        _repostedSourceReels[sourceId] = false;
+        _adjustReelStat(sourceId, 'reposts', -1);
+      });
+      return;
+    }
+    final stubId = await _reelsController.repostReel(sourceReelId: sourceId);
+    if (!mounted) return;
+    if (stubId != null) {
+      setState(() {
+        _repostedSourceReels[sourceId] = true;
+        _adjustReelStat(sourceId, 'reposts', 1);
+      });
+    }
   }
 
   Future<void> _onLike(String reelId, bool currentlyLiked) async {
@@ -2276,23 +2336,35 @@ class _UserProfileReelFeedScreenState
   }
 
   void _onShare(String reelId, Map<String, dynamic> reel) {
+    final sourceId = ReelEngagement.sourceReelId(reel);
+    final uid = AuthService().currentUser?.uid ?? '';
     showShareBottomSheet(
       context,
-      reelId: reelId,
+      reelId: sourceId,
       thumbnailUrl: ProfileReelGridNavigation.thumbnailFromReel(reel),
       authorName: _asString(reel['username']).isEmpty
           ? widget.reels[_currentIndex]['username']?.toString()
           : _asString(reel['username']),
-      onShareViaNative: () => _reelsController.shareReel(reelId: reelId),
+      isOwnPost: _sourceOwnerId(reel) == uid,
+      isReposted: _repostedSourceReels[sourceId] ?? false,
+      onRepost: () => _onRepostToggle(reel),
+      onRemoveRepost: () => _onRepostToggle(reel),
+      onShareViaNative: () => _reelsController.shareReel(reelId: sourceId),
       onCopyLink: () {},
     );
   }
 
   void _onComment(String reelId) {
+    final reel = widget.reels.firstWhere(
+      (r) => _asString(r['id']) == reelId,
+      orElse: () => widget.reels[_currentIndex],
+    );
+    final engagementId = ReelEngagement.sourceReelId(reel);
     showCommentsBottomSheet(
       context,
-      reelId: reelId,
-      onCommentCountChanged: (delta) => _adjustReelStat(reelId, 'comments', delta),
+      reelId: engagementId,
+      onCommentCountChanged: (delta) =>
+          _adjustReelStat(engagementId, 'comments', delta),
     );
   }
 
@@ -2401,8 +2473,14 @@ class _UserProfileReelFeedScreenState
     final reel = widget.reels[index];
     final reelId = _asString(reel['id']).trim();
     if (reelId.isEmpty) return const SizedBox.shrink();
-    final isLiked = _likedReels[reelId] ?? false;
-    final isFavorite = _favoriteReels[reelId] ?? false;
+    final engagementId = ReelEngagement.sourceReelId(reel);
+    final isLiked = _likedReels[engagementId] ?? false;
+    final isFavorite = _favoriteReels[engagementId] ?? false;
+    final privacy = ReelCountPrivacy.fromMap(reel);
+    final uid = AuthService().currentUser?.uid ?? '';
+    final canRepost =
+        engagementId.isNotEmpty && _sourceOwnerId(reel) != uid;
+    final isReposted = _repostedSourceReels[engagementId] ?? false;
 
     final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
     final interactionBottom = 18.0 + bottomSafeInset;
@@ -2415,7 +2493,10 @@ class _UserProfileReelFeedScreenState
         children: [
           AppInteractionButton(
             icon: Icons.visibility_outlined,
-            count: _formatCount(_asInt(reel['views'])),
+            count: privacy.displayCount(
+              ReelCountMetric.views,
+              _asInt(reel['views']),
+            ),
             iconSize: 24,
             textSize: 10,
             spacing: 3,
@@ -2423,11 +2504,14 @@ class _UserProfileReelFeedScreenState
           const SizedBox(height: 12),
           AppInteractionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
-            count: _formatCount(_asInt(reel['likes'])),
+            count: privacy.displayCount(
+              ReelCountMetric.likes,
+              _asInt(reel['likes']),
+            ),
             isActive: isLiked,
             activeColor: const Color(0xFFEF4444),
             countColor: Colors.white,
-            onTap: () => _onLike(reelId, isLiked),
+            onTap: () => _onLike(engagementId, isLiked),
             iconSize: 24,
             textSize: 10,
             spacing: 3,
@@ -2435,7 +2519,10 @@ class _UserProfileReelFeedScreenState
           const SizedBox(height: 12),
           AppInteractionButton(
             icon: Icons.chat_bubble_outline,
-            count: _formatCount(_asInt(reel['comments'])),
+            count: privacy.displayCount(
+              ReelCountMetric.comments,
+              _asInt(reel['comments']),
+            ),
             onTap: () => _onComment(reelId),
             iconSize: 24,
             textSize: 10,
@@ -2445,7 +2532,10 @@ class _UserProfileReelFeedScreenState
           AppInteractionButton(
             iconAsset: FeedInteractionAssets.unsavePost,
             iconAssetActive: FeedInteractionAssets.savePost,
-            count: _formatCount(_asInt(reel['saves'])),
+            count: privacy.displayCount(
+              ReelCountMetric.saves,
+              _asInt(reel['saves']),
+            ),
             isActive: isFavorite,
             colorizeAsset: false,
             countColor: AppTheme.primary,
@@ -2454,10 +2544,27 @@ class _UserProfileReelFeedScreenState
             textSize: 10,
             spacing: 3,
           ),
+          if (canRepost) ...[
+            const SizedBox(height: 12),
+            AppInteractionButton(
+              icon: Icons.repeat_rounded,
+              count: privacy.displayCount(
+                ReelCountMetric.shares,
+                ReelEngagement.repostCount(reel),
+              ),
+              isActive: isReposted,
+              activeColor: AppTheme.primary,
+              countColor: AppTheme.primary,
+              onTap: () => _onRepostToggle(reel),
+              iconSize: 24,
+              textSize: 10,
+              spacing: 3,
+            ),
+          ],
           const SizedBox(height: 12),
           AppInteractionButton(
-            icon: Icons.reply,
-            count: _formatCount(_asInt(reel['shares'])),
+            icon: Icons.ios_share_rounded,
+            count: '',
             onTap: () => _onShare(reelId, reel),
             iconSize: 24,
             textSize: 10,

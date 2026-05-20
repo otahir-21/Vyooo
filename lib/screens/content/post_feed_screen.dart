@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_colors.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_bottom_navigation.dart';
@@ -11,6 +10,10 @@ import '../../core/widgets/app_gradient_background.dart';
 import '../../core/wrappers/main_nav_wrapper.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
 import '../../features/reel/widgets/not_interested_sheet.dart';
+import '../../core/models/reel_count_privacy.dart';
+import '../../core/services/auth_service.dart';
+import '../../core/utils/reel_engagement.dart';
+import '../../features/reel/widgets/owner_post_options_sheet.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../../features/reel/widgets/report_sheet.dart';
 import '../../features/share/widgets/share_bottom_sheet.dart';
@@ -54,6 +57,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
   final Map<String, bool> _likedReels = {};
   final Map<String, bool> _favoriteReels = {};
   final Map<String, bool> _privateSavedReels = {};
+  final Map<String, bool> _repostedSourceReels = {};
   late final List<Map<String, dynamic>> _orderedPosts;
   int _currentBottomNavIndex = 4;
 
@@ -126,20 +130,24 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
   }
 
   Future<void> _warmInteractionState() async {
-    final ids = _orderedPosts
-        .map((p) => _asString(p['id']).trim())
+    final engagementIds = _orderedPosts
+        .map((p) => ReelEngagement.sourceReelId(p))
         .where((id) => id.isNotEmpty)
         .toSet();
-    if (ids.isEmpty) return;
-    final liked = await _reelsController.getLikedReelIds(ids);
-    final favorite = await _reelsController.getFavoriteReelIds(ids);
-    final private = await _reelsController.getPrivateSavedReelIds(ids);
+    if (engagementIds.isEmpty) return;
+    final liked = await _reelsController.getLikedReelIds(engagementIds);
+    final favorite = await _reelsController.getFavoriteReelIds(engagementIds);
+    final private =
+        await _reelsController.getPrivateSavedReelIds(engagementIds);
+    final reposted =
+        await _reelsController.getRepostedSourceReelIds(engagementIds);
     if (!mounted) return;
     setState(() {
-      for (final id in ids) {
+      for (final id in engagementIds) {
         _likedReels[id] = liked.contains(id);
         _favoriteReels[id] = favorite.contains(id);
         _privateSavedReels[id] = private.contains(id);
+        _repostedSourceReels[id] = reposted.contains(id);
       }
     });
   }
@@ -202,63 +210,125 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     }
   }
 
-  void _adjustPostStat(String reelId, String key, int delta) {
-    final i = _orderedPosts.indexWhere((p) => _asString(p['id']) == reelId);
-    if (i < 0) return;
-    final current = _asInt(_orderedPosts[i][key]);
+  void _adjustPostStat(String engagementId, String key, int delta) {
+    if (!mounted) return;
     setState(() {
-      _orderedPosts[i][key] = (current + delta).clamp(0, 1 << 30);
+      for (var i = 0; i < _orderedPosts.length; i++) {
+        if (ReelEngagement.sourceReelId(_orderedPosts[i]) != engagementId) {
+          continue;
+        }
+        final current = _asInt(_orderedPosts[i][key]);
+        final next = (current + delta).clamp(0, 1 << 30);
+        _orderedPosts[i][key] = next;
+        if (key == 'reposts' || key == 'shares') {
+          _orderedPosts[i]['reposts'] = next;
+          _orderedPosts[i]['shares'] = next;
+        }
+      }
     });
   }
 
+  String _sourceOwnerId(Map<String, dynamic> post) {
+    if (ReelEngagement.isRepostStub(post)) {
+      return _asString(post['repostOfUserId']).trim();
+    }
+    return _asString(post['userId']).trim();
+  }
+
+  bool _canRepostPost(Map<String, dynamic> post) {
+    final uid = AuthService().currentUser?.uid ?? '';
+    if (uid.isEmpty) return false;
+    return _sourceOwnerId(post) != uid;
+  }
+
+  Future<void> _onRepostToggle(Map<String, dynamic> post) async {
+    final sourceId = ReelEngagement.sourceReelId(post);
+    if (sourceId.isEmpty) return;
+    final wasReposted = _repostedSourceReels[sourceId] ?? false;
+    if (wasReposted) {
+      final ok = await _reelsController.unrepostReel(sourceReelId: sourceId);
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not remove repost. Try again.')),
+        );
+        return;
+      }
+      setState(() => _repostedSourceReels[sourceId] = false);
+      _adjustPostStat(sourceId, 'reposts', -1);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Removed from your profile')),
+      );
+      return;
+    }
+    final stubId = await _reelsController.repostReel(sourceReelId: sourceId);
+    if (!mounted) return;
+    if (stubId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not repost. Try again.')),
+      );
+      return;
+    }
+    setState(() => _repostedSourceReels[sourceId] = true);
+    _adjustPostStat(sourceId, 'reposts', 1);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reposted to your profile')),
+    );
+  }
+
   Future<void> _onLike(Map<String, dynamic> post) async {
-    final reelId = _asString(post['id']).trim();
-    if (reelId.isEmpty) return;
-    final currentlyLiked = _likedReels[reelId] ?? false;
+    final engagementId = ReelEngagement.sourceReelId(post);
+    if (engagementId.isEmpty) return;
+    final currentlyLiked = _likedReels[engagementId] ?? false;
     final newState = await _reelsController.likeReel(
-      reelId: reelId,
+      reelId: engagementId,
       currentlyLiked: currentlyLiked,
     );
     if (!mounted) return;
-    setState(() => _likedReels[reelId] = newState);
-    _adjustPostStat(reelId, 'likes', newState ? 1 : -1);
+    setState(() => _likedReels[engagementId] = newState);
+    _adjustPostStat(engagementId, 'likes', newState ? 1 : -1);
   }
 
   Future<void> _onSave(Map<String, dynamic> post) async {
-    final reelId = _asString(post['id']).trim();
-    if (reelId.isEmpty) return;
-    final currentlyFavorite = _favoriteReels[reelId] ?? false;
+    final engagementId = ReelEngagement.sourceReelId(post);
+    if (engagementId.isEmpty) return;
+    final currentlyFavorite = _favoriteReels[engagementId] ?? false;
     final newState = await _reelsController.toggleFavoriteReel(
-      reelId: reelId,
+      reelId: engagementId,
       currentlyFavorite: currentlyFavorite,
     );
     if (!mounted) return;
-    setState(() => _favoriteReels[reelId] = newState);
-    _adjustPostStat(reelId, 'saves', newState ? 1 : -1);
+    setState(() => _favoriteReels[engagementId] = newState);
+    _adjustPostStat(engagementId, 'saves', newState ? 1 : -1);
   }
 
   void _onComment(Map<String, dynamic> post) {
-    final reelId = _asString(post['id']).trim();
-    if (reelId.isEmpty) return;
+    final engagementId = ReelEngagement.sourceReelId(post);
+    if (engagementId.isEmpty) return;
     showCommentsBottomSheet(
       context,
-      reelId: reelId,
+      reelId: engagementId,
       onCommentCountChanged: (delta) =>
-          _adjustPostStat(reelId, 'comments', delta),
+          _adjustPostStat(engagementId, 'comments', delta),
     );
   }
 
   void _onShare(Map<String, dynamic> post) {
-    final reelId = _asString(post['id']).trim();
-    if (reelId.isEmpty) return;
+    final sourceId = ReelEngagement.sourceReelId(post);
+    if (sourceId.isEmpty) return;
+    final uid = AuthService().currentUser?.uid ?? '';
     showShareBottomSheet(
       context,
-      reelId: reelId,
+      reelId: sourceId,
       thumbnailUrl: _mediaUrl(post),
       authorName: _asString(post['username']).isNotEmpty
           ? _asString(post['username'])
           : (widget.payload?.creatorName ?? 'Creator'),
-      onShareViaNative: () => _reelsController.shareReel(reelId: reelId),
+      isOwnPost: _sourceOwnerId(post) == uid,
+      isReposted: _repostedSourceReels[sourceId] ?? false,
+      onRepost: () => _onRepostToggle(post),
+      onRemoveRepost: () => _onRepostToggle(post),
+      onShareViaNative: () => _reelsController.shareReel(reelId: sourceId),
       onCopyLink: () {},
     );
   }
@@ -406,43 +476,90 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     }
   }
 
-  void _openOwnerPostOptions(Map<String, dynamic> post) {
-    final isVideo = _isVideoPost(post);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF141414),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_rounded, color: Colors.white),
-              title: Text(
-                isVideo ? 'Edit video caption' : 'Edit photo caption',
-                style: const TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _editCaption(post);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline_rounded,
-                color: AppColors.deleteRed,
-              ),
-              title: const Text(
-                'Delete post',
-                style: TextStyle(color: AppColors.deleteRed),
-              ),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _deletePost(post);
-              },
-            ),
-          ],
+  Future<void> _updateCountPrivacy(
+    Map<String, dynamic> post,
+    String field,
+    bool hidden,
+  ) async {
+    final reelId = _asString(post['id']).trim();
+    if (reelId.isEmpty) return;
+    try {
+      await FirebaseFirestore.instance
+          .collection('reels')
+          .doc(reelId)
+          .update({field: hidden});
+      if (!mounted) return;
+      setState(() {
+        final i = _orderedPosts.indexWhere((r) => _asString(r['id']) == reelId);
+        if (i >= 0) _orderedPosts[i][field] = hidden;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update privacy. Please try again.'),
         ),
-      ),
+      );
+    }
+  }
+
+  void _openOwnerPostOptions(Map<String, dynamic> post) {
+    if (ReelEngagement.isRepostStub(post)) {
+      final sourceId = ReelEngagement.sourceReelId(post);
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: const Color(0xFF141414),
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.undo_rounded, color: Colors.white),
+                title: const Text(
+                  'Remove repost from profile',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _onRepostToggle(post);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text(
+                  'Delete from profile',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  if (sourceId.isEmpty) return;
+                  await _reelsController.unrepostReel(sourceReelId: sourceId);
+                  if (!mounted) return;
+                  setState(() {
+                    _repostedSourceReels[sourceId] = false;
+                    _orderedPosts.removeWhere(
+                      (p) => _asString(p['id']) == _asString(post['id']),
+                    );
+                  });
+                  if (_orderedPosts.isEmpty && mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+      return;
+    }
+    showOwnerPostOptionsSheet(
+      context: context,
+      post: post,
+      isVideo: _isVideoPost(post),
+      onPrivacyChanged: (field, hidden) =>
+          _updateCountPrivacy(post, field, hidden),
+      onEditCaption: () => _editCaption(post),
+      onDelete: () => _deletePost(post),
     );
   }
 
@@ -482,7 +599,8 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                         itemCount: _orderedPosts.length,
                         itemBuilder: (context, index) {
                           final post = _orderedPosts[index];
-                          final reelId = _asString(post['id']).trim();
+                          final engagementId =
+                              ReelEngagement.sourceReelId(post);
                           return _PostCard(
                             key: _keyFor(index),
                             index: index,
@@ -491,11 +609,15 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                             fallbackCreatorName: p.creatorName,
                             fallbackAvatarUrl: p.avatarUrl,
                             fallbackIsVerified: p.isVerified,
-                            isLiked: _likedReels[reelId] ?? false,
-                            isSaved: _favoriteReels[reelId] ?? false,
+                            isLiked: _likedReels[engagementId] ?? false,
+                            isSaved: _favoriteReels[engagementId] ?? false,
+                            showRepost: _canRepostPost(post),
+                            isReposted:
+                                _repostedSourceReels[engagementId] ?? false,
                             onLike: () => _onLike(post),
                             onComment: () => _onComment(post),
                             onSave: () => _onSave(post),
+                            onRepost: () => _onRepostToggle(post),
                             onShare: () => _onShare(post),
                             onMore: () => _onMoreOptions(post),
                           );
@@ -575,6 +697,9 @@ class _PostCard extends StatelessWidget {
     required this.onLike,
     required this.onComment,
     required this.onSave,
+    required this.showRepost,
+    required this.isReposted,
+    required this.onRepost,
     required this.onShare,
     required this.onMore,
   });
@@ -590,6 +715,9 @@ class _PostCard extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onComment;
   final VoidCallback onSave;
+  final bool showRepost;
+  final bool isReposted;
+  final VoidCallback onRepost;
   final VoidCallback onShare;
   final VoidCallback onMore;
 
@@ -740,6 +868,7 @@ class _PostCard extends StatelessWidget {
     final isVerified = post['isVerified'] == true || fallbackIsVerified;
     final mediaUrl = _mediaUrl(post);
     final isVideoPost = _isVideoPost(post);
+    final privacy = ReelCountPrivacy.fromMap(post);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, AppSpacing.sm, 12, 14),
@@ -812,7 +941,27 @@ class _PostCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          if (ReelEngagement.isRepostStub(post)) ...[
+            Row(
+              children: [
+                const Icon(Icons.repeat_rounded, color: Colors.white70, size: 16),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Reposted from ${_asString(post['repostOfUsername']).isNotEmpty ? _asString(post['repostOfUsername']) : 'creator'}',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.75),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           _buildCaption(),
           const SizedBox(height: AppSpacing.sm),
           if (mediaUrl.isNotEmpty)
@@ -873,6 +1022,25 @@ class _PostCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
+              if (privacy.showViews()) ...[
+                Icon(
+                  Icons.remove_red_eye_outlined,
+                  color: Colors.white.withValues(alpha: 0.9),
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  privacy.displayCount(
+                    ReelCountMetric.views,
+                    _asInt(post['views']),
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12.5,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+              ],
               GestureDetector(
                 onTap: onLike,
                 child: Icon(
@@ -885,14 +1053,19 @@ class _PostCard extends StatelessWidget {
                   size: 21,
                 ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                _formatCount(_asInt(post['likes'])),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 12.5,
+              if (privacy.showLikes()) ...[
+                const SizedBox(width: 4),
+                Text(
+                  privacy.displayCount(
+                    ReelCountMetric.likes,
+                    _asInt(post['likes']),
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12.5,
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(width: AppSpacing.lg),
               GestureDetector(
                 onTap: onComment,
@@ -902,14 +1075,19 @@ class _PostCard extends StatelessWidget {
                   size: 20,
                 ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                '${_asInt(post['comments'])}',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 12.5,
+              if (privacy.showComments()) ...[
+                const SizedBox(width: 4),
+                Text(
+                  privacy.displayCount(
+                    ReelCountMetric.comments,
+                    _asInt(post['comments']),
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12.5,
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(width: AppSpacing.md),
               GestureDetector(
                 onTap: onSave,
@@ -921,11 +1099,52 @@ class _PostCard extends StatelessWidget {
                   size: 20,
                 ),
               ),
+              if (privacy.showSaves()) ...[
+                const SizedBox(width: 4),
+                Text(
+                  privacy.displayCount(
+                    ReelCountMetric.saves,
+                    _asInt(post['saves']),
+                  ),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+              if (showRepost) ...[
+                const SizedBox(width: AppSpacing.md),
+                GestureDetector(
+                  onTap: onRepost,
+                  child: Icon(
+                    Icons.repeat_rounded,
+                    color: isReposted
+                        ? const Color(0xFFF2486A)
+                        : Colors.white.withValues(alpha: 0.9),
+                    size: 21,
+                  ),
+                ),
+                if (privacy.showShares()) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    privacy.displayCount(
+                      ReelCountMetric.shares,
+                      ReelEngagement.repostCount(post),
+                    ),
+                    style: TextStyle(
+                      color: isReposted
+                          ? const Color(0xFFF2486A)
+                          : Colors.white.withValues(alpha: 0.9),
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ],
               const SizedBox(width: AppSpacing.md),
               GestureDetector(
                 onTap: onShare,
                 child: Icon(
-                  Icons.reply_rounded,
+                  Icons.ios_share_rounded,
                   color: Colors.white.withValues(alpha: 0.9),
                   size: 20,
                 ),

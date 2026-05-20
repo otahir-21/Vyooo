@@ -9,11 +9,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/deep_link_config.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_service.dart';
+import '../utils/reel_engagement.dart';
 
 /// Controller for reel interactions. No UI logic here.
 ///
 /// **Favorites** (`users/{uid}/favoriteReels`): public on profile; updates `reels.saves`.
 /// **Private saves** (`users/{uid}/privateSavedReels`): only the owner can read; never shown on others' profiles.
+/// **Reposts** (`userReposts/{uid}_{sourceReelId}`): profile repost index; stub reel in `reels` with `isRepost`.
 class ReelsController {
   ReelsController._();
   static final ReelsController _instance = ReelsController._();
@@ -30,6 +33,17 @@ class ReelsController {
 
   CollectionReference<Map<String, dynamic>> _privateSavedCol(String uid) =>
       _userDoc(uid).collection('privateSavedReels');
+
+  static String _userRepostDocId(String uid, String sourceReelId) =>
+      '${uid}_$sourceReelId';
+
+  DocumentReference<Map<String, dynamic>> _userRepostDoc(
+    String uid,
+    String sourceReelId,
+  ) =>
+      _firestore
+          .collection('userReposts')
+          .doc(_userRepostDocId(uid, sourceReelId));
 
   /// One-time: moves legacy `userSaves` into [privateSavedReels] and deletes legacy docs.
   Future<void> migrateLegacyUserSavesIfNeeded() async {
@@ -375,6 +389,148 @@ class ReelsController {
       return currentlySaved;
     }
     return next;
+  }
+
+  /// Source reel ids the current user has reposted to their profile.
+  Future<Set<String>> getRepostedSourceReelIds(Set<String> sourceReelIds) async {
+    final uid = _currentUserId;
+    if (uid == null || sourceReelIds.isEmpty) return <String>{};
+    try {
+      final out = <String>{};
+      for (final sourceId in sourceReelIds) {
+        final snap = await _userRepostDoc(uid, sourceId).get();
+        if (snap.exists) out.add(sourceId);
+      }
+      return out;
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  /// Repost a post to the signed-in user's profile. Returns new repost stub id or null.
+  Future<String?> repostReel({required String sourceReelId}) async {
+    final uid = _currentUserId;
+    final sourceId = sourceReelId.trim();
+    if (uid == null || sourceId.isEmpty) return null;
+
+    try {
+      final sourceSnap =
+          await _firestore.collection('reels').doc(sourceId).get();
+      if (!sourceSnap.exists) return null;
+      final source = sourceSnap.data() ?? {};
+      final ownerId = (source['userId'] as String?)?.trim() ?? '';
+      if (ownerId.isEmpty || ownerId == uid) return null;
+
+      final existing = await _userRepostDoc(uid, sourceId).get();
+      if (existing.exists) {
+        return (existing.data()?['repostReelId'] as String?)?.trim();
+      }
+
+      final user = await UserService().getUser(uid);
+      final username = (user?.username ?? '').trim().isNotEmpty
+          ? user!.username!.trim()
+          : (AuthService().currentUser?.displayName ?? 'User');
+      final profileImage = (user?.profileImage ?? '').trim();
+      final handle = '@${username.replaceAll(' ', '_')}';
+      final accountType = user?.accountType ?? 'private';
+      final authorAccountPrivate =
+          UserService.accountTypeRequiresFollowApproval(accountType);
+
+      final ownerUsername = (source['username'] as String?)?.trim() ?? 'User';
+      final ownerHandle = (source['handle'] as String?)?.trim() ?? '';
+
+      final repostRef = _firestore.collection('reels').doc();
+      final batch = _firestore.batch();
+
+      batch.set(repostRef, {
+        'isRepost': true,
+        'repostOf': sourceId,
+        'repostOfUserId': ownerId,
+        'repostOfUsername': ownerUsername,
+        'repostOfHandle': ownerHandle,
+        'mediaType': source['mediaType'] ?? 'video',
+        'videoUrl': source['videoUrl'] ?? '',
+        'imageUrl': source['imageUrl'] ?? '',
+        'thumbnailUrl': source['thumbnailUrl'] ?? source['imageUrl'] ?? '',
+        'caption': source['caption'] ?? '',
+        'description': source['description'] ?? '',
+        'title': source['title'] ?? '',
+        'tags': source['tags'] is List ? source['tags'] : <String>[],
+        'userId': uid,
+        'username': username,
+        'handle': handle,
+        'avatarUrl': profileImage,
+        'profileImage': profileImage,
+        'likes': 0,
+        'comments': 0,
+        'saves': 0,
+        'views': 0,
+        'viewsCount': 0,
+        'reposts': 0,
+        'shares': 0,
+        'isVR': false,
+        'authorAccountPrivate': authorAccountPrivate,
+        'createdAt': FieldValue.serverTimestamp(),
+        'moderation': source['moderation'],
+      });
+
+      batch.set(_userRepostDoc(uid, sourceId), {
+        'userId': uid,
+        'sourceReelId': sourceId,
+        'repostReelId': repostRef.id,
+        'repostedAt': FieldValue.serverTimestamp(),
+      });
+
+      batch.update(_firestore.collection('reels').doc(sourceId), {
+        'reposts': FieldValue.increment(1),
+        'shares': FieldValue.increment(1),
+      });
+
+      await batch.commit();
+
+      await NotificationService().create(
+        recipientId: ownerId,
+        type: AppNotificationType.repost,
+        message: 'reposted your post.',
+        extra: {'reelId': sourceId, 'repostReelId': repostRef.id},
+      );
+
+      return repostRef.id;
+    } catch (e, st) {
+      debugPrint('[Vyooo][repostReel] FAILED source=$sourceId error=$e');
+      debugPrint('$st');
+      return null;
+    }
+  }
+
+  /// Remove a repost from the current user's profile.
+  Future<bool> unrepostReel({required String sourceReelId}) async {
+    final uid = _currentUserId;
+    final sourceId = sourceReelId.trim();
+    if (uid == null || sourceId.isEmpty) return false;
+
+    try {
+      final repostMeta = await _userRepostDoc(uid, sourceId).get();
+      if (!repostMeta.exists) return false;
+      final stubId =
+          (repostMeta.data()?['repostReelId'] as String?)?.trim() ?? '';
+
+      final batch = _firestore.batch();
+      batch.delete(_userRepostDoc(uid, sourceId));
+      if (stubId.isNotEmpty) {
+        batch.delete(_firestore.collection('reels').doc(stubId));
+      }
+      batch.update(_firestore.collection('reels').doc(sourceId), {
+        'reposts': FieldValue.increment(-1),
+        'shares': FieldValue.increment(-1),
+      });
+      await batch.commit();
+      return true;
+    } catch (e, st) {
+      debugPrint('[Vyooo][unrepostReel] FAILED source=$sourceId error=$e');
+      debugPrint('$st');
+      return false;
+    }
   }
 
   /// Increment view count.

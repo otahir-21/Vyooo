@@ -11,6 +11,7 @@ enum AppNotificationType {
   like,
   comment,
   share,
+  repost,
   subscribe,
 }
 

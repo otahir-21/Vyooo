@@ -15,6 +15,11 @@ Future<void> showShareBottomSheet(
   String? authorName,
   required VoidCallback onShareViaNative,
   required VoidCallback onCopyLink,
+  bool showRepost = true,
+  bool isReposted = false,
+  bool isOwnPost = false,
+  Future<void> Function()? onRepost,
+  Future<void> Function()? onRemoveRepost,
 }) {
   final shareUrl = DeepLinkConfig.reelWebUri(reelId).toString();
   return showModalBottomSheet<void>(
@@ -29,6 +34,10 @@ Future<void> showShareBottomSheet(
         Clipboard.setData(ClipboardData(text: shareUrl));
         onCopyLink();
       },
+      showRepost: showRepost && !isOwnPost,
+      isReposted: isReposted,
+      onRepost: onRepost,
+      onRemoveRepost: onRemoveRepost,
     ),
   );
 }
@@ -39,12 +48,20 @@ class _ShareSheet extends StatelessWidget {
     required this.authorName,
     required this.onShareViaNative,
     required this.onCopyLink,
+    this.showRepost = false,
+    this.isReposted = false,
+    this.onRepost,
+    this.onRemoveRepost,
   });
 
   final String? thumbnailUrl;
   final String authorName;
   final VoidCallback onShareViaNative;
   final VoidCallback onCopyLink;
+  final bool showRepost;
+  final bool isReposted;
+  final Future<void> Function()? onRepost;
+  final Future<void> Function()? onRemoveRepost;
 
   void _handleContact(BuildContext context, ShareContact contact) {
     Navigator.of(context).pop();
@@ -96,6 +113,14 @@ class _ShareSheet extends StatelessWidget {
                       thumbnailUrl: thumbnailUrl,
                       authorName: authorName,
                     ),
+                  if (showRepost) ...[
+                    const SizedBox(height: 8),
+                    _RepostTile(
+                      isReposted: isReposted,
+                      onRepost: onRepost,
+                      onRemoveRepost: onRemoveRepost,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 110,
@@ -151,6 +176,67 @@ class _ShareSheet extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _RepostTile extends StatelessWidget {
+  const _RepostTile({
+    required this.isReposted,
+    this.onRepost,
+    this.onRemoveRepost,
+  });
+
+  final bool isReposted;
+  final Future<void> Function()? onRepost;
+  final Future<void> Function()? onRemoveRepost;
+
+  Future<void> _handleTap(BuildContext context) async {
+    if (isReposted) {
+      await onRemoveRepost?.call();
+    } else {
+      await onRepost?.call();
+    }
+    if (context.mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _handleTap(context),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(
+                  isReposted ? Icons.undo_rounded : Icons.repeat_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    isReposted
+                        ? 'Remove repost from your profile'
+                        : 'Repost to your profile',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

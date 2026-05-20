@@ -1,3 +1,5 @@
+import '../../models/reel_count_privacy.dart';
+
 /// Span of one cell on a modular square grid.
 enum ProfileGridSpan {
   /// 1×1 unit square.
@@ -13,15 +15,23 @@ class ProfileGridItem {
     required this.sourceIndex,
     required this.thumbnailUrl,
     required this.views,
+    this.likes = 0,
+    this.shares = 0,
+    this.privacy = ReelCountPrivacy.visible,
     this.isVideo = false,
     this.showVrBadge = false,
+    this.isRepost = false,
   });
 
   final int sourceIndex;
   final String thumbnailUrl;
   final int views;
+  final int likes;
+  final int shares;
+  final ReelCountPrivacy privacy;
   final bool isVideo;
   final bool showVrBadge;
+  final bool isRepost;
 }
 
 /// Visual placement produced by [ProfileGridLayoutEngine].

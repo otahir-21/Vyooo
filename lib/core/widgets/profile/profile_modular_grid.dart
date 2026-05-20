@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
+import '../../models/reel_count_privacy.dart';
 import '../../theme/app_spacing.dart';
+import '../../utils/reel_engagement.dart';
 import 'profile_grid_layout_engine.dart';
 import 'profile_grid_models.dart';
 import 'profile_grid_tile.dart';
@@ -106,7 +108,11 @@ class ProfileModularGrid extends StatelessWidget {
               isVideo: gridItem.isVideo,
               showVrBadge: gridItem.showVrBadge,
               viewCount: gridItem.views,
+              likeCount: gridItem.likes,
+              shareCount: gridItem.shares,
+              privacy: gridItem.privacy,
               isHero: isHero,
+              isRepost: gridItem.isRepost,
               onTap: () => onItemTap(gridItem.sourceIndex),
             );
           },
@@ -129,8 +135,12 @@ List<ProfileGridItem> profileGridItemsFromReels({
       sourceIndex: index,
       thumbnailUrl: thumbnailFor(reel),
       views: (reel['views'] as num?)?.toInt() ?? 0,
+      likes: (reel['likes'] as num?)?.toInt() ?? 0,
+      shares: ReelEngagement.repostCount(reel),
+      privacy: ReelCountPrivacy.fromMap(reel),
       isVideo: mediaType != 'image',
       showVrBadge: showVrBadge,
+      isRepost: reel['isRepost'] == true,
     );
   });
 }

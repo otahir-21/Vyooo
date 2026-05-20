@@ -7,6 +7,7 @@ import '../utils/hashtag_utils.dart';
 import '../utils/video_upload_policy.dart';
 import 'auth_service.dart';
 import 'pexels_feed_service.dart';
+import '../utils/reel_engagement.dart';
 import 'user_service.dart';
 
 /// Reels feed by tab. For You / Trending / VR use reels collection; Following uses users/{uid}/following.
@@ -30,7 +31,10 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
+          .where((r) =>
+              _isVisibleToCurrentUser(r) &&
+              _isPlayableReel(r) &&
+              ReelEngagement.isDiscoveryFeedEligible(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
@@ -96,7 +100,10 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
+          .where((r) =>
+              _isVisibleToCurrentUser(r) &&
+              _isPlayableReel(r) &&
+              ReelEngagement.isDiscoveryFeedEligible(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
@@ -117,7 +124,10 @@ class ReelsService {
           .get();
       final list = q.docs
           .map((d) => _docToReelMap(d))
-          .where((r) => _isVisibleToCurrentUser(r) && _isPlayableReel(r))
+          .where((r) =>
+              _isVisibleToCurrentUser(r) &&
+              _isPlayableReel(r) &&
+              ReelEngagement.isDiscoveryFeedEligible(r))
           .toList();
       if (list.isNotEmpty) return list;
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
@@ -210,6 +220,58 @@ class ReelsService {
     return list;
   }
 
+  /// Copies engagement stats from source reels onto profile/feed repost stubs.
+  Future<List<Map<String, dynamic>>> hydrateRepostEngagementStats(
+    List<Map<String, dynamic>> reels,
+  ) async {
+    if (reels.isEmpty) return reels;
+    final out = reels.map((r) => Map<String, dynamic>.from(r)).toList();
+    final indicesBySource = <String, List<int>>{};
+    final sourceIds = <String>[];
+    for (var i = 0; i < out.length; i++) {
+      if (!ReelEngagement.isRepostStub(out[i])) continue;
+      final sid = ReelEngagement.sourceReelId(out[i]);
+      if (sid.isEmpty) continue;
+      sourceIds.add(sid);
+      indicesBySource.putIfAbsent(sid, () => []).add(i);
+    }
+    if (sourceIds.isEmpty) return out;
+
+    for (var i = 0; i < sourceIds.length; i += 10) {
+      final chunk = sourceIds.sublist(
+        i,
+        (i + 10) > sourceIds.length ? sourceIds.length : (i + 10),
+      );
+      final q = await _firestore
+          .collection(_reelsCollection)
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+      for (final doc in q.docs) {
+        final data = doc.data();
+        for (final idx in indicesBySource[doc.id] ?? const <int>[]) {
+          final stub = out[idx];
+          stub['likes'] = (data['likes'] as num?)?.toInt() ?? 0;
+          stub['comments'] = (data['comments'] as num?)?.toInt() ?? 0;
+          stub['saves'] = (data['saves'] as num?)?.toInt() ?? 0;
+          stub['views'] =
+              (data['views'] as num?)?.toInt() ??
+              (data['viewsCount'] as num?)?.toInt() ??
+              0;
+          stub['reposts'] = (data['reposts'] as num?)?.toInt() ??
+              (data['shares'] as num?)?.toInt() ??
+              0;
+          stub['shares'] = (data['shares'] as num?)?.toInt() ?? 0;
+          stub['hideLikeCount'] = data['hideLikeCount'] == true;
+          stub['hideViewCount'] = data['hideViewCount'] == true;
+          stub['hideShareCount'] = data['hideShareCount'] == true;
+          stub['hideCommentCount'] = data['hideCommentCount'] == true;
+          stub['hideSaveCount'] = data['hideSaveCount'] == true;
+        }
+      }
+    }
+    return out;
+  }
+
   /// Fetch a single reel by document id.
   Future<Map<String, dynamic>?> getReelById(String reelId) async {
     final id = reelId.trim();
@@ -299,6 +361,7 @@ class ReelsService {
         'views': 0,
         'viewsCount': 0,
         'shares': 0,
+        'reposts': 0,
         'avatarUrl': '',
         'userId': uid,
         'authorAccountPrivate': authorAccountPrivate,
@@ -393,10 +456,23 @@ class ReelsService {
           (data['viewsCount'] as num?)?.toInt() ??
           0,
       'shares': (data['shares'] as num?)?.toInt() ?? 0,
+      'reposts': (data['reposts'] as num?)?.toInt() ??
+          (data['shares'] as num?)?.toInt() ??
+          0,
       'avatarUrl': data['profileImage'] ?? data['avatarUrl'] ?? '',
       'userId': data['userId'] ?? '',
       'createdAt': data['createdAt'],
       'moderation': data['moderation'],
+      'isRepost': data['isRepost'] == true,
+      'repostOf': data['repostOf'] ?? '',
+      'repostOfUserId': data['repostOfUserId'] ?? '',
+      'repostOfUsername': data['repostOfUsername'] ?? '',
+      'repostOfHandle': data['repostOfHandle'] ?? '',
+      'hideLikeCount': data['hideLikeCount'] == true,
+      'hideViewCount': data['hideViewCount'] == true,
+      'hideShareCount': data['hideShareCount'] == true,
+      'hideCommentCount': data['hideCommentCount'] == true,
+      'hideSaveCount': data['hideSaveCount'] == true,
     };
   }
 
