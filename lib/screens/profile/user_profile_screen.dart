@@ -11,6 +11,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/feed_interaction_assets.dart';
 import '../../core/theme/app_gradients.dart';
 import '../../core/widgets/profile/profile_screen_background.dart';
+import '../../core/widgets/profile/profile_grid.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
@@ -1530,88 +1531,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
               );
             }
-            return Padding(
+            return ProfileModularGrid(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1,
-                ),
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final reel = posts[index];
-                  final thumb = _thumbnailFromReel(reel);
-                  final mediaType = ((reel['mediaType'] as String?) ?? '')
-                      .toLowerCase();
-                  final isVideo = mediaType != 'image';
-                  final username = (reel['username'] as String? ?? '').trim();
-                  final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
-                  final creatorName = username.isNotEmpty
-                      ? username
-                      : widget.payload.displayName;
-                  final handle = username.isNotEmpty
-                      ? ProfileFigmaTokens.displayUsername(username)
-                      : ProfileFigmaTokens.displayUsername(
-                          widget.payload.username,
-                        );
-                  final isVerified = reel['isVerified'] == true ||
-                      _liveIsVerified == true ||
-                      widget.payload.isVerified;
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PostFeedScreen(
-                          payload: PostFeedPayload(
-                            posts: posts,
-                            initialIndex: index,
-                            creatorName: creatorName,
-                            creatorHandle: handle,
-                            avatarUrl: avatarUrl.isNotEmpty
-                                ? avatarUrl
-                                : widget.payload.avatarUrl,
-                            isVerified: isVerified,
-                          ),
-                        ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(color: Colors.grey[900]),
-                          if (thumb.isNotEmpty)
-                            Image.network(
-                              thumb,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          if (isVideo)
-                            const Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white70,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              items: profileGridItemsFromReels(
+                reels: posts,
+                thumbnailFor: _thumbnailFromReel,
               ),
+              onItemTap: (index) =>
+                  _openPostFeedFromReels(context, posts, index),
             );
           },
         ),
@@ -1642,6 +1572,79 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  static int _sortReelsNewestFirst(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    final aTs = a['createdAt'] as Timestamp?;
+    final bTs = b['createdAt'] as Timestamp?;
+    if (aTs == null && bTs == null) return 0;
+    if (aTs == null) return 1;
+    if (bTs == null) return -1;
+    return bTs.compareTo(aTs);
+  }
+
+  void _openPostFeedFromReels(
+    BuildContext context,
+    List<Map<String, dynamic>> posts,
+    int index,
+  ) {
+    final reel = posts[index];
+    final username = (reel['username'] as String? ?? '').trim();
+    final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
+    final creatorName = username.isNotEmpty
+        ? username
+        : widget.payload.displayName;
+    final handle = username.isNotEmpty
+        ? ProfileFigmaTokens.displayUsername(username)
+        : ProfileFigmaTokens.displayUsername(widget.payload.username);
+    final isVerified = reel['isVerified'] == true ||
+        _liveIsVerified == true ||
+        widget.payload.isVerified;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PostFeedScreen(
+          payload: PostFeedPayload(
+            posts: posts,
+            initialIndex: index,
+            creatorName: creatorName,
+            creatorHandle: handle,
+            avatarUrl: avatarUrl.isNotEmpty
+                ? avatarUrl
+                : widget.payload.avatarUrl,
+            isVerified: isVerified,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openVRDetailFromReel(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    final creatorName = (item['username']?.toString() ?? '').trim();
+    final creatorHandle = (item['handle']?.toString() ?? '').trim();
+    final avatar = (item['avatarUrl']?.toString() ?? '').trim();
+    final thumb = _thumbnailFromReel(item);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VRDetailScreen(
+          payload: VRDetailPayload(
+            creatorName:
+                creatorName.isNotEmpty ? creatorName : 'Creator',
+            creatorHandle: creatorHandle.isNotEmpty
+                ? ProfileFigmaTokens.displayUsername(creatorHandle)
+                : 'creator',
+            avatarUrl: avatar,
+            thumbnailUrl: thumb,
+            likeCount: (item['likes'] as num?)?.toInt() ?? 0,
+          ),
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildVRGridSlivers(UserProfilePayload p) {
     final targetUid = (p.targetUserId ?? '').trim();
     if (_locksContentForViewer(p) && !_isFollowing) {
@@ -1667,64 +1670,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             }
             final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
                 .where((r) => (r['userId']?.toString() ?? '') == targetUid)
-                .toList(growable: false);
+                .toList(growable: false)
+              ..sort(_sortReelsNewestFirst);
             if (reels.isEmpty) {
               return _buildEmptyTab();
             }
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+            return ProfileModularGrid(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.65,
+              items: profileGridItemsFromReels(
+                reels: reels,
+                thumbnailFor: _thumbnailFromReel,
+                showVrBadge: true,
               ),
-              itemCount: reels.length,
-              itemBuilder: (context, index) {
-                final item = reels[index];
-                final creatorName = (item['username']?.toString() ?? '').trim();
-                final creatorHandle = (item['handle']?.toString() ?? '').trim();
-                final avatar = (item['avatarUrl']?.toString() ?? '').trim();
-                final thumb = _thumbnailFromReel(item);
-                return _UserProfileVRCard(
-                  item: _UserProfileVRItem(
-                    thumbnailUrl: thumb,
-                    creatorName: creatorName.isNotEmpty
-                        ? creatorName
-                        : 'Creator',
-                    creatorHandle: creatorHandle.isNotEmpty
-                        ? ProfileFigmaTokens.displayUsername(creatorHandle)
-                        : 'creator',
-                    avatarUrl: avatar,
-                    viewCount: (item['views'] as num?)?.toInt() ?? 0,
-                    isVerified: false,
-                  ),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => VRDetailScreen(
-                        payload: VRDetailPayload(
-                          creatorName: creatorName.isNotEmpty
-                              ? creatorName
-                              : 'Creator',
-                          creatorHandle: creatorHandle.isNotEmpty
-                              ? ProfileFigmaTokens.displayUsername(
-                                  creatorHandle,
-                                )
-                              : 'creator',
-                          avatarUrl: avatar,
-                          thumbnailUrl: thumb,
-                          likeCount: (item['likes'] as num?)?.toInt() ?? 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              onItemTap: (index) => _openVRDetailFromReel(context, reels[index]),
             );
           },
         ),
@@ -1825,81 +1786,17 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             if (savedReels.isEmpty) {
               return _buildEmptyTab();
             }
-            return Padding(
+            return ProfileModularGrid(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1,
-                ),
-                itemCount: savedReels.length,
-                itemBuilder: (context, index) {
-                  final reel = savedReels[index];
-                  final thumb = _thumbnailFromReel(reel);
-                  final mediaType = ((reel['mediaType'] as String?) ?? '')
-                      .toLowerCase();
-                  final isVideo = mediaType != 'image';
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PostFeedScreen(
-                          payload: PostFeedPayload(
-                            posts: savedReels,
-                            initialIndex: index,
-                            creatorName: (reel['username'] as String? ?? '')
-                                    .trim()
-                                    .isNotEmpty
-                                ? (reel['username'] as String).trim()
-                                : widget.payload.displayName,
-                            creatorHandle: ProfileFigmaTokens.displayUsername(
-                              (reel['username'] as String?) ??
-                                  widget.payload.username,
-                            ),
-                            avatarUrl:
-                                (reel['avatarUrl'] as String? ?? '').trim(),
-                            isVerified: reel['isVerified'] == true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(color: Colors.grey[900]),
-                          if (thumb.isNotEmpty)
-                            Image.network(
-                              thumb,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          if (isVideo)
-                            const Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white70,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              items: profileGridItemsFromReels(
+                reels: savedReels,
+                thumbnailFor: _thumbnailFromReel,
               ),
+              onItemTap: (index) =>
+                  _openPostFeedFromReels(context, savedReels, index),
             );
           },
         ),
@@ -1918,23 +1815,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       ),
     );
   }
-}
-
-class _UserProfileVRItem {
-  const _UserProfileVRItem({
-    required this.thumbnailUrl,
-    required this.creatorName,
-    required this.creatorHandle,
-    required this.avatarUrl,
-    this.viewCount = 102,
-    this.isVerified = false,
-  });
-  final String thumbnailUrl;
-  final String creatorName;
-  final String creatorHandle;
-  final String avatarUrl;
-  final int viewCount;
-  final bool isVerified;
 }
 
 class _UserProfileStreamItem {
@@ -2217,173 +2097,6 @@ class _SubscriptionNotifyOption extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _UserProfileVRCard extends StatelessWidget {
-  const _UserProfileVRCard({required this.item, this.onTap});
-
-  final _UserProfileVRItem item;
-  final VoidCallback? onTap;
-
-  static String _formatCount(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
-    return '$n';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final avatarUri = Uri.tryParse(item.avatarUrl.trim());
-    final hasValidAvatar = avatarUri != null &&
-        avatarUri.isAbsolute &&
-        avatarUri.host.isNotEmpty &&
-        (avatarUri.scheme == 'http' || avatarUri.scheme == 'https');
-    final avatarProvider = hasValidAvatar ? NetworkImage(item.avatarUrl.trim()) : null;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(item.thumbnailUrl, fit: BoxFit.cover),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.85),
-                  ],
-                  stops: const [0.0, 0.35, 1.0],
-                ),
-              ),
-            ),
-            Positioned(
-              top: AppSpacing.sm,
-              left: AppSpacing.sm,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.view_in_ar_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'VR',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.visibility_outlined,
-                          size: 12,
-                          color: Colors.white.withValues(alpha: 0.85),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          _formatCount(item.viewCount),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.grey.shade700,
-                    backgroundImage: avatarProvider,
-                    child: avatarProvider == null
-                        ? const Icon(
-                            Icons.person_rounded,
-                            size: 14,
-                            color: Colors.white70,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                item.creatorName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                            if (item.isVerified) ...[
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.check_circle_rounded,
-                                size: 14,
-                                color: AppColors.deleteRed,
-                              ),
-                            ],
-                          ],
-                        ),
-                        Text(
-                          ProfileFigmaTokens.displayUsername(
-                            item.creatorHandle,
-                          ),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 11,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );

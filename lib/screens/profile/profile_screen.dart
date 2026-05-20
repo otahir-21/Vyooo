@@ -39,6 +39,7 @@ import 'followers_following_screen.dart';
 import 'profile_figma_tokens.dart';
 import 'profile_figma_widgets.dart';
 import '../settings/settings_screen.dart';
+import '../../core/widgets/profile/profile_grid.dart';
 import '../settings/payout_screen.dart';
 import '../settings/wallet/wallet_screen.dart';
 import '../../core/widgets/profile/profile_menu_bottom_sheet.dart';
@@ -946,82 +947,38 @@ class _ProfileScreenState extends State<ProfileScreen>
             if (savedReels.isEmpty) {
               return _buildEmptySavedPlaceholder();
             }
-            return Padding(
+            return ProfileModularGrid(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  mainAxisSpacing: 4,
-                  crossAxisSpacing: 4,
-                  childAspectRatio: 1,
-                ),
-                itemCount: savedReels.length,
-                itemBuilder: (context, index) {
-                  final reel = savedReels[index];
-                  final thumb = _thumbnailFromSavedReel(reel);
-                  final mediaType = ((reel['mediaType'] as String?) ?? '')
-                      .toLowerCase();
-                  final isVideo = mediaType != 'image';
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => PostFeedScreen(
-                          payload: PostFeedPayload(
-                            posts: savedReels,
-                            initialIndex: index,
-                            creatorName:
-                                (reel['username'] as String? ?? '')
-                                    .trim()
-                                    .isNotEmpty
-                                ? (reel['username'] as String).trim()
-                                : 'Profile User',
-                            creatorHandle:
-                                ProfileFigmaTokens.displayUsername(
-                                  (reel['username'] as String?) ?? 'profile',
-                                ),
-                            avatarUrl: (reel['avatarUrl'] as String? ?? '')
-                                .trim(),
-                            isVerified: reel['isVerified'] == true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(color: Colors.grey[900]),
-                          if (thumb.isNotEmpty)
-                            Image.network(
-                              thumb,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          if (isVideo)
-                            const Align(
-                              alignment: Alignment.bottomRight,
-                              child: Padding(
-                                padding: EdgeInsets.all(4),
-                                child: Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.white70,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              items: profileGridItemsFromReels(
+                reels: savedReels,
+                thumbnailFor: _thumbnailFromSavedReel,
               ),
+              onItemTap: (index) {
+                final reel = savedReels[index];
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PostFeedScreen(
+                      payload: PostFeedPayload(
+                        posts: savedReels,
+                        initialIndex: index,
+                        creatorName:
+                            (reel['username'] as String? ?? '').trim().isNotEmpty
+                            ? (reel['username'] as String).trim()
+                            : 'Profile User',
+                        creatorHandle: ProfileFigmaTokens.displayUsername(
+                          (reel['username'] as String?) ?? 'profile',
+                        ),
+                        avatarUrl:
+                            (reel['avatarUrl'] as String? ?? '').trim(),
+                        isVerified: reel['isVerified'] == true,
+                      ),
+                    ),
+                  ),
+                );
+              },
             );
           },
         ),
@@ -1134,71 +1091,13 @@ class _ProfileScreenState extends State<ProfileScreen>
             }
             final posts = snapshot.data ?? [];
             if (posts.isEmpty) return _buildEmptyPostsPrompt(context);
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                mainAxisSpacing: 0,
-                crossAxisSpacing: 0,
-                childAspectRatio: 1,
+            return ProfileModularGrid(
+              gap: 0,
+              items: profileGridItemsFromReels(
+                reels: posts,
+                thumbnailFor: _thumbnailFromReel,
               ),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final reel = posts[index];
-                final thumbnailUrl = _thumbnailFromReel(reel);
-                final mediaType =
-                    ((reel['mediaType'] as String?) ?? '').toLowerCase();
-                final isVideo = mediaType != 'image';
-                final username = (reel['username'] as String? ?? '').trim();
-                final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
-                final handle = username.isNotEmpty
-                    ? ProfileFigmaTokens.displayUsername(username)
-                    : 'profile';
-                final isVerified = reel['isVerified'] == true;
-                return GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PostFeedScreen(
-                        payload: PostFeedPayload(
-                          posts: posts,
-                          initialIndex: index,
-                          creatorName: username.isNotEmpty
-                              ? username
-                              : 'Profile User',
-                          creatorHandle: handle,
-                          avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : '',
-                          isVerified: isVerified,
-                        ),
-                      ),
-                    ),
-                  ),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Container(color: Colors.grey[900]),
-                      if (thumbnailUrl.isNotEmpty)
-                        Image.network(
-                          thumbnailUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      if (isVideo)
-                        const Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding: EdgeInsets.all(4),
-                            child: Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.white70,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
+              onItemTap: (index) => _openPostFeedFromReels(context, posts, index),
             );
           },
         ),
@@ -1215,6 +1114,69 @@ class _ProfileScreenState extends State<ProfileScreen>
     } catch (_) {
       return '';
     }
+  }
+
+  static int _sortReelsNewestFirst(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    final aTs = a['createdAt'] as Timestamp?;
+    final bTs = b['createdAt'] as Timestamp?;
+    if (aTs == null && bTs == null) return 0;
+    if (aTs == null) return 1;
+    if (bTs == null) return -1;
+    return bTs.compareTo(aTs);
+  }
+
+  void _openPostFeedFromReels(
+    BuildContext context,
+    List<Map<String, dynamic>> posts,
+    int index,
+  ) {
+    final reel = posts[index];
+    final username = (reel['username'] as String? ?? '').trim();
+    final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
+    final handle = username.isNotEmpty
+        ? ProfileFigmaTokens.displayUsername(username)
+        : 'profile';
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PostFeedScreen(
+          payload: PostFeedPayload(
+            posts: posts,
+            initialIndex: index,
+            creatorName:
+                username.isNotEmpty ? username : 'Profile User',
+            creatorHandle: handle,
+            avatarUrl: avatarUrl.isNotEmpty ? avatarUrl : '',
+            isVerified: reel['isVerified'] == true,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openVRDetailFromReel(
+    BuildContext context,
+    Map<String, dynamic> item,
+  ) {
+    final username = (item['username']?.toString() ?? '').trim();
+    final handle = (item['handle']?.toString() ?? '').trim();
+    final avatar = (item['avatarUrl']?.toString() ?? '').trim();
+    final thumb = _thumbnailFromReel(item);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => VRDetailScreen(
+          payload: VRDetailPayload(
+            creatorName: username.isNotEmpty ? username : 'Creator',
+            creatorHandle: handle.isNotEmpty ? handle : 'creator',
+            avatarUrl: avatar,
+            thumbnailUrl: thumb,
+            likeCount: (item['likes'] as num?)?.toInt() ?? 0,
+          ),
+        ),
+      ),
+    );
   }
 
   List<Widget> _buildVRGridSlivers() {
@@ -1234,7 +1196,8 @@ class _ProfileScreenState extends State<ProfileScreen>
             }
             final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
                 .where((r) => (r['userId']?.toString() ?? '') == uid)
-                .toList(growable: false);
+                .toList(growable: false)
+              ..sort(_sortReelsNewestFirst);
             if (reels.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
@@ -1248,55 +1211,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               );
             }
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+            return ProfileModularGrid(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.65,
+              items: profileGridItemsFromReels(
+                reels: reels,
+                thumbnailFor: _thumbnailFromReel,
+                showVrBadge: true,
               ),
-              itemCount: reels.length,
-              itemBuilder: (context, index) {
-                final item = reels[index];
-                final username = (item['username']?.toString() ?? '').trim();
-                final handle = (item['handle']?.toString() ?? '').trim();
-                final avatar = (item['avatarUrl']?.toString() ?? '').trim();
-                final thumb = _thumbnailFromReel(item);
-                final likes = (item['likes'] as num?)?.toInt() ?? 0;
-                return _ProfileVRCard(
-                  item: _ProfileVRItem(
-                    thumbnailUrl: thumb,
-                    creatorName: username.isNotEmpty ? username : 'Creator',
-                    creatorHandle:
-                        handle.isNotEmpty ? handle : 'creator',
-                    avatarUrl: avatar,
-                    viewCount: (item['views'] as num?)?.toInt() ?? 0,
-                    isVerified: false,
-                  ),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => VRDetailScreen(
-                        payload: VRDetailPayload(
-                          creatorName: username.isNotEmpty
-                              ? username
-                              : 'Creator',
-                          creatorHandle:
-                              handle.isNotEmpty ? handle : 'creator',
-                          avatarUrl: avatar,
-                          thumbnailUrl: thumb,
-                          likeCount: likes,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              onItemTap: (index) => _openVRDetailFromReel(context, reels[index]),
             );
           },
         ),
@@ -1584,23 +1509,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 //   'https://picsum.photos/400/400?random=s11',
 // ];
 
-class _ProfileVRItem {
-  const _ProfileVRItem({
-    required this.thumbnailUrl,
-    required this.creatorName,
-    required this.creatorHandle,
-    required this.avatarUrl,
-    this.viewCount = 102,
-    this.isVerified = false,
-  });
-  final String thumbnailUrl;
-  final String creatorName;
-  final String creatorHandle;
-  final String avatarUrl;
-  final int viewCount;
-  final bool isVerified;
-}
-
 class _ProfileStreamItem {
   const _ProfileStreamItem({
     required this.thumbnailUrl,
@@ -1614,149 +1522,6 @@ class _ProfileStreamItem {
   final String subtitle;
   final bool isLive;
   final int viewCount;
-}
-
-class _ProfileVRCard extends StatelessWidget {
-  const _ProfileVRCard({required this.item, this.onTap});
-
-  final _ProfileVRItem item;
-  final VoidCallback? onTap;
-
-  static String _formatCount(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
-    return '$n';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.input),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(item.thumbnailUrl, fit: BoxFit.cover),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF020109),
-                    Color(0xFF21002B),
-                    Color(0xFFDE106B),
-                    Color(0xFFF81945),
-                  ],
-                  stops: const [0.0, 0.20, 0.60, 1.0],
-                ),
-              ),
-            ),
-            Positioned(
-              top: AppSpacing.sm,
-              left: AppSpacing.sm,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'VR',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: AppSpacing.sm,
-              right: AppSpacing.sm,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.visibility_outlined,
-                    size: 12,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    _formatCount(item.viewCount),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.grey.shade700,
-                    backgroundImage: NetworkImage(item.avatarUrl),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                item.creatorName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              ),
-                            ),
-                            if (item.isVerified) ...[
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.check_circle_rounded,
-                                size: 14,
-                                color: AppColors.deleteRed,
-                              ),
-                            ],
-                          ],
-                        ),
-                        Text(
-                          ProfileFigmaTokens.displayUsername(
-                            item.creatorHandle,
-                          ),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 11,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ProfileStreamCard extends StatelessWidget {
