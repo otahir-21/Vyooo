@@ -41,8 +41,6 @@ import '../../features/reel/widgets/not_interested_sheet.dart';
 import '../../features/reel/widgets/report_sheet.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../content/live_stream_route.dart';
-import '../content/post_feed_screen.dart';
-import '../content/vr_detail_screen.dart';
 import 'followers_following_screen.dart';
 import 'profile_figma_tokens.dart';
 import '../../widgets/reel_item_widget.dart';
@@ -1538,111 +1536,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               items: profileGridItemsFromReels(
                 reels: posts,
-                thumbnailFor: _thumbnailFromReel,
+                thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
               ),
-              onItemTap: (index) =>
-                  _openPostFeedFromReels(context, posts, index),
+              onItemTap: (index) => ProfileReelGridNavigation.openPostFeed(
+                context: context,
+                posts: posts,
+                index: index,
+                fallbackDisplayName: widget.payload.displayName,
+                fallbackUsername: widget.payload.username,
+                fallbackAvatarUrl: widget.payload.avatarUrl,
+                fallbackIsVerified: widget.payload.isVerified,
+                liveIsVerified: _liveIsVerified,
+              ),
             );
           },
         ),
       ),
     ];
-  }
-
-  static String _thumbnailFromReel(Map<String, dynamic> reel) {
-    final mediaType = ((reel['mediaType'] as String?) ?? '').toLowerCase();
-    final imageUrl = (reel['imageUrl'] as String?)?.trim() ?? '';
-    final explicitThumb = (reel['thumbnailUrl'] as String?)?.trim() ?? '';
-    final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
-    if (mediaType == 'image') {
-      if (imageUrl.isNotEmpty) return imageUrl;
-      if (explicitThumb.isNotEmpty) return explicitThumb;
-      return '';
-    }
-    if (explicitThumb.isNotEmpty) return explicitThumb;
-    if (imageUrl.isNotEmpty) return imageUrl;
-    if (videoUrl.isEmpty) return '';
-    try {
-      final uri = Uri.parse(videoUrl);
-      final videoId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
-      if (videoId.isEmpty) return '';
-      return 'https://videodelivery.net/$videoId/thumbnails/thumbnail.jpg';
-    } catch (_) {
-      return '';
-    }
-  }
-
-  static int _sortReelsNewestFirst(
-    Map<String, dynamic> a,
-    Map<String, dynamic> b,
-  ) {
-    final aTs = a['createdAt'] as Timestamp?;
-    final bTs = b['createdAt'] as Timestamp?;
-    if (aTs == null && bTs == null) return 0;
-    if (aTs == null) return 1;
-    if (bTs == null) return -1;
-    return bTs.compareTo(aTs);
-  }
-
-  void _openPostFeedFromReels(
-    BuildContext context,
-    List<Map<String, dynamic>> posts,
-    int index,
-  ) {
-    final reel = posts[index];
-    final username = (reel['username'] as String? ?? '').trim();
-    final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
-    final creatorName = username.isNotEmpty
-        ? username
-        : widget.payload.displayName;
-    final handle = username.isNotEmpty
-        ? ProfileFigmaTokens.displayUsername(username)
-        : ProfileFigmaTokens.displayUsername(widget.payload.username);
-    final isVerified = reel['isVerified'] == true ||
-        _liveIsVerified == true ||
-        widget.payload.isVerified;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PostFeedScreen(
-          payload: PostFeedPayload(
-            posts: posts,
-            initialIndex: index,
-            creatorName: creatorName,
-            creatorHandle: handle,
-            avatarUrl: avatarUrl.isNotEmpty
-                ? avatarUrl
-                : widget.payload.avatarUrl,
-            isVerified: isVerified,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openVRDetailFromReel(
-    BuildContext context,
-    Map<String, dynamic> item,
-  ) {
-    final creatorName = (item['username']?.toString() ?? '').trim();
-    final creatorHandle = (item['handle']?.toString() ?? '').trim();
-    final avatar = (item['avatarUrl']?.toString() ?? '').trim();
-    final thumb = _thumbnailFromReel(item);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => VRDetailScreen(
-          payload: VRDetailPayload(
-            creatorName:
-                creatorName.isNotEmpty ? creatorName : 'Creator',
-            creatorHandle: creatorHandle.isNotEmpty
-                ? ProfileFigmaTokens.displayUsername(creatorHandle)
-                : 'creator',
-            avatarUrl: avatar,
-            thumbnailUrl: thumb,
-            likeCount: (item['likes'] as num?)?.toInt() ?? 0,
-          ),
-        ),
-      ),
-    );
   }
 
   List<Widget> _buildVRGridSlivers(UserProfilePayload p) {
@@ -1671,7 +1581,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             final reels = (snapshot.data ?? const <Map<String, dynamic>>[])
                 .where((r) => (r['userId']?.toString() ?? '') == targetUid)
                 .toList(growable: false)
-              ..sort(_sortReelsNewestFirst);
+              ..sort(ProfileReelGridNavigation.sortReelsNewestFirst);
             if (reels.isEmpty) {
               return _buildEmptyTab();
             }
@@ -1682,10 +1592,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               items: profileGridItemsFromReels(
                 reels: reels,
-                thumbnailFor: _thumbnailFromReel,
+                thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
                 showVrBadge: true,
               ),
-              onItemTap: (index) => _openVRDetailFromReel(context, reels[index]),
+              onItemTap: (index) => ProfileReelGridNavigation.openVRDetail(
+                context: context,
+                item: reels[index],
+              ),
             );
           },
         ),
@@ -1793,10 +1706,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               ),
               items: profileGridItemsFromReels(
                 reels: savedReels,
-                thumbnailFor: _thumbnailFromReel,
+                thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
               ),
-              onItemTap: (index) =>
-                  _openPostFeedFromReels(context, savedReels, index),
+              onItemTap: (index) => ProfileReelGridNavigation.openPostFeed(
+                context: context,
+                posts: savedReels,
+                index: index,
+                fallbackDisplayName: widget.payload.displayName,
+                fallbackUsername: widget.payload.username,
+                fallbackAvatarUrl: widget.payload.avatarUrl,
+                fallbackIsVerified: widget.payload.isVerified,
+                liveIsVerified: _liveIsVerified,
+              ),
             );
           },
         ),
@@ -2358,7 +2279,7 @@ class _UserProfileReelFeedScreenState
     showShareBottomSheet(
       context,
       reelId: reelId,
-      thumbnailUrl: _UserProfileScreenState._thumbnailFromReel(reel),
+      thumbnailUrl: ProfileReelGridNavigation.thumbnailFromReel(reel),
       authorName: _asString(reel['username']).isEmpty
           ? widget.reels[_currentIndex]['username']?.toString()
           : _asString(reel['username']),

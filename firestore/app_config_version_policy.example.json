@@ -8,11 +8,13 @@
   "ios": {
     "minVersion": "1.1.9",
     "latestVersion": "1.2.0",
+    "minBuildNumber": 34,
     "updateUrl": "https://testflight.apple.com/join/NjQVQ2nD"
   },
   "android": {
     "minVersion": "1.1.9",
     "latestVersion": "1.2.0",
+    "minBuildNumber": 34,
     "updateUrl": "https://play.google.com/store/apps/details?id=com.vyooo"
   }
 }
