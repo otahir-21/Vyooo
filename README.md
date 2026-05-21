@@ -1,16 +1,20 @@
-# vyooo
+# Vyooo
 
-A new Flutter project.
+Flutter app (iOS + Android). Production bundle id: **`com.vyooo`**.
 
-## Getting Started
+## Developer setup (required)
 
-This project is a starting point for a Flutter application.
+Every machine must use the **same Flutter SDK** via [FVM](https://fvm.app):
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+dart pub global activate fvm
+git clone <repo-url> && cd Vyooo
+./scripts/setup.sh
+fvm flutter run
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+**Pinned:** Flutter **3.38.9** / Dart **3.10.8** (see `.fvmrc`).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Full toolchain (Java, Gradle, Android clean builds, iOS signing, Agora profile mode): **[docs/DEVELOPER_SETUP.md](docs/DEVELOPER_SETUP.md)**.
+
+Store version bumps: **[docs/VERSIONING.md](docs/VERSIONING.md)**.

@@ -1,0 +1,25 @@
+---
+description: Use FVM for all Flutter/Dart CLI in this repo (pinned 3.38.9).
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# Flutter SDK — FVM only
+
+Vyooo pins **Flutter 3.38.9** via **FVM** (`.fvmrc`). Do not assume the global `flutter` on PATH matches the project.
+
+## Commands
+
+- Run **`fvm flutter …`** instead of **`flutter …`** (e.g. `fvm flutter pub get`, `fvm flutter run`, `fvm flutter analyze`, `fvm flutter build`).
+- IDE SDK path: `.fvm/flutter_sdk` (see `.vscode/settings.json`).
+
+## Onboarding / version drift
+
+- New clones: `fvm install` then `fvm flutter pub get` (or `./scripts/setup.sh`).
+- Keep **`pubspec.lock`** committed; do not delete it for “fresh” resolves.
+- Team setup details: `docs/DEVELOPER_SETUP.md`.
+
+## Do not change without intent
+
+- Do not bump `.fvmrc` casually; match store/CI and document in `docs/DEVELOPER_SETUP.md`.
