@@ -55,9 +55,43 @@ Firestore document: **`app_config` / `version_policy`** (see `firestore/app_conf
 **iOS update link:** `https://testflight.apple.com/join/NjQVQ2nD` (or App Store URL when on production).  
 **Android update link:** `https://play.google.com/store/apps/details?id=com.vyooo`
 
+## Team Flutter version (every machine)
+
+Vyooo pins **Flutter 3.38.9** with FVM — not the same as store `1.2.0+36`, but both must match across developers.
+
+| Check | Command |
+|-------|---------|
+| Install SDK | `fvm install` (from repo root) |
+| Verify pin | `./scripts/verify_toolchain.sh` |
+| Daily CLI | `fvm flutter run` / `fvm flutter build appbundle` |
+
+Details: **[docs/DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)**.
+
+## Bump build number (script)
+
+For the next Play / TestFlight upload without changing marketing version:
+
+```bash
+./scripts/bump_build.sh          # 1.2.0+36 → 1.2.0+37
+./scripts/bump_build.sh --dry-run
+fvm flutter pub get
+```
+
+Then update **Release history** below and upload.
+
+## Play Console: production vs internal
+
+| Track | Typical state | Action |
+|-------|----------------|--------|
+| **Production** | May lag (e.g. old `0.0.1` / build 11) | Promote tested build from internal/closed → production when ready |
+| **Internal testing** | Newest (`1.2.0+36`) | QA here first |
+
+Version codes must **always increase**; if Play rejects “version code already used”, run `./scripts/bump_build.sh` and upload again.
+
 ## Next release checklist
 
-- [ ] `pubspec.yaml` → e.g. `1.2.1+35` or `1.3.0+35`
+- [ ] `./scripts/bump_build.sh` or edit `pubspec.yaml` build (`+N` only unless marketing bump requested)
+- [ ] `fvm flutter pub get`
 - [ ] `docs/VERSIONING.md` history row
 - [ ] Upload to Play Console / App Store Connect
-- [ ] Update Firestore `latestVersion` (and `minVersion` when forcing old clients)
+- [ ] Update Firestore `latestVersion` / `minBuildNumber` (copy from `firestore/app_config_version_policy.example.json`)

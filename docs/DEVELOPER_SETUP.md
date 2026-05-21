@@ -100,4 +100,19 @@ Compare output with a teammate if builds diverge.
 2. Run `fvm flutter pub get` and test Android + iOS.
 3. Update this doc and commit `.fvmrc` + `.fvm/fvm_config.json` + `.fvm/version` + `.fvm/release`.
 
-Store/release versioning for uploads is documented in `docs/VERSIONING.md`.
+## App store version (1.2.0+36)
+
+Separate from the Flutter SDK pin above:
+
+| What | Where |
+|------|--------|
+| Marketing + build | `pubspec.yaml` → `version: 1.2.0+36` |
+| Next upload bump | `./scripts/bump_build.sh` then `fvm flutter pub get` |
+| Remote force/soft update | Firestore `app_config/version_policy` |
+| Full process | **`docs/VERSIONING.md`** |
+
+Verify toolchain before a release build:
+
+```bash
+./scripts/verify_toolchain.sh
+```

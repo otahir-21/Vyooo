@@ -18,9 +18,8 @@ echo "==> Resolving Dart packages"
 fvm flutter pub get
 
 echo "==> Toolchain check"
-fvm flutter --version
-fvm flutter doctor -v
+./scripts/verify_toolchain.sh
 
 echo ""
 echo "Done. Use: fvm flutter run"
-echo "See docs/DEVELOPER_SETUP.md for Android/iOS notes."
+echo "Store versions: docs/VERSIONING.md · bump build: ./scripts/bump_build.sh"

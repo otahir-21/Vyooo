@@ -17,4 +17,4 @@ fvm flutter run
 
 Full toolchain (Java, Gradle, Android clean builds, iOS signing, Agora profile mode): **[docs/DEVELOPER_SETUP.md](docs/DEVELOPER_SETUP.md)**.
 
-Store version bumps: **[docs/VERSIONING.md](docs/VERSIONING.md)**.
+Store version bumps: **[docs/VERSIONING.md](docs/VERSIONING.md)** (`./scripts/bump_build.sh`, `./scripts/verify_toolchain.sh`).
