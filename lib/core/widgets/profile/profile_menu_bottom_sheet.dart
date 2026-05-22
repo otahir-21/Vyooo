@@ -127,6 +127,7 @@ class ProfileMenuBottomSheet extends StatelessWidget {
                 _ProfileMenuTile(
                   icon: Icons.payments_rounded,
                   label: 'Revenue',
+                  subtitle: 'Coming soon',
                   onTap: onRevenue,
                 ),
                 Padding(

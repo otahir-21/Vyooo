@@ -44,7 +44,7 @@ import 'profile_figma_widgets.dart';
 import '../settings/settings_screen.dart';
 import '../../core/widgets/profile/profile_grid.dart';
 import '../../features/reel/widgets/profile_grid_span_sheet.dart';
-import '../settings/payout_screen.dart';
+import '../settings/revenue_coming_soon_view.dart';
 import '../settings/wallet/wallet_coming_soon_view.dart';
 import '../../core/widgets/profile/profile_menu_bottom_sheet.dart';
 import '../../features/vr/vr_screen.dart';
@@ -439,7 +439,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       },
       onRevenue: () {
         Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const PayoutScreen()),
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(
+              backgroundColor: Colors.black,
+              body: RevenueComingSoonView(),
+            ),
+          ),
         );
       },
       onSettings: () {

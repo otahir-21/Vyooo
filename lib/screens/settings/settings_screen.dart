@@ -26,7 +26,7 @@ import 'creator_monetization_screen.dart';
 import 'downloaded_videos_screen.dart';
 import 'notifications_settings_screen.dart';
 import 'parental_approvals_screen.dart';
-import 'payout_screen.dart';
+import 'revenue_coming_soon_view.dart';
 import 'privacy_policy_screen.dart';
 import 'report_problem_screen.dart';
 import 'saved_posts_screen.dart';
@@ -276,9 +276,15 @@ class SettingsScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.payments_outlined,
             label: 'Revenue',
-            subtitle: 'Earnings & payouts',
+            subtitle: 'Coming soon',
             isPremium: true,
-            onTap: () => _push(context, const PayoutScreen()),
+            onTap: () => _push(
+              context,
+              const Scaffold(
+                backgroundColor: Colors.black,
+                body: RevenueComingSoonView(),
+              ),
+            ),
           ),
           _SettingsTile(
             icon: Icons.live_tv_rounded,
