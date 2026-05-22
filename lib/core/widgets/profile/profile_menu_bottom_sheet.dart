@@ -121,6 +121,7 @@ class ProfileMenuBottomSheet extends StatelessWidget {
                 _ProfileMenuTile(
                   assetIconPath: 'assets/vyooO_icons/Settings/Wallet.png',
                   label: 'Vyooo coin',
+                  subtitle: 'Coming soon',
                   onTap: onVyoooCoin,
                 ),
                 _ProfileMenuTile(
@@ -180,6 +181,7 @@ class _ProfileMenuTile extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.assetIconPath,
+    this.subtitle,
     this.isDestructive = false,
   });
 
@@ -187,6 +189,7 @@ class _ProfileMenuTile extends StatelessWidget {
   final VoidCallback onTap;
   final IconData? icon;
   final String? assetIconPath;
+  final String? subtitle;
   final bool isDestructive;
 
   @override
@@ -223,13 +226,28 @@ class _ProfileMenuTile extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.authDialogOption.copyWith(
-                    color: color,
-                    fontWeight:
-                        isDestructive ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: AppTypography.authDialogOption.copyWith(
+                        color: color,
+                        fontWeight:
+                            isDestructive ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: AppTypography.authSmallBody.copyWith(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               Icon(

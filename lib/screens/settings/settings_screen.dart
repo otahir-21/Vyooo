@@ -32,7 +32,7 @@ import 'report_problem_screen.dart';
 import 'saved_posts_screen.dart';
 import 'settings_subscriptions_screen.dart';
 import 'terms_service_screen.dart';
-import 'wallet/wallet_screen.dart';
+import 'wallet/wallet_coming_soon_view.dart';
 import 'live_stream_monetisation_screen.dart';
 import 'preferences/activity_settings_screen.dart';
 import 'preferences/archive_settings_screen.dart';
@@ -252,9 +252,15 @@ class SettingsScreen extends StatelessWidget {
           _SettingsTile(
             iconPath: 'assets/vyooO_icons/Settings/Wallet.png',
             label: 'Vyooo coin',
-            subtitle: 'Wallet & balance',
+            subtitle: 'Coming soon',
             isPremium: true,
-            onTap: () => _push(context, const WalletScreen()),
+            onTap: () => _push(
+              context,
+              const Scaffold(
+                backgroundColor: Colors.black,
+                body: WalletComingSoonView(),
+              ),
+            ),
           ),
           _SettingsTile(
             assetIconPath: 'assets/vyooO_icons/Home/vr.png',
