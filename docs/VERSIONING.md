@@ -21,16 +21,16 @@ Flutter injects these into Android Gradle and iOS `Info.plist` (`FLUTTER_BUILD_N
 
 | Field | Value |
 |-------|--------|
-| Marketing version | **1.2.1** |
+| Marketing version | **1.2.0** |
 | Build number | **41** |
-| `pubspec.yaml` | `1.2.1+41` |
+| `pubspec.yaml` | `1.2.0+41` |
 
 ## Release history
 
 | Marketing | Build | Date | Channels | Notes |
 |-----------|-------|------|----------|--------|
-| 1.2.1 | 41 | 2026-05-22 | TestFlight / App Store, Play Store | iOS: new train (1.2.0 closed); profile grid + coming soon screens |
-| 1.2.0 | 40 | 2026-05-22 | Play Store | Profile grid title/thumbnail; Vyooo coin, wallet, and revenue coming soon |
+| 1.2.0 | 41 | 2026-05-22 | Play Store, TestFlight | Build-only bump (40 used on Play); profile grid + coming soon |
+| 1.2.0 | 40 | 2026-05-22 | Play Store | (versionCode 40 already uploaded — use 41 for next AAB) |
 | 1.2.0 | 39 | 2026-05-21 | Play Store | AD_ID permission for RevenueCat; Play Advertising ID declaration Yes |
 | 1.2.0 | 38 | 2026-05-21 | Play Store | Android 15 edge-to-edge + large-screen/orientation Play Console fixes |
 | 1.2.0 | 37 | 2026-05-21 | Play Store | (uploaded to Console — superseded by 38) |
@@ -45,7 +45,7 @@ Flutter injects these into Android Gradle and iOS `Info.plist` (`FLUTTER_BUILD_N
 2. Run `flutter pub get` (regenerates iOS `Generated.xcconfig`).
 3. Add a row to **Release history** above.
 4. **Android:** build app bundle (`flutter build appbundle`) — version comes from pubspec.
-5. **iOS:** Archive in Xcode — version/build come from pubspec via Flutter; confirm **Runner → General** shows current marketing (e.g. **1.2.1**) and build **41** (or current `+N` from pubspec). If App Store says *train 1.2.0 is closed* or *CFBundleShortVersionString must be higher than 1.2.0*, bump **marketing** in `pubspec.yaml` (e.g. `1.2.0` → `1.2.1`) and align `MARKETING_VERSION` in `ios/Runner.xcodeproj` for Runner.
+5. **iOS:** Archive in Xcode — version/build come from pubspec via Flutter; confirm **Runner → General** shows **1.2.0** and build **41** (or current `+N`). Upload new TestFlight builds under **Version 1.2.0** with a higher build number only. If **App Store production** rejects *train 1.2.0 is closed* or *CFBundleShortVersionString must be higher than 1.2.0*, bump marketing to `1.2.1` for that store submission only.
 
 ### iOS: Agora / FFmpeg “Upload Symbols Failed” (dSYM)
 
