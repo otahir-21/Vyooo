@@ -10,6 +10,9 @@ import 'pexels_feed_service.dart';
 import '../utils/reel_engagement.dart';
 import 'user_service.dart';
 
+/// Outcome of submitting a report against a reel/post.
+enum ReelReportResult { success, alreadyReported, notSignedIn, failed }
+
 /// Reels feed by tab. For You / Trending / VR use reels collection; Following uses users/{uid}/following.
 /// When Firestore is empty and [AppConfig.usePexelsFeed] + API key are set, falls back to Pexels.
 class ReelsService {
@@ -289,6 +292,38 @@ class ReelsService {
     }
   }
 
+  /// Submit a user report against a reel/post.
+  ///
+  /// Uses a deterministic document id (`<reporterUid>_<reelId>`) so a given
+  /// user can only report a given reel once. This keeps the report count an
+  /// accurate count of distinct reporters, which the threshold-based
+  /// auto-moderation (Cloud Function) relies on.
+  Future<ReelReportResult> reportReel({
+    required String reelId,
+    required String reason,
+    String? reelOwnerId,
+  }) async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null || uid.isEmpty) return ReelReportResult.notSignedIn;
+    if (reelId.isEmpty) return ReelReportResult.failed;
+    try {
+      final docRef =
+          _firestore.collection('reel_reports').doc('${uid}_$reelId');
+      final existing = await docRef.get();
+      if (existing.exists) return ReelReportResult.alreadyReported;
+      await docRef.set({
+        'reelId': reelId,
+        'reelOwnerId': reelOwnerId ?? '',
+        'reporterId': uid,
+        'reason': reason,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return ReelReportResult.success;
+    } catch (_) {
+      return ReelReportResult.failed;
+    }
+  }
+
   /// Admin helper: reels that require manual moderation review.
   ///
   /// Returns newest first and does not apply feed visibility filters.
@@ -463,6 +498,7 @@ class ReelsService {
       'userId': data['userId'] ?? '',
       'createdAt': data['createdAt'],
       'moderation': data['moderation'],
+      'reportCount': (data['reportCount'] as num?)?.toInt() ?? 0,
       'isRepost': data['isRepost'] == true,
       'repostOf': data['repostOf'] ?? '',
       'repostOfUserId': data['repostOfUserId'] ?? '',

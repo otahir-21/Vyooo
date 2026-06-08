@@ -540,6 +540,9 @@ class ReelsController {
     try {
       await _firestore.collection('reels').doc(reelId).update({
         'views': FieldValue.increment(1),
+        // Keep viewsCount in sync so Trending (orderBy viewsCount) and the
+        // report-threshold moderation use a consistent live view total.
+        'viewsCount': FieldValue.increment(1),
       });
     } catch (_) {}
   }

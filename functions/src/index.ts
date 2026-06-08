@@ -855,6 +855,112 @@ export const moderateReelOnWrite = onDocumentWritten(
   },
 );
 
+// ── Crowd-report threshold moderation ───────────────────────────────────────
+// A reel/post is auto-hidden when the share of distinct reporters crosses a
+// view-count-dependent threshold. Reports are deduped per user at write time
+// (doc id `<uid>_<reelId>` enforced by Firestore rules), so `reportCount`
+// equals the number of distinct reporters.
+//
+// Tiers (newest config wins; tweak here):
+//   < 100 views    : never auto-hide (not enough signal yet)
+//   100–499 views  : 20% reported
+//   500–999 views  : 10% reported
+//   1000–4999 views: 5% reported
+//   5000+ views    : 2% reported
+//
+// Action is a soft takedown: moderation.status -> 'removed' (recoverable),
+// which the client feeds already hide. No media is deleted.
+const REPORT_MODERATION_TIERS: Array<{ minViews: number; fraction: number }> = [
+  { minViews: 5000, fraction: 0.02 },
+  { minViews: 1000, fraction: 0.05 },
+  { minViews: 500, fraction: 0.1 },
+  { minViews: 100, fraction: 0.2 },
+];
+
+function reportFractionForViews(views: number): number | null {
+  for (const tier of REPORT_MODERATION_TIERS) {
+    if (views >= tier.minViews) return tier.fraction;
+  }
+  return null; // below the minimum view threshold — never auto-hide
+}
+
+function toFiniteNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+export const aggregateReelReportOnCreate = onDocumentCreated(
+  {
+    document: 'reel_reports/{reportId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const report = snap.data() as { reelId?: unknown };
+    const reelId = typeof report.reelId === 'string' ? report.reelId.trim() : '';
+    if (!reelId) return;
+
+    const reelRef = admin.firestore().collection('reels').doc(reelId);
+    try {
+      await admin.firestore().runTransaction(async (tx) => {
+        const reelSnap = await tx.get(reelRef);
+        if (!reelSnap.exists) return;
+        const data = reelSnap.data() as Record<string, unknown>;
+
+        const newCount = toFiniteNumber(data.reportCount) + 1;
+        // `views` is the live counter; fall back to `viewsCount` if present.
+        const views = Math.max(toFiniteNumber(data.views), toFiniteNumber(data.viewsCount));
+
+        const moderation =
+          (data.moderation as Record<string, unknown> | undefined) ?? {};
+        const currentStatus =
+          typeof moderation.status === 'string' ? moderation.status.toLowerCase() : '';
+        const alreadyDown = currentStatus === 'removed' || currentStatus === 'blocked';
+
+        const fraction = reportFractionForViews(views);
+        const shouldRemove =
+          !alreadyDown && fraction != null && newCount >= Math.ceil(views * fraction);
+
+        const update: Record<string, unknown> = {
+          reportCount: newCount,
+          lastReportedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (shouldRemove) {
+          update.moderation = {
+            ...moderation,
+            status: 'removed',
+            removedReason: 'report_threshold',
+            removedAt: admin.firestore.FieldValue.serverTimestamp(),
+            removedAtViews: views,
+            removedAtReports: newCount,
+          };
+        }
+        tx.set(reelRef, update, { merge: true });
+
+        if (shouldRemove) {
+          logger.warn(
+            `[aggregateReelReportOnCreate] auto_removed reelId=${reelId} reports=${newCount} views=${views} fraction=${fraction}`,
+          );
+        } else {
+          logger.info(
+            `[aggregateReelReportOnCreate] counted reelId=${reelId} reports=${newCount} views=${views} fraction=${fraction ?? 'none'}`,
+          );
+        }
+      });
+    } catch (e) {
+      logger.error(
+        `[aggregateReelReportOnCreate] exception reelId=${reelId} error=${String(e)}`,
+      );
+    }
+  },
+);
+
 // ── Email signup OTP (Resend) — Firestore-triggered (no Cloud Run `allUsers` invoker) ──
 // Same pattern as generateAgoraTokenOnRequest: org policy blocks public IAM on HTTP callables.
 

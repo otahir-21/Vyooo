@@ -815,6 +815,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // User reports against reels/posts. Deterministic id `<uid>_<reelId>` so a
+    // user can only report a reel once. Reporters can read only their own report
+    // (to detect duplicates); aggregate counts live on the reel doc, written by
+    // a trusted Cloud Function. Reports are immutable from clients.
+    match /reel_reports/{id} {
+      allow create: if isSignedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.reelId is string
+                    && request.resource.data.reelId.size() > 0
+                    && id == request.auth.uid + '_' + request.resource.data.reelId;
+      allow read: if isSignedIn() && resource.data.reporterId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /notifications/{id} {
       allow create: if isSignedIn()
                     && request.resource.data.senderId == request.auth.uid

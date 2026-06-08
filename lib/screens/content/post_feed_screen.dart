@@ -16,6 +16,7 @@ import '../../core/utils/reel_engagement.dart';
 import '../../features/reel/widgets/owner_post_options_sheet.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../../features/reel/widgets/report_sheet.dart';
+import '../../features/reel/widgets/report_status_bar.dart';
 import '../../features/share/widgets/share_bottom_sheet.dart';
 import '../../widgets/caption_with_hashtags.dart';
 import '../../widgets/reel_item_widget.dart';
@@ -371,6 +372,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
             : 'User',
         avatarUrl: _asString(post['avatarUrl']),
         targetUserId: authorId.isEmpty ? null : authorId,
+        reelId: reelId,
         isFollowing: false,
       ),
       onNotInterested: () => showNotInterestedSheet(context),
@@ -964,6 +966,14 @@ class _PostCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          if (ReportStatusThresholds.severityFor(_asInt(post['reportCount'])) !=
+              ReportSeverity.none) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ReportStatusBar.fromReel(post),
             ),
             const SizedBox(height: AppSpacing.sm),
           ],

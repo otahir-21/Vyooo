@@ -31,6 +31,8 @@ abstract final class ProfileReelGridNavigation {
       'shares': (data['shares'] as num?)?.toInt() ?? 0,
       'views': (data['views'] as num?)?.toInt() ?? 0,
       'saves': (data['saves'] as num?)?.toInt() ?? 0,
+      'reportCount': (data['reportCount'] as num?)?.toInt() ?? 0,
+      'moderation': data['moderation'],
       'createdAt': data['createdAt'],
       'isVR': data['isVR'] == true,
       'profileGridSpan': data['profileGridSpan'] as String? ?? '',

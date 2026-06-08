@@ -2318,6 +2318,7 @@ class _UserProfileReelFeedScreenState
             : _asString(reel['username']),
         avatarUrl: _asString(reel['avatarUrl']),
         targetUserId: authorId.isEmpty ? null : authorId,
+        reelId: reelId,
         isFollowing: false,
       ),
       onNotInterested: () => showNotInterestedSheet(context),

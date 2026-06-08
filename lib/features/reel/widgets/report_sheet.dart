@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/reels_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/utils/user_facing_errors.dart';
 import 'block_user_sheet.dart';
@@ -11,6 +12,7 @@ void showReportSheet(
   required String username,
   required String avatarUrl,
   String? targetUserId,
+  String? reelId,
   bool isFollowing = false,
 }) {
   showModalBottomSheet<void>(
@@ -21,6 +23,7 @@ void showReportSheet(
       username: username,
       avatarUrl: avatarUrl,
       targetUserId: targetUserId,
+      reelId: reelId,
       isFollowing: isFollowing,
     ),
   );
@@ -31,12 +34,14 @@ class _ReportSheetFlow extends StatefulWidget {
     required this.username,
     required this.avatarUrl,
     this.targetUserId,
+    this.reelId,
     this.isFollowing = false,
   });
 
   final String username;
   final String avatarUrl;
   final String? targetUserId;
+  final String? reelId;
   final bool isFollowing;
 
   @override
@@ -46,6 +51,7 @@ class _ReportSheetFlow extends StatefulWidget {
 class _ReportSheetFlowState extends State<_ReportSheetFlow> {
   bool _showThanks = false;
   bool _isOtherActionsExpanded = false;
+  bool _isSubmitting = false;
   late bool _isFollowing;
 
   @override
@@ -138,10 +144,36 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
         const SizedBox(height: 16),
         ..._reasons.map((reason) => _ReasonTile(
               label: reason,
-              onTap: () => setState(() => _showThanks = true),
+              onTap: () => _onReasonSelected(reason),
             )),
       ],
     );
+  }
+
+  Future<void> _onReasonSelected(String reason) async {
+    if (_isSubmitting) return;
+    // Always advance to the thank-you view so the UX is instant; persistence
+    // happens in the background.
+    setState(() {
+      _isSubmitting = true;
+      _showThanks = true;
+    });
+    final reelId = widget.reelId;
+    if (reelId == null || reelId.isEmpty) {
+      _isSubmitting = false;
+      return;
+    }
+    try {
+      await ReelsService().reportReel(
+        reelId: reelId,
+        reason: reason,
+        reelOwnerId: widget.targetUserId,
+      );
+    } catch (_) {
+      // Reporting is best-effort; failures must not block the UX.
+    } finally {
+      _isSubmitting = false;
+    }
   }
 
   Widget _buildThanksView() {

@@ -46,6 +46,7 @@ import '../../features/reel/widgets/manage_content_preferences_sheet.dart';
 import '../../features/reel/widgets/not_interested_sheet.dart';
 import '../../features/reel/widgets/playback_speed_sheet.dart';
 import '../../features/reel/widgets/report_sheet.dart';
+import '../../features/reel/widgets/report_status_bar.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../../features/reel/widgets/video_quality_sheet.dart';
 import '../../features/reel/widgets/why_seeing_this_sheet.dart';
@@ -1625,6 +1626,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         username: _asString(reel['username'], fallback: 'User'),
         avatarUrl: _asString(reel['avatarUrl']),
         targetUserId: authorId.isEmpty ? null : authorId,
+        reelId: reelId,
         isFollowing: authorId.isNotEmpty && _followingIds.contains(authorId),
       ),
       onNotInterested: () => showNotInterestedSheet(context),
@@ -1788,6 +1790,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               ),
             ],
           ),
+          if (ReportStatusThresholds.severityFor(_asInt(reel['reportCount'])) !=
+              ReportSeverity.none) ...[
+            const SizedBox(height: 10),
+            ReportStatusBar.fromReel(reel),
+          ],
           const SizedBox(height: 12),
           _buildReelCaption(reel),
           const SizedBox(height: 16),
