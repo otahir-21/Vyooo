@@ -285,12 +285,26 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       }
       return;
     }
-    // Stop any pending retry to avoid bringing audio back on inactive routes.
+    // Not eligible to play: fully release the underlying decoder instead of
+    // only pausing. Android caps the number of concurrent hardware video
+    // decoders (commonly ~16), and this widget keeps itself alive
+    // ([wantKeepAlive] == true), so every scrolled-past reel that merely paused
+    // its controller would hold a decoder forever — exhausting the limit and
+    // crashing the app after ~13–16 reels. Releasing here keeps at most the
+    // currently visible reel (plus briefly an adjacent one mid-swipe) decoding.
+    // The thumbnail is shown via [_buildLoadingBackground] while uninitialized,
+    // so there is no visual regression, and playback re-initializes if the reel
+    // becomes visible again.
     _retryTimer?.cancel();
     _retryTimer = null;
-    final controller = _controller;
-    if (_isInitialized && controller != null && controller.value.isPlaying) {
-      controller.pause();
+    if (_controller != null || _isInitialized) {
+      _disposePlayer();
+      if (mounted) {
+        setState(() {
+          _showError = false;
+          _retryCount = 0;
+        });
+      }
     }
   }
 
