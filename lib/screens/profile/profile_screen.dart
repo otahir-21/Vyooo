@@ -655,18 +655,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Text(
-                            bio,
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: ProfileFigmaTokens.bioFontSize,
-                              height: 1.35,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
+                          child: ProfileBioText(bio: bio),
                         ),
                       ],
                       const ProfileFigmaMusicLine(

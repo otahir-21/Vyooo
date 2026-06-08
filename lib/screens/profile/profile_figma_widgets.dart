@@ -544,6 +544,35 @@ class ProfileFigmaHeaderFollowChip extends StatelessWidget {
   }
 }
 
+/// Profile bio — always shows the full text (scroll handled by parent).
+class ProfileBioText extends StatelessWidget {
+  const ProfileBioText({
+    super.key,
+    required this.bio,
+    this.textAlign = TextAlign.center,
+  });
+
+  final String bio;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = bio.trim();
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    return Text(
+      text,
+      textAlign: textAlign,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: ProfileFigmaTokens.bioFontSize,
+        height: 1.35,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+  }
+}
+
 class ProfileFigmaMusicLine extends StatelessWidget {
   const ProfileFigmaMusicLine({super.key, required this.label});
 

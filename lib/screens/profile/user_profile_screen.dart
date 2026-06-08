@@ -45,6 +45,7 @@ import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../content/live_stream_route.dart';
 import 'followers_following_screen.dart';
 import 'profile_figma_tokens.dart';
+import 'profile_figma_widgets.dart';
 import '../../widgets/reel_item_widget.dart';
 import '../../features/reel/widgets/block_user_sheet.dart';
 import '../../features/story/highlight_viewer_screen.dart';
@@ -1198,16 +1199,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              bio,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
+            child: ProfileBioText(bio: bio),
           ),
         ],
       ],
