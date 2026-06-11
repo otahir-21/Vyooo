@@ -33,7 +33,6 @@ class MediaMessageWidget extends StatelessWidget {
           bottom: 2,
         ),
         decoration: BoxDecoration(
-          color: isSent ? const Color(0xFF2A1040) : const Color(0xFF1E0E2E),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -42,39 +41,49 @@ class MediaMessageWidget extends StatelessWidget {
           ),
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            GestureDetector(
-              onTap: () => _openViewer(context),
-              child: _buildMediaContent(isVideo),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(right: 10, bottom: 5, top: 3),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (seenText != null) ...[
-                    Text(
-                      seenText!,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
-                        fontSize: 10,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    time,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.45),
-                      fontSize: 10,
-                    ),
+        child: GestureDetector(
+          onTap: () => _openViewer(context),
+          child: Stack(
+            children: [
+              _buildMediaContent(isVideo),
+              Positioned(
+                right: 8,
+                bottom: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
                   ),
-                ],
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (seenText != null) ...[
+                        Text(
+                          seenText!,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        time,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
