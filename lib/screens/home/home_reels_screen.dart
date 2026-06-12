@@ -1351,6 +1351,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildImageReelItem(String imageUrl, int feedIndex) {
+    // Cap decode size at 2x physical screen width: keeps pinch-zoom usable
+    // while preventing full-resolution photos (tens of MB decoded each) from
+    // accumulating in memory as the user scrolls the feed.
+    final mq = MediaQuery.of(context);
+    final cacheWidth = (mq.size.width * mq.devicePixelRatio * 2).round();
     return GestureDetector(
       onDoubleTap: () => _onDoubleTapLike(feedIndex),
       child: SizedBox.expand(
@@ -1364,6 +1369,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               child: Image.network(
                 imageUrl,
                 fit: BoxFit.contain,
+                cacheWidth: cacheWidth,
                 errorBuilder: (context, error, stackTrace) {
                   return _buildMissingMediaPlaceholder(
                     'Failed to load image reel.',

@@ -66,6 +66,14 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _localPlaybackFailed = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
+  /// Monotonic token bumped by every [_initializePlayer] call. In-flight
+  /// initializations capture it and bail out after each async gap if a newer
+  /// init has started (or the reel was scrolled away), so a stale init can
+  /// never attach a hardware decoder to this keep-alive state. Android caps
+  /// concurrent decoders (~16); each stranded controller counts against that
+  /// cap and crashes the feed after ~15 reels.
+  int _initSession = 0;
+
   // Effective-visibility flags. Combined with [widget.isVisible] in
   // [_shouldPlay] to decide whether the controller may play right now.
   bool _isRouteOnTop = true;
@@ -165,22 +173,27 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   Future<void> _initializePlayer() async {
     if (!_shouldPlay) return;
+    final session = ++_initSession;
+    // True when this init must abandon its work: widget gone, reel no longer
+    // eligible to play, or a newer init superseded this one (URL change,
+    // visibility flapped off/on mid-await).
+    bool stale() => !mounted || session != _initSession || !_shouldPlay;
 
     // Fastest path: a controller pre-initialized by [ReelPreloadService]
     // (first reel during splash, next reel while the previous one plays).
     final preloaded = await ReelPreloadService.instance.take(widget.videoUrl);
     if (preloaded != null) {
-      if (!mounted || !_shouldPlay) {
+      if (stale()) {
         preloaded.dispose();
         return;
       }
       try {
-        await _attachAndPlay(preloaded);
+        await _attachAndPlay(preloaded, session);
         return;
       } catch (e) {
         debugPrint('Preloaded reel controller failed, reinitializing: $e');
         _disposePlayer();
-        if (!mounted || !_shouldPlay) return;
+        if (stale()) return;
       }
     }
 
@@ -189,21 +202,22 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     if (!_localPlaybackFailed) {
       final localFile =
           await FeedOfflineVideoCache.instance.localFileFor(widget.videoUrl);
+      if (stale()) return;
       if (localFile != null) {
-        if (!mounted || !_shouldPlay) return;
         try {
           await _attachAndPlay(
             VideoPlayerController.file(
               localFile,
               videoPlayerOptions: _playerOptions,
             ),
+            session,
           );
           return;
         } catch (e) {
           debugPrint('Offline reel playback failed, using network: $e');
           _localPlaybackFailed = true;
           _disposePlayer();
-          if (!mounted || !_shouldPlay) return;
+          if (stale()) return;
         }
       }
     }
@@ -217,6 +231,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
           Uri.parse(url),
           videoPlayerOptions: _playerOptions,
         ),
+        session,
       );
     } catch (e) {
       debugPrint('Error initializing video: $e');
@@ -251,7 +266,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   /// Initializes [ctrl] (unless already pre-initialized), attaches it to state
   /// and starts playback.
   /// Throws on initialization failure (caller owns retry/fallback policy).
-  Future<void> _attachAndPlay(VideoPlayerController ctrl) async {
+  Future<void> _attachAndPlay(VideoPlayerController ctrl, int session) async {
     ctrl.setLooping(true);
     ctrl.setVolume(_isMuted ? 0 : 1.0);
 
@@ -264,9 +279,17 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       }
     }
 
-    if (!mounted) {
+    // Re-check after the initialize() async gap. Attaching a controller to a
+    // reel the user already scrolled past (or one superseded by a newer init)
+    // would strand a hardware decoder on this keep-alive state — the exact
+    // leak that exhausts Android's decoder cap during fast feed scrolling.
+    if (!mounted || session != _initSession || !_shouldPlay) {
       ctrl.dispose();
       return;
+    }
+    // Defensive: never overwrite a live controller without releasing it.
+    if (_controller != null && !identical(_controller, ctrl)) {
+      _disposePlayer();
     }
     setState(() {
       _controller = ctrl;
@@ -569,9 +592,14 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Widget _buildLoadingBackground() {
     final thumb = (widget.thumbnailUrl ?? '').trim();
     if (thumb.isNotEmpty) {
+      // Decode at screen resolution: full-size thumbnails decoded for every
+      // visited keep-alive reel otherwise pile up in the image cache.
+      final mq = MediaQuery.of(context);
+      final targetWidth = (mq.size.width * mq.devicePixelRatio).round();
       return CachedNetworkImage(
         imageUrl: thumb,
         fit: BoxFit.cover,
+        memCacheWidth: targetWidth,
         fadeInDuration: const Duration(milliseconds: 120),
         placeholder: (_, _) => const ColoredBox(color: Colors.black),
         errorWidget: (_, _, _) => const ColoredBox(color: Colors.black),

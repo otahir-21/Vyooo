@@ -998,7 +998,16 @@ class _PostCard extends StatelessWidget {
                               thumbnailUrl: mediaUrl,
                             ),
                           )
-                        : Image.network(mediaUrl, fit: BoxFit.cover),
+                        : Image.network(
+                            mediaUrl,
+                            fit: BoxFit.cover,
+                            // Cap decode size so full-resolution photos don't
+                            // accumulate in memory while scrolling the list.
+                            cacheWidth:
+                                (MediaQuery.of(context).size.width *
+                                        MediaQuery.of(context).devicePixelRatio)
+                                    .round(),
+                          ),
                   ),
                   if (isVideoPost && _asString(post['videoUrl']).trim().isEmpty)
                     const Positioned(
