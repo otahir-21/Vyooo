@@ -20,6 +20,7 @@ import '../../core/services/auth_service.dart';
 import '../../core/services/feed_offline_video_cache.dart';
 import '../../core/services/feed_reels_cache_service.dart';
 import '../../core/services/feed_warmup_service.dart';
+import '../../core/services/reel_preload_service.dart';
 import '../../core/services/reels_service.dart';
 import '../../core/services/story_service.dart';
 import '../../core/services/user_service.dart';
@@ -198,6 +199,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _feedRefreshInProgress = false;
         _reelsLoadError = null;
       });
+      _preloadUpcomingReel();
     }
     await _loadReels();
   }
@@ -311,6 +313,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       if (hydratedForYou.isNotEmpty) {
         unawaited(FeedReelsCacheService.instance.saveForYou(hydratedForYou));
         unawaited(FeedOfflineVideoCache.instance.syncForFeed(hydratedForYou));
+        _preloadUpcomingReel();
       }
       _handleIncomingDeepLink();
 
@@ -678,6 +681,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
     _scheduleAutoScroll();
+    _preloadUpcomingReel();
+  }
+
+  /// Pre-initializes the next reel's video controller so the upcoming swipe
+  /// plays instantly instead of showing the loading spinner.
+  void _preloadUpcomingReel() {
+    final reels = _currentReels;
+    if (reels.isEmpty) return;
+    final nextPage = _currentIndex + 1;
+    if (nextPage >= reels.length) return;
+    // PageView's itemBuilder maps page index -> reels[index] directly.
+    final reel = reels[nextPage];
+    final mediaType = ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
+    if (mediaType != 'video') return;
+    final videoUrl = ((reel['videoUrl'] as String?) ?? '').trim();
+    if (videoUrl.isEmpty) return;
+    ReelPreloadService.instance.preload(videoUrl);
   }
 
   void _cancelAutoScrollTimer() {

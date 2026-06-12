@@ -7,6 +7,7 @@ import '../utils/internet_availability.dart';
 import 'auth_service.dart';
 import 'feed_offline_video_cache.dart';
 import 'feed_reels_cache_service.dart';
+import 'reel_preload_service.dart';
 import 'reels_service.dart';
 import 'user_service.dart';
 
@@ -84,6 +85,7 @@ class FeedWarmupService {
       if (hydrated.isNotEmpty) {
         unawaited(FeedReelsCacheService.instance.saveForYou(hydrated));
         unawaited(FeedOfflineVideoCache.instance.syncForFeed(hydrated));
+        _preloadFirstVideo(hydrated);
       }
 
       return FeedWarmupResult(
@@ -95,6 +97,20 @@ class FeedWarmupService {
     } catch (e) {
       debugPrint('FeedWarmupService warm-up failed: $e');
       return null;
+    }
+  }
+
+  /// Pre-initializes the first reel's player while the splash video is still
+  /// on screen so the feed starts playing the moment it appears.
+  void _preloadFirstVideo(List<Map<String, dynamic>> reels) {
+    for (final reel in reels) {
+      final mediaType =
+          ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
+      if (mediaType != 'video') continue;
+      final videoUrl = ((reel['videoUrl'] as String?) ?? '').trim();
+      if (videoUrl.isEmpty) continue;
+      ReelPreloadService.instance.preload(videoUrl);
+      return;
     }
   }
 

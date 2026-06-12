@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 
 import '../core/navigation/app_route_observer.dart';
 import '../core/services/feed_offline_video_cache.dart';
+import '../core/services/reel_preload_service.dart';
 import '../core/utils/video_upload_policy.dart';
 import '../core/theme/app_spacing.dart';
 
@@ -158,6 +159,24 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Future<void> _initializePlayer() async {
     if (!_shouldPlay) return;
 
+    // Fastest path: a controller pre-initialized by [ReelPreloadService]
+    // (first reel during splash, next reel while the previous one plays).
+    final preloaded = await ReelPreloadService.instance.take(widget.videoUrl);
+    if (preloaded != null) {
+      if (!mounted || !_shouldPlay) {
+        preloaded.dispose();
+        return;
+      }
+      try {
+        await _attachAndPlay(preloaded);
+        return;
+      } catch (e) {
+        debugPrint('Preloaded reel controller failed, reinitializing: $e');
+        _disposePlayer();
+        if (!mounted || !_shouldPlay) return;
+      }
+    }
+
     // Prefer the offline copy prefetched by [FeedOfflineVideoCache]: instant
     // start and keeps the first feed reels playable with no internet.
     if (!_localPlaybackFailed) {
@@ -222,17 +241,20 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     }
   }
 
-  /// Initializes [ctrl], attaches it to state and starts playback.
+  /// Initializes [ctrl] (unless already pre-initialized), attaches it to state
+  /// and starts playback.
   /// Throws on initialization failure (caller owns retry/fallback policy).
   Future<void> _attachAndPlay(VideoPlayerController ctrl) async {
     ctrl.setLooping(true);
     ctrl.setVolume(_isMuted ? 0 : 1.0);
 
-    try {
-      await ctrl.initialize();
-    } catch (_) {
-      ctrl.dispose();
-      rethrow;
+    if (!ctrl.value.isInitialized) {
+      try {
+        await ctrl.initialize();
+      } catch (_) {
+        ctrl.dispose();
+        rethrow;
+      }
     }
 
     if (!mounted) {
