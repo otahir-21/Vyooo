@@ -25,7 +25,8 @@ import 'contact_support_screen.dart';
 import 'creator_monetization_screen.dart';
 import 'downloaded_videos_screen.dart';
 import 'notifications_settings_screen.dart';
-import 'parental_approvals_screen.dart';
+// Parental consent flow temporarily disabled; restore with the tile below.
+// import 'parental_approvals_screen.dart';
 import 'revenue_coming_soon_view.dart';
 import 'privacy_policy_screen.dart';
 import 'report_problem_screen.dart';
@@ -295,12 +296,14 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: AppSpacing.md),
         _sectionHeader('Support & about'),
         _settingsGroup([
-          if (showFamilyApprovals)
-            _SettingsTile(
-              iconPath: 'assets/vyooO_icons/Settings/About.png',
-              label: 'Family approvals',
-              onTap: () => _push(context, const ParentalApprovalsScreen()),
-            ),
+          // Parental consent flow temporarily disabled (min sign-up age is 16);
+          // uncomment to restore the parent-side approvals entry.
+          // if (showFamilyApprovals)
+          //   _SettingsTile(
+          //     iconPath: 'assets/vyooO_icons/Settings/About.png',
+          //     label: 'Family approvals',
+          //     onTap: () => _push(context, const ParentalApprovalsScreen()),
+          //   ),
           _SettingsTile(
             iconPath: 'assets/vyooO_icons/Settings/Customer Support.png',
             label: 'Help center',

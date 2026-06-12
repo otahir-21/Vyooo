@@ -2,7 +2,10 @@
 class DobValidation {
   DobValidation._();
 
-  static const int minAge = 13;
+  // Policy update: users below 16 cannot create an account at all and the
+  // parental consent flow is temporarily disabled. To restore the old flow,
+  // set [minAge] back to 13 and re-enable [requiresParentalConsent] below.
+  static const int minAge = 16;
   static const int maxAgeYears = 100;
 
   /// Users below this age require parental consent before completing onboarding.
@@ -20,7 +23,7 @@ class DobValidation {
     return DateTime(now.year - maxAgeYears, now.month, now.day);
   }
 
-  /// Year range for picker: [currentYear - 100, currentYear - 13].
+  /// Year range for picker: [currentYear - maxAgeYears, currentYear - minAge].
   static List<int> get allowedYears {
     final now = DateTime.now();
     final end = now.year - minAge;
@@ -53,8 +56,8 @@ class DobValidation {
     final today = DateTime(now.year, now.month, now.day);
     final birth = DateTime(date.year, date.month, date.day);
     if (birth.isAfter(today)) return false;
-    final at13 = DateTime(date.year + minAge, date.month, date.day);
-    return !today.isBefore(at13);
+    final atMinAge = DateTime(date.year + minAge, date.month, date.day);
+    return !today.isBefore(atMinAge);
   }
 
   /// Completed age in years (birthday not yet reached this year => subtract one).
@@ -71,10 +74,16 @@ class DobValidation {
   }
 
   /// True when [birthDate] is a valid minor age (13–15) requiring parent approval.
+  ///
+  /// Temporarily disabled: under-16 sign-ups are blocked outright ([minAge] is
+  /// 16), so no one enters the parental consent flow. Restore the commented
+  /// logic (and [minAge] = 13) to bring the flow back.
   static bool requiresParentalConsent(DateTime birthDate, {DateTime? asOf}) {
-    final ref = asOf ?? DateTime.now();
-    if (!isValidBirthDate(birthDate, referenceDate: ref)) return false;
-    return ageInCompletedYears(birthDate, on: ref) < parentalConsentRequiredIfUnder;
+    return false;
+    // final ref = asOf ?? DateTime.now();
+    // if (!isValidBirthDate(birthDate, referenceDate: ref)) return false;
+    // return ageInCompletedYears(birthDate, on: ref) <
+    //     parentalConsentRequiredIfUnder;
   }
 
   /// Parses `YYYY-MM-DD` only; returns null if invalid.

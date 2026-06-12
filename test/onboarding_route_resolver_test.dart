@@ -5,9 +5,15 @@ import 'package:vyooo/core/models/parent_consent_constants.dart';
 import 'package:vyooo/core/onboarding/onboarding_route_resolver.dart';
 
 void main() {
+  // A DOB that is always under 16 at test time. The parental consent flow is
+  // temporarily disabled and minimum sign-up age is 16, so such users are
+  // routed back to selectDob (where no under-16 date can be chosen).
+  final under16Dob =
+      '${DateTime.now().year - 14}-01-01';
+
   AppUserModel base({
     String username = 'kid',
-    String dob = '2011-03-01',
+    String? dob,
     String accountType = 'private',
     bool orgProfileCompleted = false,
     Map<String, dynamic> organizationDetails = const {},
@@ -22,7 +28,7 @@ void main() {
       uid: 'u1',
       email: 'kid@test.com',
       username: username,
-      dob: dob,
+      dob: dob ?? under16Dob,
       accountType: accountType,
       orgProfileCompleted: orgProfileCompleted,
       organizationDetails: organizationDetails,
@@ -36,21 +42,26 @@ void main() {
     );
   }
 
-  test('resolve minor pending with consent id -> parentalPending', () {
+  // Parental consent flow temporarily disabled: under-16 DOBs are no longer
+  // valid, so minors are routed to selectDob instead of the parental screens.
+  // Restore the original expectations (parentalPending / parentContact) when
+  // the flow is re-enabled.
+  test('resolve minor pending with consent id -> selectDob (flow disabled)',
+      () {
     final r = OnboardingRouteResolver.resolve(
       base(
         parentConsentStatus: ParentConsentStatusValue.pending,
         parentConsentId: 'c1',
       ),
     );
-    expect(r, OnboardingRouteId.parentalPending);
+    expect(r, OnboardingRouteId.selectDob);
   });
 
-  test('resolve minor pending_contact -> parentContact', () {
+  test('resolve minor pending_contact -> selectDob (flow disabled)', () {
     final r = OnboardingRouteResolver.resolve(
       base(parentConsentStatus: ParentConsentStatusValue.pendingContact),
     );
-    expect(r, OnboardingRouteId.parentContact);
+    expect(r, OnboardingRouteId.selectDob);
   });
 
   test('resolve adult -> addProfile', () {
@@ -109,7 +120,8 @@ void main() {
     expect(r, OnboardingRouteId.selectInterests);
   });
 
-  test('resolve approved minor with photo and location -> selectInterests', () {
+  test('resolve approved minor -> selectDob (flow disabled, under-16 blocked)',
+      () {
     final r = OnboardingRouteResolver.resolve(
       base(
         parentConsentStatus: ParentConsentStatusValue.approved,
@@ -117,7 +129,7 @@ void main() {
         locationSetupComplete: true,
       ),
     );
-    expect(r, OnboardingRouteId.selectInterests);
+    expect(r, OnboardingRouteId.selectDob);
   });
 
   test('resolve no username', () {
