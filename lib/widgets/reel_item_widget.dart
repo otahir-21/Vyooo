@@ -30,6 +30,7 @@ class ReelItemWidget extends StatefulWidget {
     this.thumbnailUrl,
     this.onVisibilityChanged,
     this.onVideoCompleted,
+    this.onVideoPlaybackStarted,
     this.onDoubleTap,
   });
 
@@ -38,6 +39,10 @@ class ReelItemWidget extends StatefulWidget {
   final String? thumbnailUrl;
   final VoidCallback? onVisibilityChanged;
   final VoidCallback? onVideoCompleted;
+
+  /// Fired once per controller attach when playback actually begins. Lets the
+  /// feed distinguish a playing video from one stuck loading/retrying.
+  final VoidCallback? onVideoPlaybackStarted;
   final VoidCallback? onDoubleTap;
 
   @override
@@ -57,6 +62,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   Timer? _retryTimer;
   bool _lastIsPlaying = false;
   bool _hasNotifiedCompletion = false;
+  bool _hasNotifiedPlaybackStart = false;
   bool _localPlaybackFailed = false;
   static const int _maxRetries = 24; // ~2m wait for Cloudflare processing
 
@@ -104,6 +110,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.videoUrl != widget.videoUrl) {
       _hasNotifiedCompletion = false;
+      _hasNotifiedPlaybackStart = false;
       _localPlaybackFailed = false;
       _disposePlayer();
       if (_shouldPlay) {
@@ -267,6 +274,11 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       _showError = false;
       _retryCount = 0;
     });
+    // Fresh controller restarts from zero: allow start/completion to notify
+    // again (fixes auto-scroll stalling on reels revisited after the keep-alive
+    // state outlived a disposed controller).
+    _hasNotifiedCompletion = false;
+    _hasNotifiedPlaybackStart = false;
     _lastIsPlaying = ctrl.value.isPlaying;
     ctrl.addListener(_onControllerValueChanged);
     // Re-check after async gap: route may have been pushed away during
@@ -294,6 +306,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     if (isPlaying != _lastIsPlaying) {
       _lastIsPlaying = isPlaying;
       if (mounted) setState(() {});
+    }
+    if (isPlaying && !_hasNotifiedPlaybackStart) {
+      _hasNotifiedPlaybackStart = true;
+      widget.onVideoPlaybackStarted?.call();
     }
     if (!_hasNotifiedCompletion && widget.onVideoCompleted != null) {
       final duration = ctrl.value.duration;

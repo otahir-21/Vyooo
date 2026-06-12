@@ -172,7 +172,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   bool _isBottomSheetOpen = false;
   bool _showForYouAiVerifiedTooltip = false;
   bool _videoCompletedForCurrentItem = false;
+  bool _videoStartedForCurrentItem = false;
   Timer? _autoScrollTimer;
+
+  /// How long a video reel may sit without ever starting playback (slow
+  /// network, Cloudflare still processing, load failure) before auto-scroll
+  /// skips past it instead of stalling the feed forever.
+  static const Duration _videoStuckSkipTimeout = Duration(seconds: 20);
   int _activePointerCount = 0;
 
   @override
@@ -200,6 +206,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _reelsLoadError = null;
       });
       _preloadUpcomingReel();
+      _scheduleAutoScroll();
     }
     await _loadReels();
   }
@@ -238,6 +245,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     if (widget.refreshToken != old.refreshToken) {
       _cancelAutoScrollTimer();
       _videoCompletedForCurrentItem = false;
+      _videoStartedForCurrentItem = false;
       _jumpPageControllerToStart();
       setState(() {
         currentTab = HomeTab.forYou;
@@ -314,6 +322,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         unawaited(FeedReelsCacheService.instance.saveForYou(hydratedForYou));
         unawaited(FeedOfflineVideoCache.instance.syncForFeed(hydratedForYou));
         _preloadUpcomingReel();
+        // First reel never triggers _onPageChanged, so arm the stuck-skip
+        // fallback here in case its video never starts.
+        if (_autoScrollTimer == null) {
+          _scheduleAutoScroll();
+        }
       }
       _handleIncomingDeepLink();
 
@@ -680,6 +693,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
+    _videoStartedForCurrentItem = false;
     _scheduleAutoScroll();
     _preloadUpcomingReel();
   }
@@ -689,8 +703,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   void _preloadUpcomingReel() {
     final reels = _currentReels;
     if (reels.isEmpty) return;
-    final nextPage = _currentIndex + 1;
-    if (nextPage >= reels.length) return;
+    // Wraps so that the first reel is warmed up while the last one plays
+    // (auto-scroll loops back to the start of the feed).
+    final nextPage = (_currentIndex + 1) % reels.length;
+    if (nextPage == _currentIndex) return;
     // PageView's itemBuilder maps page index -> reels[index] directly.
     final reel = reels[nextPage];
     final mediaType = ((reel['mediaType'] as String?) ?? 'video').toLowerCase();
@@ -727,7 +743,18 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final mediaType = _currentItemMediaType();
     if (mediaType == 'image') {
       _autoScrollTimer = Timer(const Duration(seconds: 5), _performAutoScroll);
+      return;
     }
+    if (_videoCompletedForCurrentItem) {
+      // Video already finished (e.g. while a sheet was open or the user was
+      // holding): resume the normal post-completion advance.
+      _autoScrollTimer = Timer(const Duration(seconds: 2), _performAutoScroll);
+      return;
+    }
+    // Fallback: a video that never starts never reports completion, which
+    // would stall auto-scroll forever. Skip ahead if playback hasn't begun
+    // within the timeout.
+    _autoScrollTimer = Timer(_videoStuckSkipTimeout, _performAutoScrollIfVideoStuck);
   }
 
   void _onVideoCompletedForAutoScroll() {
@@ -738,18 +765,33 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _autoScrollTimer = Timer(const Duration(seconds: 2), _performAutoScroll);
   }
 
+  void _onVideoPlaybackStartedForAutoScroll() {
+    _videoStartedForCurrentItem = true;
+  }
+
+  void _performAutoScrollIfVideoStuck() {
+    if (_videoStartedForCurrentItem || _videoCompletedForCurrentItem) return;
+    _performAutoScroll();
+  }
+
   void _performAutoScroll() {
     if (!_canAutoScroll) return;
     final reels = _currentReels;
     if (reels.isEmpty) return;
-    final nextPage = _currentIndex + 1;
-    if (nextPage >= reels.length) return;
     if (!_pageController.hasClients) return;
-    _pageController.animateToPage(
-      nextPage,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-    );
+    final nextPage = _currentIndex + 1;
+    if (nextPage < reels.length) {
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+      return;
+    }
+    // Last reel finished: loop the feed back to the first one. Jump instead
+    // of animating so we don't fly backwards through every page in between.
+    if (reels.length <= 1) return;
+    _pageController.jumpToPage(0);
   }
 
   void _onAutoScrollToggled(bool value) {
@@ -999,6 +1041,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _jumpPageControllerToStart();
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
+    _videoStartedForCurrentItem = false;
     setState(() {
       currentTab = tab;
       _currentIndex = 0;
@@ -1296,6 +1339,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 index == _currentIndex,
             onVideoCompleted: index == _currentIndex
                 ? _onVideoCompletedForAutoScroll
+                : null,
+            onVideoPlaybackStarted: index == _currentIndex
+                ? _onVideoPlaybackStartedForAutoScroll
                 : null,
             onDoubleTap: () => _onDoubleTapLike(feedIndex),
           );
