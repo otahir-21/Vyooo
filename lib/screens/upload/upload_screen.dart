@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/theme/app_gradients.dart';
@@ -153,6 +155,108 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
         });
       }
     }
+  }
+
+  /// Capture a photo or video with the device camera, save it to the gallery
+  /// and continue with the regular post preview flow.
+  Future<void> _openCamera() async {
+    final isVideo = await _showCameraModePicker();
+    if (isVideo == null || !mounted) return;
+
+    final picker = ImagePicker();
+    XFile? captured;
+    try {
+      captured = isVideo
+          ? await picker.pickVideo(
+              source: ImageSource.camera,
+              maxDuration: const Duration(minutes: 10),
+            )
+          : await picker.pickImage(source: ImageSource.camera);
+    } catch (e) {
+      if (mounted) {
+        _showSnack('Could not open camera. Check camera permission in Settings.');
+      }
+      return;
+    }
+    if (captured == null || !mounted) return;
+
+    // Save the capture into the gallery so the existing AssetEntity-based
+    // preview/upload pipeline (crop, trim, details) can be reused.
+    AssetEntity? entity;
+    try {
+      final title = 'vyooo_${DateTime.now().millisecondsSinceEpoch}';
+      entity = isVideo
+          ? await PhotoManager.editor.saveVideo(File(captured.path), title: title)
+          : await PhotoManager.editor.saveImageWithPath(captured.path, title: title);
+    } catch (e) {
+      debugPrint('UploadScreen: camera capture save failed: $e');
+    }
+    if (!mounted) return;
+    if (entity == null) {
+      _showSnack('Could not save the capture. Allow photo library access and try again.');
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => isVideo
+            ? UploadVideoPreviewScreen(asset: entity!)
+            : UploadPhotoPreviewScreen(asset: entity!),
+      ),
+    );
+    if (!mounted) return;
+    // Refresh the grid so the new capture shows up.
+    await _loadGallery();
+  }
+
+  Future<bool?> _showCameraModePicker() {
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: const Color(0xFF1E0A1E).withValues(alpha: 0.98),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined, color: Colors.white),
+              title: const Text(
+                'Take Photo',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              onTap: () => Navigator.of(ctx).pop(false),
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined, color: Colors.white),
+              title: const Text(
+                'Record Video',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              onTap: () => Navigator.of(ctx).pop(true),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   Future<void> _loadAssetsForCurrentPath() async {
@@ -407,12 +511,31 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
     }
     if (_assets.isEmpty) {
       return Center(
-        child: Text(
-          'No photos or videos',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 16,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'No photos or videos',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: _openCamera,
+              icon: const Icon(Icons.photo_camera_outlined, size: 20),
+              label: const Text(
+                'Use Camera',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -429,12 +552,18 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
         crossAxisSpacing: spacing,
         childAspectRatio: 1,
       ),
-      itemCount: _assets.length,
+      // First cell opens the device camera; gallery assets follow.
+      itemCount: _assets.length + 1,
       itemBuilder: (context, index) {
-        final entity = _assets[index];
-        final selected = _selectedIndex == index;
+        if (index == 0) {
+          return _CameraTile(onTap: _openCamera);
+        }
+        final assetIndex = index - 1;
+        final entity = _assets[assetIndex];
+        final selected = _selectedIndex == assetIndex;
         return GestureDetector(
-          onTap: () => setState(() => _selectedIndex = selected ? null : index),
+          onTap: () =>
+              setState(() => _selectedIndex = selected ? null : assetIndex),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -470,6 +599,41 @@ class _UploadScreenState extends State<UploadScreen> with WidgetsBindingObserver
         setState(() => _bottomSegment = 2);
         openCreatorLiveScreen(context);
       },
+    );
+  }
+}
+
+class _CameraTile extends StatelessWidget {
+  const _CameraTile({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        color: Colors.white.withValues(alpha: 0.08),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.photo_camera_outlined,
+              color: Colors.white,
+              size: 32,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Camera',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
