@@ -35,7 +35,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   String? _purchasesBoundUid;
-  String? _fcmBoundUid;
+  String? _messagingUid;
   String? _lastSeenUid;
 
   @override
@@ -65,20 +65,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         final shouldBindMessaging =
             uid != null && uid.isNotEmpty && !(user?.isAnonymous ?? true);
-        if (shouldBindMessaging && _fcmBoundUid != uid) {
-          _fcmBoundUid = uid;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            unawaited(PushMessagingService.instance.syncTokenForUser(uid));
-            unawaited(PushMessagingService.instance.handleInitialMessage());
-            InAppNotificationAlertService.instance.startForUser(uid);
-          });
-        }
         if (shouldBindMessaging) {
-          // Keep listener alive even after hot-restart/rebuild edge cases.
+          if (_messagingUid != uid) {
+            _messagingUid = uid;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              PushMessagingService.instance.bindForUser(uid);
+            });
+          }
           InAppNotificationAlertService.instance.startForUser(uid);
         }
         if (uid == null || (user?.isAnonymous ?? true)) {
-          _fcmBoundUid = null;
+          _messagingUid = null;
+          PushMessagingService.instance.unbindForUser();
           InAppNotificationAlertService.instance.stop();
         }
         // Do not use `hasData`: for a signed-out user Firebase emits `null`, and

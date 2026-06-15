@@ -86,7 +86,13 @@ class StoryService {
       'likes': 0,
       'comments': 0,
       'segmentGroupId': segmentGroupId,
+      'viewCount': 0,
+      'reportCount': 0,
       'authorAccountPrivate': authorAccountPrivate,
+      'moderation': {
+        'status': 'clear',
+        'provider': 'crowd',
+      },
     });
   }
 
@@ -376,9 +382,50 @@ class StoryService {
     final uid = _uid;
     if (uid == null) return;
     try {
-      await _db.collection(_col).doc(storyId).update({
+      final ref = _db.collection(_col).doc(storyId);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final viewedBy =
+          List<String>.from(snap.data()?['viewedBy'] as List<dynamic>? ?? []);
+      if (viewedBy.contains(uid)) return;
+      await ref.update({
         'viewedBy': FieldValue.arrayUnion([uid]),
+        'viewCount': FieldValue.increment(1),
       });
     } catch (_) {}
   }
+
+  /// Submit a user report against a story (deduped per user).
+  Future<StoryReportResult> reportStory({
+    required String storyId,
+    required String reason,
+    String? storyOwnerId,
+  }) async {
+    final uid = _uid;
+    if (uid == null || uid.isEmpty) return StoryReportResult.notSignedIn;
+    if (storyId.isEmpty) return StoryReportResult.failed;
+    try {
+      final docRef =
+          _db.collection('story_reports').doc('${uid}_$storyId');
+      final existing = await docRef.get();
+      if (existing.exists) return StoryReportResult.alreadyReported;
+      await docRef.set({
+        'storyId': storyId,
+        'storyOwnerId': storyOwnerId ?? '',
+        'reporterId': uid,
+        'reason': reason,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return StoryReportResult.success;
+    } catch (_) {
+      return StoryReportResult.failed;
+    }
+  }
+}
+
+enum StoryReportResult {
+  success,
+  alreadyReported,
+  notSignedIn,
+  failed,
 }

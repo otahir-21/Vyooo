@@ -13,6 +13,8 @@ import '../../features/reel/widgets/not_interested_sheet.dart';
 import '../../core/models/reel_count_privacy.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/utils/reel_engagement.dart';
+import '../../core/moderation/content_moderation.dart';
+import '../../features/moderation/widgets/report_moderation_cover.dart';
 import '../../features/reel/widgets/owner_post_options_sheet.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
 import '../../features/reel/widgets/report_sheet.dart';
@@ -985,29 +987,38 @@ class _PostCard extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
-                  AspectRatio(
-                    aspectRatio: 800 / 900,
-                    child:
-                        isVideoPost &&
-                            _asString(post['videoUrl']).trim().isNotEmpty
-                        ? ValueListenableBuilder<int>(
-                            valueListenable: activeIndex,
-                            builder: (_, currentActive, _) => ReelItemWidget(
-                              videoUrl: _asString(post['videoUrl']).trim(),
-                              isVisible: currentActive == index,
-                              thumbnailUrl: mediaUrl,
+                  ModeratedContentWrapper(
+                    contentId: _asString(post['id']),
+                    contentKind: ContentModeration.kindFromReel(post),
+                    ownerId: _asString(post['userId']),
+                    moderation: post['moderation'] is Map
+                        ? Map<String, dynamic>.from(post['moderation'] as Map)
+                        : null,
+                    borderRadius: BorderRadius.circular(16),
+                    child: AspectRatio(
+                      aspectRatio: 800 / 900,
+                      child:
+                          isVideoPost &&
+                              _asString(post['videoUrl']).trim().isNotEmpty
+                          ? ValueListenableBuilder<int>(
+                              valueListenable: activeIndex,
+                              builder: (_, currentActive, _) => ReelItemWidget(
+                                videoUrl: _asString(post['videoUrl']).trim(),
+                                isVisible: currentActive == index,
+                                thumbnailUrl: mediaUrl,
+                              ),
+                            )
+                          : Image.network(
+                              mediaUrl,
+                              fit: BoxFit.cover,
+                              cacheWidth:
+                                  (MediaQuery.of(context).size.width *
+                                          MediaQuery.of(
+                                            context,
+                                          ).devicePixelRatio)
+                                      .round(),
                             ),
-                          )
-                        : Image.network(
-                            mediaUrl,
-                            fit: BoxFit.cover,
-                            // Cap decode size so full-resolution photos don't
-                            // accumulate in memory while scrolling the list.
-                            cacheWidth:
-                                (MediaQuery.of(context).size.width *
-                                        MediaQuery.of(context).devicePixelRatio)
-                                    .round(),
-                          ),
+                    ),
                   ),
                   if (isVideoPost && _asString(post['videoUrl']).trim().isEmpty)
                     const Positioned(

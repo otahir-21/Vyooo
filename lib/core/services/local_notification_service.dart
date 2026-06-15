@@ -28,11 +28,8 @@ class LocalNotificationService {
     final androidImpl = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     await androidImpl?.createNotificationChannel(_channel);
-    await androidImpl?.requestNotificationsPermission();
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>()
-        ?.requestPermissions(alert: true, badge: true, sound: true);
+    // OS permission is requested by [PushMessagingService.syncTokenForUser]
+    // after sign-in so a denied pre-login prompt does not block token sync.
     _initialized = true;
   }
 

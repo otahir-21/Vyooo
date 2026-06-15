@@ -48,6 +48,8 @@ import '../../features/reel/widgets/download_subscription_sheet.dart';
 import '../../features/reel/widgets/manage_content_preferences_sheet.dart';
 import '../../features/reel/widgets/not_interested_sheet.dart';
 import '../../features/reel/widgets/playback_speed_sheet.dart';
+import '../../core/moderation/content_moderation.dart';
+import '../../features/moderation/widgets/report_moderation_cover.dart';
 import '../../features/reel/widgets/report_sheet.dart';
 import '../../features/reel/widgets/report_status_bar.dart';
 import '../../features/reel/widgets/reel_more_options_sheet.dart';
@@ -1316,7 +1318,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 'This reel has no image URL.',
               );
             }
-            return _buildImageReelItem(displayUrl, feedIndex);
+            return _wrapModeratedReel(
+              reel,
+              _buildImageReelItem(displayUrl, feedIndex),
+            );
           }
           final videoUrl = (reel['videoUrl'] as String?)?.trim() ?? '';
           if (videoUrl.isEmpty) {
@@ -1327,26 +1332,43 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           final loadingThumb = thumbnailUrl.isNotEmpty
               ? thumbnailUrl
               : imageUrl;
-          return ReelItemWidget(
-            key: ValueKey<String>(_asString(reel['id'], fallback: videoUrl)),
-            videoUrl: videoUrl,
-            thumbnailUrl: loadingThumb,
-            // Only play when this page is visible AND the home tab is active.
-            isVisible:
-                widget.isActive &&
-                _isRouteVisible &&
-                _isAppForeground &&
-                index == _currentIndex,
-            onVideoCompleted: index == _currentIndex
-                ? _onVideoCompletedForAutoScroll
-                : null,
-            onVideoPlaybackStarted: index == _currentIndex
-                ? _onVideoPlaybackStartedForAutoScroll
-                : null,
-            onDoubleTap: () => _onDoubleTapLike(feedIndex),
+          return _wrapModeratedReel(
+            reel,
+            ReelItemWidget(
+              key: ValueKey<String>(_asString(reel['id'], fallback: videoUrl)),
+              videoUrl: videoUrl,
+              thumbnailUrl: loadingThumb,
+              // Only play when this page is visible AND the home tab is active.
+              isVisible:
+                  widget.isActive &&
+                  _isRouteVisible &&
+                  _isAppForeground &&
+                  index == _currentIndex,
+              onVideoCompleted: index == _currentIndex
+                  ? _onVideoCompletedForAutoScroll
+                  : null,
+              onVideoPlaybackStarted: index == _currentIndex
+                  ? _onVideoPlaybackStartedForAutoScroll
+                  : null,
+              onDoubleTap: () => _onDoubleTapLike(feedIndex),
+            ),
           );
         },
       ),
+    );
+  }
+
+  Widget _wrapModeratedReel(Map<String, dynamic> reel, Widget child) {
+    final rawModeration = reel['moderation'];
+    final moderation = rawModeration is Map
+        ? Map<String, dynamic>.from(rawModeration)
+        : null;
+    return ModeratedContentWrapper(
+      contentId: _asString(reel['id']),
+      contentKind: ContentModeration.kindFromReel(reel),
+      ownerId: _asString(reel['userId']),
+      moderation: moderation,
+      child: child,
     );
   }
 

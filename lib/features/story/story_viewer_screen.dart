@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/platform/app_system_ui.dart';
+import '../../core/moderation/content_moderation.dart';
 import '../../core/models/story_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/story_service.dart';
 import '../../core/utils/story_playback_limits.dart';
 import '../comments/widgets/comments_bottom_sheet.dart';
+import '../moderation/widgets/report_moderation_cover.dart';
+import '../reel/widgets/report_sheet.dart';
+import '../reel/widgets/report_status_bar.dart';
 import 'story_upload_screen.dart';
 
 /// Full-screen story viewer with image/video, like, comment, delete, highlights.
@@ -490,6 +494,16 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
     Navigator.of(context).pop();
   }
 
+  void _onReportStory() {
+    showReportSheet(
+      context,
+      username: _group.username.isNotEmpty ? _group.username : 'User',
+      avatarUrl: _group.avatarUrl,
+      targetUserId: _story.userId,
+      storyId: _story.id,
+    );
+  }
+
   void _onMoreTap() {
     if (!_isOwnStory) return;
     showModalBottomSheet<void>(
@@ -725,21 +739,27 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            ColoredBox(
-              color: Colors.black,
-              child: Center(
-                child: story.isVideo && story.mediaUrl.isNotEmpty
-                    ? _buildVideo(story)
-                    : story.mediaUrl.isNotEmpty
-                        ? Image.network(
-                            story.mediaUrl,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: double.infinity,
-                            errorBuilder: (_, _, _) =>
-                                Container(color: Colors.grey[900]),
-                          )
-                        : Container(color: Colors.grey[900]),
+            ModeratedContentWrapper(
+              contentId: story.id,
+              contentKind: ContentModeration.kindFromStory(isVideo: story.isVideo),
+              ownerId: story.userId,
+              moderation: story.moderation,
+              child: ColoredBox(
+                color: Colors.black,
+                child: Center(
+                  child: story.isVideo && story.mediaUrl.isNotEmpty
+                      ? _buildVideo(story)
+                      : story.mediaUrl.isNotEmpty
+                          ? Image.network(
+                              story.mediaUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (_, _, _) =>
+                                  Container(color: Colors.grey[900]),
+                            )
+                          : Container(color: Colors.grey[900]),
+                ),
               ),
             ),
             // Dim overlay when holding
@@ -844,6 +864,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                               icon: const Icon(Icons.more_horiz,
                                   color: Colors.white, size: 24),
                               onPressed: _onMoreTap,
+                            )
+                          else
+                            IconButton(
+                              icon: const Icon(Icons.flag_outlined,
+                                  color: Colors.white, size: 22),
+                              onPressed: _onReportStory,
                             ),
                           IconButton(
                             icon: const Icon(Icons.close,
@@ -853,6 +879,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                         ],
                       ),
                     ),
+                    if (ReportStatusThresholds.severityFor(story.reportCount) !=
+                        ReportSeverity.none)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: ReportStatusBar(reportCount: story.reportCount),
+                        ),
+                      ),
                   ],
                 ),
               ),

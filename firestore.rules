@@ -10,6 +10,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isStaff() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isStaff == true;
+    }
+
     function validNotificationSettingsWrite() {
       let d = request.resource.data;
       return d.keys().hasOnly([
@@ -640,7 +645,7 @@ service cloud.firestore {
 
     function storyViewedByOnlyUpdate() {
       return storyOwnerIdUnchanged()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedBy']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewedBy', 'viewCount']);
     }
 
     match /stories/{storyId} {
@@ -869,6 +874,30 @@ service cloud.firestore {
                     && id == request.auth.uid + '_' + request.resource.data.reelId;
       allow read: if isSignedIn() && resource.data.reporterId == request.auth.uid;
       allow update, delete: if false;
+    }
+
+    // User reports against stories. Deterministic id `<uid>_<storyId>`.
+    match /story_reports/{id} {
+      allow create: if isSignedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.storyId is string
+                    && request.resource.data.storyId.size() > 0
+                    && id == request.auth.uid + '_' + request.resource.data.storyId;
+      allow read: if isSignedIn() && resource.data.reporterId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Owner disputes for crowd-report coverage; staff resolves via admin dashboard.
+    match /moderation_disputes/{id} {
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.contentId is string
+                    && request.resource.data.contentCollection is string
+                    && request.resource.data.status == 'pending';
+      allow read: if isSignedIn()
+                  && (resource.data.ownerId == request.auth.uid || isStaff());
+      allow update: if isStaff();
+      allow delete: if false;
     }
 
     match /notifications/{id} {

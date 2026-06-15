@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/reels_service.dart';
+import '../../../core/services/story_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/utils/user_facing_errors.dart';
 import 'block_user_sheet.dart';
@@ -13,6 +14,7 @@ void showReportSheet(
   required String avatarUrl,
   String? targetUserId,
   String? reelId,
+  String? storyId,
   bool isFollowing = false,
 }) {
   showModalBottomSheet<void>(
@@ -24,6 +26,7 @@ void showReportSheet(
       avatarUrl: avatarUrl,
       targetUserId: targetUserId,
       reelId: reelId,
+      storyId: storyId,
       isFollowing: isFollowing,
     ),
   );
@@ -35,6 +38,7 @@ class _ReportSheetFlow extends StatefulWidget {
     required this.avatarUrl,
     this.targetUserId,
     this.reelId,
+    this.storyId,
     this.isFollowing = false,
   });
 
@@ -42,6 +46,7 @@ class _ReportSheetFlow extends StatefulWidget {
   final String avatarUrl;
   final String? targetUserId;
   final String? reelId;
+  final String? storyId;
   final bool isFollowing;
 
   @override
@@ -159,16 +164,26 @@ class _ReportSheetFlowState extends State<_ReportSheetFlow> {
       _showThanks = true;
     });
     final reelId = widget.reelId;
-    if (reelId == null || reelId.isEmpty) {
+    final storyId = widget.storyId;
+    if ((reelId == null || reelId.isEmpty) &&
+        (storyId == null || storyId.isEmpty)) {
       _isSubmitting = false;
       return;
     }
     try {
-      await ReelsService().reportReel(
-        reelId: reelId,
-        reason: reason,
-        reelOwnerId: widget.targetUserId,
-      );
+      if (storyId != null && storyId.isNotEmpty) {
+        await StoryService().reportStory(
+          storyId: storyId,
+          reason: reason,
+          storyOwnerId: widget.targetUserId,
+        );
+      } else if (reelId != null && reelId.isNotEmpty) {
+        await ReelsService().reportReel(
+          reelId: reelId,
+          reason: reason,
+          reelOwnerId: widget.targetUserId,
+        );
+      }
     } catch (_) {
       // Reporting is best-effort; failures must not block the UX.
     } finally {

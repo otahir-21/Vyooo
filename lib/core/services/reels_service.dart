@@ -421,12 +421,17 @@ class ReelsService {
       // Feed-safe default: only show content explicitly cleared by moderation.
       // Pending/review/blocked/error and empty statuses stay hidden from user feeds.
       if (s.isEmpty) return false;
+      if (s == 'report_covered') return true;
+      // Legacy crowd-report rows used `removed` — keep visible with frosted overlay.
+      if (s == 'removed' && m['removedReason'] == 'report_threshold') return true;
       return s == 'clear' || s == 'approved';
     }
     if (m is Map) {
       final raw = m['status'];
       final s = raw == null ? '' : raw.toString().toLowerCase();
       if (s.isEmpty) return false;
+      if (s == 'report_covered') return true;
+      if (s == 'removed' && m['removedReason'] == 'report_threshold') return true;
       return s == 'clear' || s == 'approved';
     }
     return false;

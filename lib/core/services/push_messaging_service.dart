@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'local_notification_service.dart';
@@ -31,6 +32,9 @@ class PushMessagingService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   bool _listenersAttached = false;
+  String? _boundUid;
+  _PushLifecycleObserver? _lifecycleObserver;
+  bool _syncInFlight = false;
 
   /// Call once after [Firebase.initializeApp]. Registers background handler attachment in [main].
   Future<void> configure() async {
@@ -60,10 +64,63 @@ class PushMessagingService {
   bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  /// Request OS permission, fetch token, write to Firestore. Safe to call on each sign-in.
-  Future<void> syncTokenForUser(String uid) async {
+  /// Keeps FCM token synced while [uid] is signed in (resume + retry on failure).
+  void bindForUser(String uid) {
     if (uid.isEmpty || kIsWeb) return;
+    final isNewBinding = _boundUid != uid;
+    _boundUid = uid;
+    _lifecycleObserver ??= _PushLifecycleObserver(this)..register();
+    if (!isNewBinding) return;
+    unawaited(syncTokenForUser(uid));
+    unawaited(handleInitialMessage());
+  }
 
+  void unbindForUser() {
+    _boundUid = null;
+    _lifecycleObserver?.unregister();
+    _lifecycleObserver = null;
+  }
+
+  void _onAppResumed() {
+    final uid = _boundUid;
+    if (uid == null || uid.isEmpty) return;
+    unawaited(syncTokenForUser(uid));
+  }
+
+  /// Request OS permission, fetch token, write to Firestore. Safe to call on each sign-in.
+  Future<bool> syncTokenForUser(String uid) async {
+    if (uid.isEmpty || kIsWeb) return false;
+    if (_syncInFlight) return false;
+
+    _syncInFlight = true;
+    try {
+      for (var attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await Future<void>.delayed(Duration(seconds: 1 << attempt));
+        }
+
+        if (!await _ensureNotificationPermission()) {
+          return false;
+        }
+
+        final token = await _getFcmTokenSafely();
+        if (token == null || token.isEmpty) {
+          if (kDebugMode) {
+            debugPrint('FCM: token unavailable (attempt ${attempt + 1}/3)');
+          }
+          continue;
+        }
+
+        final saved = await _persistToken(uid, token);
+        if (saved) return true;
+      }
+      return false;
+    } finally {
+      _syncInFlight = false;
+    }
+  }
+
+  Future<bool> _ensureNotificationPermission() async {
     if (_isApple) {
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -74,11 +131,14 @@ class PushMessagingService {
         provisional: false,
         sound: true,
       );
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      final allowed =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (!allowed) {
         if (kDebugMode) {
           debugPrint('FCM: notification permission denied');
         }
-        return;
+        return false;
       }
     }
 
@@ -90,18 +150,12 @@ class PushMessagingService {
           if (kDebugMode) {
             debugPrint('FCM: Android notification permission not granted');
           }
-          return;
+          return false;
         }
       }
     }
 
-    final token = await _getFcmTokenSafely();
-    if (token == null || token.isEmpty) {
-      if (kDebugMode) debugPrint('FCM: no token (simulator or unavailable)');
-      return;
-    }
-
-    await _persistToken(uid, token);
+    return true;
   }
 
   Future<void> _onTokenRefresh(String token) async {
@@ -146,7 +200,7 @@ class PushMessagingService {
 
   Future<bool> _waitForApnsToken() async {
     if (!_isApple) return true;
-    for (var i = 0; i < 12; i++) {
+    for (var i = 0; i < 24; i++) {
       final apns = await _messaging.getAPNSToken();
       if (apns != null && apns.isNotEmpty) return true;
       await Future<void>.delayed(const Duration(milliseconds: 500));
@@ -154,7 +208,7 @@ class PushMessagingService {
     return false;
   }
 
-  Future<void> _persistToken(String uid, String token) async {
+  Future<bool> _persistToken(String uid, String token) async {
     try {
       await FirebaseFirestore.instance
           .collection('users')
@@ -171,13 +225,16 @@ class PushMessagingService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       if (kDebugMode) debugPrint('FCM token saved for $uid');
+      return true;
     } catch (e) {
       if (kDebugMode) debugPrint('FCM persist failed: $e');
+      return false;
     }
   }
 
   /// Call before [FirebaseAuth.signOut] so this device is not targeted for the old account.
   Future<void> clearForSignOut(String uid) async {
+    unbindForUser();
     try {
       await FirebaseFirestore.instance
           .collection('users')
@@ -279,6 +336,32 @@ class PushMessagingService {
       if (kDebugMode) {
         debugPrint('FCM debug log write failed: $e');
       }
+    }
+  }
+}
+
+class _PushLifecycleObserver with WidgetsBindingObserver {
+  _PushLifecycleObserver(this._service);
+
+  final PushMessagingService _service;
+  bool _registered = false;
+
+  void register() {
+    if (_registered) return;
+    WidgetsBinding.instance.addObserver(this);
+    _registered = true;
+  }
+
+  void unregister() {
+    if (!_registered) return;
+    WidgetsBinding.instance.removeObserver(this);
+    _registered = false;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _service._onAppResumed();
     }
   }
 }

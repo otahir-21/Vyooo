@@ -20,6 +20,47 @@ admin.initializeApp();
 // ── Constants ──────────────────────────────────────────────────────────────────
 const APP_ID = '443105d5684f492088bb004196b3fee8';
 const TOKEN_TTL_SECONDS = 3600; // 1 hour
+const FCM_ANDROID_CHANNEL_ID = 'vyooo_high_importance';
+const STALE_FCM_ERROR_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
+]);
+
+function fcmAndroidOptions(): admin.messaging.AndroidConfig {
+  return {
+    priority: 'high',
+    notification: { channelId: FCM_ANDROID_CHANNEL_ID },
+  };
+}
+
+function fcmApnsOptions(contentAvailable = false): admin.messaging.ApnsConfig {
+  return {
+    payload: {
+      aps: {
+        sound: 'default',
+        badge: 1,
+        ...(contentAvailable ? { 'content-available': 1 } : {}),
+      },
+    },
+  };
+}
+
+async function pruneStalePushTokenDocs(
+  tokenDocs: FirebaseFirestore.QueryDocumentSnapshot[],
+  responses: admin.messaging.SendResponse[],
+): Promise<void> {
+  const deletes: Promise<unknown>[] = [];
+  for (let i = 0; i < responses.length; i++) {
+    const code = responses[i].error?.code?.trim();
+    if (code && STALE_FCM_ERROR_CODES.has(code) && tokenDocs[i]) {
+      deletes.push(tokenDocs[i].ref.delete().catch(() => undefined));
+    }
+  }
+  if (deletes.length > 0) {
+    await Promise.all(deletes);
+  }
+}
 
 // App Certificate is injected at deploy time via .env.vyooov1
 const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE ?? '';
@@ -856,23 +897,21 @@ export const moderateReelOnWrite = onDocumentWritten(
 );
 
 // ── Crowd-report threshold moderation ───────────────────────────────────────
-// A reel/post is auto-hidden when the share of distinct reporters crosses a
-// view-count-dependent threshold. Reports are deduped per user at write time
-// (doc id `<uid>_<reelId>` enforced by Firestore rules), so `reportCount`
-// equals the number of distinct reporters.
+// Posts, stories, and VR streams are covered (frosted overlay) when distinct
+// reporters cross a view-count-dependent threshold. Reports are deduped per
+// user at write time (doc id `<uid>_<contentId>`), so `reportCount` equals
+// distinct reporters.
 //
 // Tiers (newest config wins; tweak here):
-//   < 100 views    : never auto-hide (not enough signal yet)
-//   100–499 views  : 20% reported
-//   500–999 views  : 10% reported
-//   1000–4999 views: 5% reported
-//   5000+ views    : 2% reported
+//   < 100 views  : never auto-cover (not enough signal yet)
+//   100–499 views: 20% reported
+//   500–999 views: 10% reported
+//   1000+ views  : 2% reported (5% tier removed — product spec)
 //
-// Action is a soft takedown: moderation.status -> 'removed' (recoverable),
-// which the client feeds already hide. No media is deleted.
+// Action is a soft cover: moderation.status -> 'report_covered' (recoverable).
+// Client shows frosted overlay; media is not deleted.
 const REPORT_MODERATION_TIERS: Array<{ minViews: number; fraction: number }> = [
-  { minViews: 5000, fraction: 0.02 },
-  { minViews: 1000, fraction: 0.05 },
+  { minViews: 1000, fraction: 0.02 },
   { minViews: 500, fraction: 0.1 },
   { minViews: 100, fraction: 0.2 },
 ];
@@ -881,7 +920,7 @@ function reportFractionForViews(views: number): number | null {
   for (const tier of REPORT_MODERATION_TIERS) {
     if (views >= tier.minViews) return tier.fraction;
   }
-  return null; // below the minimum view threshold — never auto-hide
+  return null;
 }
 
 function toFiniteNumber(value: unknown): number {
@@ -891,6 +930,75 @@ function toFiniteNumber(value: unknown): number {
     if (Number.isFinite(parsed)) return parsed;
   }
   return 0;
+}
+
+function storyViewCount(data: Record<string, unknown>): number {
+  const viewedBy = data.viewedBy;
+  const fromArray = Array.isArray(viewedBy) ? viewedBy.length : 0;
+  return Math.max(toFiniteNumber(data.viewCount), fromArray);
+}
+
+async function aggregateContentReport(params: {
+  contentRef: FirebaseFirestore.DocumentReference;
+  contentId: string;
+  logPrefix: string;
+}): Promise<void> {
+  const { contentRef, contentId, logPrefix } = params;
+  try {
+    await admin.firestore().runTransaction(async (tx) => {
+      const contentSnap = await tx.get(contentRef);
+      if (!contentSnap.exists) return;
+      const data = contentSnap.data() as Record<string, unknown>;
+
+      const newCount = toFiniteNumber(data.reportCount) + 1;
+      const views = Math.max(
+        toFiniteNumber(data.views),
+        toFiniteNumber(data.viewsCount),
+        storyViewCount(data),
+      );
+
+      const moderation =
+        (data.moderation as Record<string, unknown> | undefined) ?? {};
+      const currentStatus =
+        typeof moderation.status === 'string' ? moderation.status.toLowerCase() : '';
+      const alreadyDown =
+        currentStatus === 'report_covered' ||
+        currentStatus === 'removed' ||
+        currentStatus === 'blocked';
+
+      const fraction = reportFractionForViews(views);
+      const shouldCover =
+        !alreadyDown && fraction != null && newCount >= Math.ceil(views * fraction);
+
+      const update: Record<string, unknown> = {
+        reportCount: newCount,
+        lastReportedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (shouldCover) {
+        update.moderation = {
+          ...moderation,
+          status: 'report_covered',
+          removedReason: 'report_threshold',
+          coveredAt: admin.firestore.FieldValue.serverTimestamp(),
+          coveredAtViews: views,
+          coveredAtReports: newCount,
+        };
+      }
+      tx.set(contentRef, update, { merge: true });
+
+      if (shouldCover) {
+        logger.warn(
+          `[${logPrefix}] auto_covered contentId=${contentId} reports=${newCount} views=${views} fraction=${fraction}`,
+        );
+      } else {
+        logger.info(
+          `[${logPrefix}] counted contentId=${contentId} reports=${newCount} views=${views} fraction=${fraction ?? 'none'}`,
+        );
+      }
+    });
+  } catch (e) {
+    logger.error(`[${logPrefix}] exception contentId=${contentId} error=${String(e)}`);
+  }
 }
 
 export const aggregateReelReportOnCreate = onDocumentCreated(
@@ -906,58 +1014,32 @@ export const aggregateReelReportOnCreate = onDocumentCreated(
     const reelId = typeof report.reelId === 'string' ? report.reelId.trim() : '';
     if (!reelId) return;
 
-    const reelRef = admin.firestore().collection('reels').doc(reelId);
-    try {
-      await admin.firestore().runTransaction(async (tx) => {
-        const reelSnap = await tx.get(reelRef);
-        if (!reelSnap.exists) return;
-        const data = reelSnap.data() as Record<string, unknown>;
+    await aggregateContentReport({
+      contentRef: admin.firestore().collection('reels').doc(reelId),
+      contentId: reelId,
+      logPrefix: 'aggregateReelReportOnCreate',
+    });
+  },
+);
 
-        const newCount = toFiniteNumber(data.reportCount) + 1;
-        // `views` is the live counter; fall back to `viewsCount` if present.
-        const views = Math.max(toFiniteNumber(data.views), toFiniteNumber(data.viewsCount));
+export const aggregateStoryReportOnCreate = onDocumentCreated(
+  {
+    document: 'story_reports/{reportId}',
+    timeoutSeconds: 30,
+    memory: '256MiB',
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const report = snap.data() as { storyId?: unknown };
+    const storyId = typeof report.storyId === 'string' ? report.storyId.trim() : '';
+    if (!storyId) return;
 
-        const moderation =
-          (data.moderation as Record<string, unknown> | undefined) ?? {};
-        const currentStatus =
-          typeof moderation.status === 'string' ? moderation.status.toLowerCase() : '';
-        const alreadyDown = currentStatus === 'removed' || currentStatus === 'blocked';
-
-        const fraction = reportFractionForViews(views);
-        const shouldRemove =
-          !alreadyDown && fraction != null && newCount >= Math.ceil(views * fraction);
-
-        const update: Record<string, unknown> = {
-          reportCount: newCount,
-          lastReportedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        if (shouldRemove) {
-          update.moderation = {
-            ...moderation,
-            status: 'removed',
-            removedReason: 'report_threshold',
-            removedAt: admin.firestore.FieldValue.serverTimestamp(),
-            removedAtViews: views,
-            removedAtReports: newCount,
-          };
-        }
-        tx.set(reelRef, update, { merge: true });
-
-        if (shouldRemove) {
-          logger.warn(
-            `[aggregateReelReportOnCreate] auto_removed reelId=${reelId} reports=${newCount} views=${views} fraction=${fraction}`,
-          );
-        } else {
-          logger.info(
-            `[aggregateReelReportOnCreate] counted reelId=${reelId} reports=${newCount} views=${views} fraction=${fraction ?? 'none'}`,
-          );
-        }
-      });
-    } catch (e) {
-      logger.error(
-        `[aggregateReelReportOnCreate] exception reelId=${reelId} error=${String(e)}`,
-      );
-    }
+    await aggregateContentReport({
+      contentRef: admin.firestore().collection('stories').doc(storyId),
+      contentId: storyId,
+      logPrefix: 'aggregateStoryReportOnCreate',
+    });
   },
 );
 
@@ -1620,12 +1702,11 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
       .doc(recipientId)
       .collection('push_tokens')
       .get();
-    const tokens = tokenSnap.docs
-      .map((d) => {
-        const token = d.data().token;
-        return typeof token === 'string' ? token.trim() : '';
-      })
-      .filter((t) => t.length > 0);
+    const tokenDocs = tokenSnap.docs.filter((d) => {
+      const token = d.data().token;
+      return typeof token === 'string' && token.trim().length > 0;
+    });
+    const tokens = tokenDocs.map((d) => (d.data().token as string).trim());
     if (tokens.length === 0) {
       await snap.ref.set(
         {
@@ -1652,9 +1733,11 @@ export const sendPushOnNotificationCreate = onDocumentCreated(
           recipientId,
           notificationId: snap.id,
         },
-        android: { priority: 'high' },
-        apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } } },
+        android: fcmAndroidOptions(),
+        apns: fcmApnsOptions(true),
       });
+
+      await pruneStalePushTokenDocs(tokenDocs, response.responses);
 
       const errorCodes = new Set<string>();
       for (const r of response.responses) {
@@ -2067,10 +2150,14 @@ export const onChatMessageCreate = onDocumentCreated(
           ),
         );
         const tokens: string[] = [];
+        const tokenDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
         for (const snap of tokenSnaps) {
           for (const doc of snap.docs) {
             const t = doc.data()?.token;
-            if (typeof t === 'string' && t.length > 0) tokens.push(t);
+            if (typeof t === 'string' && t.length > 0) {
+              tokens.push(t);
+              tokenDocs.push(doc);
+            }
           }
         }
         if (tokens.length > 0) {
@@ -2116,9 +2203,13 @@ export const onChatMessageCreate = onDocumentCreated(
                 messageId,
                 chatType,
               },
-              android: { priority: 'high' },
-              apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+              android: fcmAndroidOptions(),
+              apns: fcmApnsOptions(),
             });
+            await pruneStalePushTokenDocs(
+              tokenDocs.slice(t, t + FCM_BATCH),
+              response.responses,
+            );
             if (response.failureCount > 0) {
               response.responses.forEach((r, idx) => {
                 if (!r.success) {
@@ -2370,10 +2461,14 @@ export const onCallSessionCreate = onDocumentCreated(
       ),
     );
     const tokens: string[] = [];
+    const tokenDocs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
     for (const tSnap of tokenSnaps) {
       for (const doc of tSnap.docs) {
         const t = doc.data()?.token;
-        if (typeof t === 'string' && t.length > 0) tokens.push(t);
+        if (typeof t === 'string' && t.length > 0) {
+          tokens.push(t);
+          tokenDocs.push(doc);
+        }
       }
     }
 
@@ -2400,9 +2495,13 @@ export const onCallSessionCreate = onDocumentCreated(
             callType,
             agoraChannelName,
           },
-          android: { priority: 'high' },
-          apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1 } } },
+          android: fcmAndroidOptions(),
+          apns: fcmApnsOptions(true),
         });
+        await pruneStalePushTokenDocs(
+          tokenDocs.slice(t, t + FCM_BATCH),
+          response.responses,
+        );
         if (response.failureCount > 0) {
           logger.warn('onCallSessionCreate: FCM partial failure', {
             callId,

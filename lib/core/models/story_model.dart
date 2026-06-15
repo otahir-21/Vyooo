@@ -19,6 +19,9 @@ class StoryModel {
     this.likes = 0,
     this.comments = 0,
     this.segmentGroupId = '',
+    this.viewCount = 0,
+    this.reportCount = 0,
+    this.moderation,
   });
 
   final String id;
@@ -37,6 +40,9 @@ class StoryModel {
   final int comments;
   /// Same id across FFmpeg-split segments posted together.
   final String segmentGroupId;
+  final int viewCount;
+  final int reportCount;
+  final Map<String, dynamic>? moderation;
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);
   bool isViewedBy(String uid) => viewedBy.contains(uid);
@@ -67,6 +73,12 @@ class StoryModel {
       likes: (data['likes'] as num?)?.toInt() ?? 0,
       comments: (data['comments'] as num?)?.toInt() ?? 0,
       segmentGroupId: data['segmentGroupId'] as String? ?? '',
+      viewCount: (data['viewCount'] as num?)?.toInt() ??
+          ((data['viewedBy'] as List<dynamic>?)?.length ?? 0),
+      reportCount: (data['reportCount'] as num?)?.toInt() ?? 0,
+      moderation: data['moderation'] is Map
+          ? Map<String, dynamic>.from(data['moderation'] as Map)
+          : null,
     );
   }
 
