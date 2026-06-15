@@ -4,8 +4,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/utils/user_facing_errors.dart';
 
-/// "Block User" confirmation sheet.
-/// Matches Figma: magenta gradient, user info card, consequence list, pink Block button.
+/// Instagram-style block flow: pick a reason, then confirm block.
 void showBlockUserSheet(
   BuildContext context, {
   required String username,
@@ -41,9 +40,21 @@ class _BlockUserSheet extends StatefulWidget {
 
 class _BlockUserSheetState extends State<_BlockUserSheet> {
   bool _busy = false;
+  String? _selectedReason;
+
+  static const List<String> _reasons = [
+    'I don\'t want to see their content',
+    'They\'re harassing or bullying me',
+    'They\'re pretending to be someone else',
+    'Spam or scam',
+    'Something else',
+  ];
+
+  bool get _showConfirmation => _selectedReason != null;
 
   Future<void> _onBlock() async {
     final target = widget.targetUserId;
+    final reason = _selectedReason;
     final me = AuthService().currentUser?.uid;
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (me == null || me.isEmpty) {
@@ -58,11 +69,16 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
       );
       return;
     }
+    if (reason == null || reason.isEmpty) return;
     if (me == target) return;
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await UserService().blockUser(currentUid: me, targetUid: target);
+      await UserService().blockUser(
+        currentUid: me,
+        targetUid: target,
+        reason: reason,
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       messenger?.showSnackBar(
@@ -83,7 +99,7 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF49113B), // Deep Magenta
+            Color(0xFF49113B),
             Color(0xFF210D1D),
             Color(0xFF0F040C),
           ],
@@ -95,7 +111,6 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Drag handle
             Padding(
               padding: const EdgeInsets.only(top: 12, bottom: 8),
               child: Center(
@@ -109,127 +124,206 @@ class _BlockUserSheetState extends State<_BlockUserSheet> {
                 ),
               ),
             ),
-
-            // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                  ),
+                  if (_showConfirmation)
+                    IconButton(
+                      onPressed: () => setState(() => _selectedReason = null),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 48),
                   const Spacer(),
-                  const Text(
-                    'Block User',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close_rounded, color: Colors.white.withValues(alpha: 0.5), size: 24),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // User Card
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundImage: widget.avatarUrl.isNotEmpty ? NetworkImage(widget.avatarUrl) : null,
-                    backgroundColor: Colors.grey[800],
-                    child: widget.avatarUrl.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Block ${widget.username} ?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'This will also block any other accounts that they may have or create in the future.',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 13,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Consequence List
-            const _ConsequenceItem(
-              icon: Icons.block_flipped,
-              text: 'They won\'t be able to message you, find your profile, or your content on VyooO',
-            ),
-            const _ConsequenceItem(
-              icon: Icons.notifications_off_outlined,
-              text: 'They won\'t be notified that you blocked them.',
-            ),
-            const _ConsequenceItem(
-              icon: Icons.settings_outlined,
-              text: 'You can unblock them at anytime from settings.',
-            ),
-
-            const SizedBox(height: 32),
-
-            // Action Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: _busy ? null : _onBlock,
-                  style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
-                    disabledBackgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.5),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                  ),
-                  child: Text(
-                    _busy ? 'Blocking…' : 'Block',
+                  Text(
+                    _showConfirmation
+                        ? 'Block User'
+                        : 'Block @${widget.username}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!_showConfirmation) _buildReasonsList() else _buildConfirmation(),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReasonsList() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+          child: Text(
+            'Why are you blocking this account?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+        ),
+        ..._reasons.map(
+          (reason) => _ReasonTile(
+            label: reason,
+            onTap: () => setState(() => _selectedReason = reason),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfirmation() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 16),
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundImage: widget.avatarUrl.isNotEmpty
+                    ? NetworkImage(widget.avatarUrl)
+                    : null,
+                backgroundColor: Colors.grey[800],
+                child: widget.avatarUrl.isEmpty
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Block ${widget.username}?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'This will also block any other accounts that they may have or create in the future.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        const _ConsequenceItem(
+          icon: Icons.block_flipped,
+          text:
+              'They won\'t be able to message you, find your profile, or your content on VyooO',
+        ),
+        const _ConsequenceItem(
+          icon: Icons.notifications_off_outlined,
+          text: 'They won\'t be notified that you blocked them.',
+        ),
+        const _ConsequenceItem(
+          icon: Icons.settings_outlined,
+          text: 'You can unblock them at anytime from settings.',
+        ),
+        const SizedBox(height: 32),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: _busy ? null : _onBlock,
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                disabledBackgroundColor:
+                    const Color(0xFFEF4444).withValues(alpha: 0.5),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+              child: Text(
+                _busy ? 'Blocking…' : 'Block',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReasonTile extends StatelessWidget {
+  const _ReasonTile({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white.withValues(alpha: 0.3),
+              size: 20,
+            ),
           ],
         ),
       ),

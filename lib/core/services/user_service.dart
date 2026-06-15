@@ -897,19 +897,40 @@ class UserService {
   }
 
   /// Blocks [targetUid]: adds to blockedUsers and removes from following (local doc only).
+  /// When [reason] is provided, also records the block reason in `user_blocks`.
   Future<void> blockUser({
     required String currentUid,
     required String targetUid,
+    String? reason,
   }) async {
     if (currentUid.isEmpty || targetUid.isEmpty || currentUid == targetUid) {
       throw ArgumentError('Invalid block');
     }
     final meRef = _firestore.collection(_usersCollection).doc(currentUid);
     await cancelFollowRequest(requesterUid: currentUid, targetUid: targetUid);
-    await meRef.set({
-      'blockedUsers': FieldValue.arrayUnion([targetUid]),
-      'following': FieldValue.arrayRemove([targetUid]),
-    }, SetOptions(merge: true));
+
+    final trimmedReason = reason?.trim() ?? '';
+    final batch = _firestore.batch();
+    batch.set(
+      meRef,
+      {
+        'blockedUsers': FieldValue.arrayUnion([targetUid]),
+        'following': FieldValue.arrayRemove([targetUid]),
+      },
+      SetOptions(merge: true),
+    );
+    if (trimmedReason.isNotEmpty) {
+      batch.set(
+        _firestore.collection('user_blocks').doc('${currentUid}_$targetUid'),
+        {
+          'blockedUserId': targetUid,
+          'blockerId': currentUid,
+          'reason': trimmedReason,
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
+    }
+    await batch.commit();
   }
 
   Future<void> unblockUser({
@@ -923,6 +944,10 @@ class UserService {
     await meRef.set({
       'blockedUsers': FieldValue.arrayRemove([targetUid]),
     }, SetOptions(merge: true));
+    await _firestore
+        .collection('user_blocks')
+        .doc('${currentUid}_$targetUid')
+        .delete();
   }
 
   /// Reactive follower count stream based on users who include [uid] in following.
