@@ -17,7 +17,14 @@
     }
   ],
   "rewrites": [
-    { "source": "/u/:username", "destination": "/open/index.html" },
-    { "source": "/r/:id", "destination": "/open/index.html" }
+    {
+      "source": "/u/:username",
+      "destination": "https://us-central1-vyooov1.cloudfunctions.net/shareLink/u/:username"
+    },
+    {
+      "source": "/r/:id",
+      "destination": "https://us-central1-vyooov1.cloudfunctions.net/shareLink/r/:id"
+    },
+    { "source": "/open", "destination": "/open/index.html" }
   ]
 }

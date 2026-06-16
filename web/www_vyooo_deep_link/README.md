@@ -23,8 +23,25 @@ remaining work is **hosting these files on `www.vyooo.com` (and `vyooo.com`)**.
 |---|---|---|
 | `.well-known/apple-app-site-association` | `https://www.vyooo.com/.well-known/...` and `https://vyooo.com/.well-known/...` | Must be served as **`application/json`**, status **200**, **no redirect**, scoped to `/u/*`, `/r/*`, `/open*`. |
 | `.well-known/assetlinks.json` | both hosts | `sha256_cert_fingerprints` **must include the Play App Signing SHA‑256** (Play Console → Test and release → App integrity → App signing). Verify the two values here against it; remove any that don't belong. |
-| `open/index.html` | served for `/u/:username`, `/r/:id`, and `/open` | The redirect bridge. |
-| `vercel.json` | Vercel project root | Sets JSON content-type for `.well-known/*` and rewrites `/u/:username` + `/r/:id` to the bridge. Merge into the marketing site's existing config. |
+| `open/index.html` | served for legacy `/open` only | Static fallback bridge (no dynamic preview). |
+| `vercel.json` | Vercel project root | Sets JSON content-type for `.well-known/*` and proxies `/u/:username` + `/r/:id` to the **`shareLink`** Cloud Function for Instagram-style link previews. Merge into the marketing site's existing config. |
+
+## Link previews (Instagram-style share cards)
+
+Messaging apps (iMessage, WhatsApp, etc.) read **Open Graph** tags from the HTML
+response. `/u/*` and `/r/*` are proxied to the Firebase HTTP function
+`shareLink` (`functions/src/share_link.ts`), which loads the profile or post from
+Firestore and returns HTML with dynamic `og:title`, `og:description`, and
+`og:image` (avatar / thumbnail).
+
+**Deploy order**
+
+1. `cd functions && npm run build && firebase deploy --only functions:shareLink`
+2. Deploy / merge this folder to Vercel so `vercel.json` rewrites take effect.
+3. Validate a profile URL with https://www.opengraph.xyz/ or Meta Sharing Debugger.
+
+If the function URL differs after deploy, update the `destination` hosts in
+`vercel.json` to match the Firebase console URL for `shareLink`.
 
 ## iOS checklist
 

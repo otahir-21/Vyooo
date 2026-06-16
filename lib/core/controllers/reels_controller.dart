@@ -556,18 +556,23 @@ class ReelsController {
   /// Share a reel using native share sheet.
   Future<void> shareReel({
     required String reelId,
-    String? reelUrl,
+    String? caption,
   }) async {
     try {
-      final url = reelUrl ?? DeepLinkConfig.reelWebUri(reelId).toString();
+      final reelDoc = await _firestore.collection('reels').doc(reelId).get();
+      final data = reelDoc.data();
+      final resolvedCaption = (caption ?? data?['caption'] as String?)?.trim();
+      final message = DeepLinkConfig.reelShareMessage(
+        reelId: reelId,
+        caption: resolvedCaption,
+      );
       await SharePlus.instance.share(
         ShareParams(
-          text: url,
-          subject: 'Check out this reel on Vyooo!',
+          text: message,
+          subject: 'Check out this post on Vyooo',
         ),
       );
-      final reelDoc = await _firestore.collection('reels').doc(reelId).get();
-      final ownerId = (reelDoc.data()?['userId'] as String?) ?? '';
+      final ownerId = (data?['userId'] as String?) ?? '';
       await NotificationService().create(
         recipientId: ownerId,
         type: AppNotificationType.share,
