@@ -10,6 +10,7 @@ import '../../core/services/notification_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
+import '../profile/user_profile_screen.dart';
 
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
 class NotificationScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _NotificationScreenState extends State<NotificationScreen>
     with AutomaticKeepAliveClientMixin {
   bool _isMarkingVisibleAsRead = false;
   final Set<String> _followBackInFlight = <String>{};
+  final Set<String> _pendingFollowBackTargets = <String>{};
 
   @override
   bool get wantKeepAlive => true;
@@ -121,6 +123,8 @@ class _NotificationScreenState extends State<NotificationScreen>
           builder: (context, meSnapshot) {
             final following = meSnapshot.data?.following ?? const <String>[];
             final followedUserIds = following.toSet();
+            _pendingFollowBackTargets.removeWhere(followedUserIds.contains);
+            _syncPendingFollowBackState(list, followedUserIds);
             final sections = <String, List<AppNotification>>{};
             for (final n in list) {
               final key = _sectionFor(n.createdAt);
@@ -134,6 +138,8 @@ class _NotificationScreenState extends State<NotificationScreen>
               rows.add(const SizedBox(height: 12));
               for (final item in items) {
                 final targetUid = item.senderId.trim();
+                final isFollowRequested = targetUid.isNotEmpty &&
+                    _pendingFollowBackTargets.contains(targetUid);
                 final isFollowed = targetUid.isNotEmpty &&
                     (followedUserIds.contains(targetUid) ||
                         _followBackInFlight.contains(targetUid));
@@ -146,9 +152,10 @@ class _NotificationScreenState extends State<NotificationScreen>
                       _NotifTile(
                         item: item,
                         isFollowed: isFollowed,
+                        isFollowRequested: isFollowRequested,
                         isFollowingInProgress: isFollowingInProgress,
                         showFollowRequestActions: false,
-                        onTap: () => _handleOpen(item),
+                        onOpenProfile: () => _openActorProfile(item),
                         onFollowBack: () => _handleFollowBack(item),
                         onReply: () => _handleReply(item),
                         onAcceptFollowRequest: () =>
@@ -170,9 +177,10 @@ class _NotificationScreenState extends State<NotificationScreen>
                           return _NotifTile(
                             item: item,
                             isFollowed: isFollowed,
+                            isFollowRequested: isFollowRequested,
                             isFollowingInProgress: isFollowingInProgress,
                             showFollowRequestActions: showActions,
-                            onTap: () => _handleOpen(item),
+                            onOpenProfile: () => _openActorProfile(item),
                             onFollowBack: () => _handleFollowBack(item),
                             onReply: () => _handleReply(item),
                             onAcceptFollowRequest: () =>
@@ -189,8 +197,9 @@ class _NotificationScreenState extends State<NotificationScreen>
                     _NotifTile(
                       item: item,
                       isFollowed: isFollowed,
+                      isFollowRequested: isFollowRequested,
                       isFollowingInProgress: isFollowingInProgress,
-                      onTap: () => _handleOpen(item),
+                      onOpenProfile: () => _openActorProfile(item),
                       onFollowBack: () => _handleFollowBack(item),
                       onReply: () => _handleReply(item),
                       onAcceptFollowRequest: () =>
@@ -214,8 +223,57 @@ class _NotificationScreenState extends State<NotificationScreen>
     );
   }
 
-  Future<void> _handleOpen(AppNotification item) async {
+  Future<void> _openActorProfile(AppNotification item) async {
     await NotificationService().markAsRead(item.id);
+    final actorUid = item.senderId.trim().isNotEmpty
+        ? item.senderId.trim()
+        : item.targetUserId.trim();
+    if (actorUid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This profile is no longer available.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final me = AuthService().currentUser?.uid ?? '';
+    if (me == actorUid) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      return;
+    }
+    final svc = UserService();
+    final appUser = await svc.getUser(actorUid);
+    if (!mounted) return;
+    if (appUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This profile is no longer available.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final followerCount = await svc.getFollowerCount(appUser.uid);
+    final postCount = await svc.getReelCountForUser(appUser.uid);
+    final isFollowing = me.isNotEmpty &&
+        await svc.isFollowingUser(currentUid: me, targetUid: appUser.uid);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => UserProfileScreen(
+          payload: UserProfilePayload.fromAppUser(
+            appUser,
+            postCount: postCount,
+            followerCount: followerCount,
+            followingCount: appUser.following.length,
+            isFollowing: isFollowing,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleAcceptFollowRequest(AppNotification item) async {
@@ -280,6 +338,7 @@ class _NotificationScreenState extends State<NotificationScreen>
     final targetUid = item.senderId.trim();
     if (me.isEmpty || targetUid.isEmpty || me == targetUid) return;
     if (_followBackInFlight.contains(targetUid)) return;
+    if (_pendingFollowBackTargets.contains(targetUid)) return;
     final alreadyFollowing = await UserService().isFollowingUser(
       currentUid: me,
       targetUid: targetUid,
@@ -289,9 +348,35 @@ class _NotificationScreenState extends State<NotificationScreen>
     try {
       await UserService().followUser(currentUid: me, targetUid: targetUid);
       if (!mounted) return;
+      final svc = UserService();
+      final nowFollowing = await svc.isFollowingUser(
+        currentUid: me,
+        targetUid: targetUid,
+        server: true,
+      );
+      final pending = !nowFollowing &&
+          await svc.outgoingFollowRequestPending(
+            requesterUid: me,
+            targetUid: targetUid,
+            server: true,
+          );
+      if (!mounted) return;
+      setState(() {
+        if (pending) {
+          _pendingFollowBackTargets.add(targetUid);
+        } else {
+          _pendingFollowBackTargets.remove(targetUid);
+        }
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Followed back.'),
+        SnackBar(
+          content: Text(
+            nowFollowing
+                ? 'Followed back.'
+                : pending
+                    ? 'Follow request sent.'
+                    : 'Could not follow back right now.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -368,6 +453,37 @@ class _NotificationScreenState extends State<NotificationScreen>
     return st == 'pending';
   }
 
+  void _syncPendingFollowBackState(
+    List<AppNotification> list,
+    Set<String> followedUserIds,
+  ) {
+    final me = AuthService().currentUser?.uid ?? '';
+    if (me.isEmpty) return;
+    final targets = list
+        .where((n) => n.type == AppNotificationType.follow)
+        .map((n) => n.senderId.trim())
+        .where((id) => id.isNotEmpty)
+        .where((id) => !followedUserIds.contains(id))
+        .where((id) => !_pendingFollowBackTargets.contains(id))
+        .toSet();
+    if (targets.isEmpty) return;
+    Future.microtask(() async {
+      final svc = UserService();
+      final found = <String>{};
+      for (final id in targets) {
+        if (await svc.outgoingFollowRequestPending(
+          requesterUid: me,
+          targetUid: id,
+        )) {
+          found.add(id);
+        }
+      }
+      if (found.isNotEmpty && mounted) {
+        setState(() => _pendingFollowBackTargets.addAll(found));
+      }
+    });
+  }
+
   void _autoMarkVisibleAsRead(List<AppNotification> list) {
     if (_isMarkingVisibleAsRead || list.isEmpty) return;
     final unreadIds = list
@@ -391,8 +507,9 @@ class _NotifTile extends StatelessWidget {
   const _NotifTile({
     required this.item,
     required this.isFollowed,
+    required this.isFollowRequested,
     required this.isFollowingInProgress,
-    required this.onTap,
+    required this.onOpenProfile,
     this.showFollowRequestActions = true,
     this.onFollowBack,
     this.onReply,
@@ -402,10 +519,11 @@ class _NotifTile extends StatelessWidget {
 
   final AppNotification item;
   final bool isFollowed;
+  final bool isFollowRequested;
   final bool isFollowingInProgress;
   /// When false, hide Accept/Decline for [AppNotificationType.followRequest] rows.
   final bool showFollowRequestActions;
-  final VoidCallback onTap;
+  final VoidCallback onOpenProfile;
   final VoidCallback? onFollowBack;
   final VoidCallback? onReply;
   final VoidCallback? onAcceptFollowRequest;
@@ -413,14 +531,19 @@ class _NotifTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildAvatar(),
-          const SizedBox(width: 12),
-          Expanded(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onOpenProfile,
+          child: _buildAvatar(),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onOpenProfile,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -444,10 +567,10 @@ class _NotifTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          _buildActionButton(),
-        ],
-      ),
+        ),
+        const SizedBox(width: 10),
+        _buildActionButton(),
+      ],
     );
   }
 
@@ -510,7 +633,16 @@ class _NotifTile extends StatelessWidget {
             onTap: null,
           );
         }
-        return _PinkPillButton(label: 'Follow back', onTap: onFollowBack ?? onTap);
+        if (isFollowRequested) {
+          return const _OutlinePillButton(
+            label: 'Requested',
+            onTap: null,
+          );
+        }
+        return _PinkPillButton(
+          label: 'Follow back',
+          onTap: onFollowBack ?? onOpenProfile,
+        );
       case 'followRequest':
         if (!showFollowRequestActions) {
           return const SizedBox.shrink();
@@ -520,12 +652,12 @@ class _NotifTile extends StatelessWidget {
           children: [
             _OutlinePillButton(
               label: 'Decline',
-              onTap: onDeclineFollowRequest ?? onTap,
+              onTap: onDeclineFollowRequest,
             ),
             const SizedBox(width: 8),
             _PinkPillButton(
               label: 'Accept',
-              onTap: onAcceptFollowRequest ?? onTap,
+              onTap: onAcceptFollowRequest ?? onOpenProfile,
             ),
           ],
         );
@@ -534,7 +666,7 @@ class _NotifTile extends StatelessWidget {
       case 'comment':
         return _OutlinePillButton(
           label: 'Reply',
-          onTap: onReply ?? onTap,
+          onTap: onReply,
         );
       default:
         return const SizedBox.shrink();
@@ -553,11 +685,12 @@ class _NotifTile extends StatelessWidget {
 class _PinkPillButton extends StatelessWidget {
   const _PinkPillButton({required this.label, required this.onTap});
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -586,6 +719,7 @@ class _OutlinePillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
