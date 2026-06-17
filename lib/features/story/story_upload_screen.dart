@@ -116,24 +116,33 @@ class _StoryImageEdit {
   const _StoryImageEdit({
     this.filter = _StoryFilter.normal,
     this.overlayText = '',
+    this.textNx = 0.5,
+    this.textNy = 0.15,
     this.strokes = const [],
     this.stickers = const [],
   });
 
   final _StoryFilter filter;
   final String overlayText;
+  /// Normalized text anchor (0–1) within the image content rect.
+  final double textNx;
+  final double textNy;
   final List<_StoryStroke> strokes;
   final List<_StorySticker> stickers;
 
   _StoryImageEdit copyWith({
     _StoryFilter? filter,
     String? overlayText,
+    double? textNx,
+    double? textNy,
     List<_StoryStroke>? strokes,
     List<_StorySticker>? stickers,
   }) {
     return _StoryImageEdit(
       filter: filter ?? this.filter,
       overlayText: overlayText ?? this.overlayText,
+      textNx: textNx ?? this.textNx,
+      textNy: textNy ?? this.textNy,
       strokes: strokes ?? this.strokes,
       stickers: stickers ?? this.stickers,
     );
@@ -142,6 +151,8 @@ class _StoryImageEdit {
   Map<String, dynamic> toJson() => {
         'filter': filter.name,
         'overlayText': overlayText,
+        'textNx': textNx,
+        'textNy': textNy,
         'strokes': strokes.map((s) => s.toJson()).toList(),
         'stickers': stickers.map((s) => s.toJson()).toList(),
       };
@@ -171,6 +182,8 @@ class _StoryImageEdit {
     return _StoryImageEdit(
       filter: filter,
       overlayText: (m['overlayText'] as String?) ?? '',
+      textNx: (m['textNx'] as num?)?.toDouble() ?? 0.5,
+      textNy: (m['textNy'] as num?)?.toDouble() ?? 0.15,
       strokes: strokes,
       stickers: stickers,
     );
@@ -222,6 +235,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
 
   bool _drawMode = false;
   bool _eraserMode = false;
+  bool _overlayTextSelected = false;
   Color _drawColor = Colors.white;
   final List<Offset> _currentStrokePoints = [];
   static const double _defaultStrokeWidth = 6;
@@ -800,18 +814,31 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     });
   }
 
+  void _removeOverlayText() {
+    setState(() {
+      _imageEdits[_previewIdx] =
+          _imageEdits[_previewIdx].copyWith(overlayText: '');
+      _overlayTextSelected = false;
+    });
+    unawaited(HapticFeedback.selectionClick());
+  }
+
   Future<void> _editOverlayText() async {
     if (_images.isEmpty) return;
-    final controller = TextEditingController(
-      text: _imageEdits[_previewIdx].overlayText,
-    );
+    final existing = _imageEdits[_previewIdx].overlayText;
+    final controller = TextEditingController(text: existing);
+    final hasText = existing.trim().isNotEmpty;
     final text = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF171717),
-        title: const Text('Add Text', style: TextStyle(color: Colors.white)),
+        title: Text(
+          hasText ? 'Edit text' : 'Add text',
+          style: const TextStyle(color: Colors.white),
+        ),
         content: TextField(
           controller: controller,
+          autofocus: true,
           maxLength: 60,
           style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
@@ -821,10 +848,14 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(''),
-            child: const Text('Clear'),
-          ),
+          if (hasText)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(''),
+              child: const Text(
+                'Remove text',
+                style: TextStyle(color: Color(0xFFFF2D55)),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancel'),
@@ -838,7 +869,9 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     );
     if (!mounted || text == null) return;
     setState(() {
-      _imageEdits[_previewIdx] = _imageEdits[_previewIdx].copyWith(overlayText: text);
+      _imageEdits[_previewIdx] =
+          _imageEdits[_previewIdx].copyWith(overlayText: text);
+      _overlayTextSelected = text.isNotEmpty;
     });
   }
 
@@ -877,10 +910,60 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     }
   }
 
+  TextStyle _overlayTextStyle({double fontSize = 30}) {
+    return TextStyle(
+      color: Colors.white,
+      fontSize: fontSize,
+      fontWeight: FontWeight.w800,
+      shadows: const [
+        Shadow(color: Colors.black87, blurRadius: 8, offset: Offset(0, 2)),
+      ],
+    );
+  }
+
+  Widget _buildStaticOverlayText({
+    required String text,
+    required double nx,
+    required double ny,
+    double fontSize = 30,
+    double maxWidthFraction = 0.92,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth * maxWidthFraction;
+        return Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: nx * constraints.maxWidth,
+              top: ny * constraints.maxHeight,
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, -0.5),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: _overlayTextStyle(fontSize: fontSize),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildEditedPreviewImage({
     required File imageFile,
     required _StoryImageEdit edit,
     required BoxFit fit,
+    bool includeTextOverlay = true,
+    double overlayTextFontSize = 30,
   }) {
     final base = Image.file(
       imageFile,
@@ -894,30 +977,16 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
             colorFilter: _colorFilterFor(edit.filter)!,
             child: base,
           );
-    if (edit.overlayText.trim().isEmpty) return filtered;
+    if (!includeTextOverlay || edit.overlayText.trim().isEmpty) return filtered;
     return Stack(
       fit: StackFit.expand,
       children: [
         filtered,
-        Align(
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 54, left: 14, right: 14),
-            child: Text(
-              edit.overlayText.trim(),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.w800,
-                shadows: [
-                  Shadow(color: Colors.black87, blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
-            ),
-          ),
+        _buildStaticOverlayText(
+          text: edit.overlayText.trim(),
+          nx: edit.textNx,
+          ny: edit.textNy,
+          fontSize: overlayTextFontSize,
         ),
       ],
     );
@@ -971,7 +1040,14 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
         Paint()..colorFilter = cf,
       );
 
-      _paintStoryOverlayTextForExport(canvas, edit.overlayText.trim(), w, h);
+      _paintStoryOverlayTextForExport(
+        canvas,
+        edit.overlayText.trim(),
+        w,
+        h,
+        textNx: edit.textNx,
+        textNy: edit.textNy,
+      );
 
       canvas.saveLayer(Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), Paint());
       final scaleRef = math.min(w, h) / 360.0;
@@ -1051,8 +1127,10 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     Canvas canvas,
     String text,
     int imageWidth,
-    int imageHeight,
-  ) {
+    int imageHeight, {
+    double textNx = 0.5,
+    double textNy = 0.15,
+  }) {
     if (text.isEmpty) return;
     final lines = _splitTextLines(text, maxCharsPerLine: 16, maxLines: 3);
     if (lines.isEmpty) return;
@@ -1066,15 +1144,25 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
         Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1.5)),
       ],
     );
-    var y = math.max(16.0, imageHeight * 0.08);
-    for (final line in lines) {
+    final maxWidth = imageWidth - 28.0;
+    final painters = <TextPainter>[];
+    var totalHeight = 0.0;
+    for (var i = 0; i < lines.length; i++) {
       final tp = TextPainter(
-        text: TextSpan(text: line, style: style),
+        text: TextSpan(text: lines[i], style: style),
         textAlign: TextAlign.center,
         textDirection: TextDirection.ltr,
         maxLines: 1,
-      )..layout(maxWidth: imageWidth - 28.0);
-      final x = (imageWidth - tp.width) / 2;
+      )..layout(maxWidth: maxWidth);
+      painters.add(tp);
+      if (i > 0) totalHeight += 6 * scale;
+      totalHeight += tp.height;
+    }
+    final anchorX = textNx * imageWidth;
+    final anchorY = textNy * imageHeight;
+    var y = anchorY - totalHeight / 2;
+    for (final tp in painters) {
+      final x = anchorX - tp.width / 2;
       tp.paint(canvas, Offset(x, y));
       y += tp.height + 6 * scale;
     }
@@ -1833,6 +1921,148 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
 
   // ── Preview (caption + strip + Post) ───────────────────────────────────────
 
+  List<Widget> _textOverlayWidgets(Rect content, int frameIdx) {
+    final edit = _imageEdits[frameIdx];
+    final text = edit.overlayText.trim();
+    if (text.isEmpty) return const [];
+
+    final isSelected =
+        frameIdx == _previewIdx && _overlayTextSelected && !_drawMode;
+
+    return [
+      Positioned(
+        left: content.left,
+        top: content.top,
+        width: content.width,
+        height: content.height,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (isSelected)
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onTap: () => setState(() => _overlayTextSelected = false),
+                ),
+              ),
+            Positioned(
+              left: edit.textNx * content.width,
+              top: edit.textNy * content.height,
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, -0.5),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      behavior: HitTestBehavior.deferToChild,
+                      onTap: !_drawMode
+                          ? () {
+                              if (isSelected) {
+                                _editOverlayText();
+                              } else {
+                                setState(() => _overlayTextSelected = true);
+                                unawaited(HapticFeedback.selectionClick());
+                              }
+                            }
+                          : null,
+                      onPanUpdate: !_drawMode
+                          ? (details) {
+                              setState(() {
+                                _overlayTextSelected = true;
+                                final current = _imageEdits[frameIdx];
+                                final cx = content.left +
+                                    current.textNx * content.width +
+                                    details.delta.dx;
+                                final cy = content.top +
+                                    current.textNy * content.height +
+                                    details.delta.dy;
+                                final nx =
+                                    ((cx - content.left) / content.width)
+                                        .clamp(0.05, 0.95);
+                                final ny =
+                                    ((cy - content.top) / content.height)
+                                        .clamp(0.05, 0.95);
+                                _imageEdits[frameIdx] =
+                                    current.copyWith(textNx: nx, textNy: ny);
+                              });
+                            }
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: isSelected
+                            ? BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                              )
+                            : null,
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxWidth: content.width * 0.92),
+                          child: Text(
+                            text,
+                            textAlign: TextAlign.center,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: _overlayTextStyle(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (isSelected)
+                      Positioned(
+                        top: -22,
+                        right: -22,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            _removeOverlayText();
+                          },
+                          child: const SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(0xFFFF2D55),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black45,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: SizedBox(
+                                  width: 30,
+                                  height: 30,
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+
   List<Widget> _stickerOverlayWidgets(Rect content, int frameIdx) {
     final stickers = _imageEdits[frameIdx].stickers;
     return List<Widget>.generate(stickers.length, (si) {
@@ -1901,6 +2131,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                             imageFile: _images[idx],
                             edit: edit,
                             fit: BoxFit.contain,
+                            includeTextOverlay: false,
                           ),
                         ),
                       ),
@@ -1918,6 +2149,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                           ),
                         ),
                       ),
+                      ..._textOverlayWidgets(content, idx),
                       ..._stickerOverlayWidgets(content, idx),
                       if (_drawMode)
                         Positioned.fill(
@@ -1986,7 +2218,11 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                       ),
                     ],
                   ),
-                  const Spacer(),
+                  const Expanded(
+                    child: IgnorePointer(
+                      child: SizedBox.expand(),
+                    ),
+                  ),
                   if (_images.length > 1)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -2021,6 +2257,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                               onTap: () => setState(() {
                                 _previewIdx = i;
                                 _currentStrokePoints.clear();
+                                _overlayTextSelected = false;
                               }),
                               child: Container(
                                 width: 64,
@@ -2039,6 +2276,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                                   imageFile: _images[i],
                                   edit: _imageEdits[i],
                                   fit: BoxFit.cover,
+                                  overlayTextFontSize: 9,
                                 ),
                               ),
                             );
@@ -2067,16 +2305,34 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                           const SizedBox(width: 8),
                           _editActionButton(
                             icon: Icons.text_fields_rounded,
-                            label: 'Text',
+                            label: _imageEdits[_previewIdx].overlayText
+                                    .trim()
+                                    .isNotEmpty
+                                ? 'Edit text'
+                                : 'Text',
                             onTap: _editOverlayText,
                           ),
+                          if (_imageEdits[_previewIdx].overlayText
+                              .trim()
+                              .isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            _editActionButton(
+                              icon: Icons.delete_outline_rounded,
+                              label: 'Remove text',
+                              onTap: _removeOverlayText,
+                            ),
+                          ],
                           const SizedBox(width: 8),
                           _editActionButton(
                             icon: Icons.brush_rounded,
                             label: _drawMode ? 'Draw ✓' : 'Draw',
                             onTap: () => setState(() {
                               _drawMode = !_drawMode;
-                              if (!_drawMode) _currentStrokePoints.clear();
+                              if (!_drawMode) {
+                                _currentStrokePoints.clear();
+                              } else {
+                                _overlayTextSelected = false;
+                              }
                             }),
                           ),
                           const SizedBox(width: 8),
