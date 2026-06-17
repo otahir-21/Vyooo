@@ -22,6 +22,36 @@ class UploadSuccessScreen extends StatelessWidget {
   /// with `true` so callers (e.g. home story "+") can refresh and stay on feed.
   final bool dismissToRoot;
 
+  /// Success copy for feed posts from carousel [mediaItems] (`type`: `image` | `video`).
+  factory UploadSuccessScreen.forMediaPost({
+    required List<Map<String, dynamic>> mediaItems,
+    bool dismissToRoot = true,
+  }) {
+    final hasImage =
+        mediaItems.any((item) => item['type'] == 'image');
+    final hasVideo =
+        mediaItems.any((item) => item['type'] == 'video');
+
+    final String title;
+    final String subtitle;
+    if (hasImage && hasVideo) {
+      title = 'Posted Successfully!';
+      subtitle = 'Your post is live and visible to everyone.';
+    } else if (hasVideo) {
+      title = 'Video Posted!';
+      subtitle = 'Your video is live and visible to everyone.';
+    } else {
+      title = 'Images Posted!';
+      subtitle = 'Your images are live and visible to everyone.';
+    }
+
+    return UploadSuccessScreen(
+      title: title,
+      subtitle: subtitle,
+      dismissToRoot: dismissToRoot,
+    );
+  }
+
   void _finish(BuildContext context) {
     if (dismissToRoot) {
       Navigator.of(context).popUntil((route) => route.isFirst);

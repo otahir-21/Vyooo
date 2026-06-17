@@ -272,7 +272,11 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       if (!mounted) return;
       // 6 — navigate to success
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const UploadSuccessScreen()),
+        MaterialPageRoute<void>(
+          builder: (_) => UploadSuccessScreen.forMediaPost(
+            mediaItems: mediaItems,
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
