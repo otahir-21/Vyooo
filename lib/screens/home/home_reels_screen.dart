@@ -31,6 +31,7 @@ import '../../core/services/reel_download_service.dart';
 import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/internet_availability.dart';
 import '../../core/utils/user_facing_errors.dart';
+import '../../core/utils/verification_badge.dart';
 import '../../core/theme/app_background_assets.dart';
 import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
@@ -70,6 +71,20 @@ class _ReelTarget {
 
   final HomeTab tab;
   final int index;
+}
+
+class _ReelAuthorFeedMeta {
+  const _ReelAuthorFeedMeta({
+    this.avatarUrl = '',
+    this.isVerified = false,
+    this.accountType = 'private',
+    this.vipVerified = false,
+  });
+
+  final String avatarUrl;
+  final bool isVerified;
+  final String accountType;
+  final bool vipVerified;
 }
 
 /// Main home screen: vertical reels feed with interactions.
@@ -444,7 +459,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         ...filteredTrending.map((r) => (r['userId'] as String?) ?? ''),
         ...filteredVr.map((r) => (r['userId'] as String?) ?? ''),
       }..removeWhere((id) => id.isEmpty);
-      final latestAvatarByUid = await _fetchLatestProfileImages(reelUserIds);
+      final authorMetaByUid = await _fetchLatestAuthorFeedMeta(reelUserIds);
       if (!mounted || generation != _loadGeneration) return;
 
       final followingSet = followingIds.toSet();
@@ -488,13 +503,15 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       setState(() {
         _reelsLoadError = null;
         _feedRefreshInProgress = false;
-        _reelsForYou = _withLatestAvatars(hydratedForYou, latestAvatarByUid);
-        _reelsFollowing = _withLatestAvatars(hydratedFollowing, latestAvatarByUid);
+        _reelsForYou = _withLatestAuthorMeta(hydratedForYou, authorMetaByUid);
+        _reelsFollowing =
+            _withLatestAuthorMeta(hydratedFollowing, authorMetaByUid);
         if (hydratedTrending.isNotEmpty) {
-          _reelsTrending = _withLatestAvatars(hydratedTrending, latestAvatarByUid);
+          _reelsTrending =
+              _withLatestAuthorMeta(hydratedTrending, authorMetaByUid);
         }
         if (hydratedVr.isNotEmpty) {
-          _reelsVR = _withLatestAvatars(hydratedVr, latestAvatarByUid);
+          _reelsVR = _withLatestAuthorMeta(hydratedVr, authorMetaByUid);
         }
         _storyGroups = filteredStories;
         _myStories = myStories;
@@ -528,29 +545,31 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
   }
 
-  List<Map<String, dynamic>> _withLatestAvatars(
+  List<Map<String, dynamic>> _withLatestAuthorMeta(
     List<Map<String, dynamic>> src,
-    Map<String, String> latestAvatarByUid,
+    Map<String, _ReelAuthorFeedMeta> metaByUid,
   ) {
     return src.map((r) {
-      final id = _asString(r['id']);
-      if (id.isEmpty) return r;
       final cloned = Map<String, dynamic>.from(r);
       final reelUid = (cloned['userId'] as String?) ?? '';
-      final latestAvatar = latestAvatarByUid[reelUid];
-      if (latestAvatar != null && latestAvatar.isNotEmpty) {
-        cloned['avatarUrl'] = latestAvatar;
-        cloned['profileImage'] = latestAvatar;
+      final meta = metaByUid[reelUid];
+      if (meta == null) return cloned;
+      if (meta.avatarUrl.isNotEmpty) {
+        cloned['avatarUrl'] = meta.avatarUrl;
+        cloned['profileImage'] = meta.avatarUrl;
       }
+      cloned['isVerified'] = meta.isVerified;
+      cloned['accountType'] = meta.accountType;
+      cloned['vipVerified'] = meta.vipVerified;
       return cloned;
     }).toList();
   }
 
-  Future<Map<String, String>> _fetchLatestProfileImages(
+  Future<Map<String, _ReelAuthorFeedMeta>> _fetchLatestAuthorFeedMeta(
     Set<String> userIds,
   ) async {
-    if (userIds.isEmpty) return const <String, String>{};
-    final out = <String, String>{};
+    if (userIds.isEmpty) return const <String, _ReelAuthorFeedMeta>{};
+    final out = <String, _ReelAuthorFeedMeta>{};
     final ids = userIds.toList(growable: false);
     for (var i = 0; i < ids.length; i += 10) {
       final chunk = ids.sublist(
@@ -563,10 +582,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             .where(FieldPath.documentId, whereIn: chunk)
             .get();
         for (final d in q.docs) {
-          final image = (d.data()['profileImage'] as String?)?.trim() ?? '';
-          if (image.isNotEmpty) {
-            out[d.id] = image;
-          }
+          final data = d.data();
+          out[d.id] = _ReelAuthorFeedMeta(
+            avatarUrl: (data['profileImage'] as String?)?.trim() ?? '',
+            isVerified: data['isVerified'] == true,
+            accountType: (data['accountType'] as String?) ?? 'private',
+            vipVerified: data['vipVerified'] == true,
+          );
         }
       } catch (_) {
         // Ignore lookup failures and keep feed fallback avatars.
@@ -1939,19 +1961,27 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                             style: AppTypography.feedReelDisplayName,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.all(1.5),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
+                        if (reel['isVerified'] == true) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.all(1.5),
+                            decoration: BoxDecoration(
+                              color: verificationBadgeColor(
+                                isVerified: true,
+                                accountType:
+                                    (reel['accountType'] as String?) ??
+                                        'private',
+                                vipVerified: reel['vipVerified'] == true,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 10,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 10,
-                          ),
-                        ),
+                        ],
                       ],
                     ),
                     GestureDetector(
