@@ -1,6 +1,4 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:country_picker/country_picker.dart';
 
 import '../../core/models/saved_account.dart';
@@ -122,7 +120,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 const SizedBox(height: AppSpacing.authDividerBlock),
                 const AuthLabeledDivider(label: 'Or sign up with'),
                 const SizedBox(height: AppSpacing.authDividerBlock),
-                _buildSocialRow(),
+                AuthSocialSignInRow(
+                  isGoogleLoading: _isGoogleLoading,
+                  isAppleLoading: _isAppleLoading,
+                  onGoogleTap: _onGoogleSignIn,
+                  onAppleTap: _onAppleSignIn,
+                ),
                 const SizedBox(height: AppSpacing.authDividerBlock),
               ],
             ),
@@ -166,34 +169,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildSocialRow() {
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AuthSocialIconButton(
-            icon: FontAwesomeIcons.google,
-            isLoading: _isGoogleLoading,
-            onTap: _onGoogleSignIn,
-          ),
-        ],
-      );
-    }
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AuthSocialIconButton(
-            icon: FontAwesomeIcons.apple,
-            isLoading: _isAppleLoading,
-            onTap: _onAppleSignIn,
-          ),
-        ],
-      );
-    }
-    return const SizedBox.shrink();
   }
 
   Future<void> _onAppleSignIn() async {

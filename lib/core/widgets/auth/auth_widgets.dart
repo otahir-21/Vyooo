@@ -21,4 +21,5 @@ export 'auth_primary_button.dart';
 export 'auth_remember_forgot_row.dart';
 export 'auth_segmented_toggle.dart';
 export 'auth_social_icon_button.dart';
+export 'auth_social_sign_in_row.dart';
 export 'auth_underline_text_field.dart';
