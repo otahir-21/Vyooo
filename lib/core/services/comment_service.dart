@@ -1,7 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../features/comments/models/comment.dart';
+import '../utils/mention_utils.dart';
 import 'auth_service.dart';
+import 'comment_diagnostics.dart';
+import 'comment_post_exception.dart';
+import 'mention_service.dart';
 import 'notification_service.dart';
 import 'user_service.dart';
 
@@ -186,9 +191,16 @@ class CommentService {
     String parentId = '',
   }) async {
     final uid = _uid;
-    if (uid == null) return;
+    if (uid == null) {
+      throw const CommentPostException('You must be signed in to comment.');
+    }
     final trimmed = text.trim();
-    if (trimmed.isEmpty || trimmed.length > maxCommentLength) return;
+    if (trimmed.isEmpty) {
+      throw const CommentPostException('Comment cannot be empty.');
+    }
+    if (trimmed.length > maxCommentLength) {
+      throw const CommentPostException('Comment is too long.');
+    }
 
     final effectiveParent = await _effectiveParentId(reelId, parentId);
 
@@ -228,17 +240,40 @@ class CommentService {
       SetOptions(merge: true),
     );
 
-    await batch.commit();
+    try {
+      await batch.commit();
+    } on FirebaseException catch (e, st) {
+      CommentDiagnostics.logFirestoreFailure(
+        'addComment',
+        e,
+        st,
+        extra: {'reelId': reelId, 'text': trimmed},
+      );
+      rethrow;
+    }
+
+    if (kDebugMode) {
+      final handles = MentionUtils.extractMentionUsernames(trimmed);
+      CommentDiagnostics.log(
+        'Posted reel comment ${commentRef.id} mentions=$handles',
+      );
+    }
+
     final displayComment = trimmed.length > 60 ? '${trimmed.substring(0, 57)}...' : trimmed;
+    final skipMentionNotify = <String>{uid, reelOwnerId};
 
     // Notify Reel Owner
     if (reelOwnerId.isNotEmpty && reelOwnerId != uid) {
-      await NotificationService().create(
-        recipientId: reelOwnerId,
-        type: AppNotificationType.comment,
-        message: 'commented on your post: "$displayComment"',
-        extra: {'reelId': reelId, 'commentId': commentRef.id},
-      );
+      try {
+        await NotificationService().create(
+          recipientId: reelOwnerId,
+          type: AppNotificationType.comment,
+          message: 'commented on your post: "$displayComment"',
+          extra: {'reelId': reelId, 'commentId': commentRef.id},
+        );
+      } catch (e, st) {
+        CommentDiagnostics.logFailure('reel owner notify', e, st);
+      }
     }
 
     // Notify Parent Comment Author (if it's a reply)
@@ -246,6 +281,9 @@ class CommentService {
       try {
         final parentDoc = await _comments(reelId).doc(effectiveParent).get();
         final parentAuthorId = (parentDoc.data()?['userId'] as String?) ?? '';
+        if (parentAuthorId.isNotEmpty) {
+          skipMentionNotify.add(parentAuthorId);
+        }
         if (parentAuthorId.isNotEmpty && parentAuthorId != uid && parentAuthorId != reelOwnerId) {
           await NotificationService().create(
             recipientId: parentAuthorId,
@@ -254,7 +292,21 @@ class CommentService {
             extra: {'reelId': reelId, 'commentId': commentRef.id, 'parentId': effectiveParent},
           );
         }
-      } catch (_) {}
+      } catch (e, st) {
+        CommentDiagnostics.logFailure('parent comment notify', e, st);
+      }
+    }
+
+    try {
+      await MentionService().notifyMentionedUsers(
+        text: trimmed,
+        taggerUid: uid,
+        displayComment: displayComment,
+        extra: {'reelId': reelId, 'commentId': commentRef.id},
+        skipRecipientIds: skipMentionNotify,
+      );
+    } catch (e, st) {
+      CommentDiagnostics.logFailure('mention notify', e, st);
     }
   }
 

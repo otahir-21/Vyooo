@@ -8,6 +8,8 @@ import 'package:flutter/services.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_background_assets.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/comment_diagnostics.dart';
+import '../../../core/services/comment_post_exception.dart';
 import '../../../core/services/comment_service.dart';
 import '../../../core/services/story_comment_service.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -15,6 +17,7 @@ import '../../../core/utils/user_facing_errors.dart';
 import '../comment_text_styles.dart';
 import '../models/comment.dart';
 import 'comment_tile.dart';
+import 'comment_mention_field.dart';
 import 'report_comment_sheet.dart';
 
 // ── Public entry-point ────────────────────────────────────────────────────────
@@ -135,6 +138,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
   final _storyCommentService = StoryCommentService();
   final _textCtrl = TextEditingController();
   final _focusNode = FocusNode();
+  final _mentionFieldKey = GlobalKey<CommentMentionFieldState>();
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _tailSub;
 
@@ -337,14 +341,24 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
   Future<void> _post() async {
     final text = _textCtrl.text;
     final maxLen = CommentService.maxCommentLength;
+    final trimmed = text.trim();
     if (_posting ||
-        text.trim().isEmpty ||
-        text.length > maxLen ||
+        trimmed.isEmpty ||
+        trimmed == '@' ||
+        trimmed.length > maxLen ||
         AuthService().currentUser == null) {
+      if (trimmed == '@') {
+        _showErrorSnack('Pick a user from the list to complete the mention.');
+      }
       return;
     }
 
+    _mentionFieldKey.currentState?.dismissSuggestions();
     setState(() => _posting = true);
+    CommentDiagnostics.log(
+      'Posting comment on ${widget.forStory ? 'story' : 'reel'} '
+      '${widget.contentId}: "$trimmed"',
+    );
     try {
       if (widget.forStory) {
         await _storyCommentService.addComment(
@@ -367,7 +381,20 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
         _replyUsername = '';
       });
       widget.onCommentCountChanged?.call(1);
-    } catch (e) {
+    } on CommentPostException catch (e, st) {
+      CommentDiagnostics.logFailure('post validation', e, st);
+      if (mounted) _showErrorSnack(e.message);
+    } catch (e, st) {
+      CommentDiagnostics.logFailure(
+        'post',
+        e,
+        st,
+        extra: {
+          'contentId': widget.contentId,
+          'forStory': widget.forStory,
+          'text': trimmed,
+        },
+      );
       if (mounted) _showErrorSnack(messageForFirestore(e));
     } finally {
       if (mounted) setState(() => _posting = false);
@@ -621,18 +648,22 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
     final keyboardBottom = MediaQuery.viewInsetsOf(context).bottom;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final maxLen = CommentService.maxCommentLength;
+    final trimmed = _textCtrl.text.trim();
     final textLen = _textCtrl.text.length;
     final overLimit = textLen > maxLen;
     final canSend =
-        textLen > 0 &&
+        trimmed.isNotEmpty &&
         !overLimit &&
         !_posting &&
         AuthService().currentUser != null;
 
+    final keyboardOpen = keyboardBottom > 0;
+    final inputBottomInset = keyboardOpen ? 8.0 : safeBottom;
+
     return DraggableScrollableSheet(
       initialChildSize: 0.72,
       // Keep enough height for header + input when dragged down (avoids Column overflow).
-      minChildSize: 0.48,
+      minChildSize: keyboardOpen ? 0.52 : 0.48,
       maxChildSize: 0.95,
       builder: (context, scrollController) {
         const sheetRadius = BorderRadius.vertical(top: Radius.circular(16));
@@ -650,22 +681,25 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
               ),
               child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final compact = constraints.maxHeight < 260;
-                    final hideTitle = constraints.maxHeight < 210;
+                    final ultraCompact = constraints.maxHeight < 130;
+                    final compact = constraints.maxHeight < 260 || keyboardOpen;
+                    final hideTitle = constraints.maxHeight < 210 || ultraCompact;
+                    final hideHandle = ultraCompact;
 
                     return Column(
                       children: [
-                        Center(
-                          child: Container(
-                            margin: EdgeInsets.only(top: compact ? 8 : 10),
-                            width: 66,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(100),
+                        if (!hideHandle)
+                          Center(
+                            child: Container(
+                              margin: EdgeInsets.only(top: compact ? 8 : 10),
+                              width: 66,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(100),
+                              ),
                             ),
                           ),
-                        ),
                         if (!hideTitle)
                           Padding(
                             padding: EdgeInsets.only(
@@ -679,18 +713,21 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                             ),
                           ),
                         Expanded(
-                          child: StreamBuilder<User?>(
-                            stream: FirebaseAuth.instance.authStateChanges(),
-                            builder: (context, authSnap) {
-                              final signedIn = authSnap.data != null;
-                              return _buildCommentList(
-                                scrollController,
-                                signedIn,
-                              );
-                            },
-                          ),
+                          child: ultraCompact
+                              ? const SizedBox.shrink()
+                              : StreamBuilder<User?>(
+                                  stream: FirebaseAuth.instance
+                                      .authStateChanges(),
+                                  builder: (context, authSnap) {
+                                    final signedIn = authSnap.data != null;
+                                    return _buildCommentList(
+                                      scrollController,
+                                      signedIn,
+                                    );
+                                  },
+                                ),
                         ),
-                        if (_replyParentId != null)
+                        if (_replyParentId != null && !ultraCompact)
                           _ReplyBanner(
                             username: _replyUsername,
                             compact: compact,
@@ -709,7 +746,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                                   16,
                                   0,
                                   16,
-                                  (compact ? 8 : 12) + safeBottom,
+                                  (compact ? 8 : 12) + inputBottomInset,
                                 ),
                                 child: const Text(
                                   'Sign in to comment.',
@@ -718,6 +755,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                               );
                             }
                             return _InputBar(
+                              mentionFieldKey: _mentionFieldKey,
                               controller: _textCtrl,
                               focusNode: _focusNode,
                               isReply: _replyParentId != null,
@@ -726,7 +764,7 @@ class _CommentsBottomSheetBodyState extends State<_CommentsBottomSheetBody> {
                               overLimit: overLimit,
                               canSend: canSend,
                               posting: _posting,
-                              safeBottom: safeBottom,
+                              bottomInset: inputBottomInset,
                               compact: compact,
                               onPost: _post,
                             );
@@ -938,6 +976,7 @@ class _ReplyBanner extends StatelessWidget {
 /// Text field + send button
 class _InputBar extends StatelessWidget {
   const _InputBar({
+    required this.mentionFieldKey,
     required this.controller,
     required this.focusNode,
     required this.isReply,
@@ -946,10 +985,12 @@ class _InputBar extends StatelessWidget {
     required this.overLimit,
     required this.canSend,
     required this.posting,
-    required this.safeBottom,
+    required this.bottomInset,
     required this.onPost,
     this.compact = false,
   });
+
+  final GlobalKey<CommentMentionFieldState> mentionFieldKey;
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -959,7 +1000,7 @@ class _InputBar extends StatelessWidget {
   final bool overLimit;
   final bool canSend;
   final bool posting;
-  final double safeBottom;
+  final double bottomInset;
   final VoidCallback onPost;
   final bool compact;
 
@@ -967,52 +1008,20 @@ class _InputBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final fieldPadding = compact ? 8.0 : 12.0;
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 4, 12, (compact ? 8 : 12) + safeBottom),
+      padding: EdgeInsets.fromLTRB(12, 4, 12, (compact ? 6 : 10) + bottomInset),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Text field
           Expanded(
-            child: TextField(
+            child: CommentMentionField(
+              key: mentionFieldKey,
               controller: controller,
               focusNode: focusNode,
-              minLines: 1,
-              maxLines: 4,
-              // maxLength: maxLen,
-              style: CommentTextStyles.input,
-              decoration: InputDecoration(
-                hintText: isReply ? 'Write a reply…' : 'Add a comment…',
-                hintStyle: CommentTextStyles.inputHint,
-                filled: true,
-                fillColor: const Color(0x14FFFFFF), // 8%
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(
-                    color: Color(0x33FFFFFF),
-                    width: 1,
-                  ),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: fieldPadding,
-                ),
-                // counterText: '$textLen / $maxLen',
-                counterStyle: TextStyle(
-                  color: overLimit
-                      ? const Color(0xFFF81945)
-                      : const Color(0x73FFFFFF), // 45%
-                  fontSize: 11,
-                ),
-              ),
-              textCapitalization: TextCapitalization.sentences,
+              isReply: isReply,
+              fieldPadding: fieldPadding,
+              canSubmit: canSend,
+              onSubmit: onPost,
             ),
           ),
           const SizedBox(width: 8),
@@ -1046,6 +1055,7 @@ class _SendButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onPressed,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),

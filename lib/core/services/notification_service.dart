@@ -10,6 +10,7 @@ enum AppNotificationType {
   followRequestAccepted,
   like,
   comment,
+  mention,
   share,
   repost,
   subscribe,

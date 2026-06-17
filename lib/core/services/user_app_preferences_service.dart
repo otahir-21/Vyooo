@@ -44,6 +44,13 @@ class UserAppPreferencesService {
     if (uid == null || uid.isEmpty) {
       return const UserAppPreferences();
     }
+    final prefs = await getForUser(uid);
+    await _mirrorAllowTagsFrom(uid, prefs.allowTagsFrom);
+    return prefs;
+  }
+
+  Future<UserAppPreferences> getForUser(String uid) async {
+    if (uid.isEmpty) return const UserAppPreferences();
     final ref = _docRef(uid);
     if (ref == null) return const UserAppPreferences();
     final snap = await ref.get();
@@ -56,5 +63,15 @@ class UserAppPreferencesService {
     final ref = _docRef(uid);
     if (ref == null) return;
     await ref.set(prefs.toMap(), SetOptions(merge: true));
+    await _mirrorAllowTagsFrom(uid, prefs.allowTagsFrom);
+  }
+
+  /// Public copy on `users/{uid}` for mention privacy checks by other clients.
+  Future<void> _mirrorAllowTagsFrom(String uid, String allowTagsFrom) async {
+    if (uid.isEmpty) return;
+    await _db.collection('users').doc(uid).set(
+      {'allowTagsFrom': allowTagsFrom},
+      SetOptions(merge: true),
+    );
   }
 }

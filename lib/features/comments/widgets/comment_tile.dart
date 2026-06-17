@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../comment_text_styles.dart';
 import '../models/comment.dart';
+import 'comment_text_with_mentions.dart';
 
 /// Single comment row: avatar, username, time, text, Reply/View replies, like.
 class CommentTile extends StatelessWidget {
@@ -90,10 +91,7 @@ class CommentTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  Text(
-                    comment.text,
-                    style: CommentTextStyles.body,
-                  ),
+                  CommentTextWithMentions(text: comment.text),
                   const SizedBox(height: 6),
 
                   Row(

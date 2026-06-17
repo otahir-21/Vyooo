@@ -664,6 +664,7 @@ class _NotifTile extends StatelessWidget {
       case 'followRequestAccepted':
         return const SizedBox.shrink();
       case 'comment':
+      case 'mention':
         return _OutlinePillButton(
           label: 'Reply',
           onTap: onReply,

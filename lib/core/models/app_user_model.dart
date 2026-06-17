@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'parent_consent_constants.dart';
 import 'post_location_model.dart';
+import 'user_app_preferences.dart';
 
 String _readFirestoreString(dynamic value, {String fallback = ''}) {
   if (value == null) return fallback;
@@ -73,6 +74,7 @@ class AppUserModel {
     this.profileLocation,
     this.locationSetupComplete = false,
     this.profileImageSetupComplete = false,
+    this.allowTagsFrom = AudienceOption.everyone,
   });
 
   final String uid;
@@ -128,6 +130,9 @@ class AppUserModel {
   /// True after the onboarding profile-photo step is completed or skipped.
   /// A non-empty [profileImage] also counts as done (legacy users).
   final bool profileImageSetupComplete;
+
+  /// Mirrored from `settings/app` so other users can enforce tag privacy.
+  final String allowTagsFrom;
 
   Map<String, dynamic> toJson() {
     return {
@@ -274,6 +279,7 @@ class AppUserModel {
         json['profileImageSetupComplete'],
         fallback: false,
       ),
+      allowTagsFrom: AudienceOption.sanitize(json['allowTagsFrom']),
     );
   }
 
@@ -310,6 +316,7 @@ class AppUserModel {
     PostLocation? profileLocation,
     bool? locationSetupComplete,
     bool? profileImageSetupComplete,
+    String? allowTagsFrom,
   }) {
     return AppUserModel(
       uid: uid ?? this.uid,
@@ -346,6 +353,7 @@ class AppUserModel {
           locationSetupComplete ?? this.locationSetupComplete,
       profileImageSetupComplete:
           profileImageSetupComplete ?? this.profileImageSetupComplete,
+      allowTagsFrom: allowTagsFrom ?? this.allowTagsFrom,
     );
   }
 }

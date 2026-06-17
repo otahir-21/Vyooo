@@ -330,7 +330,10 @@ class UserService {
       if (q.docs.isEmpty) return null;
       if (q.docs.length > 1) return null;
       return AppUserModel.fromJson(q.docs.first.data());
-    } catch (_) {
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('[UserService] getUserByUsername($key) failed: $e\n$st');
+      }
       return null;
     }
   }
@@ -1023,8 +1026,9 @@ class UserService {
         final uid = model.uid.isNotEmpty ? model.uid : d.id;
         if (uid == currentUid || excludeIds.contains(uid)) continue;
         final name = (model.username ?? '').trim().toLowerCase();
+        final displayName = (model.displayName ?? '').trim().toLowerCase();
         final emailName = model.email.split('@').first.toLowerCase();
-        final searchable = '$name $emailName';
+        final searchable = '$name $displayName $emailName';
         if (q.isNotEmpty && !searchable.contains(q)) continue;
         out.add(model.copyWith(uid: uid));
       }
@@ -1032,6 +1036,145 @@ class UserService {
     } catch (_) {
       return [];
     }
+  }
+
+  bool _userMatchesMentionQuery(AppUserModel user, String queryLower) {
+    if (queryLower.isEmpty) return true;
+    final username = (user.username ?? '').trim().toLowerCase();
+    final displayName = (user.displayName ?? '').trim().toLowerCase();
+    if (username.startsWith(queryLower) || displayName.startsWith(queryLower)) {
+      return true;
+    }
+    return username.contains(queryLower) || displayName.contains(queryLower);
+  }
+
+  UserDiscoveryItem _discoveryItemFromUser(
+    AppUserModel user, {
+    required Set<String> following,
+    bool outgoingFollowRequestPending = false,
+  }) {
+    final uid = user.uid;
+    final username = (user.username ?? '').trim().isNotEmpty
+        ? user.username!.trim()
+        : (user.email.contains('@') ? user.email.split('@').first : uid);
+    final displayName = (user.displayName ?? '').trim().isNotEmpty
+        ? user.displayName!.trim()
+        : username;
+    return UserDiscoveryItem(
+      uid: uid,
+      username: username,
+      displayName: displayName,
+      avatarUrl: (user.profileImage ?? '').trim(),
+      isFollowing: following.contains(uid),
+      followerCount: user.followersCount,
+      isVerified: user.isVerified,
+      accountType: user.accountType,
+      vipVerified: user.vipVerified,
+      monetizationEnabled: user.monetizationEnabled,
+      outgoingFollowRequestPending: outgoingFollowRequestPending,
+    );
+  }
+
+  /// Mention autocomplete: following first, then username prefix query.
+  Future<List<UserDiscoveryItem>> searchUsersForMention({
+    required String currentUid,
+    String query = '',
+    int limit = 8,
+  }) async {
+    if (currentUid.isEmpty) return const [];
+    final q = query.trim().toLowerCase();
+    final blocked = await getBlockedUserIds(currentUid);
+    final following = await getFollowing(currentUid);
+    final followingSet = following.toSet();
+
+    final models = <AppUserModel>[];
+    final seen = <String>{};
+
+    void tryAdd(AppUserModel user) {
+      final uid = user.uid.trim().isNotEmpty ? user.uid.trim() : '';
+      if (uid.isEmpty ||
+          uid == currentUid ||
+          blocked.contains(uid) ||
+          seen.contains(uid)) {
+        return;
+      }
+      if (!_userMatchesMentionQuery(user, q)) return;
+      seen.add(uid);
+      models.add(user);
+    }
+
+    if (following.isNotEmpty) {
+      final followingUsers = await getUsersByIds(following);
+      followingUsers.sort(
+        (a, b) => (a.username ?? '').toLowerCase().compareTo(
+          (b.username ?? '').toLowerCase(),
+        ),
+      );
+      for (final user in followingUsers) {
+        tryAdd(user);
+        if (models.length >= limit) break;
+      }
+    }
+
+    if (models.length < limit && q.isNotEmpty) {
+      final normalized = UsernameValidation.normalize(q);
+      if (normalized.isNotEmpty) {
+        try {
+          final snap = await _firestore
+              .collection(_usersCollection)
+              .where('username', isGreaterThanOrEqualTo: normalized)
+              .where('username', isLessThanOrEqualTo: '$normalized\uf8ff')
+              .limit(limit)
+              .get();
+          for (final doc in snap.docs) {
+            final data = doc.data();
+            final uid = (data['uid'] as String?)?.trim().isNotEmpty == true
+                ? (data['uid'] as String).trim()
+                : doc.id;
+            tryAdd(AppUserModel.fromJson(data).copyWith(uid: uid));
+            if (models.length >= limit) break;
+          }
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint(
+              '[UserService] mention username prefix search failed: $e\n$st',
+            );
+          }
+        }
+      }
+    }
+
+    if (models.length < limit) {
+      final extra = await discoverUsers(
+        currentUid: currentUid,
+        query: q,
+        excludeIds: blocked.toSet(),
+        limit: 80,
+      );
+      for (final user in extra) {
+        tryAdd(user);
+        if (models.length >= limit) break;
+      }
+    }
+
+    models.sort((a, b) {
+      final aFollow = followingSet.contains(a.uid);
+      final bFollow = followingSet.contains(b.uid);
+      if (aFollow != bFollow) return aFollow ? -1 : 1;
+      return (a.username ?? '').toLowerCase().compareTo(
+        (b.username ?? '').toLowerCase(),
+      );
+    });
+
+    return models
+        .take(limit)
+        .map(
+          (user) => _discoveryItemFromUser(
+            user,
+            following: followingSet,
+          ),
+        )
+        .toList();
   }
 
   /// Centralized discover/search list used by profile + global search.

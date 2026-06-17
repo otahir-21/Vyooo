@@ -540,6 +540,13 @@ service cloud.firestore {
                       || minorParentInviteSubmit(userId)
                       || minorParentalConsentSync(userId)
                       || minorParentalResubmitAfterDeny(userId)
+                      // Public tag policy mirror from settings/app (mention checks).
+                      || (isOwner(userId)
+                          && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['allowTagsFrom'])
+                          && request.resource.data.allowTagsFrom in [
+                            'everyone', 'followers', 'nobody',
+                          ])
                     )
                     || (isSignedIn()
                         && !isOwner(userId)
@@ -693,6 +700,7 @@ service cloud.firestore {
                       'likeCount',
                       'createdAt',
                       'isVerified',
+                      'mentionedUserIds',
                     ])
                     && request.resource.data.username is string
                     && request.resource.data.avatarUrl is string
@@ -701,7 +709,14 @@ service cloud.firestore {
                     && request.resource.data.likeCount is int
                     && request.resource.data.likeCount == 0
                     && request.resource.data.createdAt is timestamp
-                    && request.resource.data.isVerified is bool;
+                    && request.resource.data.isVerified is bool
+                    && (
+                      !('mentionedUserIds' in request.resource.data)
+                      || (
+                        request.resource.data.mentionedUserIds is list
+                        && request.resource.data.mentionedUserIds.size() <= 30
+                      )
+                    );
       // Subtree deletes may include reply docs by other users (same as reels pattern).
       allow delete: if isSignedIn() && parentStoryReadable(storyId);
       allow update: if isSignedIn()
