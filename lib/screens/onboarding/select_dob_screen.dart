@@ -262,6 +262,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
           Row(
             children: [
               Expanded(
+                flex: 3,
                 child: CupertinoPicker.builder(
                   scrollController: _monthController,
                   itemExtent: _pickerItemExtent,
@@ -277,7 +278,14 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
                         style: selected
                             ? AppTypography.dobPickerSelected
                             : AppTypography.dobPickerUnselected,
-                        child: Text(_monthNames[index]),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _monthNames[index],
+                            maxLines: 1,
+                            softWrap: false,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -285,6 +293,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
               ),
 
               Expanded(
+                flex: 1,
                 child: CupertinoPicker.builder(
                   scrollController: _dayController,
                   itemExtent: _pickerItemExtent,
@@ -308,6 +317,7 @@ class _SelectDobScreenState extends State<SelectDobScreen> {
               ),
 
               Expanded(
+                flex: 2,
                 child: CupertinoPicker.builder(
                   scrollController: _yearController,
                   itemExtent: _pickerItemExtent,
