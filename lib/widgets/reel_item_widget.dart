@@ -81,6 +81,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _isAppForeground = true;
   bool _isTickerActive = true;
   bool _isRouteObserverSubscribed = false;
+  bool _playStateRebuildScheduled = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -157,10 +158,30 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   }
 
   @override
+  void activate() {
+    super.activate();
+    final ctrl = _controller;
+    if (ctrl != null) {
+      ctrl.removeListener(_onControllerValueChanged);
+      ctrl.addListener(_onControllerValueChanged);
+      _lastIsPlaying = ctrl.value.isPlaying;
+    }
+  }
+
+  @override
   void deactivate() {
     // Pause before child VideoProgressIndicator is disposed (incoming call overlay
     // backgrounds MainActivity and async position updates can crash otherwise).
-    _controller?.pause();
+    // Detach the listener first: pause() notifies listeners and must not call
+    // setState while the element tree is deactivating.
+    final ctrl = _controller;
+    if (ctrl != null) {
+      ctrl.removeListener(_onControllerValueChanged);
+      if (ctrl.value.isPlaying) {
+        ctrl.pause();
+        _lastIsPlaying = false;
+      }
+    }
     super.deactivate();
   }
 
@@ -337,7 +358,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     final isPlaying = ctrl.value.isPlaying;
     if (isPlaying != _lastIsPlaying) {
       _lastIsPlaying = isPlaying;
-      if (mounted) setState(() {});
+      _schedulePlayStateRebuild();
     }
     if (isPlaying && !_hasNotifiedPlaybackStart) {
       _hasNotifiedPlaybackStart = true;
@@ -352,6 +373,15 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         widget.onVideoCompleted!();
       }
     }
+  }
+
+  void _schedulePlayStateRebuild() {
+    if (_playStateRebuildScheduled || !mounted) return;
+    _playStateRebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playStateRebuildScheduled = false;
+      if (mounted) setState(() {});
+    });
   }
 
   List<String> _candidateUrls(String raw) {

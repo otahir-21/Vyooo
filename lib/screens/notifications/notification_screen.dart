@@ -7,9 +7,13 @@ import '../../core/models/app_user_model.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/reels_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/utils/user_facing_errors.dart';
+import '../../core/widgets/app_network_avatar.dart';
+import '../../core/widgets/profile/profile_reel_grid_navigation.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
+import '../profile/profile_figma_tokens.dart';
 import '../profile/user_profile_screen.dart';
 
 /// Notifications tab: grouped by Today / Yesterday / Last 7 days.
@@ -156,6 +160,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                         isFollowingInProgress: isFollowingInProgress,
                         showFollowRequestActions: false,
                         onOpenProfile: () => _openActorProfile(item),
+                        onOpenPost: () => _openLinkedPost(item),
                         onFollowBack: () => _handleFollowBack(item),
                         onReply: () => _handleReply(item),
                         onAcceptFollowRequest: () =>
@@ -181,6 +186,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                             isFollowingInProgress: isFollowingInProgress,
                             showFollowRequestActions: showActions,
                             onOpenProfile: () => _openActorProfile(item),
+                            onOpenPost: () => _openLinkedPost(item),
                             onFollowBack: () => _handleFollowBack(item),
                             onReply: () => _handleReply(item),
                             onAcceptFollowRequest: () =>
@@ -200,6 +206,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                       isFollowRequested: isFollowRequested,
                       isFollowingInProgress: isFollowingInProgress,
                       onOpenProfile: () => _openActorProfile(item),
+                      onOpenPost: () => _openLinkedPost(item),
                       onFollowBack: () => _handleFollowBack(item),
                       onReply: () => _handleReply(item),
                       onAcceptFollowRequest: () =>
@@ -220,6 +227,56 @@ class _NotificationScreenState extends State<NotificationScreen>
           },
         );
       },
+    );
+  }
+
+  Future<void> _openLinkedPost(AppNotification item) async {
+    await NotificationService().markAsRead(item.id);
+    final reelId = item.reelId.trim();
+    if (reelId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Post not available for this notification.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final reel = await ReelsService().getReelById(reelId);
+    if (!mounted) return;
+    if (reel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This post is no longer available.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (reel['isVR'] == true) {
+      ProfileReelGridNavigation.openVRDetail(context: context, item: reel);
+      return;
+    }
+
+    final username = (reel['username'] as String? ?? '').trim();
+    final avatarUrl = (reel['avatarUrl'] as String? ?? '').trim();
+    final handle = username.isNotEmpty
+        ? ProfileFigmaTokens.displayUsername(username)
+        : ProfileFigmaTokens.displayUsername(item.actorUsername);
+    ProfileReelGridNavigation.openPostFeed(
+      context: context,
+      posts: [reel],
+      index: 0,
+      fallbackDisplayName: item.actorUsername.isNotEmpty
+          ? item.actorUsername
+          : 'Creator',
+      fallbackUsername: handle,
+      fallbackAvatarUrl: avatarUrl.isNotEmpty ? avatarUrl : item.actorAvatarUrl,
+      fallbackIsVerified: false,
+      liveIsVerified: reel['isVerified'] == true,
     );
   }
 
@@ -510,6 +567,7 @@ class _NotifTile extends StatelessWidget {
     required this.isFollowRequested,
     required this.isFollowingInProgress,
     required this.onOpenProfile,
+    required this.onOpenPost,
     this.showFollowRequestActions = true,
     this.onFollowBack,
     this.onReply,
@@ -524,10 +582,14 @@ class _NotifTile extends StatelessWidget {
   /// When false, hide Accept/Decline for [AppNotificationType.followRequest] rows.
   final bool showFollowRequestActions;
   final VoidCallback onOpenProfile;
+  final VoidCallback onOpenPost;
   final VoidCallback? onFollowBack;
   final VoidCallback? onReply;
   final VoidCallback? onAcceptFollowRequest;
   final VoidCallback? onDeclineFollowRequest;
+
+  bool get _showsLinkedPostPreview =>
+      item.type == AppNotificationType.like && item.reelId.trim().isNotEmpty;
 
   String _actorLabel(AppUserModel? user) {
     final fromUser = (user?.username ?? '').trim().isNotEmpty
@@ -569,6 +631,7 @@ class _NotifTile extends StatelessWidget {
     required String actorLabel,
     required String actorAvatarUrl,
   }) {
+    final contentTap = _showsLinkedPostPreview ? onOpenPost : onOpenProfile;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -581,7 +644,7 @@ class _NotifTile extends StatelessWidget {
         Expanded(
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: onOpenProfile,
+            onTap: contentTap,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -607,55 +670,62 @@ class _NotifTile extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        _buildActionButton(),
+        _showsLinkedPostPreview
+            ? _NotifPostPreview(
+                reelId: item.reelId.trim(),
+                onTap: onOpenPost,
+              )
+            : _buildActionButton(),
       ],
     );
   }
 
   Widget _buildAvatar(String actorAvatarUrl) {
-    if (actorAvatarUrl.isEmpty) {
-      return Container(
-        width: 46,
-        height: 46,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF490038), Color(0xFFDE106B)],
-          ),
-        ),
-        child: Center(
-          child: Image.asset(
-            'assets/BrandLogo/Vyooo logo (2).png',
-            width: 26,
-            height: 26,
-            fit: BoxFit.contain,
-            errorBuilder: (context0, err, stack) => const Text(
-              'V',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-        ),
-      );
+    const size = 46.0;
+    final senderId = item.senderId.trim();
+    if (actorAvatarUrl.isEmpty && senderId.isEmpty) {
+      return _buildBrandAvatarFallback(size);
     }
 
-    return ClipOval(
-      child: Container(
-        width: 46,
-        height: 46,
-        color: Colors.white.withValues(alpha: 0.15),
-        child: Image.network(
-          actorAvatarUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Icon(
-            Icons.person_rounded,
-            color: Colors.white.withValues(alpha: 0.6),
-            size: 24,
+    return AppNetworkAvatar(
+      imageUrl: actorAvatarUrl,
+      userId: senderId.isEmpty ? null : senderId,
+      size: size,
+      fallback: Center(
+        child: Icon(
+          Icons.person_rounded,
+          color: Colors.white.withValues(alpha: 0.6),
+          size: 24,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBrandAvatarFallback(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF490038), Color(0xFFDE106B)],
+        ),
+      ),
+      child: Center(
+        child: Image.asset(
+          'assets/BrandLogo/Vyooo logo (2).png',
+          width: 26,
+          height: 26,
+          fit: BoxFit.contain,
+          errorBuilder: (context0, err, stack) => const Text(
+            'V',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
         ),
       ),
@@ -718,6 +788,68 @@ class _NotifTile extends StatelessWidget {
     if (diff.inHours < 1) return '${diff.inMinutes}m';
     if (diff.inDays < 1) return '${diff.inHours}h';
     return '${diff.inDays}d';
+  }
+}
+
+class _NotifPostPreview extends StatefulWidget {
+  const _NotifPostPreview({
+    required this.reelId,
+    required this.onTap,
+  });
+
+  final String reelId;
+  final VoidCallback onTap;
+
+  @override
+  State<_NotifPostPreview> createState() => _NotifPostPreviewState();
+}
+
+class _NotifPostPreviewState extends State<_NotifPostPreview> {
+  static const double _size = 46;
+
+  late final Future<Map<String, dynamic>?> _reelFuture =
+      ReelsService().getReelById(widget.reelId);
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _reelFuture,
+      builder: (context, snapshot) {
+        final reel = snapshot.data;
+        final thumb = reel == null
+            ? ''
+            : ProfileReelGridNavigation.defaultThumbnailFromReel(reel);
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              width: _size,
+              height: _size,
+              child: thumb.isNotEmpty
+                  ? Image.network(
+                      thumb,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _placeholder(),
+                    )
+                  : _placeholder(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _placeholder() {
+    return ColoredBox(
+      color: Colors.white.withValues(alpha: 0.12),
+      child: Icon(
+        Icons.image_outlined,
+        color: Colors.white.withValues(alpha: 0.45),
+        size: 22,
+      ),
+    );
   }
 }
 
