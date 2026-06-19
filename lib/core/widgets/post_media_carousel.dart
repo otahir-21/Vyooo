@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/reel_media_item.dart';
 import '../theme/app_spacing.dart';
+import 'double_tap_like_overlay.dart';
 import '../../widgets/reel_item_widget.dart';
 
 /// Instagram-style horizontal media carousel for multi-media posts.
@@ -130,7 +131,7 @@ class _PostMediaCarouselState extends State<PostMediaCarousel> {
         onDoubleTap: widget.onDoubleTap,
       );
     }
-    return GestureDetector(
+    return DoubleTapLikeOverlay(
       onDoubleTap: widget.onDoubleTap,
       child: ColoredBox(
         color: Colors.black,

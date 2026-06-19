@@ -16,6 +16,7 @@ import '../../core/models/reel_count_privacy.dart';
 import '../../core/models/reel_media_item.dart';
 import '../../core/utils/reel_engagement.dart';
 import '../../core/widgets/post_media_carousel.dart';
+import '../../core/widgets/double_tap_like_overlay.dart';
 import '../../core/models/story_model.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/services/auth_service.dart';
@@ -500,6 +501,13 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
       if (!mounted || generation != _loadGeneration) return;
 
+      final inFlightLikes = Set<String>.from(_likeInFlight);
+      final optimisticLiked = Map<String, bool>.from(_likedReels);
+      debugPrint(
+        '[Vyooo][Like][UI] supplement reload liked=${likedIds.length} '
+        'inFlight=${inFlightLikes.length}',
+      );
+
       setState(() {
         _reelsLoadError = null;
         _feedRefreshInProgress = false;
@@ -517,9 +525,21 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         _myStories = myStories;
         _myAvatarUrl = avatarUrl;
         _followingIds = followingIds;
-        _likedReels
-          ..clear()
-          ..addEntries(likedIds.map((id) => MapEntry(id, true)));
+        _mergeLikedStateFromServer(likedIds);
+        for (final id in inFlightLikes) {
+          final want = optimisticLiked[id];
+          if (want == true && !likedIds.contains(id)) {
+            _adjustReelStat(id, 'likes', 1);
+            debugPrint(
+              '[Vyooo][Like][UI] supplement re-apply +1 likes id=$id',
+            );
+          } else if (want == false && likedIds.contains(id)) {
+            _adjustReelStat(id, 'likes', -1);
+            debugPrint(
+              '[Vyooo][Like][UI] supplement re-apply -1 likes id=$id',
+            );
+          }
+        }
         _favoriteReels
           ..clear()
           ..addEntries(favoriteIds.map((id) => MapEntry(id, true)));
@@ -867,9 +887,16 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Future<void> _onLike(String reelId, bool currentlyLiked) async {
-    if (_likeInFlight.contains(reelId)) return;
+    if (_likeInFlight.contains(reelId)) {
+      debugPrint('[Vyooo][Like][UI] skip — already in flight reelId=$reelId');
+      return;
+    }
 
     final wantLiked = !currentlyLiked;
+    debugPrint(
+      '[Vyooo][Like][UI] tap reelId=$reelId currentlyLiked=$currentlyLiked '
+      'wantLiked=$wantLiked',
+    );
     _likeInFlight.add(reelId);
     setState(() {
       _likedReels[reelId] = wantLiked;
@@ -883,23 +910,33 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _likeInFlight.remove(reelId);
     if (!mounted) return;
 
+    debugPrint(
+      '[Vyooo][Like][UI] result reelId=$reelId wantLiked=$wantLiked actual=$actual',
+    );
+
     if (actual != wantLiked) {
+      debugPrint('[Vyooo][Like][UI] ROLLBACK reelId=$reelId');
       setState(() {
         _likedReels[reelId] = actual;
-        _adjustReelStat(reelId, 'likes', actual ? 1 : -1);
+        _adjustReelStat(reelId, 'likes', wantLiked ? -1 : 1);
       });
+      return;
     }
+
+    await _syncReelEngagementFromServer(reelId);
   }
 
   void _onDoubleTapLike(int feedIndex) {
     final reels = _currentReels;
     if (reels.isEmpty) return;
     final reel = reels[_feedIndexForPage(feedIndex, reels.length)];
-    final reelId = _asString(reel['id']);
-    if (reelId.isEmpty) return;
-    final alreadyLiked = _likedReels[reelId] ?? false;
-    if (alreadyLiked || _likeInFlight.contains(reelId)) return;
-    _onLike(reelId, false);
+    final engagementId = ReelEngagement.sourceReelId(reel);
+    if (engagementId.isEmpty) return;
+    if (_likeInFlight.contains(engagementId)) return;
+    final alreadyLiked = _likedReels[engagementId] ?? false;
+    if (!alreadyLiked) {
+      _onLike(engagementId, false);
+    }
   }
 
   Future<void> _onFavorite(String reelId, bool currentlyFavorite) async {
@@ -1085,6 +1122,103 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     bump(_reelsFollowing);
     bump(_reelsTrending);
     bump(_reelsVR);
+  }
+
+  /// Keeps optimistic/in-flight likes when the feed supplement reloads from Firestore.
+  void _mergeLikedStateFromServer(Set<String> serverLikedIds) {
+    final inFlight = Set<String>.from(_likeInFlight);
+    final optimisticLiked = Map<String, bool>.from(_likedReels);
+
+    debugPrint(
+      '[Vyooo][Like][UI] mergeLiked server=${serverLikedIds.length} '
+      'inFlight=${inFlight.length} local=${optimisticLiked.length}',
+    );
+
+    _likedReels
+      ..clear()
+      ..addEntries(serverLikedIds.map((id) => MapEntry(id, true)));
+
+    for (final id in inFlight) {
+      final want = optimisticLiked[id];
+      if (want != null) {
+        _likedReels[id] = want;
+        debugPrint(
+          '[Vyooo][Like][UI] mergeLiked preserve in-flight id=$id want=$want',
+        );
+      }
+    }
+  }
+
+  /// After a successful like/unlike, patch feed maps from the reel document so a
+  /// concurrent feed refresh cannot overwrite counts with stale data.
+  Future<void> _syncReelEngagementFromServer(String reelId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('reels')
+          .doc(reelId)
+          .get();
+      if (!mounted || !doc.exists) {
+        debugPrint(
+          '[Vyooo][Like][UI] sync skip — reel doc missing reelId=$reelId',
+        );
+        return;
+      }
+      final data = doc.data() ?? {};
+      final likes = (data['likes'] as num?)?.toInt() ?? 0;
+      debugPrint(
+        '[Vyooo][Like][UI] sync patch reelId=$reelId likes=$likes',
+      );
+      if (!mounted) return;
+      setState(
+        () => _applyEngagementPatch(
+          reelId,
+          {
+            'likes': likes,
+            'comments': (data['comments'] as num?)?.toInt() ?? 0,
+            'saves': (data['saves'] as num?)?.toInt() ?? 0,
+            'views':
+                (data['views'] as num?)?.toInt() ??
+                (data['viewsCount'] as num?)?.toInt() ??
+                0,
+            'reposts': (data['reposts'] as num?)?.toInt() ??
+                (data['shares'] as num?)?.toInt() ??
+                0,
+            'shares': (data['shares'] as num?)?.toInt() ?? 0,
+          },
+        ),
+      );
+    } catch (e) {
+      debugPrint(
+        '[Vyooo][Like][UI] sync FAILED reelId=$reelId error=$e',
+      );
+    }
+  }
+
+  void _applyEngagementPatch(String reelId, Map<String, dynamic> fresh) {
+    void patch(List<Map<String, dynamic>> list) {
+      for (var i = 0; i < list.length; i++) {
+        final matchesDoc = _asString(list[i]['id']) == reelId;
+        final matchesSource = ReelEngagement.sourceReelId(list[i]) == reelId;
+        if (!matchesDoc && !matchesSource) continue;
+        list[i] = Map<String, dynamic>.from(list[i])
+          ..['likes'] = (fresh['likes'] as num?)?.toInt() ?? 0
+          ..['comments'] = (fresh['comments'] as num?)?.toInt() ?? 0
+          ..['saves'] = (fresh['saves'] as num?)?.toInt() ?? 0
+          ..['views'] =
+              (fresh['views'] as num?)?.toInt() ??
+              (fresh['viewsCount'] as num?)?.toInt() ??
+              0
+          ..['reposts'] = (fresh['reposts'] as num?)?.toInt() ??
+              (fresh['shares'] as num?)?.toInt() ??
+              0
+          ..['shares'] = (fresh['shares'] as num?)?.toInt() ?? 0;
+      }
+    }
+
+    patch(_reelsForYou);
+    patch(_reelsFollowing);
+    patch(_reelsTrending);
+    patch(_reelsVR);
   }
 
   /// While the *previous* tab's [PageView] is still mounted, force page 0 so the
@@ -1470,7 +1604,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     // accumulating in memory as the user scrolls the feed.
     final mq = MediaQuery.of(context);
     final cacheWidth = (mq.size.width * mq.devicePixelRatio * 2).round();
-    return GestureDetector(
+    return DoubleTapLikeOverlay(
       onDoubleTap: () => _onDoubleTapLike(feedIndex),
       child: SizedBox.expand(
         child: ColoredBox(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -257,16 +258,31 @@ class ReelsController {
     required bool like,
   }) async {
     final uid = _currentUserId;
-    if (uid == null) return !like;
+    if (uid == null) {
+      debugPrint('[Vyooo][Like] abort: no signed-in user wantLike=$like reelId=$reelId');
+      return !like;
+    }
 
     final likeRef = _firestore.collection('userLikes').doc('${uid}_$reelId');
     final reelRef = _firestore.collection('reels').doc(reelId);
+    debugPrint(
+      '[Vyooo][Like] start uid=$uid reelId=$reelId wantLike=$like '
+      'likeDoc=${likeRef.id}',
+    );
 
+    late final bool liked;
+    late final bool changed;
     try {
-      final (liked, changed) = await _firestore.runTransaction<(bool, bool)>(
+      (liked, changed) = await _firestore.runTransaction<(bool, bool)>(
         (tx) async {
+          // Firestore requires every read before any write in a transaction.
           final likeSnap = await tx.get(likeRef);
+          final reelSnap = await tx.get(reelRef);
+
           final isLiked = likeSnap.exists;
+          debugPrint(
+            '[Vyooo][Like] tx read isLiked=$isLiked wantLike=$like reelId=$reelId',
+          );
           if (like == isLiked) {
             return (isLiked, false);
           }
@@ -281,41 +297,83 @@ class ReelsController {
             tx.delete(likeRef);
           }
 
-          final reelSnap = await tx.get(reelRef);
           if (reelSnap.exists) {
-            tx.update(reelRef, {
-              'likes': like
-                  ? FieldValue.increment(1)
-                  : FieldValue.increment(-1),
-            });
+            final rawLikes = reelSnap.data()?['likes'];
+            final currentLikes = rawLikes is num ? rawLikes.toInt() : 0;
+            final nextLikes = like
+                ? currentLikes + 1
+                : (currentLikes - 1).clamp(0, 999999999);
+            debugPrint(
+              '[Vyooo][Like] tx bump likes $currentLikes -> $nextLikes reelId=$reelId',
+            );
+            tx.update(reelRef, {'likes': nextLikes});
+          } else {
+            debugPrint(
+              '[Vyooo][Like] tx skip likes bump — reel doc missing reelId=$reelId',
+            );
           }
           return (like, true);
         },
       );
-
-      if (changed && liked) {
-        final reelDoc = await reelRef.get();
-        if (reelDoc.exists) {
-          final ownerId = (reelDoc.data()?['userId'] as String?) ?? '';
-          if (ownerId.isNotEmpty && ownerId != uid) {
-            await NotificationService().create(
-              recipientId: ownerId,
-              type: AppNotificationType.like,
-              message: 'liked your post.',
-              extra: {'reelId': reelId},
-            );
-          }
-        }
+      debugPrint(
+        '[Vyooo][Like] tx ok liked=$liked changed=$changed reelId=$reelId',
+      );
+    } catch (e, st) {
+      if (e is FirebaseException) {
+        debugPrint(
+          '[Vyooo][Like] tx FAILED reelId=$reelId code=${e.code} '
+          'message=${e.message}',
+        );
+      } else {
+        debugPrint('[Vyooo][Like] tx FAILED reelId=$reelId error=$e');
       }
-
-      return liked;
-    } catch (_) {
+      debugPrint('$st');
       try {
         final snap = await likeRef.get();
-        return snap.exists;
-      } catch (_) {
+        final exists = snap.exists;
+        debugPrint(
+          '[Vyooo][Like] tx fallback likeDoc exists=$exists reelId=$reelId',
+        );
+        return exists;
+      } catch (readErr) {
+        debugPrint(
+          '[Vyooo][Like] tx fallback read FAILED reelId=$reelId error=$readErr',
+        );
         return !like;
       }
+    }
+
+    if (changed && liked) {
+      unawaited(_notifyPostLike(reelRef: reelRef, reelId: reelId, uid: uid));
+    }
+
+    debugPrint('[Vyooo][Like] done return liked=$liked reelId=$reelId');
+    return liked;
+  }
+
+  Future<void> _notifyPostLike({
+    required DocumentReference<Map<String, dynamic>> reelRef,
+    required String reelId,
+    required String uid,
+  }) async {
+    try {
+      final reelDoc = await reelRef.get();
+      if (!reelDoc.exists) return;
+      final ownerId = (reelDoc.data()?['userId'] as String?) ?? '';
+      if (ownerId.isEmpty || ownerId == uid) return;
+      final sent = await NotificationService().createOnce(
+        dedupeId: 'like_${uid}_$reelId',
+        recipientId: ownerId,
+        type: AppNotificationType.like,
+        message: 'liked your post.',
+        extra: {'reelId': reelId},
+      );
+      debugPrint(
+        '[Vyooo][Like] notify sent=$sent ownerId=$ownerId reelId=$reelId',
+      );
+    } catch (e, st) {
+      debugPrint('[Vyooo][Like] notify FAILED reelId=$reelId error=$e');
+      debugPrint('$st');
     }
   }
 

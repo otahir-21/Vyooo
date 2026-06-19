@@ -8,6 +8,7 @@ import '../core/services/feed_offline_video_cache.dart';
 import '../core/services/reel_preload_service.dart';
 import '../core/utils/video_upload_policy.dart';
 import '../core/theme/app_spacing.dart';
+import '../core/widgets/double_tap_like_overlay.dart';
 
 /// Single reel item for PageView. Handles video playback, auto-play, pause, preload.
 ///
@@ -545,7 +546,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
     // Reels style: fullscreen cover (crop to fill, no letterboxing)
     final size = _controller!.value.size;
-    return GestureDetector(
+    return DoubleTapLikeOverlay(
       onTap: _togglePlayPause,
       onDoubleTap: widget.onDoubleTap,
       child: Container(

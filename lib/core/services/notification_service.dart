@@ -146,9 +146,34 @@ class NotificationService {
     required String message,
     Map<String, dynamic> extra = const <String, dynamic>{},
   }) async {
+    await createOnce(
+      dedupeId: '',
+      recipientId: recipientId,
+      type: type,
+      message: message,
+      extra: extra,
+      allowDuplicate: true,
+    );
+  }
+
+  /// Creates a notification once per [dedupeId]. When [allowDuplicate] is true
+  /// (default for [create]), a random document id is used instead.
+  ///
+  /// Like notifications use a stable id so unlike → re-like does not notify
+  /// the owner again.
+  Future<bool> createOnce({
+    required String dedupeId,
+    required String recipientId,
+    required AppNotificationType type,
+    required String message,
+    Map<String, dynamic> extra = const <String, dynamic>{},
+    bool allowDuplicate = false,
+  }) async {
     final senderId = _uid;
-    if (senderId == null || senderId.isEmpty || recipientId.isEmpty) return;
-    if (recipientId == senderId) return;
+    if (senderId == null || senderId.isEmpty || recipientId.isEmpty) {
+      return false;
+    }
+    if (recipientId == senderId) return false;
 
     var actorUsername = '';
     var actorAvatarUrl = '';
@@ -158,10 +183,11 @@ class NotificationService {
       actorAvatarUrl = (actor?.profileImage ?? '').trim();
     } catch (_) {}
     if (actorUsername.isEmpty) {
-      actorUsername = AuthService().currentUser?.displayName?.trim() ?? 'Someone';
+      actorUsername =
+          AuthService().currentUser?.displayName?.trim() ?? 'Someone';
     }
 
-    await _db.collection('notifications').add({
+    final payload = <String, dynamic>{
       'recipientId': recipientId,
       'senderId': senderId,
       'type': type.name,
@@ -171,6 +197,22 @@ class NotificationService {
       'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
       ...extra,
-    });
+    };
+
+    if (allowDuplicate || dedupeId.trim().isEmpty) {
+      await _db.collection('notifications').add(payload);
+      return true;
+    }
+
+    final ref = _db.collection('notifications').doc(dedupeId.trim());
+    try {
+      // Create-only: full set on a missing doc. If the dedupe doc already exists,
+      // rules allow only the recipient to update it — we treat that as success.
+      await ref.set(payload);
+      return true;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') return false;
+      rethrow;
+    }
   }
 }

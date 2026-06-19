@@ -22,8 +22,8 @@ Flutter injects these into Android Gradle and iOS `Info.plist` (`FLUTTER_BUILD_N
 | Field | Value |
 |-------|--------|
 | Marketing version | **1.2.3** |
-| Build number | **45** |
-| `pubspec.yaml` | `1.2.3+45` |
+| Build number | **46** |
+| `pubspec.yaml` | `1.2.3+46` |
 
 ## Release history
 

@@ -262,7 +262,8 @@ class StoryService {
         final storySnap = await storyRef.get();
         final ownerId = (storySnap.data()?['userId'] as String?) ?? '';
         if (ownerId.isNotEmpty && ownerId != uid) {
-          await NotificationService().create(
+          await NotificationService().createOnce(
+            dedupeId: 'like_${uid}_$storyId',
             recipientId: ownerId,
             type: AppNotificationType.like,
             message: 'liked your story.',

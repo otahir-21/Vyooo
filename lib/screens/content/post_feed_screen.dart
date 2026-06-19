@@ -8,6 +8,7 @@ import '../../core/models/reel_media_item.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_bottom_navigation.dart';
 import '../../core/widgets/post_media_carousel.dart';
+import '../../core/widgets/double_tap_like_overlay.dart';
 import '../../core/widgets/post_feed_screen_background.dart';
 import '../../core/wrappers/main_nav_wrapper.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
@@ -284,10 +285,19 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 
   Future<void> _onLike(Map<String, dynamic> post) async {
     final engagementId = ReelEngagement.sourceReelId(post);
-    if (engagementId.isEmpty || _likeInFlight.contains(engagementId)) return;
+    if (engagementId.isEmpty || _likeInFlight.contains(engagementId)) {
+      debugPrint(
+        '[Vyooo][Like][UI][PostFeed] skip engagementId=$engagementId',
+      );
+      return;
+    }
 
     final currentlyLiked = _likedReels[engagementId] ?? false;
     final wantLiked = !currentlyLiked;
+    debugPrint(
+      '[Vyooo][Like][UI][PostFeed] tap engagementId=$engagementId '
+      'currentlyLiked=$currentlyLiked wantLiked=$wantLiked',
+    );
     _likeInFlight.add(engagementId);
     setState(() => _likedReels[engagementId] = wantLiked);
     _adjustPostStat(engagementId, 'likes', wantLiked ? 1 : -1);
@@ -299,9 +309,24 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     _likeInFlight.remove(engagementId);
     if (!mounted) return;
 
+    debugPrint(
+      '[Vyooo][Like][UI][PostFeed] result engagementId=$engagementId '
+      'wantLiked=$wantLiked actual=$actual',
+    );
+
     if (actual != wantLiked) {
+      debugPrint('[Vyooo][Like][UI][PostFeed] ROLLBACK engagementId=$engagementId');
       setState(() => _likedReels[engagementId] = actual);
-      _adjustPostStat(engagementId, 'likes', actual ? 1 : -1);
+      _adjustPostStat(engagementId, 'likes', wantLiked ? -1 : 1);
+    }
+  }
+
+  void _onDoubleTapLike(Map<String, dynamic> post) {
+    final engagementId = ReelEngagement.sourceReelId(post);
+    if (engagementId.isEmpty || _likeInFlight.contains(engagementId)) return;
+    final alreadyLiked = _likedReels[engagementId] ?? false;
+    if (!alreadyLiked) {
+      _onLike(post);
     }
   }
 
@@ -635,6 +660,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
                                 isReposted:
                                     _repostedSourceReels[engagementId] ?? false,
                                 onLike: () => _onLike(post),
+                                onDoubleTapLike: () => _onDoubleTapLike(post),
                                 onComment: () => _onComment(post),
                                 onSave: () => _onSave(post),
                                 onRepost: () => _onRepostToggle(post),
@@ -717,6 +743,7 @@ class _PostCard extends StatelessWidget {
     required this.isLiked,
     required this.isSaved,
     required this.onLike,
+    required this.onDoubleTapLike,
     required this.onComment,
     required this.onSave,
     required this.showRepost,
@@ -735,6 +762,7 @@ class _PostCard extends StatelessWidget {
   final bool isLiked;
   final bool isSaved;
   final VoidCallback onLike;
+  final VoidCallback onDoubleTapLike;
   final VoidCallback onComment;
   final VoidCallback onSave;
   final bool showRepost;
@@ -1005,6 +1033,7 @@ class _PostCard extends StatelessWidget {
                   builder: (_, currentActive, _) => PostMediaCarousel(
                     items: mediaItems,
                     isVisible: currentActive == index,
+                    onDoubleTap: onDoubleTapLike,
                   ),
                 ),
               ),
@@ -1034,17 +1063,21 @@ class _PostCard extends StatelessWidget {
                                 videoUrl: _asString(post['videoUrl']).trim(),
                                 isVisible: currentActive == index,
                                 thumbnailUrl: mediaUrl,
+                                onDoubleTap: onDoubleTapLike,
                               ),
                             )
-                          : Image.network(
-                              mediaUrl,
-                              fit: BoxFit.cover,
-                              cacheWidth:
-                                  (MediaQuery.of(context).size.width *
-                                          MediaQuery.of(
-                                            context,
-                                          ).devicePixelRatio)
-                                      .round(),
+                          : DoubleTapLikeOverlay(
+                              onDoubleTap: onDoubleTapLike,
+                              child: Image.network(
+                                mediaUrl,
+                                fit: BoxFit.cover,
+                                cacheWidth:
+                                    (MediaQuery.of(context).size.width *
+                                            MediaQuery.of(
+                                              context,
+                                            ).devicePixelRatio)
+                                        .round(),
+                              ),
                             ),
                     ),
                   ),

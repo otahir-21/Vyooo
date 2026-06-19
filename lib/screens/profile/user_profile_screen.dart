@@ -2400,7 +2400,7 @@ class _UserProfileReelFeedScreenState
     if (actual != wantLiked) {
       setState(() {
         _likedReels[reelId] = actual;
-        _adjustReelStat(reelId, 'likes', actual ? 1 : -1);
+        _adjustReelStat(reelId, 'likes', wantLiked ? -1 : 1);
       });
     }
   }
