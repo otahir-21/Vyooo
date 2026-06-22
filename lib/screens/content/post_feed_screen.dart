@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/controllers/reels_controller.dart';
 import '../../core/models/reel_media_item.dart';
+import '../../core/models/video_360_metadata.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/app_bottom_navigation.dart';
 import '../../core/widgets/post_media_carousel.dart';
@@ -1032,6 +1033,7 @@ class _PostCard extends StatelessWidget {
                   valueListenable: activeIndex,
                   builder: (_, currentActive, _) => PostMediaCarousel(
                     items: mediaItems,
+                    video360: Video360Metadata.fromPost(post),
                     isVisible: currentActive == index,
                     onDoubleTap: onDoubleTapLike,
                   ),
@@ -1061,6 +1063,7 @@ class _PostCard extends StatelessWidget {
                               valueListenable: activeIndex,
                               builder: (_, currentActive, _) => ReelItemWidget(
                                 videoUrl: _asString(post['videoUrl']).trim(),
+                                video360: Video360Metadata.fromPost(post),
                                 isVisible: currentActive == index,
                                 thumbnailUrl: mediaUrl,
                                 onDoubleTap: onDoubleTapLike,

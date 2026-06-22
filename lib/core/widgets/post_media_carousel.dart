@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/reel_media_item.dart';
+import '../models/video_360_metadata.dart';
 import '../theme/app_spacing.dart';
 import 'double_tap_like_overlay.dart';
 import '../../widgets/reel_item_widget.dart';
@@ -16,6 +17,7 @@ class PostMediaCarousel extends StatefulWidget {
     super.key,
     required this.items,
     required this.isVisible,
+    this.video360 = Video360Metadata.flat,
     this.imageFit = BoxFit.cover,
     this.onDoubleTap,
     this.onActiveVideoCompleted,
@@ -26,6 +28,8 @@ class PostMediaCarousel extends StatefulWidget {
 
   /// Whether this post is the currently visible one in its parent feed.
   final bool isVisible;
+
+  final Video360Metadata video360;
 
   /// Cover for inline post cards, contain for the full-screen reels feed.
   final BoxFit imageFit;
@@ -124,6 +128,7 @@ class _PostMediaCarouselState extends State<PostMediaCarousel> {
         key: ValueKey<String>('carousel_video_${item.url}'),
         videoUrl: item.url,
         thumbnailUrl: item.thumbnailUrl,
+        video360: widget.video360,
         isVisible: widget.isVisible && isActive,
         onVideoCompleted: isActive ? widget.onActiveVideoCompleted : null,
         onVideoPlaybackStarted:

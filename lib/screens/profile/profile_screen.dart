@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/models/reel_count_privacy.dart';
 import '../../core/models/reel_media_item.dart';
+import '../../core/models/video_360_metadata.dart';
 import '../../core/utils/reel_engagement.dart';
 import '../../core/widgets/post_media_carousel.dart';
 import '../../features/reel/widgets/owner_post_options_sheet.dart';
@@ -1804,6 +1805,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
                 return PostMediaCarousel(
                   key: ValueKey<String>('carousel_${reel['id'] ?? index}'),
                   items: mediaItems,
+                  video360: Video360Metadata.fromPost(reel),
                   imageFit: BoxFit.contain,
                   isVisible: index == _currentIndex,
                 );
@@ -1838,6 +1840,7 @@ class _ProfileReelFeedScreenState extends State<_ProfileReelFeedScreen> {
               }
               return ReelItemWidget(
                 videoUrl: videoUrl,
+                video360: Video360Metadata.fromPost(reel),
                 isVisible: index == _currentIndex,
               );
             },

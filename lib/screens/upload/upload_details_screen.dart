@@ -7,7 +7,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/post_location_model.dart';
+import '../../core/models/video_360_metadata.dart';
 import '../../core/services/user_service.dart';
+import '../../core/utils/video_360_detector.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -72,7 +74,11 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   final _tagsController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
-  final bool _isVR = false;
+  bool _is360Video = false;
+  Video360Projection _projectionType = Video360Projection.equirectangular;
+  Video360StereoMode _stereoMode = Video360StereoMode.mono;
+  bool _isDetecting360 = false;
+  Video360DetectionResult? _detectionResult;
   bool _isUploading = false;
   double _uploadProgress = 0;
   int _uploadingItemIndex = 0;
@@ -103,6 +109,8 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     }
   }
 
+  bool get _canConfigure360 => _isVideoAsset && _allAssets.length == 1;
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +122,33 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       description: _descController.text,
       category: _selectedCategory,
     );
+    if (_canConfigure360) {
+      _run360Detection();
+    }
+  }
+
+  Future<void> _run360Detection() async {
+    setState(() => _isDetecting360 = true);
+    try {
+      final file = widget.videoFileOverride ?? await widget.asset.file;
+      if (file == null || !mounted) return;
+      final result = await Video360Detector.detect(file);
+      if (!mounted) return;
+      setState(() {
+        _isDetecting360 = false;
+        _detectionResult = result;
+        final suggested = result.suggested;
+        if (suggested != null &&
+            suggested.is360Video &&
+            result.confidence != Video360DetectionConfidence.none) {
+          _is360Video = true;
+          _projectionType = suggested.projectionType;
+          _stereoMode = suggested.stereoMode;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isDetecting360 = false);
+    }
   }
 
   void _refreshSuggestedTags() {
@@ -225,6 +260,12 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         mediaItems[0] = {...first, 'thumbnailUrl': thumbnailUrl};
       }
 
+      final video360Meta = Video360Metadata.sanitize(
+        is360Video: _canConfigure360 && _is360Video,
+        projectionType: _projectionType.firestoreValue,
+        stereoMode: _stereoMode.firestoreValue,
+      );
+
       // 5 — save reel doc to Firestore. Flat media fields mirror the first
       // carousel item so older clients and existing queries keep working.
       final reelRef = await FirebaseFirestore.instance.collection('reels').add({
@@ -253,7 +294,8 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         'userId': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'authorAccountPrivate': authorAccountPrivate,
-        'isVR': _isVR,
+        ...video360Meta.toFirestore(),
+        'isVR': video360Meta.is360Video,
         if (_selectedLocation != null)
           'location': _selectedLocation!.toMap(),
         'moderation': {
@@ -513,6 +555,10 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           const SizedBox(height: 24),
           _buildLocationPicker(),
           const SizedBox(height: 24),
+          if (_canConfigure360) ...[
+            _build360VideoSection(),
+            const SizedBox(height: 24),
+          ],
           _buildSuggestedTagsSection(),
           const SizedBox(height: 24),
           _buildTagsPicker(),
@@ -967,6 +1013,138 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                   ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _build360VideoSection() {
+    final detection = _detectionResult;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                '360 video',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (_isDetecting360)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: _pink),
+              )
+            else
+              Switch.adaptive(
+                value: _is360Video,
+                activeTrackColor: _pink.withValues(alpha: 0.55),
+                thumbColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.selected)
+                      ? _pink
+                      : Colors.white70,
+                ),
+                onChanged: _isUploading
+                    ? null
+                    : (value) => setState(() => _is360Video = value),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Look around by dragging or moving your phone. All videos stay in the gallery — this only changes how the post plays.',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.55),
+            fontSize: 12,
+            height: 1.35,
+          ),
+        ),
+        if (detection?.message != null && detection!.message!.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white12),
+            ),
+            child: Text(
+              detection.message!,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+        if (_is360Video) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'Projection',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          _buildChoiceChipRow(
+            options: const [
+              ('Equirectangular', Video360Projection.equirectangular),
+            ],
+            selected: _projectionType,
+            onSelected: (value) =>
+                setState(() => _projectionType = value as Video360Projection),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Stereo layout',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          _buildChoiceChipRow(
+            options: const [
+              ('Mono', Video360StereoMode.mono),
+              ('Top-Bottom 3D', Video360StereoMode.topBottom),
+              ('Side-by-Side 3D', Video360StereoMode.sideBySide),
+            ],
+            selected: _stereoMode,
+            onSelected: (value) =>
+                setState(() => _stereoMode = value as Video360StereoMode),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildChoiceChipRow({
+    required List<(String, Object)> options,
+    required Object selected,
+    required ValueChanged<Object> onSelected,
+  }) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final (label, value) in options)
+          ChoiceChip(
+            label: Text(label),
+            selected: selected == value,
+            onSelected: _isUploading
+                ? null
+                : (_) => onSelected(value),
+            selectedColor: _pink.withValues(alpha: 0.35),
+            backgroundColor: Colors.white.withValues(alpha: 0.08),
+            labelStyle: TextStyle(
+              color: selected == value ? Colors.white : Colors.white70,
+              fontSize: 13,
+            ),
+            side: BorderSide(
+              color: selected == value ? _pink : Colors.white24,
+            ),
+          ),
       ],
     );
   }

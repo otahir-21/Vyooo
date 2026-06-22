@@ -6,9 +6,11 @@ import 'package:video_player/video_player.dart';
 import '../core/navigation/app_route_observer.dart';
 import '../core/services/feed_offline_video_cache.dart';
 import '../core/services/reel_preload_service.dart';
-import '../core/utils/video_upload_policy.dart';
+import '../core/utils/stream_playback_urls.dart';
 import '../core/theme/app_spacing.dart';
 import '../core/widgets/double_tap_like_overlay.dart';
+import '../core/models/video_360_metadata.dart';
+import '../core/widgets/vyooo_360_video_player.dart';
 
 /// Single reel item for PageView. Handles video playback, auto-play, pause, preload.
 ///
@@ -29,6 +31,7 @@ class ReelItemWidget extends StatefulWidget {
     required this.videoUrl,
     required this.isVisible,
     this.thumbnailUrl,
+    this.video360 = Video360Metadata.flat,
     this.onVisibilityChanged,
     this.onVideoCompleted,
     this.onVideoPlaybackStarted,
@@ -38,6 +41,7 @@ class ReelItemWidget extends StatefulWidget {
   final String videoUrl;
   final bool isVisible;
   final String? thumbnailUrl;
+  final Video360Metadata video360;
   final VoidCallback? onVisibilityChanged;
   final VoidCallback? onVideoCompleted;
 
@@ -89,11 +93,13 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool get _shouldPlay =>
       widget.isVisible && _isRouteOnTop && _isAppForeground && _isTickerActive;
 
+  bool get _uses360Player => widget.video360.use360Player;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (_shouldPlay) {
+    if (_shouldPlay && !_uses360Player) {
       _initializePlayer();
     }
   }
@@ -118,12 +124,13 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   @override
   void didUpdateWidget(ReelItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.videoUrl != widget.videoUrl) {
+    if (oldWidget.videoUrl != widget.videoUrl ||
+        oldWidget.video360.use360Player != widget.video360.use360Player) {
       _hasNotifiedCompletion = false;
       _hasNotifiedPlaybackStart = false;
       _localPlaybackFailed = false;
       _disposePlayer();
-      if (_shouldPlay) {
+      if (_shouldPlay && !_uses360Player) {
         _initializePlayer();
       }
       return;
@@ -384,29 +391,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     });
   }
 
-  List<String> _candidateUrls(String raw) {
-    final url = raw.trim();
-    if (!VideoUploadPolicy.isPlayableUrl(url)) return const [];
-    final out = <String>[url];
-    final m = RegExp(
-      r'^(https?:\/\/[^/]+)\/([^/]+)\/manifest\/video\.m3u8$',
-      caseSensitive: false,
-    ).firstMatch(url);
-    if (m != null) {
-      final hostBase = m.group(1)!;
-      final videoId = m.group(2)!;
-      final mp4 = '$hostBase/$videoId/downloads/default.mp4';
-      if (VideoUploadPolicy.isPlayableUrl(mp4)) out.add(mp4);
-      // Backward compatibility: if saved host is wrong, still try Cloudflare global domain.
-      final hlsFallback =
-          'https://videodelivery.net/$videoId/manifest/video.m3u8';
-      final mp4Fallback =
-          'https://videodelivery.net/$videoId/downloads/default.mp4';
-      if (VideoUploadPolicy.isPlayableUrl(hlsFallback)) out.add(hlsFallback);
-      if (VideoUploadPolicy.isPlayableUrl(mp4Fallback)) out.add(mp4Fallback);
-    }
-    return out.toSet().toList();
-  }
+  List<String> _candidateUrls(String raw) => StreamPlaybackUrls.candidates(raw);
 
   /// Idempotent: drives the underlying controller toward [_shouldPlay].
   ///
@@ -484,6 +469,19 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    if (_uses360Player) {
+      return Vyooo360VideoPlayer(
+        videoUrl: widget.videoUrl,
+        isVisible: _shouldPlay,
+        video360: widget.video360,
+        muted: _isMuted,
+        thumbnailUrl: widget.thumbnailUrl,
+        onDoubleTap: widget.onDoubleTap,
+        onVideoCompleted: widget.onVideoCompleted,
+        onVideoPlaybackStarted: widget.onVideoPlaybackStarted,
+      );
+    }
 
     final loadingBg = _buildLoadingBackground();
 

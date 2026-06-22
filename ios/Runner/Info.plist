@@ -70,6 +70,8 @@
 	<string>Vyooo needs photo library access to add images to your story and profile.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Vyooo uses your location to tag posts with your current place. Location is only accessed when you tap "Use current location".</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Vyooo uses motion sensors so you can look around inside 360° videos by moving your phone.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>voip</string>

@@ -31,6 +31,7 @@ import '../../core/utils/user_facing_errors.dart';
 import '../../core/controllers/reels_controller.dart';
 import '../../core/models/reel_count_privacy.dart';
 import '../../core/models/reel_media_item.dart';
+import '../../core/models/video_360_metadata.dart';
 import '../../core/utils/reel_engagement.dart';
 import '../../core/widgets/post_media_carousel.dart';
 import '../../core/widgets/app_interaction_button.dart';
@@ -2520,6 +2521,7 @@ class _UserProfileReelFeedScreenState
                     PostMediaCarousel(
                       key: ValueKey<String>('carousel_${reel['id'] ?? index}'),
                       items: mediaItems,
+                      video360: Video360Metadata.fromPost(reel),
                       imageFit: BoxFit.contain,
                       isVisible: index == _currentIndex,
                     ),
@@ -2567,6 +2569,7 @@ class _UserProfileReelFeedScreenState
                 children: [
                   ReelItemWidget(
                     videoUrl: videoUrl,
+                    video360: Video360Metadata.fromPost(reel),
                     isVisible: index == _currentIndex,
                   ),
                   _buildActionButtons(index),
