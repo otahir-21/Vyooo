@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_fonts.dart';
+import '../theme/app_spacing.dart';
 import '../../screens/profile/profile_figma_tokens.dart';
 
 class _NavAssets {
@@ -174,7 +175,7 @@ class AppBottomNavigation extends StatelessWidget {
   static const double _horizontalMargin = 20;
 
   /// Bottom margin above the system gesture area.
-  static const double _bottomMargin = 8;
+  static const double _bottomMargin = AppSpacing.xs;
 
   /// Total bottom chrome: margins + [barHeight] + system navigation inset.
   static double totalHeightFor(BuildContext context) {
