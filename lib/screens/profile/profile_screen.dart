@@ -475,6 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           const Positioned.fill(child: ProfileScreenBackground()),
           SafeArea(
+            bottom: false,
             child: uid == null
                 ? _buildFallbackProfile(context)
                 : StreamBuilder<AppUserModel?>(
@@ -815,7 +816,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                         canUploadContent,
                         uid: profileUid,
                       ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
                     ],
                   ),
                 ),

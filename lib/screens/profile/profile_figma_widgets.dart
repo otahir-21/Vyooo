@@ -536,19 +536,23 @@ class ProfileHighlightAddChip extends StatelessWidget {
               borderRadius: BorderRadius.circular(
                 ProfileFigmaTokens.highlightTileRadius,
               ),
-              child: Ink(
-                width: ProfileFigmaTokens.highlightTileWidth,
-                height: ProfileFigmaTokens.highlightTileHeight,
-                decoration: BoxDecoration(
-                  color: ProfileFigmaTokens.accentMagenta,
-                  borderRadius: BorderRadius.circular(
-                    ProfileFigmaTokens.highlightTileRadius,
-                  ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(
+                  ProfileFigmaTokens.highlightTileRadius,
                 ),
-                child: const Icon(
-                  Icons.add_rounded,
-                  color: ProfileFigmaTokens.screenBackground,
-                  size: 28,
+                child: SizedBox(
+                  width: ProfileFigmaTokens.highlightTileWidth,
+                  height: ProfileFigmaTokens.highlightTileHeight,
+                  child: const ColoredBox(
+                    color: ProfileFigmaTokens.accentMagenta,
+                    child: Center(
+                      child: Icon(
+                        Icons.add_rounded,
+                        color: ProfileFigmaTokens.screenBackground,
+                        size: 28,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -561,10 +565,11 @@ class ProfileHighlightAddChip extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: AppFonts.body,
-              color: ProfileFigmaTokens.secondaryText,
+              color: ProfileFigmaTokens.highlightLabelColor,
               fontSize: ProfileFigmaTokens.highlightLabelFontSize,
               fontWeight: ProfileFigmaTokens.highlightLabelFontWeight,
-              height: 1.2,
+              height: ProfileFigmaTokens.highlightLabelLineHeight /
+                  ProfileFigmaTokens.highlightLabelFontSize,
             ),
           ),
         ],

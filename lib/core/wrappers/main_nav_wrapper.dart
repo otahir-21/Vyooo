@@ -194,31 +194,44 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     return Scaffold(
       extendBody: true,
       backgroundColor: ProfileFigmaTokens.screenBackground,
-      body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: StreamBuilder<int>(
-        stream: NotificationService().watchUnreadCount(),
-        builder: (context, unreadSnapshot) {
-          final unreadCount = unreadSnapshot.data ?? 0;
-          return StreamBuilder<int>(
-            stream: uid.isEmpty ? null : ChatService().watchTotalUnread(uid),
-            builder: (context, chatUnreadSnapshot) {
-              final chatUnread = chatUnreadSnapshot.data ?? 0;
-              return StreamBuilder(
-                stream: uid.isEmpty ? null : _userService.userStream(uid),
-                builder: (context, snapshot) {
-                  final profileImageUrl = snapshot.data?.profileImage;
-                  return AppBottomNavigation(
-                    currentIndex: _currentIndex,
-                    onTap: _onNavTap,
-                    profileImageUrl: profileImageUrl,
-                    unreadNotificationCount: unreadCount,
-                    unreadChatCount: chatUnread,
-                  );
-                },
-              );
-            },
-          );
-        },
+      body: Stack(
+        children: [
+          IndexedStack(index: _currentIndex, children: screens),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: StreamBuilder<int>(
+              stream: NotificationService().watchUnreadCount(),
+              builder: (context, unreadSnapshot) {
+                final unreadCount = unreadSnapshot.data ?? 0;
+                return StreamBuilder<int>(
+                  stream: uid.isEmpty
+                      ? null
+                      : ChatService().watchTotalUnread(uid),
+                  builder: (context, chatUnreadSnapshot) {
+                    final chatUnread = chatUnreadSnapshot.data ?? 0;
+                    return StreamBuilder(
+                      stream: uid.isEmpty
+                          ? null
+                          : _userService.userStream(uid),
+                      builder: (context, snapshot) {
+                        final profileImageUrl = snapshot.data?.profileImage;
+                        return AppBottomNavigation(
+                          currentIndex: _currentIndex,
+                          onTap: _onNavTap,
+                          profileImageUrl: profileImageUrl,
+                          unreadNotificationCount: unreadCount,
+                          unreadChatCount: chatUnread,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

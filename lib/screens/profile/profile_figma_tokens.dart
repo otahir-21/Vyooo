@@ -35,8 +35,9 @@ abstract final class ProfileFigmaTokens {
   static const double highlightTileGap = 10;
   static const double highlightLabelGap = 6;
   static const double highlightLabelFontSize = 11;
-  static const FontWeight highlightLabelFontWeight = FontWeight.w400;
+  static const FontWeight highlightLabelFontWeight = FontWeight.w700;
   static const double highlightLabelLineHeight = 14;
+  static const Color highlightLabelColor = Color(0xFF494949);
 
   /// Tile + gap + single-line label — used for the horizontal highlights row.
   static const double highlightRowHeight =
@@ -90,7 +91,10 @@ abstract final class ProfileFigmaTokens {
   static const double contentSideMargin = 12;
 
   static const double contentTopRadius = 24;
-  static const double contentGridRadius = 10;
+
+  /// White gutter between profile post tiles (4pt grid).
+  static const double contentGridGap = 2;
+  static const double contentGridRadius = 0;
   static const double tabBarOuterPadding = 3;
   static const double tabFontSize = 12;
 

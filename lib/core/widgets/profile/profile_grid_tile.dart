@@ -55,41 +55,10 @@ class ProfileGridTile extends StatelessWidget {
               fit: BoxFit.cover,
               errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
-          if (isRepost)
-            Positioned(
-              top: AppSpacing.sm,
-              left: AppSpacing.sm,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.repeat_rounded,
-                      size: isHero ? 12 : 10,
-                      color: Colors.white.withValues(alpha: 0.95),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      'Repost',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.95),
-                        fontSize: isHero ? 10 : 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           if (showVrBadge)
             Positioned(
               top: AppSpacing.sm,
-              left: isRepost ? 56 : AppSpacing.sm,
+              left: AppSpacing.sm,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 6,
@@ -122,6 +91,37 @@ class ProfileGridTile extends StatelessWidget {
             isHero: isHero,
             reservePlayIcon: isVideo,
           ),
+          if (isRepost)
+            Positioned(
+              bottom: AppSpacing.sm,
+              left: AppSpacing.sm,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.repeat_rounded,
+                      size: isHero ? 12 : 10,
+                      color: Colors.white.withValues(alpha: 0.95),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Repost',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.95),
+                        fontSize: isHero ? 10 : 9,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (isVideo)
             const Align(
               alignment: Alignment.bottomRight,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/reel_count_privacy.dart';
-import '../../theme/app_spacing.dart';
+import '../../../screens/profile/profile_figma_tokens.dart';
 import '../../utils/reel_engagement.dart';
 import 'profile_grid_layout_engine.dart';
 import 'profile_grid_models.dart';
@@ -19,7 +19,7 @@ class ProfileModularGrid extends StatelessWidget {
     this.onItemLongPress,
     this.layoutMode = ProfileGridLayoutMode.artistModern,
     this.crossAxisCount = 3,
-    this.gap = AppSpacing.xs,
+    this.gap = ProfileFigmaTokens.contentGridGap,
     this.minViewsForDouble = 0,
     this.padding = EdgeInsets.zero,
   });
@@ -85,12 +85,22 @@ class ProfileModularGrid extends StatelessWidget {
             height: height,
             width: width,
             child: Stack(
+              clipBehavior: Clip.hardEdge,
               children: [
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: ProfileFigmaTokens.screenBackground,
+                  ),
+                ),
                 for (final slot in slots)
                   _positionedTile(
                     slot: slot,
                     cellSize: cellSize,
                     gap: gap,
+                    gridWidth: width,
+                    gridHeight: height,
+                    crossAxisCount: crossAxisCount,
+                    rowCount: rowCount,
                     gridItem: bySourceIndex[slot.placement.sourceIndex],
                   ),
               ],
@@ -105,15 +115,24 @@ class ProfileModularGrid extends StatelessWidget {
     required ProfileSpanGridSlot slot,
     required double cellSize,
     required double gap,
+    required double gridWidth,
+    required double gridHeight,
+    required int crossAxisCount,
+    required int rowCount,
     required ProfileGridItem? gridItem,
   }) {
     if (gridItem == null) return const SizedBox.shrink();
 
     final left = slot.column * (cellSize + gap);
     final top = slot.row * (cellSize + gap);
-    final tileWidth =
-        slot.columnSpan * cellSize + (slot.columnSpan - 1) * gap;
-    final tileHeight = slot.rowSpan * cellSize + (slot.rowSpan - 1) * gap;
+    final spansLastColumn = slot.column + slot.columnSpan == crossAxisCount;
+    final spansLastRow = slot.row + slot.rowSpan == rowCount;
+    final tileWidth = spansLastColumn
+        ? gridWidth - left
+        : slot.columnSpan * cellSize + (slot.columnSpan - 1) * gap;
+    final tileHeight = spansLastRow
+        ? gridHeight - top
+        : slot.rowSpan * cellSize + (slot.rowSpan - 1) * gap;
     final isHero = slot.placement.span == ProfileGridSpan.double;
 
     return Positioned(
@@ -121,21 +140,26 @@ class ProfileModularGrid extends StatelessWidget {
       top: top,
       width: tileWidth,
       height: tileHeight,
-      child: ProfileGridTile(
-        thumbnailUrl: gridItem.thumbnailUrl,
-        isVideo: gridItem.isVideo,
-        showVrBadge: gridItem.showVrBadge,
-        viewCount: gridItem.views,
-        likeCount: gridItem.likes,
-        shareCount: gridItem.shares,
-        privacy: gridItem.privacy,
-        isHero: isHero,
-        isRepost: gridItem.isRepost,
-        gridTitle: gridItem.gridTitle,
-        onTap: () => onItemTap(gridItem.sourceIndex),
-        onLongPress: onItemLongPress != null
-            ? () => onItemLongPress!(gridItem.sourceIndex)
-            : null,
+      child: ClipRRect(
+        borderRadius: gap > 0
+            ? BorderRadius.circular(ProfileFigmaTokens.contentGridRadius)
+            : BorderRadius.zero,
+        child: ProfileGridTile(
+          thumbnailUrl: gridItem.thumbnailUrl,
+          isVideo: gridItem.isVideo,
+          showVrBadge: gridItem.showVrBadge,
+          viewCount: gridItem.views,
+          likeCount: gridItem.likes,
+          shareCount: gridItem.shares,
+          privacy: gridItem.privacy,
+          isHero: isHero,
+          isRepost: gridItem.isRepost,
+          gridTitle: gridItem.gridTitle,
+          onTap: () => onItemTap(gridItem.sourceIndex),
+          onLongPress: onItemLongPress != null
+              ? () => onItemLongPress!(gridItem.sourceIndex)
+              : null,
+        ),
       ),
     );
   }

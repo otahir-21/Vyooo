@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../screens/profile/profile_figma_tokens.dart';
 import '../../utils/user_facing_errors.dart';
 import 'profile_modular_grid.dart';
 import 'profile_posts_loader.dart';
@@ -186,7 +187,7 @@ class ProfileCachedPostsGridState extends State<ProfileCachedPostsGrid> {
 
   Widget _grid(BuildContext context, List<Map<String, dynamic>> posts) {
     return ProfileModularGrid(
-      gap: widget.gap ?? 0,
+      gap: widget.gap ?? ProfileFigmaTokens.contentGridGap,
       padding: widget.padding,
       items: profileGridItemsFromReels(
         reels: posts,

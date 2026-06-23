@@ -59,10 +59,11 @@ class ProfileHighlightAlbumTile extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'DM Sans',
-              color: ProfileFigmaTokens.secondaryText,
+              color: ProfileFigmaTokens.highlightLabelColor,
               fontSize: ProfileFigmaTokens.highlightLabelFontSize,
               fontWeight: ProfileFigmaTokens.highlightLabelFontWeight,
-              height: 1.2,
+              height: ProfileFigmaTokens.highlightLabelLineHeight /
+                  ProfileFigmaTokens.highlightLabelFontSize,
             ),
           ),
         ],
