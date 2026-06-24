@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../models/video_360_metadata.dart';
 import '../services/feed_offline_video_cache.dart';
+import '../services/feed_video_audio_controller.dart';
 import '../theme/app_spacing.dart';
 import '../utils/stream_playback_urls.dart';
 import '../utils/video_upload_policy.dart';
@@ -54,7 +55,8 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
   bool _initialized = false;
   bool _showError = false;
   bool _useFlatFallback = false;
-  bool _isMuted = false;
+  final _feedAudio = FeedVideoAudioController.instance;
+  VoidCallback? _feedAudioListener;
   bool _showControls = false;
   bool _isAppForeground = true;
   bool _hasNotifiedPlaybackStart = false;
@@ -67,11 +69,19 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
 
   bool get _shouldPlay => widget.isVisible && _isAppForeground;
 
+  bool get _isMuted => _feedAudio.isMuted.value;
+
+  void _onFeedAudioChanged() {
+    _controller?.setVolume(_feedAudio.volume);
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
-    _isMuted = widget.muted;
     WidgetsBinding.instance.addObserver(this);
+    _feedAudioListener = _onFeedAudioChanged;
+    _feedAudio.isMuted.addListener(_feedAudioListener!);
     if (_shouldPlay) {
       _initializePlayer();
     }
@@ -88,10 +98,6 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
       if (_shouldPlay) _initializePlayer();
       return;
     }
-    if (oldWidget.muted != widget.muted) {
-      _isMuted = widget.muted;
-      _controller?.setVolume(_isMuted ? 0 : 1);
-    }
     _syncPlayback();
   }
 
@@ -106,6 +112,10 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    if (_feedAudioListener != null) {
+      _feedAudio.isMuted.removeListener(_feedAudioListener!);
+      _feedAudioListener = null;
+    }
     _hideTimer?.cancel();
     _retryTimer?.cancel();
     _disposePlayer();
@@ -152,7 +162,7 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
         return;
       }
       controller.setLooping(true);
-      controller.setVolume(_isMuted ? 0 : 1);
+      controller.setVolume(_feedAudio.volume);
       controller.addListener(_onControllerTick);
       setState(() {
         _controller = controller;
@@ -231,10 +241,7 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
   void _toggleMute() {
     final controller = _controller;
     if (controller == null) return;
-    setState(() {
-      _isMuted = !_isMuted;
-      controller.setVolume(_isMuted ? 0 : 1);
-    });
+    _feedAudio.toggle();
     _startHideTimer();
   }
 

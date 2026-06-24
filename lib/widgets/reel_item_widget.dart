@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../core/navigation/app_route_observer.dart';
+import '../core/services/feed_video_audio_controller.dart';
 import '../core/services/feed_offline_video_cache.dart';
 import '../core/services/reel_preload_service.dart';
 import '../core/utils/stream_playback_urls.dart';
@@ -62,7 +63,8 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   int _retryCount = 0;
   int _urlIndex = 0;
   bool _showControls = false;
-  bool _isMuted = false;
+  final _feedAudio = FeedVideoAudioController.instance;
+  VoidCallback? _feedAudioListener;
   Timer? _hideTimer;
   Timer? _retryTimer;
   bool _lastIsPlaying = false;
@@ -95,10 +97,19 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   bool get _uses360Player => widget.video360.use360Player;
 
+  bool get _isMuted => _feedAudio.isMuted.value;
+
+  void _onFeedAudioChanged() {
+    _controller?.setVolume(_feedAudio.volume);
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _feedAudioListener = _onFeedAudioChanged;
+    _feedAudio.isMuted.addListener(_feedAudioListener!);
     if (_shouldPlay && !_uses360Player) {
       _initializePlayer();
     }
@@ -199,6 +210,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       _isRouteObserverSubscribed = false;
     }
     WidgetsBinding.instance.removeObserver(this);
+    if (_feedAudioListener != null) {
+      _feedAudio.isMuted.removeListener(_feedAudioListener!);
+      _feedAudioListener = null;
+    }
     _disposePlayer();
     super.dispose();
   }
@@ -305,7 +320,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   /// Throws on initialization failure (caller owns retry/fallback policy).
   Future<void> _attachAndPlay(VideoPlayerController ctrl, int session) async {
     ctrl.setLooping(true);
-    ctrl.setVolume(_isMuted ? 0 : 1.0);
+    ctrl.setVolume(_feedAudio.volume);
 
     if (!ctrl.value.isInitialized) {
       try {
@@ -450,10 +465,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
 
   void _toggleMute() {
     if (_controller == null || !_isInitialized) return;
-    setState(() {
-      _isMuted = !_isMuted;
-      _controller!.setVolume(_isMuted ? 0 : 1.0);
-    });
+    _feedAudio.toggle();
     _startHideTimer();
   }
 
@@ -475,7 +487,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         videoUrl: widget.videoUrl,
         isVisible: _shouldPlay,
         video360: widget.video360,
-        muted: _isMuted,
+        muted: _feedAudio.isMuted.value,
         thumbnailUrl: widget.thumbnailUrl,
         onDoubleTap: widget.onDoubleTap,
         onVideoCompleted: widget.onVideoCompleted,
