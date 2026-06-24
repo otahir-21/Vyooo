@@ -7,7 +7,22 @@ abstract final class AppRadius {
   static const double button = 30;
   static const double card = 8;
 
+  /// Home feed nav chips — moderate rounded rect (Figma; not full stadium).
+  static const double feedTab = 12;
+
+  /// Bottom nav outer chrome — bottom corners only (Figma).
+  static const double feedBottomChrome = 24;
+
+  static BorderRadius get feedBottomChromeRadius => const BorderRadius.only(
+        bottomLeft: Radius.circular(feedBottomChrome),
+        bottomRight: Radius.circular(feedBottomChrome),
+      );
+
+  /// Reel post bottom edge — rounded before the nav chrome (bottom only).
+  static BorderRadius get feedPostBottomRadius => feedBottomChromeRadius;
+
   static BorderRadius get inputRadius => BorderRadius.circular(input);
   static BorderRadius get pillRadius => BorderRadius.circular(pill);
   static BorderRadius get buttonRadius => BorderRadius.circular(button);
+  static BorderRadius get feedTabRadius => BorderRadius.circular(feedTab);
 }

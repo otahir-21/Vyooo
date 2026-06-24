@@ -33,7 +33,15 @@ class AppPadding {
   /// Gap between underline auth fields
   static const authFieldGap = sectionGap;
 
-  /// Home feed tab chips (Figma horizontal 14, vertical 6).
+  /// Home feed tab row — tighter horizontal inset than [screenHorizontal].
+  static const feedTabRowHorizontal =
+      EdgeInsets.symmetric(horizontal: 8);
+
+  /// Home feed tab chips — inner pill padding (Figma vertical 6).
   static const feedTabChip =
-      EdgeInsets.symmetric(horizontal: 14, vertical: 6);
+      EdgeInsets.symmetric(horizontal: 10, vertical: 6);
+
+  /// Reel overlay "+ Follow" chip (Figma 12 horizontal, 4 vertical).
+  static const feedReelFollowChip =
+      EdgeInsets.symmetric(horizontal: 12, vertical: 4);
 }

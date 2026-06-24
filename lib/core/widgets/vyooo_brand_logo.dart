@@ -40,6 +40,15 @@ class VyoooBrandLogo extends StatelessWidget {
         center = false,
         alignment = Alignment.centerRight;
 
+  /// Home feed overlay — left-aligned wordmark with lightbulb mark visible.
+  const VyoooBrandLogo.feed({super.key})
+      : width = null,
+        size = AppSizes.feedLogoHeight,
+        height = null,
+        contentScale = 1.95,
+        center = false,
+        alignment = Alignment.centerLeft;
+
   final double? width;
   final double? size;
   final double? height;

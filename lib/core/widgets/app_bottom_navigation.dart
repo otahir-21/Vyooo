@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_fonts.dart';
+import '../theme/app_gradients.dart';
+import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
 import '../../screens/profile/profile_figma_tokens.dart';
 
 class _NavAssets {
@@ -24,6 +27,7 @@ class AppBottomNavigation extends StatelessWidget {
     this.profileImageUrl,
     this.unreadNotificationCount = 0,
     this.unreadChatCount = 0,
+    this.useFeedChrome = false,
   });
 
   final int currentIndex;
@@ -32,11 +36,14 @@ class AppBottomNavigation extends StatelessWidget {
   final int unreadNotificationCount;
   final int unreadChatCount;
 
+  /// Dark chrome + gradient scrim companion — home feed tab only.
+  final bool useFeedChrome;
+
   static const double _iconSize = 21.25;
   static double get _profileIconSize => _iconSize * 1.35;
   static const Color _iconColor = ProfileFigmaTokens.primaryText;
   static const Color _selectedPillFill = ProfileFigmaTokens.cardBackground;
-  static const Color _barFill = ProfileFigmaTokens.screenBackground;
+  static const Color _navBarFill = ProfileFigmaTokens.screenBackground;
   static const Color _splashColor = Color(0x33750047);
 
   static const double _tapTargetSize = 44;
@@ -149,7 +156,7 @@ class AppBottomNavigation extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFFF2D55),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _barFill, width: 1),
+                border: Border.all(color: _navBarFill, width: 1),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -170,23 +177,87 @@ class AppBottomNavigation extends StatelessWidget {
   /// Nav icons + artwork height (excludes Android/iOS system nav inset).
   static const double barHeight = 60;
 
-  /// Horizontal margin for the floating pill bar.
+  /// Horizontal margin for the floating pill bar inside the chrome.
   static const double _horizontalMargin = 20;
+
+  /// Space above the white pill inside the dark chrome strip.
+  static const double _chromeTopPadding = AppSpacing.sm;
 
   /// Fraction of the system bottom inset kept below the bar (0.5 = sit halfway into safe area).
   static const double _safeAreaBottomFactor = 0.5;
 
-  /// Total bottom chrome: [barHeight] + reduced system navigation inset.
-  static double totalHeightFor(BuildContext context) {
-    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
-    return barHeight + systemBottom * _safeAreaBottomFactor;
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  /// Bottom nav height for overlay positioning.
+  static double totalHeightFor(
+    BuildContext context, {
+    bool feedChrome = false,
+  }) {
     final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
     final bottomInset = systemBottom * _safeAreaBottomFactor;
+    final chromeTop = feedChrome ? _chromeTopPadding : 0.0;
+    return chromeTop + barHeight + bottomInset;
+  }
 
+  BoxDecoration get _pillDecoration => BoxDecoration(
+        color: _navBarFill,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      );
+
+  Widget _buildNavRow() {
+    return SizedBox(
+      height: barHeight,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _NavItem(
+            unselectedAsset: _NavAssets.homeUnselected,
+            selectedAsset: _NavAssets.homeSelected,
+            isSelected: currentIndex == 0,
+            onTap: () => onTap(0),
+            buildTap: _buildNavTap,
+          ),
+          _NavItem(
+            unselectedAsset: _NavAssets.searchUnselected,
+            selectedAsset: _NavAssets.searchSelected,
+            isSelected: currentIndex == 1,
+            onTap: () => onTap(1),
+            buildTap: _buildNavTap,
+          ),
+          _NavItem(
+            unselectedAsset: _NavAssets.addUnselected,
+            selectedAsset: _NavAssets.addSelected,
+            isSelected: currentIndex == 2,
+            onTap: () => onTap(2),
+            buildTap: _buildNavTap,
+          ),
+          _NavItem(
+            isSelected: currentIndex == 3,
+            onTap: () => onTap(3),
+            buildTap: _buildNavTap,
+            customChild: _buildChatIcon(currentIndex == 3),
+          ),
+          _buildNavTap(
+            onPressed: () => onTap(4),
+            isSelected: currentIndex == 4,
+            child: _buildProfileIcon(currentIndex == 4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingPill(double bottomInset) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
         _horizontalMargin,
@@ -195,64 +266,55 @@ class AppBottomNavigation extends StatelessWidget {
         bottomInset,
       ),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: _barFill,
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
+        decoration: _pillDecoration,
+        child: _buildNavRow(),
+      ),
+    );
+  }
+
+  Widget _buildFeedChromePill(double bottomInset) {
+    return ClipRRect(
+      borderRadius: AppRadius.feedBottomChromeRadius,
+      clipBehavior: Clip.antiAlias,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: AppGradients.feedBottomNavChrome,
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(AppRadius.feedBottomChrome),
+            bottomRight: Radius.circular(AppRadius.feedBottomChrome),
+          ),
+          border: Border(
+            top: BorderSide(
+              color: Color(0x1AFFFFFF),
+              width: 0.5,
             ),
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          ),
         ),
-        child: SizedBox(
-          height: barHeight,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                unselectedAsset: _NavAssets.homeUnselected,
-                selectedAsset: _NavAssets.homeSelected,
-                isSelected: currentIndex == 0,
-                onTap: () => onTap(0),
-                buildTap: _buildNavTap,
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.searchUnselected,
-                selectedAsset: _NavAssets.searchSelected,
-                isSelected: currentIndex == 1,
-                onTap: () => onTap(1),
-                buildTap: _buildNavTap,
-              ),
-              _NavItem(
-                unselectedAsset: _NavAssets.addUnselected,
-                selectedAsset: _NavAssets.addSelected,
-                isSelected: currentIndex == 2,
-                onTap: () => onTap(2),
-                buildTap: _buildNavTap,
-              ),
-              _NavItem(
-                isSelected: currentIndex == 3,
-                onTap: () => onTap(3),
-                buildTap: _buildNavTap,
-                customChild: _buildChatIcon(currentIndex == 3),
-              ),
-              _buildNavTap(
-                onPressed: () => onTap(4),
-                isSelected: currentIndex == 4,
-                child: _buildProfileIcon(currentIndex == 4),
-              ),
-            ],
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            _horizontalMargin,
+            _chromeTopPadding,
+            _horizontalMargin,
+            bottomInset,
+          ),
+          child: DecoratedBox(
+            decoration: _pillDecoration,
+            child: _buildNavRow(),
           ),
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final bottomInset = systemBottom * _safeAreaBottomFactor;
+
+    if (useFeedChrome) {
+      return _buildFeedChromePill(bottomInset);
+    }
+    return _buildFloatingPill(bottomInset);
   }
 }
 

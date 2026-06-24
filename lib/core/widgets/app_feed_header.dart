@@ -8,9 +8,9 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import 'vyooo_brand_logo.dart';
 
-/// Common header for feed screens: VyooO logo + tab selector.
-/// Selected tab: pill + border (15% fill). Unselected: text only, no background.
-/// Typography: unselected DM Sans Regular 14 @ 60% white; selected Bold 16 white.
+/// Common header for feed screens: VyooO logo + actions on top,
+/// full-width tab pills on the row below (Figma home feed).
+/// Tab text: unselected DM Sans Regular 16 white; selected Bold 16 black.
 class AppFeedHeader extends StatelessWidget {
   const AppFeedHeader({
     super.key,
@@ -32,37 +32,54 @@ class AppFeedHeader extends StatelessWidget {
     'For You',
   ];
 
+  /// Vertical space occupied by header content + its padding (no safe area).
+  static double layoutHeight({
+    double topPadding = AppSpacing.sm,
+    double rowGap = AppSpacing.sm,
+    double bottomPadding = AppSpacing.md,
+  }) {
+    return topPadding +
+        AppSizes.feedHeaderContentHeight +
+        rowGap +
+        bottomPadding;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: AppPadding.screenHorizontal.copyWith(
+      padding: EdgeInsets.only(
         top: AppSpacing.sm,
         bottom: AppSpacing.md,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildLogo(context),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
+          Padding(
+            padding: AppPadding.screenHorizontal,
+            child: SizedBox(
+              height: AppSizes.feedHeaderLogoRowHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const VyoooBrandLogo.feed(),
+                  const Spacer(),
+                  ?trailing,
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: AppSpacing.sm),
+          Padding(
+            padding: AppPadding.feedTabRowHorizontal,
             child: AppFeedTabSelector(
               labels: labels,
               selectedIndex: selectedIndex,
               onTabSelected: onTabSelected,
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            trailing!,
-          ],
         ],
       ),
-    );
-  }
-
-  Widget _buildLogo(BuildContext context) {
-    return const VyoooBrandLogo(
-      size: AppSizes.feedLogoHeight,
-      center: false,
     );
   }
 }
@@ -110,16 +127,19 @@ class AppFeedTabSelector extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        height: AppSizes.feedTabChipHeight,
         padding: AppPadding.feedTabChip,
-        decoration: isSelected
-            ? BoxDecoration(
-                color: White15.value,
-                borderRadius: AppRadius.pillRadius,
-                border: Border.all(color: AppTheme.primary, width: 1),
-              )
-            : null,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : White15.value,
+          borderRadius: AppRadius.feedTabRadius,
+          border: isSelected
+              ? null
+              : Border.all(color: White24.value, width: 1),
+        ),
         child: Text(
           labels[index],
+          maxLines: 1,
           style: isSelected
               ? AppTypography.feedTabLabelSelected
               : AppTypography.feedTabLabel,

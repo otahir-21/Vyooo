@@ -14,6 +14,7 @@ class CaptionWithHashtags extends StatefulWidget {
       fontSize: 14,
       height: 1.33,
     ),
+    this.hashtagStyle,
     this.hashtagColor = AppColors.brandPink,
     this.maxLines,
     this.overflow,
@@ -21,6 +22,7 @@ class CaptionWithHashtags extends StatefulWidget {
 
   final String text;
   final TextStyle style;
+  final TextStyle? hashtagStyle;
   final Color hashtagColor;
   final int? maxLines;
   final TextOverflow? overflow;
@@ -68,10 +70,11 @@ class _CaptionWithHashtagsState extends State<CaptionWithHashtags> {
       spans.add(
         TextSpan(
           text: raw,
-          style: widget.style.copyWith(
-            color: widget.hashtagColor,
-            fontWeight: FontWeight.w600,
-          ),
+          style: widget.hashtagStyle ??
+              widget.style.copyWith(
+                color: widget.hashtagColor,
+                fontWeight: FontWeight.w600,
+              ),
           recognizer: recognizer,
         ),
       );

@@ -2,6 +2,8 @@
 // Use AppSizes for non-spacing dimensions (fonts, control heights, icon boxes).
 // Use AppSpacing / AppPadding for gaps and insets.
 
+import 'package:flutter/material.dart';
+
 /// Shared layout dimensions (4pt grid where applicable).
 abstract final class AppSizes {
   // — Controls (typography → [AppTypography]) —
@@ -13,17 +15,42 @@ abstract final class AppSizes {
   /// Settings / account inner app bar — compact wordmark on the right.
   static const double settingsInnerLogoHeight = 20;
 
-  /// Nav tab chip height ≈ 16px label + 12px vertical padding (Figma hug ~33).
+  /// Nav tab chip height — 16px label + ~21px font box + 12px vertical padding (Figma).
   static const double feedTabChipHeight = 33;
 
-  /// Feed header row — tallest of logo vs tab chips.
-  static const double feedHeaderRowHeight = feedTabChipHeight;
+  /// Feed header top row — logo vs notification bell tap target.
+  static const double feedHeaderLogoRowHeight = 40;
 
-  /// Feed notification bell — frosted circle + icon (scaled up for legibility).
+  /// Feed header content: logo row + tab row (excludes vertical padding and row gap).
+  static const double feedHeaderContentHeight =
+      feedHeaderLogoRowHeight + feedTabChipHeight;
+
+  /// Feed notification bell — frosted circle + icon.
   static const double feedNotificationCircle = 36;
-  static const double feedNotificationIcon = 26;
+  static const double feedNotificationIcon = 22;
   static const double feedNotificationTapTarget = 40;
+
+  /// Reel action column — frosted circle behind each icon (80% of prior Figma base).
+  static const double feedInteractionCircle = 44 * 0.8;
+  static const double feedInteractionIcon = 22 * 0.8;
+  static const double feedInteractionTapTarget = 44 * 0.8;
+
+  /// Reel like heart icon (Figma ~18.28 × 16.47).
+  static const double feedLikeIcon = 18;
+
+  /// Reel author avatar on feed overlay.
+  static const double feedReelAvatarRadius = 18;
   static const double progressIndicator = 24;
+
+  /// Figma bottom nav gradient scrim (430×392 frame on ~932pt artboard).
+  static const double feedBottomNavScrimDesignHeight = 392;
+  static const double feedBottomNavScrimDesignArtboardHeight = 932;
+
+  static double feedBottomNavScrimHeight(BuildContext context) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    return screenHeight *
+        (feedBottomNavScrimDesignHeight / feedBottomNavScrimDesignArtboardHeight);
+  }
 
   // — Icons —
   static const double fieldIcon = 22;

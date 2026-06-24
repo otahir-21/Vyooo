@@ -36,11 +36,17 @@ import '../../core/utils/internet_availability.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../../core/utils/verification_badge.dart';
 import '../../core/theme/app_background_assets.dart';
+import '../../core/theme/app_padding.dart';
+import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../core/widgets/app_bottom_navigation.dart';
+import '../../core/widgets/feed_bottom_scrim.dart';
+import '../../core/wrappers/main_nav_wrapper.dart';
 import '../../core/widgets/app_feed_header.dart';
+import '../../core/widgets/app_feed_header_icon_button.dart';
 import '../../core/widgets/app_feed_notification_button.dart';
 import '../../screens/notifications/notification_screen.dart';
 import '../../core/widgets/app_interaction_button.dart';
@@ -171,6 +177,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
   /// Cached for report / unfollow sheet (refreshed in [_loadReels]).
   List<String> _followingIds = [];
+
+  /// Author UID while a follow / unfollow request is in flight.
+  String? _followBusyAuthorId;
 
   // Playback and quality (from three-dots menu)
   String _playbackSpeedId = '1';
@@ -896,6 +905,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Future<void> _onLike(String reelId, bool currentlyLiked) async {
+    if (reelId.isEmpty) return;
+
+    final uid = AuthService().currentUser?.uid ?? '';
+    if (uid.isEmpty) {
+      _showSnackBar('Sign in to like posts');
+      return;
+    }
+
     if (_likeInFlight.contains(reelId)) {
       debugPrint('[Vyooo][Like][UI] skip — already in flight reelId=$reelId');
       return;
@@ -1295,8 +1312,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isVrTab = currentTab == HomeTab.vr;
     final isFollowing = currentTab == HomeTab.following;
 
-    final headerEstimate =
-        AppSizes.feedHeaderRowHeight + AppSpacing.sm + AppSpacing.md;
+    final headerEstimate = AppFeedHeader.layoutHeight();
     final topPadding = MediaQuery.paddingOf(context).top;
 
     final followingStoriesTop = topPadding + headerEstimate + 12;
@@ -1314,6 +1330,12 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           collapseT,
         ) ??
         followingFeedTop;
+
+    final feedChromeBottom = AppBottomNavigation.totalHeightFor(
+      context,
+      feedChrome: true,
+    );
+    final feedBottomInset = feedChromeBottom + AppSpacing.feedPostNavGap;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1334,14 +1356,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 top: isFollowing
                     ? animatedFeedTop
                     : 0, // Push video down only when stories row is visible.
+                bottom: feedBottomInset,
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isFollowing ? (8 - (4 * collapseT)) : 0,
-                    vertical: isFollowing ? (8 - (4 * collapseT)) : 0,
+                  padding: EdgeInsets.only(
+                    left: isFollowing ? (8 - (4 * collapseT)) : 0,
+                    right: isFollowing ? (8 - (4 * collapseT)) : 0,
+                    top: isFollowing ? (8 - (4 * collapseT)) : 0,
                   ),
                   child: _buildFeedClipArea(isFollowing),
                 ),
               ),
+            if (!isVrTab) const FeedBottomScrim(),
             _buildHeader(),
             if (isFollowing)
               if (collapseT < 0.999)
@@ -1470,16 +1495,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildFeedClipArea(bool isFollowingTab) {
-    final radius = BorderRadius.circular(isFollowingTab ? 24 : 0);
-    return ClipRRect(borderRadius: radius, child: _buildReelsFeed());
+    final radius = isFollowingTab
+        ? BorderRadius.circular(AppRadius.feedBottomChrome)
+        : AppRadius.feedPostBottomRadius;
+    return ClipRRect(
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: radius,
+        ),
+        child: _buildReelsFeed(),
+      ),
+    );
   }
 
   Widget _buildReelsFeed() {
     final reels = _currentReels;
     if (_feedRefreshInProgress && reels.isEmpty && _reelsLoadError == null) {
       final radius = currentTab == HomeTab.following
-          ? BorderRadius.circular(24)
-          : BorderRadius.zero;
+          ? BorderRadius.circular(AppRadius.feedBottomChrome)
+          : AppRadius.feedPostBottomRadius;
       return FeedReelsLoadingSkeleton(borderRadius: radius);
     }
     if (_reelsLoadError != null && reels.isEmpty) {
@@ -1788,10 +1825,25 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         child: AppFeedHeader(
           selectedIndex: currentTab.index,
           onTabSelected: (index) => _onTabChanged(HomeTab.values[index]),
-          trailing: _buildHeaderNotificationIcon(),
+          trailing: _buildHeaderActions(),
         ),
       ),
     );
+  }
+
+  Widget _buildHeaderActions() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppFeedHeaderIconButton.search(onTap: _openSearchTab),
+        SizedBox(width: AppSpacing.xs),
+        _buildHeaderNotificationIcon(),
+      ],
+    );
+  }
+
+  void _openSearchTab() {
+    MainNavWrapper.tabNotifier.value = 1;
   }
 
   Widget _buildHeaderNotificationIcon() {
@@ -1852,31 +1904,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isLiked = _likedReels[engagementId] ?? false;
     final isFavorite = _favoriteReels[engagementId] ?? false;
     final privacy = ReelCountPrivacy.fromMap(reel);
-    final uid = AuthService().currentUser?.uid ?? '';
-    final canRepost =
-        engagementId.isNotEmpty && _sourceOwnerId(reel) != uid;
-    final isReposted = _repostedSourceReels[engagementId] ?? false;
-    final bottomSafeInset = MediaQuery.paddingOf(context).bottom;
-    // Keep action stack clearly above the bottom nav bar.
-    final interactionBottom = 18.0 + bottomSafeInset;
+    final interactionBottom =
+        AppBottomNavigation.totalHeightFor(context, feedChrome: true) + AppSpacing.sm;
 
     return Positioned(
-      right: 16,
+      right: AppSpacing.md,
       bottom: interactionBottom,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AppInteractionButton(
-            icon: Icons.visibility_outlined,
-            count: privacy.displayCount(
-              ReelCountMetric.views,
-              _asInt(reel['views']),
-            ),
-            iconSize: 24,
-            countTextStyle: AppTypography.feedReelMetric,
-            spacing: 3,
+            iconAsset: FeedInteractionAssets.crown,
+            count: '',
+            colorizeAsset: false,
+            iconColor: AppColors.lightGold,
+            onTap: () => _onCrownTap(reel),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           AppInteractionButton(
             icon: isLiked ? Icons.favorite : Icons.favorite_border,
             count: privacy.displayCount(
@@ -1884,77 +1928,103 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               _asInt(reel['likes']),
             ),
             isActive: isLiked,
-            activeColor: const Color(0xFFEF4444),
+            activeColor: AppColors.feedLikeActive,
+            defaultColor: AppTheme.primary,
             countColor: AppTheme.primary,
             onTap: () => _onLike(engagementId, isLiked),
-            iconSize: 24,
+            iconSize: AppSizes.feedLikeIcon,
             countTextStyle: AppTypography.feedReelMetric,
-            spacing: 3,
+            spacing: AppSpacing.xs,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           AppInteractionButton(
             iconAsset: FeedInteractionAssets.comments,
             count: privacy.displayCount(
               ReelCountMetric.comments,
               _asInt(reel['comments']),
             ),
-            onTap: () => _onComment(engagementId),
-            iconSize: 24,
-            countTextStyle: AppTypography.feedReelMetric,
-            spacing: 3,
-          ),
-          const SizedBox(height: 12),
-          AppInteractionButton(
-            iconAsset: FeedInteractionAssets.unsavePost,
-            iconAssetActive: FeedInteractionAssets.savePost,
-            count: privacy.displayCount(
-              ReelCountMetric.saves,
-              _asInt(reel['saves']),
-            ),
-            isActive: isFavorite,
             colorizeAsset: false,
-            countColor: AppTheme.primary,
+            onTap: () => _onComment(engagementId),
+            countTextStyle: AppTypography.feedReelMetric,
+            spacing: AppSpacing.xs,
+          ),
+          SizedBox(height: AppSpacing.md),
+          AppInteractionButton(
+            iconAsset: isFavorite
+                ? FeedInteractionAssets.savePost
+                : FeedInteractionAssets.save,
+            label: 'Save',
+            colorizeAsset: false,
+            isActive: isFavorite,
+            activeColor: AppColors.brandPink,
             onTap: () => _onFavorite(engagementId, isFavorite),
-            iconSize: 24,
-            countTextStyle: AppTypography.feedReelMetric,
-            spacing: 3,
+            countTextStyle: AppTypography.feedReelActionLabel,
+            spacing: AppSpacing.xs,
           ),
-          if (canRepost) ...[
-            const SizedBox(height: 12),
-            AppInteractionButton(
-              icon: Icons.repeat_rounded,
-              count: privacy.displayCount(
-                ReelCountMetric.shares,
-                ReelEngagement.repostCount(reel),
-              ),
-              isActive: isReposted,
-              activeColor: AppTheme.primary,
-              countColor: AppTheme.primary,
-              onTap: () => _onRepostToggle(reel),
-              iconSize: 24,
-              countTextStyle: AppTypography.feedReelMetric,
-              spacing: 3,
-            ),
-          ],
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           AppInteractionButton(
-            icon: Icons.ios_share_rounded,
-            count: '',
+            iconAsset: FeedInteractionAssets.share,
+            label: 'Share',
+            colorizeAsset: false,
             onTap: () => _onShare(reelId),
-            iconSize: 24,
-            countTextStyle: AppTypography.feedReelMetric,
-            spacing: 3,
+            countTextStyle: AppTypography.feedReelActionLabel,
+            spacing: AppSpacing.xs,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.md),
           AppInteractionButton(
-            icon: Icons.more_horiz,
+            iconAsset: FeedInteractionAssets.more,
             count: '',
+            colorizeAsset: false,
             onTap: () => _onMoreOptions(reelId),
-            iconSize: 24,
           ),
         ],
       ),
     );
+  }
+
+  void _onCrownTap(Map<String, dynamic> reel) {
+    final authorId = _sourceOwnerId(reel);
+    if (authorId.isEmpty) return;
+    if (reel['vipVerified'] == true || reel['monetizationEnabled'] == true) {
+      _openReelAuthorProfile(reel);
+      return;
+    }
+    _showSnackBar('Creator subscriptions coming soon');
+  }
+
+  Future<void> _onFollowAuthor(Map<String, dynamic> reel) async {
+    final me = AuthService().currentUser?.uid ?? '';
+    final target = _sourceOwnerId(reel);
+    if (me.isEmpty || target.isEmpty || me == target) return;
+    if (_followBusyAuthorId == target) return;
+
+    final isFollowing = _followingIds.contains(target);
+    setState(() => _followBusyAuthorId = target);
+    try {
+      final svc = UserService();
+      if (isFollowing) {
+        await svc.unfollowUser(currentUid: me, targetUid: target);
+        if (!mounted) return;
+        setState(() {
+          _followingIds = _followingIds.where((id) => id != target).toList();
+        });
+      } else {
+        await svc.followUser(currentUid: me, targetUid: target);
+        if (!mounted) return;
+        final nowFollowing = await svc.isFollowingUser(
+          currentUid: me,
+          targetUid: target,
+        );
+        if (!mounted) return;
+        if (nowFollowing && !_followingIds.contains(target)) {
+          setState(() => _followingIds = [..._followingIds, target]);
+        }
+      }
+    } catch (_) {
+      if (mounted) _showSnackBar('Could not update follow. Try again.');
+    } finally {
+      if (mounted) setState(() => _followBusyAuthorId = null);
+    }
   }
 
   void _onMoreOptions(String reelId) {
@@ -2060,25 +2130,34 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final reel = _currentFeedReel();
     if (reel == null) return const SizedBox.shrink();
 
+    final authorId = _sourceOwnerId(reel);
+    final me = AuthService().currentUser?.uid ?? '';
+    final showFollow = authorId.isNotEmpty && authorId != me;
+    final isFollowing = showFollow && _followingIds.contains(authorId);
+    final followBusy = _followBusyAuthorId == authorId;
+    final overlayBottom =
+        AppBottomNavigation.totalHeightFor(context, feedChrome: true) + AppSpacing.xs;
+
     return Positioned(
-      left: 16,
-      right: 80,
-      bottom: 14,
+      left: AppSpacing.md,
+      right: 88,
+      bottom: overlayBottom,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               GestureDetector(
                 onTap: () => _openReelAuthorProfile(reel),
                 child: Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: AppTheme.primary, width: 2),
                   ),
                   child: CircleAvatar(
-                    radius: 20,
+                    radius: AppSizes.feedReelAvatarRadius,
                     backgroundColor: Colors.grey[900],
                     backgroundImage:
                         _isValidNetworkUrl(_asString(reel['avatarUrl']))
@@ -2092,56 +2171,77 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                         ? const Icon(
                             Icons.person,
                             color: Colors.white,
-                            size: 20,
+                            size: 18,
                           )
                         : null,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              SizedBox(width: AppSpacing.sm),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _openReelAuthorProfile(reel),
-                          child: Text(
-                            _reelDisplayName(reel),
-                            style: AppTypography.feedReelDisplayName,
-                          ),
+                    Flexible(
+                      child: GestureDetector(
+                        onTap: () => _openReelAuthorProfile(reel),
+                        child: Text(
+                          _reelHandle(reel),
+                          style: AppTypography.feedReelUsername,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if (reel['isVerified'] == true) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.all(1.5),
-                            decoration: BoxDecoration(
-                              color: verificationBadgeColor(
-                                isVerified: true,
-                                accountType:
-                                    (reel['accountType'] as String?) ??
-                                        'private',
-                                vipVerified: reel['vipVerified'] == true,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 10,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () => _openReelAuthorProfile(reel),
-                      child: Text(
-                        _reelHandle(reel),
-                        style: AppTypography.feedReelHandle,
                       ),
                     ),
+                    if (reel['isVerified'] == true) ...[
+                      SizedBox(width: AppSpacing.xs),
+                      Container(
+                        padding: const EdgeInsets.all(1.5),
+                        decoration: BoxDecoration(
+                          color: verificationBadgeColor(
+                            isVerified: true,
+                            accountType:
+                                (reel['accountType'] as String?) ??
+                                    'private',
+                            vipVerified: reel['vipVerified'] == true,
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 10,
+                        ),
+                      ),
+                    ],
+                    if (showFollow) ...[
+                      SizedBox(width: AppSpacing.sm),
+                      GestureDetector(
+                        onTap: followBusy ? null : () => _onFollowAuthor(reel),
+                        child: Container(
+                          padding: AppPadding.feedReelFollowChip,
+                          decoration: BoxDecoration(
+                            color: isFollowing
+                                ? White24.value
+                                : AppColors.feedFollowButton,
+                            borderRadius: AppRadius.pillRadius,
+                          ),
+                          child: followBusy
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  isFollowing ? 'Following' : '+ Follow',
+                                  style: AppTypography.feedReelFollowChip,
+                                ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2149,15 +2249,53 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           ),
           if (ReportStatusThresholds.severityFor(_asInt(reel['reportCount'])) !=
               ReportSeverity.none) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: AppSpacing.sm),
             ReportStatusBar.fromReel(reel),
           ],
-          const SizedBox(height: 12),
+          SizedBox(height: AppSpacing.sm),
           _buildReelCaption(reel),
-          const SizedBox(height: 16),
+          _buildReelMusicLine(reel),
+          SizedBox(height: AppSpacing.sm),
         ],
       ),
     );
+  }
+
+  Widget _buildReelMusicLine(Map<String, dynamic> reel) {
+    final music = _reelMusicLabel(reel);
+    if (music.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.music_note_rounded,
+            color: AppTheme.primary,
+            size: AppTypography.feedReelMusicSize,
+          ),
+          SizedBox(width: AppSpacing.reelMusicIconGap),
+          Expanded(
+            child: Text(
+              music,
+              style: AppTypography.feedReelMusic,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _reelMusicLabel(Map<String, dynamic> reel) {
+    final explicit = _asString(reel['music']).trim();
+    if (explicit.isNotEmpty) return explicit;
+    final profileMusic = _asString(reel['profileMusic']).trim();
+    if (profileMusic.isNotEmpty) return profileMusic;
+    final handle = _reelHandle(reel).replaceFirst('@', '');
+    if (handle.isEmpty) return '';
+    return 'Original Sound - $handle';
   }
 
   Widget _buildReelCaption(Map<String, dynamic> reel) {
@@ -2205,15 +2343,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   //   return true;
   // }
 
-  String _formatCount(int count) {
-    if (count >= 1000000) {
-      return '${(count / 1000000).toStringAsFixed(1)}M';
-    }
-    if (count >= 1000) {
-      return '${(count / 1000).toStringAsFixed(1)}K';
-    }
-    return count.toString();
-  }
 
   String _asString(dynamic value, {String fallback = ''}) {
     if (value == null) return fallback;
@@ -2221,11 +2350,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return text.isEmpty ? fallback : text;
   }
 
-  String _reelDisplayName(Map<String, dynamic> reel) {
-    final display = _asString(reel['displayName']);
-    if (display.isNotEmpty) return display;
-    return _asString(reel['username'], fallback: 'User');
-  }
 
   String _reelHandle(Map<String, dynamic> reel) {
     final handle = _asString(reel['handle']);
@@ -2356,7 +2480,7 @@ class _CaptionWithSeeMoreState extends State<_CaptionWithSeeMore> {
             CaptionWithHashtags(
               text: caption,
               style: _captionStyle,
-              hashtagColor: AppColors.brandPink,
+              hashtagStyle: AppTypography.feedReelHashtag,
               maxLines: _expanded ? null : 3,
               overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
             ),

@@ -177,6 +177,30 @@ class AppGradients {
     colors: [Color(0xE614001F), Color(0xF021002B), Color(0xF0490038)],
   );
 
+  /// Home feed video fade above bottom chrome (Figma `gradient-scrim` layer).
+  static const LinearGradient feedBottomNavScrim = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0x33000000),
+      Color(0xFF000000),
+      Color(0xFF000000),
+    ],
+    stops: [0.0, 0.75, 1.0],
+  );
+
+  /// Compact bottom nav chrome — subtle dark top edge into solid black.
+  static const LinearGradient feedBottomNavChrome = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF141414),
+      Color(0xFF000000),
+      Color(0xFF000000),
+    ],
+    stops: [0.0, 0.4, 1.0],
+  );
+
   /// Story avatar ring (pink gradient border).
   static const LinearGradient storyRingGradient = LinearGradient(
     begin: Alignment.topLeft,

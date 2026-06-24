@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
+
 /// Instagram-style heart burst shown at the double-tap location.
 ///
 /// Wrap post/reel media and pass [onDoubleTap] to trigger the like action.
@@ -30,7 +32,7 @@ class _HeartBurst {
 
 class _DoubleTapLikeOverlayState extends State<DoubleTapLikeOverlay>
     with TickerProviderStateMixin {
-  static const Color _likeColor = Color(0xFFF2486A);
+  static const Color _likeColor = AppColors.feedLikeActive;
   static const double _heartSize = 72;
 
   final List<_HeartBurst> _bursts = <_HeartBurst>[];

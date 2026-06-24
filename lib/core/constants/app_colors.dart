@@ -8,6 +8,15 @@ class AppColors {
   static const Color brandPink = Color(0xFFF81945);
   static const Color brandMagenta = Color(0xFFE11066);
   static const Color brandDeepMagenta = Color(0xFFDE106B);
+  /// Reel overlay "+ Follow" pill (Figma #660033).
+  static const Color feedFollowButton = Color(0xFF660033);
+  /// Reel like heart — filled state (Figma #9F0E56).
+  static const Color feedLikeActive = Color(0xFF9F0E56);
+  /// Reel caption hashtags (Figma #FFB3CC).
+  static const Color feedReelHashtag = Color(0xFFFFB3CC);
+
+  /// Bottom nav chrome behind the floating pill (Figma dark strip).
+  static const Color feedBottomChrome = Color(0xFF0C0C0C);
   static const Color brandPurple = Color(0xFF490038);
   static const Color brandDeepPurple = Color(0xFF21002B);
   static const Color brandNearBlack = Color(0xFF07010F);

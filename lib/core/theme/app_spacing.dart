@@ -26,6 +26,12 @@ abstract final class AppSpacing {
   /// Story row item spacing (12 = 3×4pt)
   static const double storyItem = 12;
 
+  /// Reel music row — icon to label (Figma 6px).
+  static const double reelMusicIconGap = 6;
+
+  /// Gap between reel post bottom edge and feed nav chrome (shows bottom radius).
+  static const double feedPostNavGap = sm;
+
   /// Space above primary auth CTA (50 = xl + lg + xs)
   static const double authCtaTop = xl + lg + xs;
 
