@@ -22,13 +22,14 @@ Flutter injects these into Android Gradle and iOS `Info.plist` (`FLUTTER_BUILD_N
 | Field | Value |
 |-------|--------|
 | Marketing version | **1.2.3** |
-| Build number | **47** |
-| `pubspec.yaml` | `1.2.3+47` |
+| Build number | **48** |
+| `pubspec.yaml` | `1.2.3+48` |
 
 ## Release history
 
 | Marketing | Build | Date | Channels | Notes |
 |-----------|-------|------|----------|--------|
+| 1.2.3 | 48 | 2026-06-24 | Play Store | Profile share icon sharpness fix (vector icon) |
 | 1.2.3 | 47 | 2026-06-23 | Play Store, TestFlight | Profile grid gap, square tiles, repost badge bottom-left, bottom nav restore |
 | 1.2.2 | 44 | 2026-06-16 | TestFlight, Play Store | iOS 1.2.1 train closed; marketing bump + build |
 | 1.2.1 | 43 | 2026-06-08 | TestFlight, Play Store | Profile share = Universal/App Links (www.vyooo.com/u/<username>); apex host dropped |
