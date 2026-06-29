@@ -223,6 +223,7 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
                           profileImageUrl: profileImageUrl,
                           unreadNotificationCount: unreadCount,
                           unreadChatCount: chatUnread,
+                          useFeedChrome: _currentIndex == 0,
                         );
                       },
                     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_padding.dart';
-import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
@@ -125,11 +124,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             enabled: _isValid,
             onPressed: _onContinue,
           ),
-          SizedBox(
-            height: AppSpacing.authFloatingNavBottom +
-                AppSizes.buttonHeight +
-                AppSpacing.md,
-          ),
+          SizedBox(height: AuthFloatingNavRow.scrollBottomClearance(context)),
         ],
       ),
     );

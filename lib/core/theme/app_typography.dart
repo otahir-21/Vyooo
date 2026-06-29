@@ -97,13 +97,13 @@ abstract final class AppTypography {
     color: usernameFieldLabelColor,
   );
 
-  /// Username pill value — DM Sans Semi Bold 16.
+  /// Username pill value — DM Sans Semi Bold 16 (light auth surfaces).
   static const TextStyle usernameFieldValue = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: inputSize,
     height: 1.0,
     fontWeight: FontWeight.w600,
-    color: AppTheme.defaultTextColor,
+    color: AppTheme.lightOnSurface,
   );
 
   /// Username unavailable — DM Sans Regular 10 @ brand pink.
@@ -151,13 +151,13 @@ abstract final class AppTypography {
     color: White70.value,
   );
 
-  /// Username suggestion row — DM Sans Semi Bold 16.
+  /// Username suggestion row — DM Sans Semi Bold 16 (light auth surfaces).
   static const TextStyle usernameSuggestion = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: inputSize,
     height: 1.0,
     fontWeight: FontWeight.w600,
-    color: AppTheme.defaultTextColor,
+    color: AppTheme.lightOnSurface,
   );
 
   /// Typed value in underline fields — DM Sans Regular 16.

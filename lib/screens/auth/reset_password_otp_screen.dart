@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/theme/app_padding.dart';
-import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
@@ -211,11 +210,7 @@ class _ResetPasswordOTPScreenState extends State<ResetPasswordOTPScreen> {
             enabled: _isOtpComplete,
             onPressed: _onVerify,
           ),
-          SizedBox(
-            height: AppSpacing.authFloatingNavBottom +
-                AppSizes.buttonHeight +
-                AppSpacing.md,
-          ),
+          SizedBox(height: AuthFloatingNavRow.scrollBottomClearance(context)),
         ],
       ),
     );

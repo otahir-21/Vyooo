@@ -35,7 +35,6 @@ import '../../core/subscription/subscription_controller.dart';
 import '../../core/utils/internet_availability.dart';
 import '../../core/utils/user_facing_errors.dart';
 import '../../core/utils/verification_badge.dart';
-import '../../core/theme/app_background_assets.dart';
 import '../../core/theme/app_padding.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_sizes.dart';
@@ -52,6 +51,7 @@ import '../../core/widgets/app_interaction_button.dart';
 import '../../features/comments/widgets/comments_bottom_sheet.dart';
 import '../../features/home/widgets/feed_reels_loading_skeleton.dart';
 import '../../features/home/widgets/following_header_stories.dart';
+import '../../features/home/widgets/following_stories_toggle.dart';
 import '../../features/home/widgets/for_you_ai_verified_badge.dart';
 import '../../features/story/story_upload_screen.dart';
 import '../../features/story/story_viewer_screen.dart';
@@ -770,6 +770,15 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return reels[_feedIndexForPage(_currentIndex, reels.length)];
   }
 
+  void _toggleFollowingStories() {
+    if (currentTab != HomeTab.following) return;
+    if (_followingStoriesCollapse.value > 0.5) {
+      _followingStoriesCollapse.reverse();
+    } else {
+      _followingStoriesCollapse.forward();
+    }
+  }
+
   void _onPageChanged(int index) {
     final previous = _currentIndex;
     setState(() {
@@ -1313,22 +1322,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
 
     final headerEstimate = AppFeedHeader.layoutHeight();
     final topPadding = MediaQuery.paddingOf(context).top;
+    final headerBottom = topPadding + headerEstimate;
 
-    final followingStoriesTop = topPadding + headerEstimate + 12;
-    final followingFeedTop = followingStoriesTop + 116;
+    final followingStoriesTop = headerBottom + AppSpacing.sm;
     final collapseT = isFollowing ? _followingStoriesCollapse.value : 0.0;
-    final storiesCollapsedTop = topPadding + headerEstimate - 30;
+    final storiesCollapsedTop =
+        headerBottom - AppSizes.followingStoriesCollapsedOverlap;
 
     final animatedStoriesTop =
         lerpDouble(followingStoriesTop, storiesCollapsedTop, collapseT) ??
         followingStoriesTop;
-    final animatedFeedTop =
-        lerpDouble(
-          followingFeedTop,
-          topPadding + headerEstimate + 8,
-          collapseT,
-        ) ??
-        followingFeedTop;
+    final storiesToggleTop = isFollowing
+        ? followingStoriesToggleTop(
+            headerBottom: headerBottom,
+            storiesRowTop: animatedStoriesTop,
+            collapseT: collapseT,
+          )
+        : 0.0;
 
     final feedChromeBottom = AppBottomNavigation.totalHeightFor(context);
     final feedBottomInset = feedChromeBottom + AppSpacing.feedPostNavGap;
@@ -1336,10 +1346,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Container(
-        decoration: _homeFeedBackgroundDecoration(
-          isFollowing: isFollowing,
-          isVrTab: isVrTab,
-        ),
+        decoration: _homeFeedBackgroundDecoration(isVrTab: isVrTab),
         child: Stack(
           children: [
             if (isVrTab)
@@ -1349,18 +1356,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               )
             else
               Positioned.fill(
-                top: isFollowing
-                    ? animatedFeedTop
-                    : 0, // Push video down only when stories row is visible.
+                top: 0,
                 bottom: feedBottomInset,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: isFollowing ? (8 - (4 * collapseT)) : 0,
-                    right: isFollowing ? (8 - (4 * collapseT)) : 0,
-                    top: isFollowing ? (8 - (4 * collapseT)) : 0,
-                  ),
-                  child: _buildFeedClipArea(isFollowing),
-                ),
+                child: _buildFeedClipArea(),
               ),
             _buildHeader(),
             if (isFollowing)
@@ -1370,6 +1368,15 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                   opacity: 1 - collapseT,
                   ignorePointer: collapseT > 0.95,
                 ),
+            if (isFollowing)
+              Positioned(
+                top: storiesToggleTop,
+                right: AppSpacing.md,
+                child: FollowingStoriesToggle(
+                  isExpanded: collapseT < 0.5,
+                  onTap: _toggleFollowingStories,
+                ),
+              ),
             if (currentTab == HomeTab.forYou && _showForYouAiVerifiedTooltip)
               Positioned.fill(
                 child: GestureDetector(
@@ -1489,10 +1496,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     );
   }
 
-  Widget _buildFeedClipArea(bool isFollowingTab) {
-    final radius = isFollowingTab
-        ? BorderRadius.circular(AppRadius.feedBottomChrome)
-        : AppRadius.feedPostBottomRadius;
+  Widget _buildFeedClipArea() {
+    final radius = AppRadius.feedPostBottomRadius;
     return ClipRRect(
       borderRadius: radius,
       clipBehavior: Clip.antiAlias,
@@ -1509,10 +1514,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   Widget _buildReelsFeed() {
     final reels = _currentReels;
     if (_feedRefreshInProgress && reels.isEmpty && _reelsLoadError == null) {
-      final radius = currentTab == HomeTab.following
-          ? BorderRadius.circular(AppRadius.feedBottomChrome)
-          : AppRadius.feedPostBottomRadius;
-      return FeedReelsLoadingSkeleton(borderRadius: radius);
+      return FeedReelsLoadingSkeleton(
+        borderRadius: AppRadius.feedPostBottomRadius,
+      );
     }
     if (_reelsLoadError != null && reels.isEmpty) {
       return _buildFeedLoadErrorPlaceholder(_reelsLoadError!);
@@ -1899,6 +1903,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isLiked = _likedReels[engagementId] ?? false;
     final isFavorite = _favoriteReels[engagementId] ?? false;
     final privacy = ReelCountPrivacy.fromMap(reel);
+    final isFollowingTab = currentTab == HomeTab.following;
     final interactionBottom =
         AppBottomNavigation.totalHeightFor(context) + AppSpacing.sm;
 
@@ -1908,24 +1913,28 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (!isFollowingTab) ...[
+            AppInteractionButton(
+              iconAsset: FeedInteractionAssets.crown,
+              count: '',
+              colorizeAsset: false,
+              iconColor: AppColors.lightGold,
+              onTap: () => _onCrownTap(reel),
+            ),
+            SizedBox(height: AppSpacing.md),
+          ],
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.crown,
-            count: '',
-            colorizeAsset: false,
-            iconColor: AppColors.lightGold,
-            onTap: () => _onCrownTap(reel),
-          ),
-          SizedBox(height: AppSpacing.md),
-          AppInteractionButton(
-            icon: isLiked ? Icons.favorite : Icons.favorite_border,
+            iconAsset: isLiked ? FeedInteractionAssets.heart : null,
+            icon: isLiked ? null : Icons.favorite_border,
             count: privacy.displayCount(
               ReelCountMetric.likes,
               _asInt(reel['likes']),
             ),
             isActive: isLiked,
             activeColor: AppColors.feedLikeActive,
-            defaultColor: AppTheme.primary,
-            countColor: AppTheme.primary,
+            defaultColor: Colors.white,
+            countColor: Colors.white,
+            colorizeAsset: false,
             onTap: () => _onLike(engagementId, isLiked),
             iconSize: AppSizes.feedLikeIcon,
             countTextStyle: AppTypography.feedReelMetric,
@@ -1939,6 +1948,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
               _asInt(reel['comments']),
             ),
             colorizeAsset: false,
+            countColor: Colors.white,
             onTap: () => _onComment(engagementId),
             countTextStyle: AppTypography.feedReelMetric,
             spacing: AppSpacing.xs,
@@ -1952,6 +1962,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             colorizeAsset: false,
             isActive: isFavorite,
             activeColor: AppColors.brandPink,
+            countColor: Colors.white,
             onTap: () => _onFavorite(engagementId, isFavorite),
             countTextStyle: AppTypography.feedReelActionLabel,
             spacing: AppSpacing.xs,
@@ -1961,6 +1972,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             iconAsset: FeedInteractionAssets.share,
             label: 'Share',
             colorizeAsset: false,
+            countColor: Colors.white,
             onTap: () => _onShare(reelId),
             countTextStyle: AppTypography.feedReelActionLabel,
             spacing: AppSpacing.xs,
@@ -2407,18 +2419,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 }
 
-BoxDecoration? _homeFeedBackgroundDecoration({
-  required bool isFollowing,
-  required bool isVrTab,
-}) {
-  if (isFollowing) {
-    return const BoxDecoration(
-      image: DecorationImage(
-        image: AssetImage(AppBackgroundAssets.followingFeed),
-        fit: BoxFit.cover,
-      ),
-    );
-  }
+BoxDecoration? _homeFeedBackgroundDecoration({required bool isVrTab}) {
   if (isVrTab) {
     return const BoxDecoration(
       gradient: LinearGradient(

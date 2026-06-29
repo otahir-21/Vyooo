@@ -4,7 +4,6 @@ import 'package:country_picker/country_picker.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/user_service.dart';
 import '../../core/theme/app_padding.dart';
-import '../../core/theme/app_sizes.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
@@ -203,11 +202,7 @@ class _FindAccountScreenState extends State<FindAccountScreen> {
               ),
             ),
           ),
-          SizedBox(
-            height: AppSpacing.authFloatingNavBottom +
-                AppSizes.buttonHeight +
-                AppSpacing.md,
-          ),
+          SizedBox(height: AuthFloatingNavRow.scrollBottomClearance(context)),
         ],
       ),
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../platform/app_system_ui.dart';
+import '../../theme/app_sizes.dart';
 import '../../theme/app_spacing.dart';
 import 'auth_floating_circle_button.dart';
 import 'auth_floating_nav_visibility.dart';
@@ -23,6 +25,13 @@ class AuthFloatingNavRow extends StatelessWidget {
   final bool forwardLoading;
   final bool alwaysShowBack;
 
+  /// Trailing spacer / scroll padding so content clears floating auth chrome.
+  static double scrollBottomClearance(BuildContext context) =>
+      AppSpacing.authFloatingNavBottom +
+      AppSizes.buttonHeight +
+      AppSpacing.md +
+      AppSystemUi.bottomChromeInset(context);
+
   @override
   Widget build(BuildContext context) {
     final showBack = shouldShowAuthFloatingBack(
@@ -35,7 +44,7 @@ class AuthFloatingNavRow extends StatelessWidget {
       right: AppSpacing.xl,
       bottom:
           AppSpacing.authFloatingNavBottom +
-          MediaQuery.paddingOf(context).bottom,
+          AppSystemUi.bottomChromeInset(context),
       child: Row(
         mainAxisAlignment:
             showBack ? MainAxisAlignment.spaceBetween : MainAxisAlignment.end,

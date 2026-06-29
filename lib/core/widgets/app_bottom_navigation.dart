@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../platform/app_system_ui.dart';
 import '../theme/app_fonts.dart';
 import '../theme/app_gradients.dart';
 import '../theme/app_radius.dart';
+import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
 import '../../screens/profile/profile_figma_tokens.dart';
 
 class _NavAssets {
   static const _base = 'assets/BottomNavBar';
-  static const homeSelected = '$_base/home_selected.png';
-  static const homeUnselected = '$_base/home_unselected.png';
-  static const broadcastSelected = '$_base/broadcast_selected.png';
-  static const broadcastUnselected = '$_base/broadcast_unselected.png';
-  static const addSelected = '$_base/add_selected.png';
-  static const addUnselected = '$_base/add_unselected.png';
-  static const chatSelected = '$_base/chat_selected.png';
-  static const chatUnselected = '$_base/chat_unselected.png';
+  static const homeSelected = '$_base/home_selected.svg';
+  static const homeUnselected = '$_base/home_unselected.svg';
+  static const broadcastSelected = '$_base/broadcast_selected.svg';
+  static const broadcastUnselected = '$_base/broadcast_unselected.svg';
+  static const addSelected = '$_base/add_selected.svg';
+  static const addUnselected = '$_base/add_unselected.svg';
+  static const chatSelected = '$_base/chat_selected.svg';
+  static const chatUnselected = '$_base/chat_unselected.svg';
   static const profileSelected = '$_base/profile_selected.png';
   static const profileUnselected = '$_base/profile_unselected.png';
   static const profileDefault = 'assets/vyooO_icons/Home/profile_icon.png';
@@ -43,17 +46,18 @@ class AppBottomNavigation extends StatelessWidget {
   /// Dark chrome + gradient scrim companion — home feed tab only.
   final bool useFeedChrome;
 
-  static const double _iconSize = 21.25;
-  static double get _profileIconSize => _iconSize * 1.35;
+  static double get _profileIconSize => AppSizes.bottomNavIcon * 1.35;
   static const Color _iconColor = ProfileFigmaTokens.primaryText;
   static const Color _selectedPillFill = ProfileFigmaTokens.cardBackground;
   static const Color _navBarFill = ProfileFigmaTokens.screenBackground;
   static const Color _splashColor = Color(0x33750047);
 
-  static const double _tapTargetSize = 44;
-  static const double _selectedPillSize = 44;
+  static const double _tapTargetSize = AppSizes.bottomNavTapTarget;
+  static const double _selectedPillSize = AppSizes.bottomNavTapTarget;
 
   Widget _navIcon(String assetPath) => _NavIconImage(assetPath: assetPath);
+
+  Widget _navSvgIcon(String assetPath) => _NavSvgIcon(assetPath: assetPath);
 
   Widget _buildProfileIcon(bool isSelected) {
     final hasProfileImage =
@@ -141,7 +145,7 @@ class AppBottomNavigation extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        _navIcon(
+        _navSvgIcon(
           isSelected ? _NavAssets.chatSelected : _NavAssets.chatUnselected,
         ),
         if (showBadge)
@@ -173,7 +177,7 @@ class AppBottomNavigation extends StatelessWidget {
   }
 
   /// Nav icons + artwork height (excludes Android/iOS system nav inset).
-  static const double barHeight = 60;
+  static const double barHeight = AppSizes.bottomNavBarHeight;
 
   /// Horizontal margin for the floating pill bar inside the chrome.
   static const double _horizontalMargin = 20;
@@ -181,16 +185,18 @@ class AppBottomNavigation extends StatelessWidget {
   /// Space above the white pill inside the dark chrome strip.
   static const double _chromeTopPadding = AppSpacing.sm;
 
-  /// Fraction of the system bottom inset kept below the bar (0.5 = sit halfway into safe area).
-  static const double _safeAreaBottomFactor = 0.5;
+  /// iOS-only: fraction of the home-indicator inset below the bar (0.5 = floating pill look).
+  static const double _iosSafeAreaBottomFactor = 0.5;
 
   /// Bottom nav height for overlay positioning.
   static double totalHeightFor(
     BuildContext context, {
     bool feedChrome = false,
   }) {
-    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
-    final bottomInset = systemBottom * _safeAreaBottomFactor;
+    final bottomInset = AppSystemUi.bottomChromeInset(
+      context,
+      iosInsetFactor: _iosSafeAreaBottomFactor,
+    );
     final chromeTop = feedChrome ? _chromeTopPadding : 0.0;
     return chromeTop + barHeight + bottomInset;
   }
@@ -306,8 +312,10 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
-    final bottomInset = systemBottom * _safeAreaBottomFactor;
+    final bottomInset = AppSystemUi.bottomChromeInset(
+      context,
+      iosInsetFactor: _iosSafeAreaBottomFactor,
+    );
 
     if (useFeedChrome) {
       return _buildFeedChromePill(bottomInset);
@@ -342,7 +350,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = customChild ??
-        _NavIconImage(
+        _NavSvgIcon(
           assetPath: isSelected ? selectedAsset! : unselectedAsset!,
         );
 
@@ -363,8 +371,23 @@ class _NavIconImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Image.asset(
       assetPath,
-      width: AppBottomNavigation._iconSize,
-      height: AppBottomNavigation._iconSize,
+      width: AppSizes.bottomNavIcon,
+      height: AppSizes.bottomNavIcon,
+    );
+  }
+}
+
+class _NavSvgIcon extends StatelessWidget {
+  const _NavSvgIcon({required this.assetPath});
+
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) {
+    return SvgPicture.asset(
+      assetPath,
+      width: AppSizes.bottomNavIcon,
+      height: AppSizes.bottomNavIcon,
     );
   }
 }

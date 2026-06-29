@@ -193,8 +193,7 @@ class _SelectLocationScreenState extends State<SelectLocationScreen> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final navClearance =
-        AppSpacing.authFloatingNavBottom + AppSizes.buttonHeight + AppSpacing.md;
+    final navClearance = AuthFloatingNavRow.scrollBottomClearance(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,

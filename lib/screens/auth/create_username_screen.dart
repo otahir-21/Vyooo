@@ -213,7 +213,6 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLight = AppTheme.isLight(context);
     return AuthLightScaffold(
       padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
       stackChildren: [
@@ -237,14 +236,14 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
           Text(
             "Let's get you started",
             style: AppTypography.onboardingSectionTitle.copyWith(
-              color: isLight ? AppTheme.lightOnSurface : null,
+              color: AppTheme.lightOnSurface,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 30),
           SizedBox(
             width: double.infinity,
-            child: _buildUsernameSection(isLight),
+            child: _buildUsernameSection(),
           ),
           const SizedBox(height: 100),
         ],
@@ -263,11 +262,11 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     );
   }
 
-  Widget _buildUsernameSection(bool isLight) {
+  Widget _buildUsernameSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildUsernameInput(isLight),
+        _buildUsernameInput(),
         if (_isReserved &&
             UsernameValidation.shouldCheckAvailability(
               UsernameValidation.normalize(_usernameController.text),
@@ -289,7 +288,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
         ],
-        if (_suggestions.isNotEmpty) _buildSuggestions(isLight),
+        if (_suggestions.isNotEmpty) _buildSuggestions(),
       ],
     );
   }
@@ -301,7 +300,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         UsernameValidation.normalize(_usernameController.text),
       );
 
-  ({Color color, double width}) _usernameFieldBorder(bool isLight) {
+  ({Color color, double width}) _usernameFieldBorder() {
     if (_usernameShowsAvailabilityError) {
       return (color: AppColors.brandPink, width: 1.5);
     }
@@ -309,24 +308,18 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
       return (color: Colors.green, width: 1.5);
     }
     if (_usernameFocusNode.hasFocus) {
-      return (
-        color: isLight ? AppTheme.lightOnSurface : White40.value,
-        width: 1.5,
-      );
+      return (color: AppTheme.lightOnSurface, width: 1.5);
     }
-    return (
-      color: isLight ? AppTheme.lightUnfocusedUnderline : White10.value,
-      width: 1,
-    );
+    return (color: AppTheme.lightUnfocusedUnderline, width: 1);
   }
 
-  Widget _buildUsernameInput(bool isLight) {
+  Widget _buildUsernameInput() {
     final hasError = _usernameShowsAvailabilityError;
     final hasSuccess = _available == true;
     final isFocused = _usernameFocusNode.hasFocus;
     final hasText = _usernameController.text.isNotEmpty;
     final showInsetLabel = isFocused || hasText;
-    final border = _usernameFieldBorder(isLight);
+    final border = _usernameFieldBorder();
 
     return GestureDetector(
       onTap: () => _usernameFocusNode.requestFocus(),
@@ -336,9 +329,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
         curve: Curves.easeInOut,
         height: 60,
         decoration: BoxDecoration(
-          color: isLight
-              ? AppTheme.lightInputPillFill
-              : AppColors.brandPurple.withValues(alpha: 0.25),
+          color: AppTheme.lightScaffoldBackground,
           borderRadius: AppRadius.pillRadius,
           border: Border.all(color: border.color, width: border.width),
         ),
@@ -361,9 +352,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                             child: Text(
                               'Username',
                               style: AppTypography.usernameFieldLabel.copyWith(
-                                color: isLight
-                                    ? AppTheme.lightSecondaryText
-                                    : null,
+                                color: AppTheme.lightSecondaryText,
                               ),
                             ),
                           )
@@ -376,14 +365,12 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                         AppTextFieldStyle.keyboardAppearance(context),
                     cursorColor: AppTextFieldStyle.cursorColor(context),
                     style: AppTypography.usernameFieldValue.copyWith(
-                      color: isLight ? AppTheme.lightOnSurface : null,
+                      color: AppTheme.lightOnSurface,
                     ),
                     decoration: InputDecoration(
                       hintText: showInsetLabel ? null : 'Username',
                       hintStyle: AppTypography.usernameFieldLabel.copyWith(
-                        color: isLight
-                            ? AppTheme.lightSecondaryText
-                            : null,
+                        color: AppTheme.lightSecondaryText,
                       ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -408,9 +395,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  isLight
-                      ? AppColors.authBrandBurgundy
-                      : AppTheme.primary,
+                  AppColors.authBrandBurgundy,
                 ),
               ),
             )
@@ -678,18 +663,14 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
     return AuthPublicPersonaDialog.show(context);
   }
 
-  Widget _buildSuggestions(bool isLight) {
+  Widget _buildSuggestions() {
     return Container(
       margin: const EdgeInsets.only(top: 10),
       decoration: BoxDecoration(
-        color: isLight
-            ? AppTheme.lightOtpBoxFill
-            : Colors.white.withValues(alpha: .06),
+        color: AppTheme.lightOtpBoxFill,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isLight
-              ? AppTheme.lightUnfocusedUnderline
-              : Colors.white.withValues(alpha: .08),
+          color: AppTheme.lightUnfocusedUnderline,
         ),
       ),
       child: Column(
@@ -701,9 +682,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
               if (index != 0)
                 Divider(
                   height: 1,
-                  color: isLight
-                      ? AppTheme.lightUnfocusedUnderline
-                      : Colors.white.withValues(alpha: 0.1),
+                  color: AppTheme.lightUnfocusedUnderline,
                 ),
               InkWell(
                 onTap: () => _applySuggestion(suggestion),
@@ -717,7 +696,7 @@ class _CreateUsernameScreenState extends State<CreateUsernameScreen> {
                         child: Text(
                           suggestion,
                           style: AppTypography.usernameSuggestion.copyWith(
-                            color: isLight ? AppTheme.lightOnSurface : null,
+                            color: AppTheme.lightOnSurface,
                           ),
                         ),
                       ),

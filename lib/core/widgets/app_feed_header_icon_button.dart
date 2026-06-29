@@ -13,6 +13,7 @@ class AppFeedHeaderIconButton extends StatelessWidget {
     required this.onTap,
     this.iconAsset,
     this.fallbackIcon = Icons.circle_outlined,
+    this.iconColor = Colors.white,
     this.semanticsLabel,
     this.badge,
   });
@@ -20,6 +21,7 @@ class AppFeedHeaderIconButton extends StatelessWidget {
   final VoidCallback onTap;
   final String? iconAsset;
   final IconData fallbackIcon;
+  final Color iconColor;
   final String? semanticsLabel;
   final Widget? badge;
 
@@ -30,6 +32,7 @@ class AppFeedHeaderIconButton extends StatelessWidget {
     return AppFeedHeaderIconButton(
       key: key,
       onTap: onTap,
+      iconAsset: FeedHeaderAssets.search,
       fallbackIcon: Icons.search_rounded,
       semanticsLabel: 'Search',
     );
@@ -99,7 +102,7 @@ class AppFeedHeaderIconButton extends StatelessWidget {
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         isAntiAlias: true,
-        color: AppTheme.primary,
+        color: iconColor,
         errorBuilder: (_, _, _) => _buildVectorIcon(),
       );
     }
@@ -109,7 +112,7 @@ class AppFeedHeaderIconButton extends StatelessWidget {
   Widget _buildVectorIcon() {
     return Icon(
       fallbackIcon,
-      color: AppTheme.primary,
+      color: iconColor,
       size: AppSizes.feedNotificationIcon,
       weight: 500,
     );

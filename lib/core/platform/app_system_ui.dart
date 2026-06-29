@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 /// Central Android/iOS system UI setup for edge-to-edge and phone portrait.
 abstract final class AppSystemUi {
@@ -61,6 +62,19 @@ abstract final class AppSystemUi {
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     setEdgeToEdgeOverlayStyle();
     await applyPhonePortraitLockIfNeeded();
+  }
+
+  /// Bottom padding so app chrome (bottom nav, auth floating controls) sits above
+  /// the system gesture/nav bar. Android uses the full inset; iOS keeps a partial
+  /// overlap with the home indicator for the floating pill look.
+  static double bottomChromeInset(
+    BuildContext context, {
+    double iosInsetFactor = 0.5,
+  }) {
+    final systemBottom = MediaQuery.viewPaddingOf(context).bottom;
+    if (kIsWeb) return 0;
+    if (Platform.isAndroid) return systemBottom;
+    return systemBottom * iosInsetFactor;
   }
 
   /// Re-apply portrait after leaving a route that cleared orientation (e.g. crop).

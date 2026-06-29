@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../constants/app_colors.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_radius.dart';
 import '../../theme/app_spacing.dart';
@@ -17,7 +16,10 @@ class AuthPublicPersonaDialog extends StatefulWidget {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      builder: (_) => const AuthPublicPersonaDialog(),
+      builder: (dialogContext) => Theme(
+        data: AppTheme.light,
+        child: const AuthPublicPersonaDialog(),
+      ),
     );
   }
 
@@ -66,16 +68,18 @@ class _AuthPublicPersonaDialogState extends State<AuthPublicPersonaDialog> {
                     vertical: AppSpacing.sm,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.brandPurple.withValues(alpha: 0.25),
+                    color: AppTheme.lightScaffoldBackground,
                     borderRadius: AppRadius.pillRadius,
-                    border: Border.all(color: White10.value),
+                    border: Border.all(color: AppTheme.lightUnfocusedUnderline),
                   ),
                   child: TextFormField(
                     controller: _controller,
                     autofocus: true,
                     textCapitalization: TextCapitalization.sentences,
                     maxLength: UserService.publicPersonaMaxLength,
-                    style: AppTypography.usernameFieldValue,
+                    style: AppTypography.usernameFieldValue.copyWith(
+                      color: AppTheme.lightOnSurface,
+                    ),
                     onChanged: (_) {
                       if (_errorText != null) {
                         setState(() => _errorText = null);
@@ -84,7 +88,9 @@ class _AuthPublicPersonaDialogState extends State<AuthPublicPersonaDialog> {
                     decoration: InputDecoration(
                       hintText:
                           'e.g. Entrepreneur, Content creator, Celebrity',
-                      hintStyle: AppTypography.inputHint,
+                      hintStyle: AppTypography.inputHint.copyWith(
+                        color: AppTheme.lightSecondaryText,
+                      ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,

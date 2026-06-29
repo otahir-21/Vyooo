@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../platform/app_system_ui.dart';
 import '../../theme/app_spacing.dart';
 import 'auth_floating_circle_button.dart';
 import 'auth_floating_nav_visibility.dart';
@@ -31,7 +32,7 @@ class AuthFloatingBackButton extends StatelessWidget {
       left: AppSpacing.xl,
       bottom:
           AppSpacing.authFloatingNavBottom +
-          MediaQuery.paddingOf(context).bottom,
+          AppSystemUi.bottomChromeInset(context),
       child: AuthFloatingCircleButton.back(
         onPressed: onPressed,
         enabled: enabled,

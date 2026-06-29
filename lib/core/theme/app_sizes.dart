@@ -40,6 +40,20 @@ abstract final class AppSizes {
 
   /// Reel author avatar on feed overlay.
   static const double feedReelAvatarRadius = 18;
+
+  /// Following tab — story avatar diameter (Figma).
+  static const double followingStoryAvatarSize = 68;
+  static const double followingStoryBorderWidth = 3;
+
+  /// Following tab — horizontal story row (avatar only, Figma).
+  static const double followingStoryRowHeight = 80;
+
+  /// Following tab — collapse chevron square (Figma, right of story row).
+  static const double followingStoriesToggleSize = 28;
+  static const double followingStoriesToggleIcon = 20;
+
+  /// How far the story row slides up when collapsed (under header).
+  static const double followingStoriesCollapsedOverlap = 30;
   static const double progressIndicator = 24;
 
   /// Figma bottom nav gradient scrim (430×392 frame on ~932pt artboard).
@@ -51,6 +65,12 @@ abstract final class AppSizes {
     return screenHeight *
         (feedBottomNavScrimDesignHeight / feedBottomNavScrimDesignArtboardHeight);
   }
+
+  // — Bottom nav —
+  /// Tab icon asset size inside the 44px tap target / selected pill.
+  static const double bottomNavIcon = 28;
+  static const double bottomNavTapTarget = 44;
+  static const double bottomNavBarHeight = 60;
 
   // — Icons —
   static const double fieldIcon = 22;

@@ -181,11 +181,7 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
             enabled: _isOtpComplete,
             onPressed: _onVerify,
           ),
-          SizedBox(
-            height: AppSpacing.authFloatingNavBottom +
-                AppSizes.buttonHeight +
-                AppSpacing.md,
-          ),
+          SizedBox(height: AuthFloatingNavRow.scrollBottomClearance(context)),
         ],
       ),
     );
