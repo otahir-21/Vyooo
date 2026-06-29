@@ -30,13 +30,13 @@ abstract final class AppSizes {
   static const double feedNotificationIcon = 22;
   static const double feedNotificationTapTarget = 40;
 
-  /// Reel action column — frosted circle behind each icon (80% of prior Figma base).
-  static const double feedInteractionCircle = 44 * 0.8;
-  static const double feedInteractionIcon = 22 * 0.8;
-  static const double feedInteractionTapTarget = 44 * 0.8;
+  /// Reel action column — frosted circle behind each icon.
+  static const double feedInteractionCircle = 28;
+  static const double feedInteractionIcon = 14;
+  static const double feedInteractionTapTarget = 36;
 
-  /// Reel like heart icon (Figma ~18.28 × 16.47).
-  static const double feedLikeIcon = 18;
+  /// Reel like heart icon — matches [feedInteractionIcon].
+  static const double feedLikeIcon = 14;
 
   /// Reel author avatar on feed overlay.
   static const double feedReelAvatarRadius = 18;
@@ -68,7 +68,7 @@ abstract final class AppSizes {
 
   // — Bottom nav —
   /// Tab icon asset size inside the 44px tap target / selected pill.
-  static const double bottomNavIcon = 28;
+  static const double bottomNavIcon = 20;
   static const double bottomNavTapTarget = 44;
   static const double bottomNavBarHeight = 60;
 
@@ -80,4 +80,15 @@ abstract final class AppSizes {
 
   // — OTP —
   static const double authOtpBoxSize = 70;
+
+  // — Chat (Figma inbox / thread) —
+  static const double chatInboxAvatar = 48;
+  static const double chatThreadBubbleAvatar = 24;
+  static const double chatNoteAvatar = 50;
+  static const double chatAppBarAvatar = 34;
+  static const double chatSearchHeight = 36;
+  static const double chatComposeButton = 34;
+  static const double chatMessageInputHeight = 44;
+  static const double chatInputCameraButton = 32;
+  static const double chatInputActionIcon = 22;
 }

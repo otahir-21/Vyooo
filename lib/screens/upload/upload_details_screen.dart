@@ -5,7 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../core/constants/app_colors.dart';
 import '../../core/models/post_location_model.dart';
 import '../../core/models/video_360_metadata.dart';
 import '../../core/services/user_service.dart';
@@ -16,6 +18,10 @@ import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/services/hashtag_generation_service.dart';
 import '../../core/services/reels_service.dart';
+import '../../core/theme/app_radius.dart';
+import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/utils/upload_tag_suggestions.dart';
 import 'location_picker_sheet.dart';
 import 'upload_success_screen.dart';
@@ -54,7 +60,6 @@ class UploadDetailsScreen extends StatefulWidget {
 }
 
 class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
-  static const Color _pink = Color(0xFFDE106B);
   static const int _maxTags = 30;
   static const List<String> _categories = <String>[
     'Entertainment',
@@ -419,27 +424,23 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1E0A1E),
-      resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF490038), Color(0xFF1E0A1E)],
-            stops: [0.0, 0.4],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: _isUploading ? _buildProgress() : _buildForm(),
-              ),
-            ],
+    return Theme(
+      data: AppTheme.light,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.lightEdgeToEdgeOverlay,
+        child: Scaffold(
+          backgroundColor: AppColors.chatBackground,
+          resizeToAvoidBottomInset: true,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: _isUploading ? _buildProgress() : _buildForm(),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -448,18 +449,26 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm + AppSpacing.xs,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: _isUploading ? null : () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: AppColors.chatTextPrimary,
+              size: 20,
+            ),
           ),
-          const SizedBox(width: 4),
-          const Text(
+          Text(
             'Add details',
-            style: TextStyle(
-              color: Colors.white,
+            style: AppTypography.chatTileName.copyWith(
+              color: AppColors.chatTextPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -468,14 +477,17 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           GestureDetector(
             onTap: _isUploading ? null : _post,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
-              decoration: BoxDecoration(
-                color: _pink,
-                borderRadius: BorderRadius.circular(20),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.sm,
               ),
-              child: const Text(
+              decoration: BoxDecoration(
+                color: AppColors.authBrandBurgundy,
+                borderRadius: AppRadius.pillRadius,
+              ),
+              child: Text(
                 'Upload',
-                style: TextStyle(
+                style: AppTypography.chatTileName.copyWith(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -491,34 +503,41 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   Widget _buildProgress() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_upload_rounded, color: _pink, size: 56),
-            const SizedBox(height: 24),
+            const Icon(
+              Icons.cloud_upload_rounded,
+              color: AppColors.brandDeepMagenta,
+              size: 56,
+            ),
+            const SizedBox(height: AppSpacing.xl),
             Text(
               _allAssets.length > 1
                   ? 'Uploading ${_uploadingItemIndex + 1} of ${_allAssets.length}…'
                   : (_isVideoAsset
                         ? 'Uploading your video…'
                         : 'Uploading your photo…'),
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: AppTypography.chatTileName.copyWith(
+                color: AppColors.chatTextPrimary,
+                fontSize: 16,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppSpacing.xs),
               child: LinearProgressIndicator(
                 value: _uploadProgress > 0 ? _uploadProgress : null,
-                backgroundColor: Colors.white.withValues(alpha: 0.15),
-                color: _pink,
+                backgroundColor: AppColors.chatSearchFill,
+                color: AppColors.brandDeepMagenta,
                 minHeight: 6,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               _uploadProgress > 0 ? '${(_uploadProgress * 100).toInt()}%' : 'Preparing…',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+              style: AppTypography.chatTilePreview,
             ),
           ],
         ),
@@ -528,13 +547,13 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
 
   Widget _buildForm() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md + AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.md + AppSpacing.xs),
           _buildThumbnail(),
-          const SizedBox(height: 32),
+          const SizedBox(height: AppSpacing.xxl),
           _buildField(
             controller: _titleController,
             label: 'Title',
@@ -542,7 +561,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
             maxLines: 1,
             maxLength: 120,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _buildField(
             controller: _descController,
             label: 'Description',
@@ -550,19 +569,19 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
             maxLines: 2,
             maxLength: 200,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _buildCategoryPicker(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _buildLocationPicker(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           if (_canConfigure360) ...[
             _build360VideoSection(),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
           ],
           _buildSuggestedTagsSection(),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.xl),
           _buildTagsPicker(),
-          const SizedBox(height: 30),
+          const SizedBox(height: AppSpacing.xl + AppSpacing.sm),
         ],
       ),
     );
@@ -579,8 +598,8 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           width: 160,
           height: 220,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: AppRadius.buttonRadius,
+            color: AppColors.chatSearchFill,
           ),
           clipBehavior: Clip.antiAlias,
           child: _buildAssetPreview(_allAssets.first, index: 0),
@@ -604,9 +623,9 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: AppRadius.buttonRadius,
                   child: ColoredBox(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: AppColors.chatSearchFill,
                     child: _buildAssetPreview(_allAssets[index], index: index),
                   ),
                 ),
@@ -626,29 +645,24 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                 height: i == _previewPageIndex ? 8 : 6,
                 decoration: BoxDecoration(
                   color: i == _previewPageIndex
-                      ? _pink
-                      : Colors.white.withValues(alpha: 0.35),
+                      ? AppColors.brandDeepMagenta
+                      : AppColors.chatTextSecondary.withValues(alpha: 0.35),
                   shape: BoxShape.circle,
                 ),
               ),
-            const SizedBox(width: 10),
+            const SizedBox(width: AppSpacing.sm + AppSpacing.xs),
             Text(
               '${_previewPageIndex + 1}/$total',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 12,
+              style: AppTypography.chatTilePreview.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           'Swipe to preview all selected media',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.4),
-            fontSize: 11,
-          ),
+          style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
         ),
       ],
     );
@@ -735,7 +749,7 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           return Image.file(snapshot.data!, fit: BoxFit.cover);
         }
         return const Center(
-          child: CircularProgressIndicator(color: Colors.white24),
+          child: CircularProgressIndicator(color: AppColors.brandDeepMagenta),
         );
       },
     );
@@ -754,9 +768,9 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
   Future<void> _showCategoryPickerSheet() async {
     final picked = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1A0020),
+      backgroundColor: AppColors.chatBackground,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.input)),
       ),
       builder: (ctx) => SafeArea(
         child: ListView(
@@ -766,10 +780,16 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                 (category) => ListTile(
                   title: Text(
                     category,
-                    style: const TextStyle(color: Colors.white),
+                    style: AppTypography.chatTileName.copyWith(
+                      color: AppColors.chatTextPrimary,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
                   trailing: _selectedCategory == category
-                      ? const Icon(Icons.check_rounded, color: _pink)
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: AppColors.brandDeepMagenta,
+                        )
                       : null,
                   onTap: () => Navigator.of(ctx).pop(category),
                 ),
@@ -854,32 +874,43 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     if (_selectedTags.isEmpty) {
       return Text(
         'No tags added yet.',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+        style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
       );
     }
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: _selectedTags
           .map(
             (tag) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm + AppSpacing.xs,
+                vertical: AppSpacing.sm - AppSpacing.xs,
+              ),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white24, width: 0.5),
+                color: AppColors.chatSearchFill,
+                borderRadius: AppRadius.pillRadius,
+                border: Border.all(color: AppColors.chatDivider),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     tag,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: AppTypography.chatTileName.copyWith(
+                      color: AppColors.chatTextPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.sm - AppSpacing.xs),
                   GestureDetector(
                     onTap: () => _removeTag(tag),
-                    child: const Icon(Icons.close, color: Colors.white70, size: 14),
+                    child: const Icon(
+                      Icons.close,
+                      color: AppColors.chatTextSecondary,
+                      size: 14,
+                    ),
                   ),
                 ],
               ),
@@ -893,43 +924,51 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Category',
-          style: TextStyle(
-            color: Colors.white,
+          style: AppTypography.chatTileName.copyWith(
+            color: AppColors.chatTextPrimary,
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm),
         GestureDetector(
           onTap: _showCategoryPickerSheet,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  _selectedCategory ?? 'Select your category',
-                  style: TextStyle(
-                    color: _selectedCategory == null ? Colors.white38 : Colors.white,
-                    fontSize: 14,
+          behavior: HitTestBehavior.opaque,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _selectedCategory ?? 'Select your category',
+                      style: AppTypography.chatTileName.copyWith(
+                        color: _selectedCategory == null
+                            ? AppColors.chatTextSecondary
+                            : AppColors.chatTextPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
                   ),
-                ),
-                const Spacer(),
-                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white38, size: 22),
-              ],
-            ),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: AppColors.chatAppBarActionIcon,
+                    size: 22,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Divider(height: 1, color: AppColors.chatDivider),
+            ],
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Adding a category helps others find your content in search.',
-          style: TextStyle(color: Colors.white38, fontSize: 11),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'All content must be categorized for better search experience.',
+          style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
         ),
       ],
     );
@@ -939,15 +978,15 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Location',
-          style: TextStyle(
-            color: Colors.white,
+          style: AppTypography.chatTileName.copyWith(
+            color: AppColors.chatTextPrimary,
             fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm),
         GestureDetector(
           onTap: _isUploading
               ? null
@@ -957,36 +996,59 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                   setState(() => _selectedLocation = result);
                 },
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm + AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white10),
+              color: AppColors.chatSearchFill,
+              borderRadius: AppRadius.inputRadius,
+              border: Border.all(color: AppColors.chatDivider),
             ),
             child: _selectedLocation == null
                 ? Row(
                     children: [
-                      Icon(Icons.location_on_outlined, color: Colors.white38, size: 20),
-                      const SizedBox(width: 10),
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: AppColors.chatTextSecondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: AppSpacing.sm + AppSpacing.xs),
                       Text(
                         'Add location',
-                        style: TextStyle(color: Colors.white38, fontSize: 14),
+                        style: AppTypography.chatTileName.copyWith(
+                          color: AppColors.chatTextSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                       const Spacer(),
-                      const Icon(Icons.keyboard_arrow_right_rounded, color: Colors.white38, size: 22),
+                      const Icon(
+                        Icons.keyboard_arrow_right_rounded,
+                        color: AppColors.chatAppBarActionIcon,
+                        size: 22,
+                      ),
                     ],
                   )
                 : Row(
                     children: [
-                      Icon(Icons.location_on, color: _pink, size: 20),
-                      const SizedBox(width: 10),
+                      const Icon(
+                        Icons.location_on,
+                        color: AppColors.brandDeepMagenta,
+                        size: 20,
+                      ),
+                      const SizedBox(width: AppSpacing.sm + AppSpacing.xs),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               _selectedLocation!.name,
-                              style: const TextStyle(color: Colors.white, fontSize: 14),
+                              style: AppTypography.chatTileName.copyWith(
+                                color: AppColors.chatTextPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -994,20 +1056,21 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                                 _selectedLocation!.address!.isNotEmpty)
                               Text(
                                 _selectedLocation!.address!,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  fontSize: 12,
-                                ),
+                                style: AppTypography.chatTilePreview,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       GestureDetector(
                         onTap: () => setState(() => _selectedLocation = null),
-                        child: Icon(Icons.close, color: Colors.white54, size: 18),
+                        child: const Icon(
+                          Icons.close,
+                          color: AppColors.chatTextSecondary,
+                          size: 18,
+                        ),
                       ),
                     ],
                   ),
@@ -1024,13 +1087,13 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 '360 video',
-                style: TextStyle(
-                  color: Colors.white,
+                style: AppTypography.chatTileName.copyWith(
+                  color: AppColors.chatTextPrimary,
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1038,16 +1101,19 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               const SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: _pink),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.brandDeepMagenta,
+                ),
               )
             else
               Switch.adaptive(
                 value: _is360Video,
-                activeTrackColor: _pink.withValues(alpha: 0.55),
+                activeTrackColor: AppColors.brandDeepMagenta.withValues(alpha: 0.55),
                 thumbColor: WidgetStateProperty.resolveWith(
                   (states) => states.contains(WidgetState.selected)
-                      ? _pink
-                      : Colors.white70,
+                      ? AppColors.brandDeepMagenta
+                      : AppColors.chatTextSecondary,
                 ),
                 onChanged: _isUploading
                     ? null
@@ -1055,41 +1121,40 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.sm - AppSpacing.xs),
         Text(
           'Look around by dragging or moving your phone. All videos stay in the gallery — this only changes how the post plays.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.55),
+          style: AppTypography.chatTilePreview.copyWith(
             fontSize: 12,
             height: 1.35,
           ),
         ),
         if (detection?.message != null && detection!.message!.isNotEmpty) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + AppSpacing.xs,
+              vertical: AppSpacing.sm + AppSpacing.xs,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white12),
+              color: AppColors.chatSearchFill,
+              borderRadius: AppRadius.inputRadius,
+              border: Border.all(color: AppColors.chatDivider),
             ),
             child: Text(
               detection.message!,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
-                fontSize: 12,
-              ),
+              style: AppTypography.chatTilePreview.copyWith(fontSize: 12),
             ),
           ),
         ],
         if (_is360Video) ...[
-          const SizedBox(height: 16),
-          const Text(
+          const SizedBox(height: AppSpacing.md),
+          Text(
             'Projection',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+            style: AppTypography.chatTilePreview.copyWith(fontSize: 13),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildChoiceChipRow(
             options: const [
               ('Equirectangular', Video360Projection.equirectangular),
@@ -1098,12 +1163,12 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
             onSelected: (value) =>
                 setState(() => _projectionType = value as Video360Projection),
           ),
-          const SizedBox(height: 16),
-          const Text(
+          const SizedBox(height: AppSpacing.md),
+          Text(
             'Stereo layout',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+            style: AppTypography.chatTilePreview.copyWith(fontSize: 13),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _buildChoiceChipRow(
             options: const [
               ('Mono', Video360StereoMode.mono),
@@ -1125,8 +1190,8 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
     required ValueChanged<Object> onSelected,
   }) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
         for (final (label, value) in options)
           ChoiceChip(
@@ -1135,14 +1200,19 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
             onSelected: _isUploading
                 ? null
                 : (_) => onSelected(value),
-            selectedColor: _pink.withValues(alpha: 0.35),
-            backgroundColor: Colors.white.withValues(alpha: 0.08),
-            labelStyle: TextStyle(
-              color: selected == value ? Colors.white : Colors.white70,
+            selectedColor: AppColors.brandDeepMagenta.withValues(alpha: 0.15),
+            backgroundColor: AppColors.chatSearchFill,
+            labelStyle: AppTypography.chatTileName.copyWith(
+              color: selected == value
+                  ? AppColors.authBrandBurgundy
+                  : AppColors.chatTextSecondary,
               fontSize: 13,
+              fontWeight: FontWeight.w400,
             ),
             side: BorderSide(
-              color: selected == value ? _pink : Colors.white24,
+              color: selected == value
+                  ? AppColors.brandDeepMagenta
+                  : AppColors.chatDivider,
             ),
           ),
       ],
@@ -1163,34 +1233,37 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Suggested tags',
-                        style: TextStyle(
-                          color: Colors.white,
+                        style: AppTypography.chatTileName.copyWith(
+                          color: AppColors.chatTextPrimary,
                           fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         '${_suggestedTags.length} ideas',
-                        style: const TextStyle(color: Colors.white38, fontSize: 13),
+                        style: AppTypography.chatTilePreview,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Local suggestions update as you type. AI 30+ asks the server for at least ${HashtagGenerationService.minHashtagCount} tags (Gemini or OpenAI, configured in Cloud Functions).',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.38), fontSize: 11),
+                    style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             TextButton(
               onPressed: (_aiGenerating || _isUploading) ? null : _generateAiHashtags,
               style: TextButton.styleFrom(
-                foregroundColor: _pink,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                foregroundColor: AppColors.brandDeepMagenta,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -1198,24 +1271,31 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: _pink),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.brandDeepMagenta,
+                      ),
                     )
-                  : const Text(
+                  : Text(
                       'AI 30+',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: AppTypography.chatTileName.copyWith(
+                        color: AppColors.brandDeepMagenta,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           'Tap a chip to add or remove.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+          style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: _suggestedTags
               .map(
                 (tag) {
@@ -1223,19 +1303,28 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
                   return GestureDetector(
                     onTap: () => _toggleSuggestedTag(tag),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm + AppSpacing.xs,
+                        vertical: AppSpacing.sm,
+                      ),
                       decoration: BoxDecoration(
-                        color: selected ? _pink.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
+                        color: selected
+                            ? AppColors.brandDeepMagenta.withValues(alpha: 0.12)
+                            : AppColors.chatSearchFill,
+                        borderRadius: AppRadius.pillRadius,
                         border: Border.all(
-                          color: selected ? _pink : Colors.white24,
-                          width: selected ? 1.2 : 0.5,
+                          color: selected
+                              ? AppColors.brandDeepMagenta
+                              : AppColors.chatDivider,
+                          width: selected ? 1.2 : 1,
                         ),
                       ),
                       child: Text(
                         tag,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: selected ? 1 : 0.85),
+                        style: AppTypography.chatTileName.copyWith(
+                          color: selected
+                              ? AppColors.authBrandBurgundy
+                              : AppColors.chatTextPrimary,
                           fontSize: 12,
                           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                         ),
@@ -1257,66 +1346,64 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Tags',
-              style: TextStyle(
-                color: Colors.white,
+              style: AppTypography.chatTileName.copyWith(
+                color: AppColors.chatTextPrimary,
                 fontSize: 16,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
             Text(
               '${_selectedTags.length}/$_maxTags',
-              style: const TextStyle(color: Colors.white38, fontSize: 13),
+              style: AppTypography.chatTilePreview,
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        _buildTagChips(),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white10),
+        if (_selectedTags.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
+          _buildTagChips(),
+        ],
+        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
+        TextField(
+          controller: _tagsController,
+          onSubmitted: (v) => _addTag(v, clearInput: true),
+          keyboardAppearance: Brightness.light,
+          cursorColor: AppColors.authBrandBurgundy,
+          style: AppTypography.chatTileName.copyWith(
+            color: AppColors.chatTextPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _tagsController,
-                  onSubmitted: (v) => _addTag(v, clearInput: true),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your own tags',
-                    hintStyle: TextStyle(color: Colors.white38, fontSize: 14),
-                    border: InputBorder.none,
-                  ),
+          decoration: InputDecoration(
+            hintText: 'Enter your own tags',
+            hintStyle: AppTypography.chatTilePreview.copyWith(fontSize: 13),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.chatDivider),
+            ),
+            focusedBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.authBrandBurgundy),
+            ),
+            suffixIcon: TextButton(
+              onPressed: () => _addTag(_tagsController.text, clearInput: true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.brandDeepMagenta,
+              ),
+              child: Text(
+                'Add',
+                style: AppTypography.chatTileName.copyWith(
+                  color: AppColors.brandDeepMagenta,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(
-                height: 24,
-                child: VerticalDivider(color: Colors.white10, width: 24),
-              ),
-              GestureDetector(
-                onTap: () => _addTag(_tagsController.text, clearInput: true),
-                child: const Text(
-                  'Add',
-                  style: TextStyle(
-                    color: _pink,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        const Text(
+        const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
+        Text(
           'Tags are visible by others and are used to make you discoverable on vyoo.',
-          style: TextStyle(color: Colors.white38, fontSize: 11),
+          style: AppTypography.chatTilePreview.copyWith(fontSize: 11),
         ),
       ],
     );
@@ -1337,34 +1424,40 @@ class _UploadDetailsScreenState extends State<UploadDetailsScreen> {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
+              style: AppTypography.chatTileName.copyWith(
+                color: AppColors.chatTextPrimary,
                 fontSize: 16,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
             Text(
               '${controller.text.length}/$maxLength',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+              style: AppTypography.chatTilePreview.copyWith(fontSize: 12),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         TextField(
           controller: controller,
           maxLines: maxLines,
           maxLength: maxLength,
           onChanged: (_) => setState(() {}),
-          style: const TextStyle(color: Colors.white, fontSize: 13),
+          keyboardAppearance: Brightness.light,
+          cursorColor: AppColors.authBrandBurgundy,
+          style: AppTypography.chatTileName.copyWith(
+            color: AppColors.chatTextPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
           decoration: InputDecoration(
             counterText: '',
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            hintStyle: AppTypography.chatTilePreview.copyWith(fontSize: 13),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.chatDivider),
             ),
             focusedBorder: const UnderlineInputBorder(
-              borderSide: BorderSide(color: _pink),
+              borderSide: BorderSide(color: AppColors.authBrandBurgundy),
             ),
           ),
         ),

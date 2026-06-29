@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 import '../models/call_session_model.dart';
 import '../models/message_model.dart';
 
@@ -27,7 +29,7 @@ class CallMessageBubble extends StatelessWidget {
     switch (callStatus) {
       case CallStatus.ended:
         icon = callType == CallType.video ? Icons.videocam : Icons.call;
-        iconColor = Colors.green;
+        iconColor = AppColors.chatVerified;
         label = callType == CallType.video ? 'Video call' : 'Audio call';
         if (durationSeconds != null && durationSeconds > 0) {
           final m = (durationSeconds ~/ 60).toString().padLeft(2, '0');
@@ -36,7 +38,7 @@ class CallMessageBubble extends StatelessWidget {
         }
       case CallStatus.missed:
         icon = Icons.call_missed;
-        iconColor = Colors.red;
+        iconColor = AppColors.deleteRed;
         label = 'Missed ${callType == CallType.video ? 'video' : 'audio'} call';
       case CallStatus.declined:
         icon = Icons.call_end;
@@ -44,22 +46,24 @@ class CallMessageBubble extends StatelessWidget {
         label = 'Declined ${callType == CallType.video ? 'video' : 'audio'} call';
       case CallStatus.failed:
         icon = Icons.error_outline;
-        iconColor = Colors.red;
+        iconColor = AppColors.deleteRed;
         label = 'Call failed';
       default:
         icon = callType == CallType.video ? Icons.videocam : Icons.call;
-        iconColor = Colors.white54;
+        iconColor = AppColors.chatTextSecondary;
         label = callType == CallType.video ? 'Video call' : 'Audio call';
     }
 
-    return Center(
+    return Align(
+      alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 24),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A061E),
+          color: isSent
+              ? AppColors.chatOutgoingBubble
+              : AppColors.chatIncomingBubble,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF2A1B2E), width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -69,8 +73,8 @@ class CallMessageBubble extends StatelessWidget {
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                style: AppTypography.chatTilePreview.copyWith(
+                  color: isSent ? Colors.white : AppColors.chatTextPrimary,
                   fontSize: 12,
                 ),
               ),

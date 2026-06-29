@@ -36,6 +36,21 @@ class AppColors {
   static const Color instagramPink = Color(0xFFE1306C);
   static const Color iconBackgroundDark = Color(0xFF2A2A2A);
 
+  /// Chat — light inbox / thread surfaces (Figma).
+  static const Color chatBackground = Color(0xFFFFFFFF);
+  static const Color chatSearchFill = Color(0xFFF2F2F7);
+  static const Color chatTextPrimary = Color(0xFF1C1C1E);
+  static const Color chatTextSecondary = Color(0xFF8E8E93);
+  static const Color chatIncomingBubble = Color(0xFFF2F2F7);
+  static const Color chatOutgoingBubble = authBrandBurgundy;
+  static const Color chatInputBar = Color(0xFF2C2C2E);
+  static const Color chatInputHint = Color(0xFFAEAEB2);
+  static const Color chatDivider = Color(0xFFE5E5EA);
+  static const Color chatVerified = Color(0xFF34C759);
+  static const Color chatNoteBubbleFill = Color(0xFFFFFFFF);
+  static const Color chatNoteBubbleBorder = Color(0xFFE5E5EA);
+  static const Color chatAppBarActionIcon = Color(0xFF808080);
+
   /// Instagram gradient (share action)
   static const List<Color> instagramGradient = [
     Color(0xFFF77737),

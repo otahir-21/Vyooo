@@ -7,6 +7,9 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_gradients.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../../../core/utils/user_facing_errors.dart';
 import '../../../core/models/app_user_model.dart';
 import '../../../core/services/giphy_gif_service.dart';
@@ -81,6 +84,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   String? _presenceText;
   StreamSubscription<Map<String, dynamic>?>? _presenceSub;
   StreamSubscription<List<CallSessionModel>>? _incomingCallSub;
+  late final Stream<List<MessageModel>> _messagesStream;
 
   bool get _isGroup =>
       widget.chatType == ChatTypes.group ||
@@ -98,6 +102,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   @override
   void initState() {
     super.initState();
+    _messagesStream = _chatService.watchMessages(
+      widget.chatId,
+      widget.currentUser.uid,
+    );
     ChatNotificationService.instance.setActiveChatId(widget.chatId);
     _chatService.markChatRead(
       uid: widget.currentUser.uid,
@@ -106,6 +114,17 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     _loadChatModel();
     _startPresenceWatch();
     _startIncomingCallWatch();
+  }
+
+  List<MessageModel> _visibleMessages(List<MessageModel> raw) {
+    final clearedAt = _chatModel?.clearedAtBy[widget.currentUser.uid];
+    if (clearedAt == null) return raw;
+    return raw
+        .where((m) {
+          if (m.createdAt == null) return true;
+          return m.createdAt!.compareTo(clearedAt) > 0;
+        })
+        .toList();
   }
 
   Future<void> _loadChatModel() async {
@@ -445,67 +464,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
-  Future<void> _handleToggleMute() async {
-    if (_isMuted) {
-      await _chatService.unmuteChat(
-        uid: widget.currentUser.uid,
-        chatId: widget.chatId,
-      );
-    } else {
-      await _chatService.muteChat(
-        uid: widget.currentUser.uid,
-        chatId: widget.chatId,
-      );
-    }
-    setState(() => _isMuted = !_isMuted);
-  }
-
-  Future<void> _handleClearChat() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2A1B2E),
-        title: const Text('Clear chat', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'This will hide all messages for you. Other participants are not affected.',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Clear',
-              style: TextStyle(color: AppColors.deleteRed),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) {
-      try {
-        await _chatService.clearChat(
-          uid: widget.currentUser.uid,
-          chatId: widget.chatId,
-        );
-        await _loadChatModel();
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Chat cleared')));
-      } catch (e) {
-        debugPrint('[ChatThread] clearChat failed: $e');
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not clear chat')));
-      }
-    }
-  }
-
   void _openGroupInfo() {
     if (_chatModel == null) return;
     Navigator.of(context).push(
@@ -749,6 +707,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     return msg.senderId.substring(0, 6);
   }
 
+  String? _senderAvatarUrl(MessageModel msg) {
+    if (msg.senderId == widget.currentUser.uid) return null;
+    if (_isGroup) {
+      final avatar = _chatModel?.participantMap[msg.senderId]?.avatarUrl;
+      if (avatar != null && avatar.trim().isNotEmpty) return avatar;
+      return null;
+    }
+    return widget.otherUser?.profileImage;
+  }
+
   String? _seenText(MessageModel msg, bool isSent, bool isLastSentMsg) {
     if (!isSent || !isLastSentMsg) return null;
     if (msg.deletedForEveryone) return null;
@@ -935,7 +903,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               'them');
 
     return Scaffold(
-      backgroundColor: const Color(0xFF07010F),
+      backgroundColor: AppColors.chatBackground,
       appBar: ChatAppBar(
         otherUser: widget.otherUser,
         chatType: _isGroup ? ChatTypes.group : ChatTypes.direct,
@@ -943,10 +911,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         groupImageUrl: _chatModel?.groupImageUrl ?? widget.groupImageUrl,
         memberCount:
             _chatModel?.participantIds.length ?? widget.participantIds.length,
-        isMuted: _isMuted,
-        onMenuMute: _handleToggleMute,
-        onMenuClear: _handleClearChat,
-        onMenuGroupInfo: _isGroup ? _openGroupInfo : null,
         presenceText: _presenceText,
         onHeaderTap: _handleHeaderTap,
         onAudioCall: _participantIds.length >= 2 && !_isStartingCall
@@ -958,33 +922,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0.0, 0.4, 1.0],
-                  colors: [
-                    Color(0xFF1A0826),
-                    Color(0xFF10041A),
-                    Color(0xFF07010F),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: -80,
-            left: -80,
-            right: -80,
-            child: Container(
-              height: 360,
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [Color(0x55DE106B), Color(0x00000000)],
-                  radius: 0.7,
-                ),
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AppGradients.chatBackgroundGradient,
               ),
             ),
           ),
@@ -994,19 +935,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               if (_uploadError != null && !_isUploading) _buildRetryBanner(),
               Expanded(
                 child: StreamBuilder<List<MessageModel>>(
-                  stream: _chatService.watchMessages(
-                    widget.chatId,
-                    widget.currentUser.uid,
-                    clearedAt: _chatModel?.clearedAtBy[widget.currentUser.uid],
-                  ),
+                  stream: _messagesStream,
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting &&
                         !snapshot.hasData) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFFDE106B),
-                        ),
-                      );
+                      return const SizedBox.shrink();
                     }
 
                     if (snapshot.hasError) {
@@ -1016,8 +949,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                           child: Text(
                             messageForFirestore(snapshot.error),
                             textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
+                            style: AppTypography.chatTilePreview.copyWith(
                               fontSize: 15,
                               height: 1.35,
                             ),
@@ -1026,7 +958,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       );
                     }
 
-                    final messages = snapshot.data ?? [];
+                    final messages = _visibleMessages(snapshot.data ?? []);
                     if (messages.isEmpty) {
                       return Center(
                         child: Column(
@@ -1034,14 +966,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                           children: [
                             Icon(
                               Icons.chat_bubble_outline,
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: AppColors.chatTextSecondary
+                                  .withValues(alpha: 0.5),
                               size: 64,
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: AppSpacing.md - AppSpacing.xs),
                             Text(
                               'Say hi to $emptyName!',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.4),
+                              style: AppTypography.chatTilePreview.copyWith(
                                 fontSize: 15,
                               ),
                             ),
@@ -1089,6 +1021,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                         final seen = _seenText(msg, isSent, isLastSent);
                         final replyQuote = _replyQuoteFor(msg, messages);
 
+                        final msgDate = msg.createdAt?.toDate();
+                        final showDateSeparator = msgDate != null &&
+                            (index == 0 ||
+                                !ChatHelpers.isSameCalendarDay(
+                                  msgDate,
+                                  messages[index - 1].createdAt!.toDate(),
+                                ));
+
                         Widget bubble;
                         if (msg.deletedForEveryone) {
                           bubble = MessageBubble(
@@ -1097,6 +1037,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             time: time,
                             isDeleted: true,
                             senderName: _senderName(msg),
+                            senderAvatarUrl: _senderAvatarUrl(msg),
                           );
                         } else if (msg.isViewOnce &&
                             (msg.type == ChatMessageTypes.image ||
@@ -1148,12 +1089,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                             seenText: seen,
                             replyToSenderName: replyQuote?.senderName,
                             replyToPreview: replyQuote?.preview,
+                            senderAvatarUrl: _senderAvatarUrl(msg),
                           );
                         }
 
                         return Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            if (showDateSeparator)
+                              _ChatDateSeparator(
+                                label: ChatHelpers.formatThreadDateSeparator(
+                                  msgDate,
+                                ),
+                              ),
                             SwipeToReplyMessage(
                               enabled: _canReplyTo(msg),
                               onReply: () => _startReply(msg),
@@ -1272,6 +1220,22 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             child: const Icon(Icons.close, color: Colors.white38, size: 18),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChatDateSeparator extends StatelessWidget {
+  const _ChatDateSeparator({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      child: Center(
+        child: Text(label, style: AppTypography.chatDateSeparator),
       ),
     );
   }

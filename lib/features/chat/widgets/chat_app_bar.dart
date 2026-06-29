@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/models/app_user_model.dart';
+import '../../../core/theme/app_padding.dart';
+import '../../../core/theme/app_sizes.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../utils/chat_constants.dart';
 
 class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -12,10 +18,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.groupName,
     this.groupImageUrl,
     this.memberCount,
-    this.isMuted = false,
-    this.onMenuMute,
-    this.onMenuClear,
-    this.onMenuGroupInfo,
     this.presenceText,
     this.onAudioCall,
     this.onVideoCall,
@@ -27,10 +29,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? groupName;
   final String? groupImageUrl;
   final int? memberCount;
-  final bool isMuted;
-  final VoidCallback? onMenuMute;
-  final VoidCallback? onMenuClear;
-  final VoidCallback? onMenuGroupInfo;
   final String? presenceText;
   final VoidCallback? onAudioCall;
   final VoidCallback? onVideoCall;
@@ -40,6 +38,11 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(56);
 
   bool get _isGroup => chatType == ChatTypes.group;
+
+  bool get _isVerified {
+    if (_isGroup) return false;
+    return otherUser?.isVerified == true;
+  }
 
   String get _displayName {
     if (_isGroup) return groupName ?? 'Group';
@@ -55,7 +58,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (!_isGroup) {
       final u = otherUser;
       if (u != null && (u.username ?? '').trim().isNotEmpty) {
-        return '@${u.username}';
+        return u.username;
       }
     }
     return null;
@@ -73,89 +76,86 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF1E0A30), Color(0xFF150820)],
-        ),
+        color: AppColors.chatBackground,
         border: Border(
-          bottom: BorderSide(color: Color(0x33DE106B), width: 0.5),
+          bottom: BorderSide(color: AppColors.chatDivider, width: 0.5),
         ),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
+          padding: EdgeInsets.only(
+            left: AppSpacing.xs,
+            right: AppPadding.screenHorizontal.right - AppSpacing.xs,
+          ),
           child: Row(
             children: [
               IconButton(
                 icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.white,
-                  size: 22,
+                  Icons.arrow_back_ios_new,
+                  color: AppColors.chatTextPrimary,
+                  size: 18,
                 ),
                 onPressed: () => Navigator.of(context).pop(),
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 constraints: const BoxConstraints(),
               ),
-              const SizedBox(width: 2),
               Expanded(
                 child: GestureDetector(
                   onTap: onHeaderTap,
                   behavior: HitTestBehavior.opaque,
                   child: Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            colors: [Color(0xFFDE106B), Color(0xFF6B21A8)],
-                          ),
-                        ),
-                        padding: const EdgeInsets.all(1.5),
-                        child: CircleAvatar(
-                          radius: 15,
-                          backgroundColor: const Color(0xFF1A0A2E),
-                          backgroundImage: hasAvatar
-                              ? CachedNetworkImageProvider(avatar)
-                              : null,
-                          child: hasAvatar
-                              ? null
-                              : Icon(
-                                  _isGroup ? Icons.group : Icons.person,
-                                  color: Colors.white54,
-                                  size: 15,
-                                ),
-                        ),
+                      CircleAvatar(
+                        radius: AppSizes.chatAppBarAvatar / 2,
+                        backgroundColor: AppColors.chatSearchFill,
+                        backgroundImage: hasAvatar
+                            ? CachedNetworkImageProvider(avatar)
+                            : null,
+                        child: hasAvatar
+                            ? null
+                            : Icon(
+                                _isGroup ? Icons.group : Icons.person,
+                                color: AppColors.chatTextSecondary,
+                                size: 15,
+                              ),
                       ),
-                      const SizedBox(width: 10),
+                      SizedBox(width: AppSpacing.sm + AppSpacing.xs - 2),
                       Flexible(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: AppTypography.chatAppBarName,
+                                  ),
+                                ),
+                                if (_isVerified) ...[
+                                  SizedBox(width: AppSpacing.xs - 1),
+                                  const Icon(
+                                    Icons.verified,
+                                    color: AppColors.chatVerified,
+                                    size: 14,
+                                  ),
+                                ],
+                              ],
                             ),
                             if (_subtitle != null)
                               Text(
                                 _subtitle!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: AppTypography.chatAppBarUsername.copyWith(
                                   color: presenceText == 'Active now'
-                                      ? const Color(0xFF4CAF50)
-                                      : Colors.white.withValues(alpha: 0.4),
-                                  fontSize: 11,
+                                      ? AppColors.chatVerified
+                                      : AppColors.chatTextSecondary,
                                 ),
                               ),
                           ],
@@ -166,80 +166,58 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
               if (onAudioCall != null)
-                IconButton(
-                  icon: const Icon(
-                    Icons.call_outlined,
-                    color: Colors.white70,
-                    size: 21,
-                  ),
-                  onPressed: onAudioCall,
+                _CallActionButton(
+                  assetPath: ChatAssets.audioCallIcon,
+                  width: 20,
+                  height: 20,
+                  onTap: onAudioCall!,
                   tooltip: 'Audio call',
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(),
                 ),
               if (onVideoCall != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.videocam_outlined,
-                      color: Colors.white70,
-                      size: 21,
-                    ),
-                    onPressed: onVideoCall,
-                    tooltip: 'Video call',
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(),
-                  ),
+                _CallActionButton(
+                  assetPath: ChatAssets.videoCallIcon,
+                  width: 22,
+                  height: 19,
+                  onTap: onVideoCall!,
+                  tooltip: 'Video call',
                 ),
-              PopupMenuButton<String>(
-                icon: const Icon(
-                  Icons.more_vert,
-                  color: Colors.white70,
-                  size: 21,
-                ),
-                padding: EdgeInsets.zero,
-                color: const Color(0xFF1A0A2E),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'mute':
-                      onMenuMute?.call();
-                    case 'clear':
-                      onMenuClear?.call();
-                    case 'group_info':
-                      onMenuGroupInfo?.call();
-                  }
-                },
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'mute',
-                    child: Text(
-                      isMuted ? 'Unmute' : 'Mute',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'clear',
-                    child: Text(
-                      'Clear chat',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  if (_isGroup)
-                    const PopupMenuItem(
-                      value: 'group_info',
-                      child: Text(
-                        'Group info',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                ],
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CallActionButton extends StatelessWidget {
+  const _CallActionButton({
+    required this.assetPath,
+    required this.width,
+    required this.height,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  final String assetPath;
+  final double width;
+  final double height;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      constraints: const BoxConstraints(),
+      icon: SvgPicture.asset(
+        assetPath,
+        width: width,
+        height: height,
+        colorFilter: const ColorFilter.mode(
+          AppColors.chatAppBarActionIcon,
+          BlendMode.srcIn,
         ),
       ),
     );

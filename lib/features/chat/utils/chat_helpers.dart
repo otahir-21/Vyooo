@@ -43,17 +43,59 @@ abstract final class ChatHelpers {
     }
   }
 
+  /// Inbox row timestamp — relative only (e.g. 10m, 2h, 3d). Never a calendar date.
   static String formatInboxTime(Timestamp? timestamp) {
     if (timestamp == null) return '';
-    final date = timestamp.toDate();
+    final date = timestamp.toDate().toLocal();
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(date.year, date.month, date.day);
     final diff = now.difference(date);
 
-    if (diff.inMinutes < 1) return 'now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    if (diff.inDays < 7) return '${diff.inDays}d';
-    return '${date.day}/${date.month}/${date.year}';
+    if (messageDay == today) {
+      if (diff.inMinutes < 1) return 'now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+      return '${diff.inHours}h';
+    }
+
+    final dayDiff = today.difference(messageDay).inDays;
+    if (dayDiff == 1) return '1d';
+    if (dayDiff < 7) return '${dayDiff}d';
+    if (dayDiff < 30) return '${dayDiff ~/ 7}w';
+    if (dayDiff < 365) return '${dayDiff ~/ 30}mo';
+    return '${dayDiff ~/ 365}y';
+  }
+
+  /// Thread date pill — "Today 8:00 AM", "Yesterday 6:55 PM", "Friday 2:03 AM".
+  static String formatThreadDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(date.year, date.month, date.day);
+    final diffDays = today.difference(messageDay).inDays;
+
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    final time = '$hour:$minute $period';
+
+    if (diffDays == 0) return 'Today $time';
+    if (diffDays == 1) return 'Yesterday $time';
+
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    final weekday = weekdays[date.weekday - 1];
+    return '$weekday $time';
+  }
+
+  static bool isSameCalendarDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   /// Reads avatar from a chat [participantMap] entry (`avatarUrl` is canonical).

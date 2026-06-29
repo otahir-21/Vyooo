@@ -1489,7 +1489,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
     return _buildCameraView();
   }
 
-  /// Same **Story | Post | Live** row as [UploadScreen] (+ hub).
+  /// Same **Story | Gallery | Live** row as [UploadScreen] (+ hub).
   Widget _buildUploadCreateBottomBar() {
     return UploadCreateBottomBar(
       selectedSegment: 0,
@@ -1519,6 +1519,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
+          bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1649,10 +1650,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                 ],
               ),
             ),
-            SafeArea(
-              top: false,
-              child: _buildUploadCreateBottomBar(),
-            ),
+            _buildUploadCreateBottomBar(),
           ],
         ),
       ),
@@ -1782,6 +1780,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
             ),
           ),
           SafeArea(
+            bottom: false,
             child: Column(
               children: [
                 Padding(
@@ -1904,13 +1903,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
-                  child: SafeArea(
-                    top: false,
-                    child: _buildUploadCreateBottomBar(),
-                  ),
-                ),
+                _buildUploadCreateBottomBar(),
               ],
             ),
           ),
@@ -2202,6 +2195,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
               ),
             ),
             SafeArea(
+              bottom: false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -2569,10 +2563,7 @@ class _StoryUploadScreenState extends State<StoryUploadScreen>
                       ],
                     ),
                   ),
-                  SafeArea(
-                    top: false,
-                    child: _buildUploadCreateBottomBar(),
-                  ),
+                  _buildUploadCreateBottomBar(),
                 ],
               ),
             ),

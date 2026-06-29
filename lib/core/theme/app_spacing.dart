@@ -32,6 +32,9 @@ abstract final class AppSpacing {
   /// Gap between reel post bottom edge and feed nav chrome (shows bottom radius).
   static const double feedPostNavGap = sm;
 
+  /// Reel feed — right action column inset above bottom nav.
+  static const double reelActionColumnNavGap = sm + md;
+
   /// Nudge Following status chevron down to align with tab pill text (Figma).
   static const double followingStoriesToggleDown = xs;
 

@@ -45,7 +45,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
         margin: const EdgeInsets.only(left: 12, bottom: 4, top: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E0E2E),
+          color: AppColors.chatIncomingBubble,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
@@ -64,7 +64,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
                       width: 7,
                       height: 7,
                       decoration: BoxDecoration(
-                        color: AppColors.brandMagenta.withValues(alpha: 0.8),
+                        color: AppColors.brandDeepMagenta.withValues(alpha: 0.7),
                         shape: BoxShape.circle,
                       ),
                     ),

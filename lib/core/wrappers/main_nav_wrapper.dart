@@ -9,6 +9,7 @@ import '../widgets/app_bottom_navigation.dart';
 import '../../screens/home/home_reels_screen.dart';
 import '../navigation/search_tab_launcher.dart';
 import '../../screens/search/search_screen.dart';
+import '../../screens/upload/creator_live_route.dart';
 import '../../screens/upload/upload_screen.dart';
 import '../../features/chat/screens/chat_inbox_screen.dart';
 import '../../features/chat/services/chat_service.dart';
@@ -26,6 +27,18 @@ class MainNavWrapper extends StatefulWidget {
   final int? initialIndex;
 
   static final ValueNotifier<int?> tabNotifier = ValueNotifier<int?>(null);
+
+  /// Same navigation path as tapping a bottom-nav item (except index 2 → Upload push).
+  static void switchToTab(int index) {
+    final safe = index.clamp(0, 4);
+    if (tabNotifier.value == safe) {
+      tabNotifier.value = null;
+    }
+    tabNotifier.value = safe;
+  }
+
+  /// Opens the Search tab (index 1) — identical to the bottom-nav search item.
+  static void openSearchTab() => switchToTab(1);
 
   @override
   State<MainNavWrapper> createState() => _MainNavWrapperState();
@@ -48,6 +61,15 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     final v = MainNavWrapper.tabNotifier.value;
     if (v != null && mounted) {
       MainNavWrapper.tabNotifier.value = null;
+      // Index 1 from in-app links (home search icon, hashtags) → Search tab.
+      // Bottom-nav broadcast uses [_onNavTap] directly → creator live.
+      if (v == 1) {
+        setState(() {
+          _currentIndex = 1;
+          _lastSelectedIndex = 1;
+        });
+        return;
+      }
       _onNavTap(v);
     }
   }
@@ -167,6 +189,10 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
               _feedRefreshToken++;
             });
           });
+      return;
+    }
+    if (index == 1) {
+      await openCreatorLiveScreen(context);
       return;
     }
     setState(() {

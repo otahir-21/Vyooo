@@ -25,7 +25,8 @@ class _NavAssets {
 }
 
 /// Custom bottom nav wrapper matching the VyooO design language.
-/// Index: 0 Home, 1 Live/Search, 2 Create (+), 3 Messages, 4 Profile.
+/// Index: 0 Home, 1 Go Live (broadcast), 2 Create (+), 3 Messages, 4 Profile.
+/// Search is opened from the home feed header / hashtag links, not this tab.
 class AppBottomNavigation extends StatelessWidget {
   const AppBottomNavigation({
     super.key,
@@ -388,6 +389,7 @@ class _NavSvgIcon extends StatelessWidget {
       assetPath,
       width: AppSizes.bottomNavIcon,
       height: AppSizes.bottomNavIcon,
+      fit: BoxFit.contain,
     );
   }
 }

@@ -22,11 +22,15 @@ class MessageReplyQuote extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: isSentBubble ? 0.15 : 0.25),
+        color: isSentBubble
+            ? Colors.black.withValues(alpha: 0.12)
+            : AppColors.chatDivider.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(8),
         border: Border(
           left: BorderSide(
-            color: isSentBubble ? Colors.white70 : AppColors.brandMagenta,
+            color: isSentBubble
+                ? Colors.white70
+                : AppColors.brandDeepMagenta,
             width: 3,
           ),
         ),
@@ -38,7 +42,9 @@ class MessageReplyQuote extends StatelessWidget {
           Text(
             senderName,
             style: TextStyle(
-              color: isSentBubble ? Colors.white : AppColors.brandMagenta,
+              color: isSentBubble
+                  ? Colors.white
+                  : AppColors.brandDeepMagenta,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -49,7 +55,9 @@ class MessageReplyQuote extends StatelessWidget {
           Text(
             preview,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.75),
+              color: isSentBubble
+                  ? Colors.white.withValues(alpha: 0.8)
+                  : AppColors.chatTextSecondary,
               fontSize: 12,
             ),
             maxLines: 2,

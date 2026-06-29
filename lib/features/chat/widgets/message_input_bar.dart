@@ -3,9 +3,15 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_padding.dart';
+import '../../../core/theme/app_radius.dart';
+import '../../../core/theme/app_sizes.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../utils/chat_constants.dart';
 
 enum MediaAction {
   galleryPhoto,
@@ -317,11 +323,12 @@ class _MessageInputBarState extends State<MessageInputBar> {
   @override
   Widget build(BuildContext context) {
     final hasPending = _pendingFilePath != null;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: const BoxDecoration(
-        color: Color(0xFF10041A),
-        border: Border(top: BorderSide(color: Color(0x33DE106B), width: 0.5)),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        AppPadding.screenHorizontal.left,
+        AppSpacing.sm,
+        AppPadding.screenHorizontal.right,
+        AppSpacing.sm,
       ),
       child: SafeArea(
         top: false,
@@ -534,10 +541,10 @@ class _MessageInputBarState extends State<MessageInputBar> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A0A2E),
+        color: AppColors.chatSearchFill,
         borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(color: AppColors.brandMagenta, width: 3),
+        border: const Border(
+          left: BorderSide(color: AppColors.brandDeepMagenta, width: 3),
         ),
       ),
       child: Row(
@@ -550,7 +557,7 @@ class _MessageInputBarState extends State<MessageInputBar> {
                 Text(
                   widget.replyingToSenderName!,
                   style: const TextStyle(
-                    color: AppColors.brandMagenta,
+                    color: AppColors.brandDeepMagenta,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -560,8 +567,8 @@ class _MessageInputBarState extends State<MessageInputBar> {
                 const SizedBox(height: 2),
                 Text(
                   widget.replyingToPreview!,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65),
+                  style: const TextStyle(
+                    color: AppColors.chatTextSecondary,
                     fontSize: 13,
                   ),
                   maxLines: 2,
@@ -572,9 +579,9 @@ class _MessageInputBarState extends State<MessageInputBar> {
           ),
           IconButton(
             onPressed: widget.onCancelReply,
-            icon: Icon(
+            icon: const Icon(
               Icons.close,
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.chatTextSecondary,
               size: 20,
             ),
             padding: EdgeInsets.zero,
@@ -586,130 +593,141 @@ class _MessageInputBarState extends State<MessageInputBar> {
   }
 
   Widget _buildInputRow() {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: widget.mediaLoading ? null : _showMediaSheet,
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: widget.mediaLoading
-                  ? null
-                  : const LinearGradient(
-                      colors: [Color(0xFFDE106B), Color(0xFFB80D5A)],
-                    ),
-              color: widget.mediaLoading ? const Color(0xFF2A1540) : null,
-            ),
-            child: Icon(
-              Icons.camera_alt,
-              color: widget.mediaLoading ? Colors.white24 : Colors.white,
-              size: 16,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A0A2E),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0x22DE106B), width: 0.5),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                    maxLines: 4,
-                    minLines: 1,
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      hintText: 'Message...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        fontSize: 15,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
+    return Container(
+      height: AppSizes.chatMessageInputHeight,
+      decoration: BoxDecoration(
+        color: AppColors.chatInputBar,
+        borderRadius: AppRadius.pillRadius,
+      ),
+      padding: EdgeInsets.only(
+        left: AppSpacing.sm - AppSpacing.xs,
+        right: AppSpacing.sm + AppSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          _buildCameraButton(),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+              maxLines: 4,
+              minLines: 1,
+              textInputAction: TextInputAction.newline,
+              decoration: const InputDecoration(
+                hintText: 'Message...',
+                hintStyle: TextStyle(
+                  color: AppColors.chatInputHint,
+                  fontSize: 15,
                 ),
-                if (!_canSend && widget.onVoiceNoteSend != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: _startRecording,
-                      child: Icon(
-                        Icons.mic_none,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                if (!_canSend)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: widget.mediaLoading ? null : _showMediaSheet,
-                      child: Icon(
-                        Icons.image_outlined,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                if (!_canSend && widget.onGifTap != null)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: widget.mediaLoading ? null : widget.onGifTap,
-                      child: Icon(
-                        Icons.gif_box_outlined,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 22,
-                      ),
-                    ),
-                  ),
-                GestureDetector(
-                  onTap: () => setState(() => _showEmojiRow = !_showEmojiRow),
-                  child: Icon(
-                    Icons.emoji_emotions_outlined,
-                    color: _showEmojiRow
-                        ? AppColors.brandMagenta
-                        : Colors.white.withValues(alpha: 0.4),
-                    size: 22,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        if (_canSend)
-          GestureDetector(
-            onTap: _handleSend,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFFDE106B), Color(0xFF6B21A8)],
-                ),
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 18,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
               ),
             ),
           ),
-      ],
+          if (_canSend)
+            _buildInputAction(
+              icon: Icons.send_rounded,
+              onTap: _handleSend,
+              highlight: true,
+            )
+          else ...[
+            if (widget.onVoiceNoteSend != null)
+              _buildInputAction(
+                icon: Icons.mic_none,
+                onTap: _startRecording,
+              ),
+            _buildInputAction(
+              assetPath: ChatAssets.inputGalleryIcon,
+              assetWidth: 20,
+              assetHeight: 20,
+              onTap: widget.mediaLoading ? null : _showMediaSheet,
+            ),
+            _buildInputAction(
+              assetPath: ChatAssets.inputStickerIcon,
+              assetWidth: 22,
+              assetHeight: 22,
+              onTap: () => setState(() => _showEmojiRow = !_showEmojiRow),
+              isActive: _showEmojiRow,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCameraButton() {
+    return GestureDetector(
+      onTap: widget.mediaLoading
+          ? null
+          : () => widget.onMediaAction?.call(MediaAction.cameraPhoto),
+      child: Container(
+        width: AppSizes.chatInputCameraButton,
+        height: AppSizes.chatInputCameraButton,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: widget.mediaLoading
+              ? AppColors.chatDivider
+              : AppColors.chatOutgoingBubble,
+        ),
+        child: Icon(
+          Icons.camera_alt_outlined,
+          color: widget.mediaLoading
+              ? AppColors.chatTextSecondary
+              : Colors.white,
+          size: 16,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputAction({
+    IconData? icon,
+    String? assetPath,
+    double? assetWidth,
+    double? assetHeight,
+    VoidCallback? onTap,
+    bool highlight = false,
+    bool isActive = false,
+  }) {
+    assert(icon != null || assetPath != null);
+
+    final color = highlight
+        ? Colors.white
+        : (isActive
+            ? AppColors.brandDeepMagenta
+            : const Color(0xFFE6E6E6));
+
+    final boxSize = assetPath != null
+        ? (assetHeight ?? AppSizes.chatInputActionIcon) + AppSpacing.xs
+        : AppSizes.chatInputActionIcon + AppSpacing.xs;
+
+    return Padding(
+      padding: EdgeInsets.only(left: AppSpacing.sm - AppSpacing.xs),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: boxSize,
+          height: boxSize,
+          child: Center(
+            child: assetPath != null
+                ? SvgPicture.asset(
+                    assetPath,
+                    width: assetWidth,
+                    height: assetHeight,
+                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                  )
+                : Icon(
+                    icon,
+                    color: color,
+                    size: AppSizes.chatInputActionIcon,
+                  ),
+          ),
+        ),
+      ),
     );
   }
 

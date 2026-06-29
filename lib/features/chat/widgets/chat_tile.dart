@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_padding.dart';
+import '../../../core/theme/app_sizes.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_typography.dart';
 import '../models/chat_summary_model.dart';
 import '../utils/chat_helpers.dart';
 
@@ -15,109 +19,109 @@ class ChatTile extends StatelessWidget {
   final ChatSummaryModel summary;
   final VoidCallback onTap;
 
+  String get _previewBody {
+    if (summary.unreadCount > 1) {
+      return '${summary.unreadCount}+ new messages';
+    }
+    if (summary.lastMessage.isNotEmpty) {
+      return summary.lastMessage;
+    }
+    return 'Tap to start chatting';
+  }
+
+  String get _timeLabel => ChatHelpers.formatInboxTime(summary.lastMessageAt);
+
   @override
   Widget build(BuildContext context) {
     final hasAvatar = summary.avatarUrl.trim().isNotEmpty;
     final hasUnread = summary.unreadCount > 0;
+    final time = _timeLabel;
 
     return InkWell(
       onTap: onTap,
-      splashColor: AppColors.brandDeepMagenta.withValues(alpha: 0.12),
+      splashColor: AppColors.brandDeepMagenta.withValues(alpha: 0.08),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppPadding.screenHorizontal.left,
+          vertical: AppSpacing.sm,
+        ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: hasUnread
-                    ? const LinearGradient(
-                        colors: [Color(0xFFDE106B), Color(0xFF6B21A8)],
-                      )
-                    : null,
-                color: hasUnread ? null : const Color(0xFF2A1B2E),
-              ),
-              padding: EdgeInsets.all(hasUnread ? 2 : 0),
-              child: CircleAvatar(
-                radius: hasUnread ? 22 : 24,
-                backgroundColor: const Color(0xFF1A0A2E),
-                backgroundImage: hasAvatar
-                    ? CachedNetworkImageProvider(summary.avatarUrl)
-                    : null,
-                child: hasAvatar
-                    ? null
-                    : Icon(
-                        summary.type == 'group' ? Icons.group : Icons.person,
-                        color: Colors.white54,
-                        size: 22,
-                      ),
-              ),
+            CircleAvatar(
+              radius: AppSizes.chatInboxAvatar / 2,
+              backgroundColor: AppColors.chatSearchFill,
+              backgroundImage: hasAvatar
+                  ? CachedNetworkImageProvider(summary.avatarUrl)
+                  : null,
+              child: hasAvatar
+                  ? null
+                  : Icon(
+                      summary.type == 'group' ? Icons.group : Icons.person,
+                      color: AppColors.chatTextSecondary,
+                      size: 22,
+                    ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: AppSpacing.md - AppSpacing.xs),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          summary.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        ChatHelpers.formatInboxTime(summary.lastMessageAt),
-                        style: TextStyle(
-                          color: hasUnread ? Colors.white70 : Colors.white.withValues(alpha: 0.35),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    summary.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.chatTileName.copyWith(
+                      fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
+                    ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: AppSpacing.xs - 2),
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          summary.lastMessage.isNotEmpty
-                              ? summary.lastMessage
-                              : 'Tap to start chatting',
+                        child: Text.rich(
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: hasUnread
-                                ? Colors.white.withValues(alpha: 0.7)
-                                : Colors.white.withValues(alpha: 0.35),
-                            fontSize: 13,
-                            fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: _previewBody,
+                                style: AppTypography.chatTilePreview.copyWith(
+                                  fontWeight: hasUnread
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: hasUnread
+                                      ? AppColors.chatTextPrimary
+                                      : AppColors.chatTextSecondary,
+                                ),
+                              ),
+                              if (time.isNotEmpty) ...[
+                                TextSpan(
+                                  text: ' · $time',
+                                  style: AppTypography.chatTilePreview.copyWith(
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.chatTextSecondary,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),
                       if (hasUnread) ...[
-                        const SizedBox(width: 8),
+                        SizedBox(width: AppSpacing.sm),
                         Container(
-                          width: 8,
-                          height: 8,
+                          width: AppSpacing.sm,
+                          height: AppSpacing.sm,
                           decoration: const BoxDecoration(
                             color: AppColors.brandDeepMagenta,
                             shape: BoxShape.circle,
                           ),
                         ),
                       ] else ...[
-                        const SizedBox(width: 8),
-                        Icon(
+                        SizedBox(width: AppSpacing.sm),
+                        const Icon(
                           Icons.camera_alt_outlined,
-                          color: Colors.white.withValues(alpha: 0.25),
+                          color: AppColors.chatTextSecondary,
                           size: 18,
                         ),
                       ],

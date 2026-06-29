@@ -1,6 +1,7 @@
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/app_sizes.dart';
 import '../theme/app_theme.dart';
@@ -71,6 +72,19 @@ class AppInteractionButton extends StatelessWidget {
   Widget _buildIcon(Color color) {
     final asset = _resolvedAsset;
     if (asset != null) {
+      if (asset.endsWith('.svg')) {
+        return SvgPicture.asset(
+          asset,
+          width: iconSize,
+          height: iconSize,
+          fit: BoxFit.contain,
+          colorFilter: colorizeAsset
+              ? ColorFilter.mode(iconColor ?? color, BlendMode.srcIn)
+              : (iconColor != null
+                    ? ColorFilter.mode(iconColor!, BlendMode.srcIn)
+                    : null),
+        );
+      }
       return Image.asset(
         asset,
         width: iconSize,

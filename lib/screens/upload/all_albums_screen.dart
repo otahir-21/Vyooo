@@ -3,8 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-import '../../core/theme/app_gradients.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_typography.dart';
 
 /// All Albums screen: 2-column grid of gallery albums (thumbnail, name, count).
 /// Tapping an album pops with that [AssetPathEntity].
@@ -24,15 +26,13 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: BoxDecoration(gradient: AppGradients.mainBackgroundGradient),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: GridView.builder(
+      backgroundColor: AppColors.chatBackground,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: GridView.builder(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.md,
@@ -56,7 +56,6 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -77,28 +76,26 @@ class _AllAlbumsScreenState extends State<AllAlbumsScreen> {
                 'assets/vyooO_icons/Search/close.png',
                 width: 24,
                 height: 24,
-                color: Colors.white,
+                color: AppColors.chatAppBarActionIcon,
               ),
             ),
           ),
-          const Text(
+          Text(
             'All Albums',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            style: AppTypography.authDialogTitle.copyWith(
+              color: AppColors.chatTextPrimary,
             ),
           ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
+              child: Text(
                 'Next',
-                style: TextStyle(
-                  color: Color(0xFFDE106B),
-                  fontWeight: FontWeight.w600,
+                style: AppTypography.chatTileName.copyWith(
+                  color: AppColors.brandDeepMagenta,
                   fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -123,7 +120,7 @@ class _AlbumTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: AppRadius.inputRadius,
             child: AspectRatio(
               aspectRatio: 1,
               child: FutureBuilder<Uint8List?>(
@@ -136,11 +133,11 @@ class _AlbumTile extends StatelessWidget {
                     );
                   }
                   return Container(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    child: const Center(
+                    color: AppColors.chatSearchFill,
+                    child: Center(
                       child: Icon(
                         Icons.photo_library_outlined,
-                        color: Colors.white24,
+                        color: AppColors.chatTextSecondary.withValues(alpha: 0.5),
                         size: 40,
                       ),
                     ),
@@ -149,13 +146,12 @@ class _AlbumTile extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpacing.sm + AppSpacing.xs),
           Text(
             path.name,
-            style: const TextStyle(
-              color: Colors.white,
+            style: AppTypography.chatTileName.copyWith(
+              color: AppColors.chatTextPrimary,
               fontSize: 15,
-              fontWeight: FontWeight.w600,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -166,10 +162,7 @@ class _AlbumTile extends StatelessWidget {
               final count = snapshot.data ?? 0;
               return Text(
                 _formatCount(count),
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
-                  fontSize: 12,
-                ),
+                style: AppTypography.chatTilePreview,
               );
             },
           ),

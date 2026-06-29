@@ -1832,7 +1832,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   void _openSearchTab() {
-    MainNavWrapper.tabNotifier.value = 1;
+    MainNavWrapper.openSearchTab();
   }
 
   Widget _buildHeaderNotificationIcon() {
@@ -1895,7 +1895,8 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final privacy = ReelCountPrivacy.fromMap(reel);
     final isFollowingTab = currentTab == HomeTab.following;
     final interactionBottom =
-        AppBottomNavigation.totalHeightFor(context) + AppSpacing.sm;
+        AppBottomNavigation.totalHeightFor(context) +
+        AppSpacing.reelActionColumnNavGap;
 
     return Positioned(
       right: AppSpacing.md,
@@ -1914,8 +1915,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             SizedBox(height: AppSpacing.md),
           ],
           AppInteractionButton(
-            iconAsset: isLiked ? FeedInteractionAssets.heart : null,
-            icon: isLiked ? null : Icons.favorite_border,
+            iconAsset: FeedInteractionAssets.heart,
             count: privacy.displayCount(
               ReelCountMetric.likes,
               _asInt(reel['likes']),
@@ -1924,7 +1924,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             activeColor: AppColors.feedLikeActive,
             defaultColor: Colors.white,
             countColor: Colors.white,
-            colorizeAsset: false,
+            colorizeAsset: true,
             onTap: () => _onLike(engagementId, isLiked),
             iconSize: AppSizes.feedLikeIcon,
             countTextStyle: AppTypography.feedReelMetric,

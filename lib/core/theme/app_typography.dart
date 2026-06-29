@@ -424,4 +424,69 @@ abstract final class AppTypography {
     letterSpacing: -0.5,
     color: AppTheme.primary,
   );
+
+  // — Chat (light inbox / thread — Figma) —
+
+  static const TextStyle chatInboxTitle = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 17,
+    height: 1.2,
+    fontWeight: FontWeight.w700,
+    color: AppColors.chatTextPrimary,
+  );
+
+  static const TextStyle chatSectionHeader = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 14,
+    height: 1.2,
+    fontWeight: FontWeight.w700,
+    color: AppColors.chatTextPrimary,
+  );
+
+  static const TextStyle chatTileName = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 14,
+    height: 1.2,
+    fontWeight: FontWeight.w600,
+    color: AppColors.chatTextPrimary,
+  );
+
+  static const TextStyle chatTilePreview = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 13,
+    height: 1.2,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatTextSecondary,
+  );
+
+  static const TextStyle chatBubbleText = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 14,
+    height: 1.3,
+    fontWeight: FontWeight.w400,
+  );
+
+  static const TextStyle chatDateSeparator = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 12,
+    height: 1.2,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatTextSecondary,
+  );
+
+  static const TextStyle chatAppBarName = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 15,
+    height: 1.2,
+    fontWeight: FontWeight.w600,
+    color: AppColors.chatTextPrimary,
+  );
+
+  static const TextStyle chatAppBarUsername = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 11,
+    height: 1.2,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatTextSecondary,
+  );
 }

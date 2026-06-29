@@ -14,7 +14,13 @@ import 'creator_live_screen.dart' deferred as creator;
 const bool kRequireSubscriptionForStandardLive = false;
 
 /// Opens creator live broadcast. Deferred so Agora is not loaded at app/tab startup.
-Future<void> openCreatorLiveScreen(BuildContext context) async {
+///
+/// [autoStartLive]: when true, begins the countdown as soon as the camera is ready
+/// (used by the bottom-nav broadcast button).
+Future<void> openCreatorLiveScreen(
+  BuildContext context, {
+  bool autoStartLive = false,
+}) async {
   final subCtrl = context.read<SubscriptionController>();
   final uid = FirebaseAuth.instance.currentUser?.uid;
 
@@ -24,7 +30,7 @@ Future<void> openCreatorLiveScreen(BuildContext context) async {
     if (!context.mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => creator.CreatorLiveScreen(),
+        builder: (_) => creator.CreatorLiveScreen(autoStartLive: autoStartLive),
       ),
     );
   }

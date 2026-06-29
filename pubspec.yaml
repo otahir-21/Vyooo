@@ -126,6 +126,7 @@ flutter:
     - assets/vyooO_icons/Profile/
     - assets/vyooO_icons/Search/
     - assets/vyooO_icons/Settings/
+    - assets/vyooO_icons/Chat/
     - assets/vyooO_icons/Upload_Story_Live/
     - assets/vyooO_icons/Wallet/
   #   - images/a_dot_ham.jpeg

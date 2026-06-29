@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../models/message_model.dart';
+import '../../../core/constants/app_colors.dart';
 import '../screens/chat_media_viewer_screen.dart';
 import 'message_reply_quote.dart';
 
@@ -39,7 +40,7 @@ class MediaMessageWidget extends StatelessWidget {
           bottom: 2,
         ),
         decoration: BoxDecoration(
-          color: isSent ? null : const Color(0xFF1E0E2E),
+          color: isSent ? null : AppColors.chatIncomingBubble,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),

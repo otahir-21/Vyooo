@@ -28,7 +28,10 @@ enum _LiveState { initializing, permissionDenied, offline, countdown, live }
 /// Creator live streaming screen.
 /// Handles camera preview → countdown → live broadcast with Agora + Firebase.
 class CreatorLiveScreen extends StatefulWidget {
-  const CreatorLiveScreen({super.key});
+  const CreatorLiveScreen({super.key, this.autoStartLive = false});
+
+  /// When true, starts the go-live countdown once camera preview is ready.
+  final bool autoStartLive;
 
   @override
   State<CreatorLiveScreen> createState() => _CreatorLiveScreenState();
@@ -201,9 +204,31 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
       _engineVersion++;
       _liveState = _LiveState.offline;
     });
+    if (widget.autoStartLive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onLiveStartTap();
+      });
+    }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────────
+
+  /// Shared entry for **Start Live** and the bottom-bar **Live** segment.
+  Future<void> _onLiveStartTap() async {
+    if (_liveState != _LiveState.offline) return;
+
+    final start = await showDialog<bool>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.78),
+      builder: (_) => const _ConfirmDialog(
+        message: 'Do you want to start your live stream?',
+        confirmLabel: 'Yes, Go Live',
+      ),
+    );
+    if (start != true || !mounted) return;
+
+    _startCountdown();
+  }
 
   void _startCountdown() {
     setState(() {
@@ -436,7 +461,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  /// Same **Story | Post | Live** row as [UploadScreen] (+ hub); Live is selected here.
+  /// Same **Story | Gallery | Live** row as [UploadScreen] (+ hub); Live is selected here.
   Widget _createHubBottomBar() {
     return UploadCreateBottomBar(
       selectedSegment: 2,
@@ -454,7 +479,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
           ),
         );
       },
-      onLiveTap: () {},
+      onLiveTap: _onLiveStartTap,
     );
   }
 
@@ -701,7 +726,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen> {
                   child: _GradientButton(
                     label: 'Start Live',
                     icon: Icons.sensors_rounded,
-                    onTap: _startCountdown,
+                    onTap: _onLiveStartTap,
                     isWhite: true,
                   ),
                 ),

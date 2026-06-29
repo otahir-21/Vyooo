@@ -49,3 +49,13 @@ abstract final class ChatReactionEmojis {
     '👍',
   ];
 }
+
+abstract final class ChatAssets {
+  static const String newChatIcon = 'assets/vyooO_icons/Chat/new_chat.svg';
+  static const String inputGalleryIcon =
+      'assets/vyooO_icons/Chat/input_gallery.svg';
+  static const String inputStickerIcon =
+      'assets/vyooO_icons/Chat/input_sticker.svg';
+  static const String audioCallIcon = 'assets/vyooO_icons/Chat/audio_call.svg';
+  static const String videoCallIcon = 'assets/vyooO_icons/Chat/video_call.svg';
+}
