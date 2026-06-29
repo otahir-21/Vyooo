@@ -32,6 +32,9 @@ abstract final class AppSpacing {
   /// Gap between reel post bottom edge and feed nav chrome (shows bottom radius).
   static const double feedPostNavGap = sm;
 
+  /// Nudge Following status chevron down to align with tab pill text (Figma).
+  static const double followingStoriesToggleDown = xs;
+
   /// Space above primary auth CTA (50 = xl + lg + xs)
   static const double authCtaTop = xl + lg + xs;
 
