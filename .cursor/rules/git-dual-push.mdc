@@ -1,0 +1,29 @@
+---
+description: Push git commits to both origin and metatech remotes when the user asks to push.
+alwaysApply: true
+---
+
+# Git push — both remotes
+
+When the user asks to **push** (or "push code"), push the **current branch** to **both** remotes:
+
+| Remote | URL |
+|--------|-----|
+| `origin` | `https://github.com/otahir-21/Vyooo.git` |
+| `metatech` | `https://github.com/Metatech-Dubai/VyoooApp.git` |
+
+## Workflow
+
+1. Run `git status` — commit first if there are uncommitted changes (unless the user only asked to push existing commits).
+2. Do **not** stage or commit `android/build/**` or other build artifacts unless the user explicitly wants them.
+3. Push sequentially:
+   ```bash
+   git push origin <branch>
+   git push metatech <branch>
+   ```
+4. Report both results in the response (which remote was updated, or "already up-to-date").
+
+## Do not
+
+- Push to only one remote when the user says "push" without naming a single target.
+- Change `git config` or add new remotes without an explicit user request.
