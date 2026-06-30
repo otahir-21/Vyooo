@@ -47,7 +47,6 @@ class AppBottomNavigation extends StatelessWidget {
   /// Dark chrome + gradient scrim companion — home feed tab only.
   final bool useFeedChrome;
 
-  static double get _profileIconSize => AppSizes.bottomNavIcon * 1.35;
   static const Color _iconColor = ProfileFigmaTokens.primaryText;
   static const Color _selectedPillFill = ProfileFigmaTokens.cardBackground;
   static const Color _navBarFill = ProfileFigmaTokens.screenBackground;
@@ -56,16 +55,17 @@ class AppBottomNavigation extends StatelessWidget {
   static const double _tapTargetSize = AppSizes.bottomNavTapTarget;
   static const double _selectedPillSize = AppSizes.bottomNavTapTarget;
 
-  Widget _navIcon(String assetPath) => _NavIconImage(assetPath: assetPath);
-
   Widget _navSvgIcon(String assetPath) => _NavSvgIcon(assetPath: assetPath);
 
   Widget _buildProfileIcon(bool isSelected) {
     final hasProfileImage =
         profileImageUrl != null && profileImageUrl!.trim().isNotEmpty;
     if (!hasProfileImage) {
-      return _navIcon(
-        isSelected ? _NavAssets.profileSelected : _NavAssets.profileUnselected,
+      return _NavIconImage(
+        assetPath: isSelected
+            ? _NavAssets.profileSelected
+            : _NavAssets.profileUnselected,
+        size: AppSizes.bottomNavProfileIcon,
       );
     }
 
@@ -73,16 +73,16 @@ class AppBottomNavigation extends StatelessWidget {
       child: Image.network(
         profileImageUrl!,
         fit: BoxFit.cover,
-        width: _profileIconSize,
-        height: _profileIconSize,
+        width: AppSizes.bottomNavProfileIcon,
+        height: AppSizes.bottomNavProfileIcon,
         errorBuilder: (_, error, stackTrace) => Image.asset(
           _NavAssets.profileDefault,
           fit: BoxFit.cover,
-          width: _profileIconSize,
-          height: _profileIconSize,
+          width: AppSizes.bottomNavProfileIcon,
+          height: AppSizes.bottomNavProfileIcon,
           errorBuilder: (_, error1, stack1) => Icon(
             Icons.person_rounded,
-            size: _profileIconSize * 0.7,
+            size: AppSizes.bottomNavProfileIcon * 0.7,
             color: _iconColor,
           ),
         ),
@@ -364,16 +364,28 @@ class _NavItem extends StatelessWidget {
 }
 
 class _NavIconImage extends StatelessWidget {
-  const _NavIconImage({required this.assetPath});
+  const _NavIconImage({
+    required this.assetPath,
+    this.size = AppSizes.bottomNavIconSlot,
+  });
 
   final String assetPath;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      assetPath,
-      width: AppSizes.bottomNavIcon,
-      height: AppSizes.bottomNavIcon,
+    return SizedBox(
+      width: AppSizes.bottomNavIconSlot,
+      height: AppSizes.bottomNavIconSlot,
+      child: Center(
+        child: Image.asset(
+          assetPath,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+        ),
+      ),
     );
   }
 }
@@ -385,11 +397,16 @@ class _NavSvgIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SvgPicture.asset(
-      assetPath,
-      width: AppSizes.bottomNavIcon,
-      height: AppSizes.bottomNavIcon,
-      fit: BoxFit.contain,
+    return SizedBox(
+      width: AppSizes.bottomNavIconSlot,
+      height: AppSizes.bottomNavIconSlot,
+      child: SvgPicture.asset(
+        assetPath,
+        width: AppSizes.bottomNavIconSlot,
+        height: AppSizes.bottomNavIconSlot,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+      ),
     );
   }
 }

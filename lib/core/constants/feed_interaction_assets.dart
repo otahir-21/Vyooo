@@ -1,6 +1,7 @@
 /// Reel feed action icons (`assets/vyooO_icons/Home/`).
 abstract final class FeedInteractionAssets {
   static const String _home = 'assets/vyooO_icons/Home';
+  static const String _interactions = '$_home/interactions';
 
   static const String crown = '$_home/Subscription.png';
   static const String heart = '$_home/heart.png';
@@ -11,4 +12,13 @@ abstract final class FeedInteractionAssets {
   static const String unsavePost = '$_home/unsavePost.png';
   static const String more = '$_home/three_dots.png';
   static const String factCheck = '$_home/Fact check.png';
+
+  /// Figma home reel action column (`interactions/*.svg`).
+  static const String interactionLike = '$_interactions/like.svg';
+  static const String interactionLikeActive = '$_interactions/like_active.svg';
+  static const String interactionChat = '$_interactions/chat.svg';
+  static const String interactionStar = '$_interactions/star.svg';
+  static const String interactionStarActive = '$_interactions/star_active.svg';
+  static const String interactionShare = '$_interactions/share.svg';
+  static const String interactionMore = '$_interactions/more.svg';
 }

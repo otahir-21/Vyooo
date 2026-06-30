@@ -1895,10 +1895,11 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isLiked = _likedReels[engagementId] ?? false;
     final isFavorite = _favoriteReels[engagementId] ?? false;
     final privacy = ReelCountPrivacy.fromMap(reel);
-    final isFollowingTab = currentTab == HomeTab.following;
     final interactionBottom =
         AppBottomNavigation.totalHeightFor(context) +
         AppSpacing.reelActionColumnNavGap;
+    const feedActionStyle = AppTypography.feedReelMetric;
+    const feedActionGap = AppSpacing.feedInteractionButtonGap;
 
     return Positioned(
       right: AppSpacing.md,
@@ -1906,18 +1907,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!isFollowingTab) ...[
-            AppInteractionButton(
-              iconAsset: FeedInteractionAssets.crown,
-              count: '',
-              colorizeAsset: false,
-              iconColor: AppColors.lightGold,
-              onTap: () => _onCrownTap(reel),
-            ),
-            SizedBox(height: AppSpacing.md),
-          ],
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.heart,
+            iconAsset: FeedInteractionAssets.interactionLike,
+            iconAssetActive: FeedInteractionAssets.interactionLikeActive,
             count: privacy.displayCount(
               ReelCountMetric.likes,
               _asInt(reel['likes']),
@@ -1927,25 +1919,27 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             defaultColor: Colors.white,
             countColor: Colors.white,
             colorizeAsset: true,
+            useFeedFrostedStyle: true,
             onTap: () => _onLike(engagementId, isLiked),
-            iconSize: AppSizes.feedLikeIcon,
-            countTextStyle: AppTypography.feedReelMetric,
+            countTextStyle: feedActionStyle,
             spacing: AppSpacing.xs,
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: feedActionGap),
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.comments,
+            iconAsset: FeedInteractionAssets.interactionChat,
             count: privacy.displayCount(
               ReelCountMetric.comments,
               _asInt(reel['comments']),
             ),
-            colorizeAsset: false,
+            colorizeAsset: true,
+            defaultColor: Colors.white,
             countColor: Colors.white,
+            useFeedFrostedStyle: true,
             onTap: () => _onComment(engagementId),
-            countTextStyle: AppTypography.feedReelMetric,
+            countTextStyle: feedActionStyle,
             spacing: AppSpacing.xs,
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: feedActionGap),
           AppInteractionButton(
             iconAsset: isFavorite
                 ? FeedInteractionAssets.savePost
@@ -1955,40 +1949,36 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             isActive: isFavorite,
             activeColor: AppColors.brandPink,
             countColor: Colors.white,
+            useFeedFrostedStyle: true,
+            iconSize: 24,
             onTap: () => _onFavorite(engagementId, isFavorite),
             countTextStyle: AppTypography.feedReelActionLabel,
             spacing: AppSpacing.xs,
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: feedActionGap),
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.share,
+            iconAsset: FeedInteractionAssets.interactionShare,
             label: 'Share',
-            colorizeAsset: false,
+            colorizeAsset: true,
+            defaultColor: Colors.white,
             countColor: Colors.white,
+            useFeedFrostedStyle: true,
             onTap: () => _onShare(reelId),
-            countTextStyle: AppTypography.feedReelActionLabel,
+            countTextStyle: feedActionStyle,
             spacing: AppSpacing.xs,
           ),
-          SizedBox(height: AppSpacing.md),
+          SizedBox(height: feedActionGap),
           AppInteractionButton(
-            iconAsset: FeedInteractionAssets.more,
+            iconAsset: FeedInteractionAssets.interactionMore,
             count: '',
-            colorizeAsset: false,
+            colorizeAsset: true,
+            defaultColor: Colors.white,
+            useFeedFrostedStyle: true,
             onTap: () => _onMoreOptions(reelId),
           ),
         ],
       ),
     );
-  }
-
-  void _onCrownTap(Map<String, dynamic> reel) {
-    final authorId = _sourceOwnerId(reel);
-    if (authorId.isEmpty) return;
-    if (reel['vipVerified'] == true || reel['monetizationEnabled'] == true) {
-      _openReelAuthorProfile(reel);
-      return;
-    }
-    _showSnackBar('Creator subscriptions coming soon');
   }
 
   Future<void> _onFollowAuthor(Map<String, dynamic> reel) async {

@@ -34,13 +34,13 @@ abstract final class AppSizes {
   static const double feedNotificationIcon = 22;
   static const double feedNotificationTapTarget = 40;
 
-  /// Reel action column — frosted circle behind each icon.
-  static const double feedInteractionCircle = 28;
-  static const double feedInteractionIcon = 14;
-  static const double feedInteractionTapTarget = 36;
+  /// Reel action column — frosted circle behind each icon (Figma 42×42).
+  static const double feedInteractionCircle = 42;
+  static const double feedInteractionIcon = 42;
+  static const double feedInteractionTapTarget = 48;
 
-  /// Reel like heart icon — matches [feedInteractionIcon].
-  static const double feedLikeIcon = 14;
+  /// Reel like heart icon inside the frosted circle.
+  static const double feedLikeIcon = 42;
 
   /// Live stream comment field height (Figma 32).
   static const double liveCommentInputHeight = 32;
@@ -81,8 +81,14 @@ abstract final class AppSizes {
   }
 
   // — Bottom nav —
-  /// Tab icon asset size inside the 44px tap target / selected pill.
-  static const double bottomNavIcon = 20;
+  /// Figma tab icon slot — BottomNavBar SVGs use a 24×24 viewBox.
+  static const double bottomNavIconSlot = 20;
+
+  /// Tab icon render size inside the 44px tap target / selected pill.
+  static const double bottomNavIcon = bottomNavIconSlot;
+
+  /// Profile tab — avatar / placeholder larger than other tab icons.
+  static const double bottomNavProfileIcon = 36;
   static const double bottomNavTapTarget = 44;
   static const double bottomNavBarHeight = 60;
 

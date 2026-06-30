@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../constants/app_colors.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
@@ -30,6 +31,7 @@ class AppInteractionButton extends StatelessWidget {
     this.spacing = 4,
     this.showCircleBackground = true,
     this.circleSize = AppSizes.feedInteractionCircle,
+    this.useFeedFrostedStyle = false,
   }) : assert(
          icon != null || iconAsset != null || iconAssetActive != null,
          'Provide icon or iconAsset',
@@ -64,6 +66,9 @@ class AppInteractionButton extends StatelessWidget {
   final bool showCircleBackground;
   final double circleSize;
 
+  /// Figma home reel column — 10% white fill, 2px blur, soft drop shadow.
+  final bool useFeedFrostedStyle;
+
   String? get _resolvedAsset {
     if (isActive && iconAssetActive != null) return iconAssetActive;
     return iconAsset;
@@ -71,18 +76,29 @@ class AppInteractionButton extends StatelessWidget {
 
   Widget _buildIcon(Color color) {
     final asset = _resolvedAsset;
+    final renderSize =
+        useFeedFrostedStyle && asset != null && asset.endsWith('.svg')
+        ? circleSize
+        : iconSize;
+    final tintActiveAsset =
+        asset != null &&
+        (asset.contains('/interactions/like_active') ||
+            asset.contains('/interactions/star_active'));
+
     if (asset != null) {
       if (asset.endsWith('.svg')) {
         return SvgPicture.asset(
           asset,
-          width: iconSize,
-          height: iconSize,
+          width: renderSize,
+          height: renderSize,
           fit: BoxFit.contain,
-          colorFilter: colorizeAsset
-              ? ColorFilter.mode(iconColor ?? color, BlendMode.srcIn)
-              : (iconColor != null
-                    ? ColorFilter.mode(iconColor!, BlendMode.srcIn)
-                    : null),
+          colorFilter: tintActiveAsset
+              ? null
+              : (colorizeAsset
+                    ? ColorFilter.mode(iconColor ?? color, BlendMode.srcIn)
+                    : (iconColor != null
+                          ? ColorFilter.mode(iconColor!, BlendMode.srcIn)
+                          : null)),
         );
       }
       return Image.asset(
@@ -102,6 +118,44 @@ class AppInteractionButton extends StatelessWidget {
     return Icon(icon, size: iconSize, color: color);
   }
 
+  Widget _buildLegacyFrostedCircle() {
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          width: circleSize,
+          height: circleSize,
+          color: White30.value,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedFrostedCircle() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+          child: Container(
+            width: circleSize,
+            height: circleSize,
+            color: AppColors.feedInteractionCircleFill,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildIconSlot(Color color) {
     final iconWidget = _buildIcon(color);
     if (!showCircleBackground) return iconWidget;
@@ -112,16 +166,9 @@ class AppInteractionButton extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-              child: Container(
-                width: circleSize,
-                height: circleSize,
-                color: White30.value,
-              ),
-            ),
-          ),
+          useFeedFrostedStyle
+              ? _buildFeedFrostedCircle()
+              : _buildLegacyFrostedCircle(),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             transitionBuilder: (child, animation) => ScaleTransition(
@@ -141,8 +188,11 @@ class AppInteractionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconTint = iconColor ?? (isActive ? activeColor : defaultColor);
-    final countTint = countColor ?? AppTheme.primary;
+    final countTint = countColor ?? Colors.white;
     final caption = count.isNotEmpty ? count : (label ?? '');
+    final tapTarget = useFeedFrostedStyle
+        ? AppSizes.feedInteractionTapTarget
+        : AppSizes.iconTapTarget;
 
     return GestureDetector(
       onTap: onTap,
@@ -151,8 +201,8 @@ class AppInteractionButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: AppSizes.iconTapTarget,
-            height: AppSizes.iconTapTarget,
+            width: tapTarget,
+            height: tapTarget,
             child: Center(child: _buildIconSlot(iconTint)),
           ),
           if (caption.isNotEmpty) ...[

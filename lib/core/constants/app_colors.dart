@@ -43,8 +43,10 @@ class AppColors {
   static const Color authVerifyDestination = storyRing;
   /// Light auth primary CTA fill — muted mauve (Figma sign-in / register).
   static const Color authPrimaryButton = Color(0xFFB8869E);
-  /// Reel like heart — filled state (Figma #9F0E56).
-  static const Color feedLikeActive = Color(0xFF9F0E56);
+  /// Reel like heart — filled state (Figma #E31055).
+  static const Color feedLikeActive = Color(0xFFE31055);
+  /// Frosted reel action circle fill (Figma #FFFFFF @ ~10%).
+  static const Color feedInteractionCircleFill = Color(0x1AFFFFFF);
   /// Reel caption hashtags (Figma #FFB3CC).
   static const Color feedReelHashtag = Color(0xFFFFB3CC);
 

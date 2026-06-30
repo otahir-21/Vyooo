@@ -17,6 +17,9 @@ abstract final class AppSpacing {
   /// Large (feed interaction button vertical spacing)
   static const double lg = 22;
 
+  /// Home reel action column — gap between labeled buttons (Figma ~23px).
+  static const double feedInteractionButtonGap = lg + xs;
+
   /// Extra large (section spacing)
   static const double xl = 24;
 
