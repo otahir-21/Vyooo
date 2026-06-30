@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
+
 /// 🔴 Do NOT define gradients inside screens.
 /// Always use AppGradients.
 /// This ensures brand consistency across the entire app.
@@ -201,11 +203,11 @@ class AppGradients {
     stops: [0.0, 0.4, 1.0],
   );
 
-  /// Story avatar ring (pink gradient border).
+  /// Story avatar ring (Figma #E51147).
   static const LinearGradient storyRingGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFD10057), Color(0xFFFF6B9D)],
+    colors: [AppColors.storyRing, AppColors.storyRing],
   );
 
   /// Live broadcast ring (warmer red — distinct from story ring).

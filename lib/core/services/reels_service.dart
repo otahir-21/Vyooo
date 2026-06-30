@@ -17,7 +17,7 @@ import 'user_service.dart';
 enum ReelReportResult { success, alreadyReported, notSignedIn, failed }
 
 /// Reels feed by tab. For You / Trending / VR use reels collection; Following uses users/{uid}/following.
-/// When Firestore is empty and [AppConfig.usePexelsFeed] + API key are set, falls back to Pexels.
+/// When feeds are empty, falls back to reels from public profiles, then Pexels when configured.
 class ReelsService {
   ReelsService._();
   static final ReelsService _instance = ReelsService._();
@@ -55,17 +55,17 @@ class ReelsService {
               ReelEngagement.isDiscoveryFeedEligible(r))
           .take(limit)
           .toList();
-      if (list.isNotEmpty) return list;
-      if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
-      return [];
+      return _withPublicProfileFallback(list, limit: limit, pexels: _pexels.getForYou);
     } catch (_) {
+      final fallback = await getPublicProfileReels(limit: limit);
+      if (fallback.isNotEmpty) return fallback;
       if (_pexels.isAvailable) return _pexels.getForYou(limit: limit);
       return [];
     }
   }
 
   /// Reels from followed users only. Uses users/{uid}/following then reels where userId in that list.
-  /// Does not fall back to third-party demo feeds — empty means no reels from people you follow.
+  /// When empty, falls back to [getPublicProfileReels] so new users still see content.
   Future<List<Map<String, dynamic>>> getReelsFollowing({int limit = 20}) async {
     final uid = AuthService().currentUser?.uid;
     if (uid == null) {
@@ -103,9 +103,9 @@ class ReelsService {
         return list.take(limit).toList(growable: false);
       }
       if (list.isNotEmpty) return list;
-      return [];
+      return getPublicProfileReels(limit: limit);
     } catch (_) {
-      return [];
+      return getPublicProfileReels(limit: limit);
     }
   }
 
@@ -126,11 +126,25 @@ class ReelsService {
               ReelEngagement.isDiscoveryFeedEligible(r))
           .take(limit)
           .toList();
-      if (list.isNotEmpty) return list;
+      return _withPublicProfileFallback(list, limit: limit, pexels: _pexels.getTrending);
+    } catch (_) {
+      final fallback = await getPublicProfileReels(limit: limit);
+      if (fallback.isNotEmpty) return fallback;
       if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
       return [];
+    }
+  }
+
+  /// Fallback when discovery feeds are empty: reels from users with a public
+  /// account (public / business / government) that pass moderation.
+  Future<List<Map<String, dynamic>>> getPublicProfileReels({
+    int limit = 20,
+  }) async {
+    try {
+      final fromRecent = await _publicReelsFromRecentScan(limit: limit);
+      if (fromRecent.isNotEmpty) return fromRecent;
+      return _publicReelsFromPublicUsers(limit: limit);
     } catch (_) {
-      if (_pexels.isAvailable) return _pexels.getTrending(limit: limit);
       return [];
     }
   }
@@ -176,9 +190,22 @@ class ReelsService {
           .take(limit)
           .toList(growable: false);
       if (list.isNotEmpty) return list;
-      if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
-      return [];
+      final public = await getPublicProfileReels(limit: limit * 2);
+      final vrPublic = public
+          .where((r) => r['isVR'] == true || r['is360Video'] == true)
+          .take(limit)
+          .toList(growable: false);
+      if (vrPublic.isNotEmpty) return vrPublic;
+      return _withPublicProfileFallback(const [], limit: limit, pexels: _pexels.getVR);
     } catch (_) {
+      final fallback = await getPublicProfileReels(limit: limit);
+      if (fallback.isNotEmpty) {
+        final vrOnly = fallback
+            .where((r) => r['isVR'] == true || r['is360Video'] == true)
+            .take(limit)
+            .toList(growable: false);
+        if (vrOnly.isNotEmpty) return vrOnly;
+      }
       if (_pexels.isAvailable) return _pexels.getVR(limit: limit);
       return [];
     }
@@ -523,6 +550,146 @@ class ReelsService {
     return UserService.accountTypeRequiresFollowApproval(
       data['accountType'] as String?,
     );
+  }
+
+  static const List<String> _publicAccountTypes = <String>[
+    'public',
+    'business',
+    'government',
+  ];
+
+  Future<List<Map<String, dynamic>>> _withPublicProfileFallback(
+    List<Map<String, dynamic>> primary, {
+    required int limit,
+    required Future<List<Map<String, dynamic>>> Function({int limit}) pexels,
+  }) async {
+    if (primary.isNotEmpty) return primary;
+    final public = await getPublicProfileReels(limit: limit);
+    if (public.isNotEmpty) return public;
+    if (_pexels.isAvailable) return pexels(limit: limit);
+    return const [];
+  }
+
+  Future<List<Map<String, dynamic>>> _publicReelsFromRecentScan({
+    required int limit,
+  }) async {
+    final q = await _firestore
+        .collection(_reelsCollection)
+        .orderBy('createdAt', descending: true)
+        .limit(limit * 12)
+        .get();
+    if (q.docs.isEmpty) return const [];
+
+    final uidsNeedingType = <String>{};
+    for (final d in q.docs) {
+      final data = d.data();
+      if (data['authorAccountPrivate'] == true) continue;
+      final accountType = (data['accountType'] as String?)?.trim() ?? '';
+      if (accountType.isEmpty) {
+        final uid = (data['userId'] as String?)?.trim() ?? '';
+        if (uid.isNotEmpty) uidsNeedingType.add(uid);
+      }
+    }
+    final accountTypeByUid = await _fetchAccountTypesForUsers(uidsNeedingType);
+
+    final out = <Map<String, dynamic>>[];
+    for (final d in q.docs) {
+      final data = d.data();
+      if (!_isPublicAuthorReel(data, accountTypeByUid: accountTypeByUid)) {
+        continue;
+      }
+      final reel = _docToReelMap(d);
+      if (!_passesModerationVisibility(reel) ||
+          !_isPlayableReel(reel) ||
+          !ReelEngagement.isDiscoveryFeedEligible(reel)) {
+        continue;
+      }
+      out.add(reel);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  Future<List<Map<String, dynamic>>> _publicReelsFromPublicUsers({
+    required int limit,
+  }) async {
+    final usersSnap = await _firestore
+        .collection('users')
+        .where('accountType', whereIn: _publicAccountTypes)
+        .limit(40)
+        .get();
+    if (usersSnap.docs.isEmpty) return const [];
+
+    final publicUserIds = usersSnap.docs
+        .map((d) => d.id)
+        .where((id) => id.trim().isNotEmpty)
+        .toList(growable: false);
+    final list = <Map<String, dynamic>>[];
+    const chunkSize = 10;
+    for (var i = 0; i < publicUserIds.length; i += chunkSize) {
+      final chunk = publicUserIds.sublist(
+        i,
+        min(i + chunkSize, publicUserIds.length),
+      );
+      final q = await _firestore
+          .collection(_reelsCollection)
+          .where('userId', whereIn: chunk)
+          .limit(limit * 2)
+          .get();
+      for (final d in q.docs) {
+        final reel = _docToReelMap(d);
+        if (!_passesModerationVisibility(reel) ||
+            !_isPlayableReel(reel) ||
+            !ReelEngagement.isDiscoveryFeedEligible(reel)) {
+          continue;
+        }
+        list.add(reel);
+      }
+    }
+    return _sortReelsByCreatedAtDesc(list)
+        .take(limit)
+        .toList(growable: false);
+  }
+
+  Future<Map<String, String>> _fetchAccountTypesForUsers(
+    Set<String> userIds,
+  ) async {
+    if (userIds.isEmpty) return const {};
+    final out = <String, String>{};
+    final ids = userIds.toList(growable: false);
+    for (var i = 0; i < ids.length; i += 10) {
+      final chunk = ids.sublist(i, min(i + 10, ids.length));
+      try {
+        final q = await _firestore
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final d in q.docs) {
+          out[d.id] =
+              (d.data()['accountType'] as String?)?.trim().toLowerCase() ?? '';
+        }
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  bool _isPublicAuthorReel(
+    Map<String, dynamic> data, {
+    Map<String, String>? accountTypeByUid,
+  }) {
+    if (data['authorAccountPrivate'] == true) return false;
+    var accountType =
+        (data['accountType'] as String?)?.trim().toLowerCase() ?? '';
+    if (accountType.isEmpty) {
+      final uid = (data['userId'] as String?)?.trim() ?? '';
+      if (uid.isNotEmpty && accountTypeByUid != null) {
+        accountType = (accountTypeByUid[uid] ?? '').trim().toLowerCase();
+      }
+    }
+    if (accountType.isNotEmpty) {
+      return !UserService.accountTypeRequiresFollowApproval(accountType);
+    }
+    return data['authorAccountPrivate'] == false;
   }
 
   bool _passesModerationVisibility(Map<String, dynamic> data) {

@@ -162,8 +162,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   List<Map<String, dynamic>> get _followingFeedReels {
-    // Product requirement: if user follows nobody, show Trending in Following tab.
-    if (_followingIds.isEmpty) return _reelsTrending;
+    if (_reelsFollowing.isNotEmpty) return _reelsFollowing;
+    // No reels from followed accounts — surface discovery content instead of blank.
+    if (_reelsTrending.isNotEmpty) return _reelsTrending;
+    if (_reelsForYou.isNotEmpty) return _reelsForYou;
     return _reelsFollowing;
   }
 

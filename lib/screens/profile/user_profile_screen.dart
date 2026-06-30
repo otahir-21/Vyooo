@@ -60,7 +60,6 @@ import '../../features/subscription/creator_subscription_screen.dart';
 
 const Color _profileAccentMagenta = ProfileFigmaTokens.accentMagenta;
 const Color _profileTabTrack = ProfileFigmaTokens.tabTrack;
-const double _profileStatChipRadius = ProfileFigmaTokens.statChipRadius;
 const Color _profileSurface = ProfileFigmaTokens.contentSurface;
 const double _profileActionRadius = 52;
 const double _profileOutlineWidth = 1.5;
@@ -998,48 +997,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            displayName,
-                            style: const TextStyle(
-                              fontFamily: 'DM Sans',
-                              color: ProfileFigmaTokens.primaryText,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (showVerificationBadge) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                color: badgeColor,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.check_rounded,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ],
+                      ProfileFigmaDisplayNameRow(
+                        displayName: displayName,
+                        isVerified: showVerificationBadge,
+                        badgeColor: badgeColor,
                       ),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _UserStatChip(
+                          ProfileFigmaStatChip(
                             label: 'Posts',
                             value: _formatCount(_livePostCount ?? p.postCount),
                           ),
                           const SizedBox(
                             width: ProfileFigmaTokens.statChipGap,
                           ),
-                          _UserStatChip(
+                          ProfileFigmaStatChip(
                             label: 'Followers',
                             value: _formatCount(
                               _liveFollowerCount ?? p.followerCount,
@@ -1049,7 +1023,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           const SizedBox(
                             width: ProfileFigmaTokens.statChipGap,
                           ),
-                          _UserStatChip(
+                          ProfileFigmaStatChip(
                             label: 'Following',
                             value: _formatCount(
                               _liveFollowingCount ?? p.followingCount,
@@ -1845,62 +1819,6 @@ class _UserProfileStreamItem {
   final String subtitle;
   final bool isLive;
   final int viewCount;
-}
-
-class _UserStatChip extends StatelessWidget {
-  const _UserStatChip({
-    required this.label,
-    required this.value,
-    this.onTap,
-  });
-
-  final String label;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(_profileStatChipRadius);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: Container(
-          width: ProfileFigmaTokens.statChipWidth,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-          decoration: BoxDecoration(
-            color: ProfileFigmaTokens.cardBackground,
-            borderRadius: radius,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontFamily: 'DM Sans',
-                  color: ProfileFigmaTokens.primaryText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: const TextStyle(
-                  fontFamily: 'DM Sans',
-                  color: ProfileFigmaTokens.primaryText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ProfileFollowButton extends StatelessWidget {

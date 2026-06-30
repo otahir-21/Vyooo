@@ -474,6 +474,63 @@ abstract final class AppTypography {
 
   static const double profileGridTitleSize = 10;
   static const double profileGridTitleHeroSize = 11;
+  static const double profileDisplayNameSize = 20;
+
+  /// Profile header display name — DM Sans SemiBold 20 / #1B1C1C (Figma).
+  static const TextStyle profileDisplayName = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: profileDisplayNameSize,
+    fontWeight: FontWeight.w600,
+    height: 25 / profileDisplayNameSize,
+    color: AppColors.profileDisplayName,
+  );
+
+  /// Profile stat counter — DM Sans SemiBold 16 / #1B1C1C (Figma).
+  static const TextStyle profileStatValue = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.0,
+    color: AppColors.profileDisplayName,
+  );
+
+  /// Profile stat label — DM Sans Regular 12 / #554247 (Figma).
+  static const TextStyle profileStatLabel = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.0,
+    color: AppColors.profileStatLabel,
+  );
+
+  /// Profile primary action pill — DM Sans Medium 16 / 16 line height / white (Figma Edit Profile).
+  static const TextStyle profileActionButtonLabel = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    height: 1.0,
+    letterSpacing: 0,
+    color: Colors.white,
+  );
+
+  /// Profile tab — selected chip label (Figma Inter Bold 16 / 18 / 0.55px / white).
+  static const TextStyle profileTabSelectedLabel = TextStyle(
+    fontFamily: AppFonts.headline,
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    height: 18 / 16,
+    letterSpacing: 0.55,
+    color: Colors.white,
+  );
+
+  /// Profile tab — unselected label (Figma #5D5F5F).
+  static const TextStyle profileTabUnselectedLabel = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    height: 1.0,
+    color: AppColors.profileTabUnselectedLabel,
+  );
 
   /// Short label on profile grid tiles — DM Sans SemiBold 10.
   static const TextStyle profileGridTitle = TextStyle(

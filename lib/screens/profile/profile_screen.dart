@@ -713,20 +713,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
               ),
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: ProfileFigmaTokens.contentSideMargin,
-                ),
-                sliver: DecoratedSliver(
-                  decoration: const BoxDecoration(
-                    color: ProfileFigmaTokens.contentSurface,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(
-                        ProfileFigmaTokens.contentTopRadius,
-                      ),
+              DecoratedSliver(
+                decoration: const BoxDecoration(
+                  color: ProfileFigmaTokens.contentSurface,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(
+                      ProfileFigmaTokens.contentTopRadius,
                     ),
                   ),
-                  sliver: SliverMainAxisGroup(
+                ),
+                sliver: SliverMainAxisGroup(
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
@@ -817,7 +813,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ],
                   ),
                 ),
-              ),
               SliverPadding(
                 padding: EdgeInsets.only(
                   bottom: AppBottomNavigation.totalHeightFor(context),
@@ -926,7 +921,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     height: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: ProfileFigmaTokens.accentMagenta,
+                      color: ProfileFigmaTokens.tabSelectedFill,
                     ),
                   ),
                 ),

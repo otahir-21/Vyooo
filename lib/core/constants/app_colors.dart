@@ -8,7 +8,7 @@ class AppColors {
   static const Color brandPink = Color(0xFFF81945);
   static const Color brandMagenta = Color(0xFFE11066);
   static const Color brandDeepMagenta = Color(0xFFDE106B);
-  /// Reel overlay "+ Follow" pill (Figma #660033).
+  /// Reel overlay "+ Follow" pill + profile side drawer (Figma #660033).
   static const Color feedFollowButton = Color(0xFF660033);
   /// Light auth surfaces — wordmark and accent links (Figma #600030).
   static const Color authBrandBurgundy = Color(0xFF600030);
@@ -18,8 +18,26 @@ class AppColors {
   static const Color onboardingProgressFill = Color(0xFFD30A57);
   /// Onboarding progress bar track (Figma #D9D9D9).
   static const Color onboardingProgressTrack = Color(0xFFD9D9D9);
-  /// Verify-code masked email / phone destination (Figma #E51147).
-  static const Color authVerifyDestination = Color(0xFFE51147);
+  /// Story avatar ring (Figma profile + feed #E51147).
+  static const Color storyRing = Color(0xFFE51147);
+
+  /// Profile display name + stat counter value (Figma #1B1C1C).
+  static const Color profileDisplayName = Color(0xFF1B1C1C);
+
+  /// Profile stat chip labels — Posts / Followers / Following (Figma #554247).
+  static const Color profileStatLabel = Color(0xFF554247);
+
+  /// Profile stat chip background — Posts / Followers / Following (Figma #EFEDED).
+  static const Color profileStatChipBackground = Color(0xFFEFEDED);
+
+  /// Profile tab unselected label — VR / Clips / Tags (Figma #5D5F5F).
+  static const Color profileTabUnselectedLabel = Color(0xFF5D5F5F);
+
+  /// Profile tab bookmark / star icon default (Figma #808080).
+  static const Color profileTabAccessoryIcon = Color(0xFF808080);
+
+  /// Verify-code masked email / phone destination (same Figma accent).
+  static const Color authVerifyDestination = storyRing;
   /// Light auth primary CTA fill — muted mauve (Figma sign-in / register).
   static const Color authPrimaryButton = Color(0xFFB8869E);
   /// Reel like heart — filled state (Figma #9F0E56).

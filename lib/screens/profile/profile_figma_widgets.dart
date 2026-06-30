@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/profile_assets.dart';
 import '../../core/theme/app_fonts.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'profile_figma_tokens.dart';
 
-/// Circular profile photo with optional story ring (#750047).
+/// Circular profile photo with optional story ring (Figma #E51147).
 class ProfileFigmaAvatar extends StatelessWidget {
   const ProfileFigmaAvatar({
     super.key,
@@ -58,7 +61,7 @@ class ProfileFigmaAvatar extends StatelessWidget {
         child: Container(
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: ProfileFigmaTokens.accentMagenta,
+            color: ProfileFigmaTokens.storyRing,
           ),
           padding: EdgeInsets.all(ring),
           child: Container(
@@ -110,34 +113,23 @@ class ProfileFigmaStatChip extends StatelessWidget {
         borderRadius: radius,
         child: Container(
           width: ProfileFigmaTokens.statChipWidth,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+          height: ProfileFigmaTokens.statChipHeight,
           decoration: BoxDecoration(
-            color: ProfileFigmaTokens.cardBackground,
+            color: ProfileFigmaTokens.statChipBackground,
             borderRadius: radius,
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 value,
-                style: const TextStyle(
-                  fontFamily: AppFonts.body,
-                  color: ProfileFigmaTokens.primaryText,
-                  fontSize: ProfileFigmaTokens.statValueFontSize,
-                  fontWeight: FontWeight.w600,
-                  height: 1.0,
-                ),
+                style: AppTypography.profileStatValue,
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: const TextStyle(
-                  fontFamily: AppFonts.body,
-                  color: ProfileFigmaTokens.primaryText,
-                  fontSize: ProfileFigmaTokens.statLabelFontSize,
-                  fontWeight: FontWeight.w400,
-                  height: 1.0,
-                ),
+                style: AppTypography.profileStatLabel,
               ),
             ],
           ),
@@ -182,13 +174,7 @@ class ProfileFigmaActionButton extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: AppFonts.body,
-                color: ProfileFigmaTokens.screenBackground,
-                fontSize: ProfileFigmaTokens.actionButtonFontSize,
-                fontWeight: ProfileFigmaTokens.actionButtonFontWeight,
-                height: 1.0,
-              ),
+              style: AppTypography.profileActionButtonLabel,
             ),
           ),
         ),
@@ -268,28 +254,40 @@ class ProfileFigmaTabBar extends StatelessWidget {
   final bool compact;
 
   Widget _accessoryButton({
-    required double size,
-    required double iconSize,
+    required String iconAsset,
+    required bool selected,
     required VoidCallback onTap,
-    required Widget icon,
+    required bool compact,
   }) {
+    final width = compact ? 30.0 : ProfileFigmaTokens.tabAccessoryWidth;
+    final height = compact ? 34.0 : ProfileFigmaTokens.tabAccessoryHeight;
+    final radius =
+        compact ? 10.0 : ProfileFigmaTokens.tabAccessoryRadius;
+    final iconColor = selected
+        ? ProfileFigmaTokens.tabSelectedFill
+        : ProfileFigmaTokens.tabAccessoryIconColor;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        customBorder: const CircleBorder(),
+        borderRadius: BorderRadius.circular(radius),
         child: Ink(
-          width: size,
-          height: size,
+          width: width,
+          height: height,
           decoration: BoxDecoration(
             color: ProfileFigmaTokens.screenBackground,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: ProfileFigmaTokens.tabAccessoryBorder,
-              width: 1,
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          child: Center(
+            child: SvgPicture.asset(
+              iconAsset,
+              width: width,
+              height: height,
+              fit: BoxFit.contain,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
             ),
           ),
-          child: Center(child: icon),
         ),
       ),
     );
@@ -301,11 +299,10 @@ class ProfileFigmaTabBar extends StatelessWidget {
         compact ? 2.0 : ProfileFigmaTokens.tabBarOuterPadding;
     final barHeight =
         compact ? 32.0 : ProfileFigmaTokens.tabBarHeight;
-    final tabFont = compact ? 11.0 : ProfileFigmaTokens.tabFontSize;
-    final accessorySize =
-        compact ? 32.0 : ProfileFigmaTokens.tabAccessorySize;
-    final accessoryIcon =
-        compact ? 16.0 : ProfileFigmaTokens.tabAccessoryIconSize;
+    final selectedTabFont =
+        compact ? 13.0 : ProfileFigmaTokens.tabSelectedFontSize;
+    final unselectedTabFont =
+        compact ? 11.0 : ProfileFigmaTokens.tabUnselectedFontSize;
     final savedIndex = savedTabIndex;
     final isSavedSelected =
         savedIndex != null && selectedIndex == savedIndex;
@@ -319,50 +316,53 @@ class ProfileFigmaTabBar extends StatelessWidget {
             padding: EdgeInsets.all(outerPad),
             decoration: BoxDecoration(
               color: ProfileFigmaTokens.tabTrack,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
+              borderRadius: BorderRadius.circular(
+                compact ? AppRadius.pill : ProfileFigmaTokens.tabBarRadius,
+              ),
+              boxShadow: compact
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: ProfileFigmaTokens.tabBarShadowColor,
+                        blurRadius: ProfileFigmaTokens.tabBarShadowBlur,
+                      ),
+                    ],
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: List.generate(tabs.length, (index) {
                 final isSelected =
                     index == selectedIndex && !isSavedSelected;
+                final pillRadius = compact
+                    ? AppRadius.pill
+                    : ProfileFigmaTokens.tabSelectedPillRadius;
                 return Expanded(
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => onTabSelected(index),
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.pill,
-                      ),
-                      splashColor: ProfileFigmaTokens.accentMagenta
+                      borderRadius: BorderRadius.circular(pillRadius),
+                      splashColor: ProfileFigmaTokens.tabSelectedFill
                           .withValues(alpha: 0.12),
-                      highlightColor: ProfileFigmaTokens.accentMagenta
+                      highlightColor: ProfileFigmaTokens.tabSelectedFill
                           .withValues(alpha: 0.08),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         curve: Curves.easeOut,
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? ProfileFigmaTokens.accentMagenta
+                              ? ProfileFigmaTokens.tabSelectedFill
                               : Colors.transparent,
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.pill,
-                          ),
+                          borderRadius: BorderRadius.circular(pillRadius),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           tabs[index],
-                          style: TextStyle(
-                            fontFamily: AppFonts.body,
-                            color: isSelected
-                                ? ProfileFigmaTokens.screenBackground
-                                : ProfileFigmaTokens.primaryText,
-                            fontSize: tabFont,
-                            fontWeight: isSelected
-                                ? FontWeight.w500
-                                : FontWeight.w400,
-                            height: 1.0,
-                          ),
+                          style: isSelected
+                              ? AppTypography.profileTabSelectedLabel
+                                  .copyWith(fontSize: selectedTabFont)
+                              : AppTypography.profileTabUnselectedLabel
+                                  .copyWith(fontSize: unselectedTabFont),
                         ),
                       ),
                     ),
@@ -378,18 +378,10 @@ class ProfileFigmaTabBar extends StatelessWidget {
             height: barHeight,
             child: Center(
               child: _accessoryButton(
-                size: accessorySize,
-                iconSize: accessoryIcon,
+                iconAsset: ProfileAssets.profileTabBookmarkIcon,
+                selected: isSavedSelected,
                 onTap: onBookmarkTap!,
-                icon: Icon(
-                  isSavedSelected
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: isSavedSelected
-                      ? ProfileFigmaTokens.accentMagenta
-                      : ProfileFigmaTokens.primaryText,
-                  size: accessoryIcon,
-                ),
+                compact: compact,
               ),
             ),
           ),
@@ -400,18 +392,10 @@ class ProfileFigmaTabBar extends StatelessWidget {
             height: barHeight,
             child: Center(
               child: _accessoryButton(
-                size: accessorySize,
-                iconSize: accessoryIcon,
+                iconAsset: ProfileAssets.profileTabStarIcon,
+                selected: isSavedSelected,
                 onTap: onSavedTap!,
-                icon: Icon(
-                  isSavedSelected
-                      ? Icons.star_rounded
-                      : Icons.star_border_rounded,
-                  color: isSavedSelected
-                      ? ProfileFigmaTokens.accentMagenta
-                      : ProfileFigmaTokens.primaryText,
-                  size: accessoryIcon,
-                ),
+                compact: compact,
               ),
             ),
           ),
@@ -440,8 +424,8 @@ class ProfileTabUnderFirstTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accessorySize =
-        compact ? 32.0 : ProfileFigmaTokens.tabAccessorySize;
+    final accessoryWidth =
+        compact ? 30.0 : ProfileFigmaTokens.tabAccessoryWidth;
     final outerPad =
         compact ? 2.0 : ProfileFigmaTokens.tabBarOuterPadding;
 
@@ -464,11 +448,11 @@ class ProfileTabUnderFirstTab extends StatelessWidget {
         ),
         if (showBookmarkAccessory) ...[
           const SizedBox(width: AppSpacing.sm),
-          SizedBox(width: accessorySize),
+          SizedBox(width: accessoryWidth),
         ],
         if (showStarAccessory) ...[
           const SizedBox(width: AppSpacing.sm),
-          SizedBox(width: accessorySize),
+          SizedBox(width: accessoryWidth),
         ],
       ],
     );
@@ -500,7 +484,7 @@ class ProfileHighlightsToggleHandle extends StatelessWidget {
         child: Ink(
           height: ProfileFigmaTokens.highlightsToggleHeight,
           decoration: BoxDecoration(
-            color: ProfileFigmaTokens.accentMagenta,
+            color: ProfileFigmaTokens.highlightAddFill,
             borderRadius: _radius,
           ),
           child: Center(
@@ -545,13 +529,13 @@ class ProfileHighlightAddChip extends StatelessWidget {
                 child: SizedBox(
                   width: ProfileFigmaTokens.highlightTileWidth,
                   height: ProfileFigmaTokens.highlightTileHeight,
-                  child: const ColoredBox(
-                    color: ProfileFigmaTokens.accentMagenta,
+                  child: ColoredBox(
+                    color: ProfileFigmaTokens.highlightAddFill,
                     child: Center(
                       child: Icon(
                         Icons.add_rounded,
                         color: ProfileFigmaTokens.screenBackground,
-                        size: 28,
+                        size: 24,
                       ),
                     ),
                   ),
@@ -600,13 +584,7 @@ class ProfileFigmaDisplayNameRow extends StatelessWidget {
       children: [
         Text(
           displayName,
-          style: const TextStyle(
-            fontFamily: AppFonts.body,
-            color: ProfileFigmaTokens.primaryText,
-            fontSize: ProfileFigmaTokens.displayNameFontSize,
-            fontWeight: FontWeight.w600,
-            height: ProfileFigmaTokens.displayNameHeight,
-          ),
+          style: AppTypography.profileDisplayName,
         ),
         if (isVerified) ...[
           const SizedBox(width: ProfileFigmaTokens.nameVerifiedGap),
@@ -861,7 +839,7 @@ class ProfileFigmaMusicLine extends StatelessWidget {
   }
 }
 
-/// Left-edge sliding drawer: collapsed plum handle → expanded icon rail.
+/// Left-edge sliding drawer: collapsed burgundy handle → expanded icon rail.
 class ProfileSideDrawer extends StatefulWidget {
   const ProfileSideDrawer({
     super.key,
@@ -977,7 +955,7 @@ class _ProfileSideDrawerState extends State<ProfileSideDrawer>
                   width: _expandedWidth,
                   height: railHeight,
                   child: Material(
-                    color: ProfileFigmaTokens.accentMagenta,
+                    color: ProfileFigmaTokens.sideDrawerFill,
                     borderRadius: BorderRadius.horizontal(
                       left: t < 0.08
                           ? Radius.circular(handleWidth / 2)

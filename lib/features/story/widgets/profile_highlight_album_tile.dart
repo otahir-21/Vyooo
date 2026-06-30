@@ -73,7 +73,7 @@ class ProfileHighlightAlbumTile extends StatelessWidget {
 
   Widget _placeholder(String label) {
     return ColoredBox(
-      color: ProfileFigmaTokens.cardBackground,
+      color: ProfileFigmaTokens.highlightTileBackground,
       child: Center(
         child: Text(
           label.isNotEmpty ? label[0].toUpperCase() : '?',

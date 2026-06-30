@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_colors.dart';
+
 /// Profile screen measurements and light-theme tokens (redesign).
 abstract final class ProfileFigmaTokens {
   /// Username/handle for profile UI (no leading `@`).
@@ -12,7 +14,10 @@ abstract final class ProfileFigmaTokens {
   static const Color secondaryText = Color(0xFF5A5A5A);
   static const Color cardBackground = Color(0xFFF2F2F2);
 
-  /// Story ring / selected tab accent.
+  /// Story ring around profile avatar (Figma #E51147).
+  static const Color storyRing = AppColors.storyRing;
+
+  /// Selected tab accent / profile side rail.
   static const Color accentMagenta = Color(0xFF750047);
 
   /// Legacy alias used by verification-adjacent accents.
@@ -21,16 +26,28 @@ abstract final class ProfileFigmaTokens {
   /// Tab track fill — white pill behind Posts / VR / Clips / Tags labels.
   static const Color tabTrack = screenBackground;
 
-  /// Bookmark / star accessory buttons beside the tab pill.
-  static const Color tabAccessoryBorder = Color(0xFFD4D4D4);
-  static const double tabAccessorySize = 36;
+  /// Bookmark / star accessory buttons beside the tab pill (Figma 35×39).
+  static const double tabAccessoryWidth = 35;
+  static const double tabAccessoryHeight = 39;
+  static const double tabAccessoryRadius = 12;
+  static const Color tabAccessoryIconColor = AppColors.profileTabAccessoryIcon;
+  static const double tabAccessorySize = tabAccessoryWidth;
   static const double tabAccessoryIconSize = 18;
 
-  /// Fixed height of the white tab pill.
-  static const double tabBarHeight = 36;
+  /// Fixed height of the white tab pill (Figma 51px inner track).
+  static const double tabBarHeight = 51;
+  static const double tabBarRadius = 25.5;
+  static const double tabSelectedPillRadius = 19.5;
+  /// Drop shadow around tab track (Figma 12% black, 2px blur).
+  static const Color tabBarShadowColor = Color(0x1F000000);
+  static const double tabBarShadowBlur = 4;
+  /// Selected tab fill (#660033).
+  static const Color tabSelectedFill = AppColors.feedFollowButton;
+  /// Unselected tab label (#5D5F5F).
+  static const Color tabUnselectedLabelColor = AppColors.profileTabUnselectedLabel;
 
-  static const double highlightTileWidth = 72;
-  static const double highlightTileHeight = 72;
+  static const double highlightTileWidth = 64;
+  static const double highlightTileHeight = 64;
   static const double highlightTileRadius = 12;
   static const double highlightTileGap = 10;
   static const double highlightLabelGap = 6;
@@ -38,6 +55,10 @@ abstract final class ProfileFigmaTokens {
   static const FontWeight highlightLabelFontWeight = FontWeight.w700;
   static const double highlightLabelLineHeight = 14;
   static const Color highlightLabelColor = Color(0xFF494949);
+  /// Highlight album placeholder / empty cover (Figma #EFEDED).
+  static const Color highlightTileBackground = AppColors.profileStatChipBackground;
+  /// Story / highlight add "+" tile fill — matches selected tab chip (#660033).
+  static const Color highlightAddFill = tabSelectedFill;
 
   /// Tile + gap + single-line label — used for the horizontal highlights row.
   static const double highlightRowHeight =
@@ -66,22 +87,31 @@ abstract final class ProfileFigmaTokens {
 
   static const double displayNameFontSize = 20;
   static const double displayNameHeight = 25 / 20;
+  /// Figma display-name fill (#1B1C1C).
+  static const Color displayNameColor = AppColors.profileDisplayName;
   static const double nameVerifiedGap = 6.79;
   static const double verifiedBadgeSize = 18;
 
   static const double statChipRadius = 12;
-  static const double statChipWidth = 76;
+  static const double statChipWidth = 100;
+  static const double statChipHeight = 72;
   static const double statChipGap = 12;
   static const double statValueFontSize = 16;
   static const double statLabelFontSize = 12;
+  /// Stat chip fill (#EFEDED).
+  static const Color statChipBackground = AppColors.profileStatChipBackground;
+  /// Stat counter value fill (#1B1C1C).
+  static const Color statValueColor = AppColors.profileDisplayName;
+  /// Stat chip label fill (#554247).
+  static const Color statLabelColor = AppColors.profileStatLabel;
 
   static const double actionButtonHeight = 45;
   static const double actionButtonRadius = 52;
   static const double actionButtonPaddingH = 26;
   static const double actionButtonPaddingV = 10;
   static const double actionButtonGap = 8;
-  static const double actionButtonFontSize = 13;
-  static const FontWeight actionButtonFontWeight = FontWeight.w400;
+  static const double actionButtonFontSize = 16;
+  static const FontWeight actionButtonFontWeight = FontWeight.w500;
   static const double actionIconButtonSize = 45;
   static const double actionIconSize = 22;
 
@@ -91,8 +121,8 @@ abstract final class ProfileFigmaTokens {
   /// Posts / VR / Clips / Tags panel surface.
   static const Color contentSurface = cardBackground;
 
-  /// White margin outside the grey content card (left + right).
-  static const double contentSideMargin = 12;
+  /// White margin outside the grey content card (left + right). Figma: full bleed.
+  static const double contentSideMargin = 0;
 
   static const double contentTopRadius = 24;
 
@@ -104,14 +134,18 @@ abstract final class ProfileFigmaTokens {
 
   /// Posts / VR / Saved masonry grid — 4 columns with 2×2 hero per block.
   static const int contentGridCrossAxisCount = 4;
-  static const double tabBarOuterPadding = 3;
-  static const double tabFontSize = 12;
+  static const double tabBarOuterPadding = 6;
+  static const double tabSelectedFontSize = 16;
+  static const double tabUnselectedFontSize = 12;
+  static const double tabFontSize = tabUnselectedFontSize;
 
   static const double headerUsernameFontSize = 18;
 
-  /// Profile side rail (magenta drawer) beside avatar.
+  /// Profile side rail (burgundy drawer) beside avatar.
   static const double profileSideRailWidth = 52;
   static const double profileSideRailRadius = 20;
+  /// Drawer fill — open and collapsed handle (Figma #660033).
+  static const Color sideDrawerFill = AppColors.feedFollowButton;
   /// Vertical offset — lines up with [profileHeaderHorizontalPad] above the avatar.
   static const double profileSideRailTop = 16;
   /// Same height as [avatarOuterSize] (profile photo frame).
