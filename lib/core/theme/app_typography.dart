@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import 'app_fonts.dart';
+import 'app_sizes.dart';
 import 'app_theme.dart';
 
 // 🔴 IMPORTANT:
@@ -253,13 +254,55 @@ abstract final class AppTypography {
     color: Color(0x4DFFFFFF),
   );
 
-  /// Live comment field — DM Sans Regular 16 @ #EEEEEE (Figma).
+  /// Live comment field — DM Sans Regular 12 / 15 @ #EEEEEE, −1% tracking.
   static const TextStyle liveCommentInput = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: inputSize,
+    fontSize: AppSizes.liveCommentInputFontSize,
+    height: AppSizes.liveCommentInputLineHeight /
+        AppSizes.liveCommentInputFontSize,
+    fontWeight: FontWeight.w400,
+    letterSpacing: AppSizes.liveCommentInputLetterSpacing,
+    color: AppColors.liveCommentInputText,
+  );
+
+  /// Live feed like count beside heart (Figma #FFFFFF).
+  static const TextStyle liveFeedLikeCount = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 12,
     height: 1.0,
     fontWeight: FontWeight.w400,
-    color: AppColors.liveCommentInputText,
+    color: Colors.white,
+  );
+
+  /// Live feed host caption — Figma Poppins SemiBold 16/17 @ #F0F0F0 (DM Sans 600).
+  static const TextStyle liveFeedHostCaption = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: AppSizes.liveFeedHostCaptionFontSize,
+    height: AppSizes.liveFeedHostCaptionLineHeight /
+        AppSizes.liveFeedHostCaptionFontSize,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0,
+    color: AppColors.liveFeedHostCaption,
+  );
+
+  /// Live feed chat username — DM Sans Medium 12 / 16px line (Figma card 1).
+  static const TextStyle liveChatUsername = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: AppSizes.liveChatUsernameFontSize,
+    height: AppSizes.liveChatUsernameLineHeight /
+        AppSizes.liveChatUsernameFontSize,
+    fontWeight: FontWeight.w500,
+    color: Colors.white,
+  );
+
+  /// Live feed chat message — DM Sans Regular 13 / 17px line @ 60% white.
+  static const TextStyle liveChatMessage = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: AppSizes.liveChatMessageFontSize,
+    height:
+        AppSizes.liveChatMessageLineHeight / AppSizes.liveChatMessageFontSize,
+    fontWeight: FontWeight.w400,
+    color: Color(0x99FFFFFF),
   );
 
   /// Segmented toggle — DM Sans Regular 16, 100% line height (Figma).
@@ -595,13 +638,13 @@ abstract final class AppTypography {
     color: AppTheme.primary,
   );
 
-  /// Music line under reel caption — DM Sans Regular 12.
+  /// Music line under reel caption — DM Sans Regular 12 @ 80% white (Figma).
   static const TextStyle feedReelMusic = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: feedReelMusicSize,
     height: 1.0,
     fontWeight: FontWeight.w400,
-    color: AppTheme.primary,
+    color: White80.value,
   );
 
   /// Expanded location label on reel caption.

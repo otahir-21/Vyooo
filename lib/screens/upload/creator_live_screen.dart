@@ -117,7 +117,10 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
   LiveStreamModel? _streamDoc;
   StreamSubscription<LiveStreamModel?>? _streamSub;
   StreamSubscription<List<LiveChatMessageModel>>? _chatSub;
+  StreamSubscription<bool>? _likeSub;
   List<LiveChatMessageModel> _chatMessages = [];
+  bool _isLiked = false;
+  bool _likeInFlight = false;
 
   // ── Settings ──────────────────────────────────────────────────────────────────
   String _streamTitle = '';
@@ -240,8 +243,11 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
     });
     _streamSub?.cancel();
     _chatSub?.cancel();
+    _likeSub?.cancel();
+    _likeSub?.cancel();
     _streamSub = null;
     _chatSub = null;
+    _likeSub = null;
   }
 
   Future<void> _handleAppResumed() async {
@@ -263,11 +269,15 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
     _heartbeatTimer?.cancel();
     _streamSub?.cancel();
     _chatSub?.cancel();
+    _likeSub?.cancel();
+    _likeSub?.cancel();
     _streamSub = null;
     _chatSub = null;
+    _likeSub = null;
     _streamId = null;
     _streamDoc = null;
     _chatMessages = [];
+    _isLiked = false;
     if (_engineReady && _engine != null) {
       if (!_showAgoraView && mounted) {
         setState(() => _showAgoraView = true);
@@ -369,6 +379,7 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
     _toastTimer?.cancel();
     _streamSub?.cancel();
     _chatSub?.cancel();
+    _likeSub?.cancel();
     _chatCtrl.dispose();
     _chatScrollCtrl.dispose();
     _showAgoraView = false;
@@ -646,6 +657,12 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
         });
       });
 
+      _likeSub?.cancel();
+      _likeSub = _liveService.userLikedStream(streamId, user.uid).listen((liked) {
+        if (!mounted) return;
+        setState(() => _isLiked = liked);
+      });
+
       // Send join system message
       await _liveService.sendMessage(
         streamId: streamId,
@@ -718,9 +735,28 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
 
   Future<void> _sendLike() async {
     if (_streamId == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    if (_likeInFlight) return;
+
+    final wantLiked = !_isLiked;
+    _likeInFlight = true;
+    setState(() => _isLiked = wantLiked);
+
     try {
-      await _liveService.addLike(_streamId!);
-    } catch (_) {}
+      final actual = await _liveService.toggleLike(
+        streamId: _streamId!,
+        userId: uid,
+        wantLiked: wantLiked,
+      );
+      if (!mounted) return;
+      if (actual != wantLiked) setState(() => _isLiked = actual);
+    } catch (_) {
+      if (mounted) setState(() => _isLiked = !wantLiked);
+      _showToast('Could not update like');
+    } finally {
+      _likeInFlight = false;
+    }
   }
 
   Future<void> _shareStream() async {
@@ -1475,9 +1511,11 @@ class _CreatorLiveScreenState extends State<CreatorLiveScreen>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.favorite_rounded,
-                color: Color(0xFFFF2D55),
+              Icon(
+                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: _isLiked
+                    ? const Color(0xFFFF2D55)
+                    : Colors.white.withValues(alpha: 0.9),
                 size: 22,
               ),
               const SizedBox(width: 4),

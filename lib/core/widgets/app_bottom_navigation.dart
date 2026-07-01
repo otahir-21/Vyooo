@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -7,6 +8,8 @@ import '../theme/app_gradients.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_spacing.dart';
+import 'feed_reel_progress_bar.dart';
+import 'live_feed_stream_progress_bar.dart';
 import '../../screens/profile/profile_figma_tokens.dart';
 
 class _NavAssets {
@@ -36,6 +39,11 @@ class AppBottomNavigation extends StatelessWidget {
     this.unreadNotificationCount = 0,
     this.unreadChatCount = 0,
     this.useFeedChrome = false,
+    this.feedReelProgress,
+    this.feedLiveProgress,
+    this.onFeedReelSeekUpdate,
+    this.onFeedLiveSeekUpdate,
+    this.squareChromeBottomCorners = false,
   });
 
   final int currentIndex;
@@ -46,6 +54,21 @@ class AppBottomNavigation extends StatelessWidget {
 
   /// Dark chrome + gradient scrim companion — home feed tab only.
   final bool useFeedChrome;
+
+  /// Home reel progress (0–1). When non-null, renders full-bleed bar atop chrome.
+  final ValueListenable<double?>? feedReelProgress;
+
+  /// Broadcast live progress (0–1 live edge). When non-null, live stream bar atop chrome.
+  final ValueListenable<double?>? feedLiveProgress;
+
+  /// Scrub updates from the home reel chrome progress bar.
+  final ValueChanged<double>? onFeedReelSeekUpdate;
+
+  /// Scrub updates from the broadcast live chrome progress bar.
+  final ValueChanged<double>? onFeedLiveSeekUpdate;
+
+  /// When true, bottom chrome uses square corners (broadcast tab).
+  final bool squareChromeBottomCorners;
 
   static const Color _iconColor = ProfileFigmaTokens.primaryText;
   static const Color _selectedPillFill = ProfileFigmaTokens.cardBackground;
@@ -189,17 +212,36 @@ class AppBottomNavigation extends StatelessWidget {
   /// iOS-only: fraction of the home-indicator inset below the bar (0.5 = floating pill look).
   static const double _iosSafeAreaBottomFactor = 0.5;
 
+  /// Home reel progress band inside feed chrome (gap → bar → gap).
+  static double feedReelProgressBandHeight() =>
+      AppSpacing.feedPostNavGap +
+      AppSizes.liveFeedStreamProgressHitHeight +
+      AppSizes.liveFeedProgressToBottomNavGap;
+
+  /// Broadcast live progress band — progress flush to chrome top (Figma).
+  static double feedLiveProgressBandHeight() =>
+      AppSizes.liveFeedStreamProgressHitHeight +
+      AppSizes.liveFeedProgressToBottomNavGap;
+
   /// Bottom nav height for overlay positioning.
   static double totalHeightFor(
     BuildContext context, {
     bool feedChrome = false,
+    bool includeReelProgressBand = false,
+    bool liveProgressBand = false,
   }) {
     final bottomInset = AppSystemUi.bottomChromeInset(
       context,
       iosInsetFactor: _iosSafeAreaBottomFactor,
     );
-    final chromeTop = feedChrome ? _chromeTopPadding : 0.0;
-    return chromeTop + barHeight + bottomInset;
+    final progressBand = feedChrome && includeReelProgressBand
+        ? (liveProgressBand
+            ? feedLiveProgressBandHeight()
+            : feedReelProgressBandHeight())
+        : 0.0;
+    final chromeTop =
+        feedChrome && !includeReelProgressBand ? _chromeTopPadding : 0.0;
+    return progressBand + chromeTop + barHeight + bottomInset;
   }
 
   BoxDecoration get _pillDecoration => BoxDecoration(
@@ -277,36 +319,102 @@ class AppBottomNavigation extends StatelessWidget {
     );
   }
 
+  Widget _buildChromeProgressBar({
+    required double progress,
+    required bool isLive,
+    ValueChanged<double>? onSeekUpdate,
+  }) {
+    if (isLive) {
+      return LiveFeedStreamProgressBar(
+        progress: progress,
+        onSeekUpdate: onSeekUpdate,
+      );
+    }
+    return FeedReelProgressBar(
+      progress: progress,
+      onSeekUpdate: onSeekUpdate,
+    );
+  }
+
   Widget _buildFeedChromePill(double bottomInset) {
+    final reelProgressListenable = feedReelProgress;
+    final liveProgressListenable = feedLiveProgress;
+    final hasChromeProgress =
+        reelProgressListenable != null || liveProgressListenable != null;
+    final chromeBottomRadius = squareChromeBottomCorners
+        ? BorderRadius.zero
+        : AppRadius.feedBottomChromeRadius;
+
     return ClipRRect(
-      borderRadius: AppRadius.feedBottomChromeRadius,
+      borderRadius: chromeBottomRadius,
       clipBehavior: Clip.antiAlias,
       child: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: AppGradients.feedBottomNavChrome,
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(AppRadius.feedBottomChrome),
-            bottomRight: Radius.circular(AppRadius.feedBottomChrome),
-          ),
-          border: Border(
+          borderRadius: chromeBottomRadius,
+          border: const Border(
             top: BorderSide(
               color: Color(0x1AFFFFFF),
               width: 0.5,
             ),
           ),
         ),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            _horizontalMargin,
-            _chromeTopPadding,
-            _horizontalMargin,
-            bottomInset,
-          ),
-          child: DecoratedBox(
-            decoration: _pillDecoration,
-            child: _buildNavRow(),
-          ),
-        ),
+        child: !hasChromeProgress
+            ? Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _horizontalMargin,
+                  _chromeTopPadding,
+                  _horizontalMargin,
+                  bottomInset,
+                ),
+                child: DecoratedBox(
+                  decoration: _pillDecoration,
+                  child: _buildNavRow(),
+                ),
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (reelProgressListenable != null)
+                    const SizedBox(height: AppSpacing.feedPostNavGap),
+                  if (reelProgressListenable != null)
+                    ValueListenableBuilder<double?>(
+                      valueListenable: reelProgressListenable,
+                      builder: (context, progress, _) {
+                        return _buildChromeProgressBar(
+                          progress: progress ?? 0,
+                          isLive: false,
+                          onSeekUpdate: onFeedReelSeekUpdate,
+                        );
+                      },
+                    )
+                  else if (liveProgressListenable != null)
+                    ValueListenableBuilder<double?>(
+                      valueListenable: liveProgressListenable,
+                      builder: (context, progress, _) {
+                        return _buildChromeProgressBar(
+                          progress: progress ?? 1,
+                          isLive: true,
+                          onSeekUpdate: onFeedLiveSeekUpdate,
+                        );
+                      },
+                    ),
+                  const SizedBox(height: AppSizes.liveFeedProgressToBottomNavGap),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      _horizontalMargin,
+                      0,
+                      _horizontalMargin,
+                      bottomInset,
+                    ),
+                    child: DecoratedBox(
+                      decoration: _pillDecoration,
+                      child: _buildNavRow(),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

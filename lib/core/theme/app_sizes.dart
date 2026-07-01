@@ -19,8 +19,11 @@ abstract final class AppSizes {
   /// Settings / account inner app bar — compact wordmark on the right.
   static const double settingsInnerLogoHeight = 20;
 
-  /// Nav tab chip height — 16px label + ~21px font box + 12px vertical padding (Figma).
-  static const double feedTabChipHeight = 33;
+  /// Nav tab chip height (Figma 29px).
+  static const double feedTabChipHeight = 29;
+
+  /// Frosted feed tab backdrop blur (Figma ~50px backdrop-filter).
+  static const double feedTabBlurSigma = 25;
 
   /// Feed header top row — logo vs notification bell tap target.
   static const double feedHeaderLogoRowHeight = 40;
@@ -54,12 +57,97 @@ abstract final class AppSizes {
   /// Live stream comment field height (Figma 32).
   static const double liveCommentInputHeight = 32;
 
+  /// Live stream comment field width (Figma 224).
+  static const double liveCommentInputWidth = 224;
+
+  /// Live comment placeholder / input — DM Sans 400, 12 / 15, −1% tracking.
+  static const double liveCommentInputFontSize = 12;
+  static const double liveCommentInputLineHeight = 15;
+  static const double liveCommentInputLetterSpacing = -0.12;
+
+  /// Live feed bottom action row height (Figma 32).
+  static const double liveFeedActionRowHeight = 32;
+
+  /// Chevron beside comment field (Figma 24×24).
+  static const double liveFeedChevronSize = 24;
+
+  /// Share icon in live feed action row (Figma 24×24).
+  static const double liveFeedShareIconSize = 24;
+
+  /// Like + count cluster width (Figma 50×24).
+  static const double liveFeedLikeClusterWidth = 50;
+
+  /// Gap: comment field → chevron (Figma 12px).
+  static const double liveFeedCommentToChevronGap = 12;
+
+  /// Gap: chevron → like cluster (Figma 17px).
+  static const double liveFeedChevronToLikeGap = 17;
+
+  /// Gap: like cluster → share (Figma 13px).
+  static const double liveFeedLikeToShareGap = 13;
+
+  /// Live feed host row — Figma Frame 2147224757 (370×36).
+  static const double liveFeedHostRowWidth = 370;
+  static const double liveFeedHostRowHeight = 36;
+
+  /// Live stream title / caption (Figma 16px / 17px line).
+  static const double liveFeedHostCaptionFontSize = 16;
+  static const double liveFeedHostCaptionLineHeight = 17;
+
+  /// Host avatar in live feed host row (Figma avatar-border 36×36, rx 18).
+  static const double liveFeedHostAvatarSize = 36;
+  static const double liveFeedHostAvatarBorderWidth = 2;
+  static const double liveFeedHostAvatarInnerSize =
+      liveFeedHostAvatarSize - liveFeedHostAvatarBorderWidth * 2;
+
+  /// Avatar → title gap (Figma gap 17px).
+  static const double liveFeedHostAvatarToCaptionGap = 17;
+
+  /// Title row → live stream progress bar gap (broadcast chrome).
+  static const double liveFeedHostToProgressGap = 12;
+
+  /// Live stream progress bar (Figma 402×3, rx 1.5).
+  static const double liveFeedStreamProgressHeight = 3;
+  static const double liveFeedStreamProgressRadius = 1.5;
+
+  /// Touch target below the 3px live progress bar (scrub area extends downward).
+  static const double liveFeedStreamProgressHitHeight = 12;
+
+  /// Inset above clip bottom so the 3px bar sits inside the rounded feed area.
+  static const double liveFeedProgressClipBottomInset = 8;
+
+  /// Gap between live progress bar and bottom navigation.
+  static const double liveFeedProgressToBottomNavGap = 8;
+
   /// Live stream comment field corner radius (Figma rx=8).
   static const double liveCommentInputRadius = 8;
 
   /// Live stream share icon (Figma 20×18).
   static const double liveShareIconWidth = 20;
   static const double liveShareIconHeight = 18;
+
+  /// Live feed chat card (Figma card 1 — 370×54).
+  static const double liveChatCardHeight = 54;
+
+  /// Top inset for avatar + text inside chat card (Figma 10px).
+  static const double liveChatCardContentTopInset = 10;
+
+  /// Live feed chat avatar diameter (Figma 20×20, +10% in app = 22).
+  static const double liveChatAvatarSize = 22;
+
+  /// Avatar → text column gap (Figma 16px).
+  static const double liveChatAvatarToTextGap = 16;
+
+  /// Username → message gap (Figma 1px).
+  static const double liveChatUsernameMessageGap = 1;
+
+  /// Live feed chat username — DM Sans Medium 12 / 16px line.
+  static const double liveChatUsernameFontSize = 12;
+  static const double liveChatUsernameLineHeight = 16;
+
+  /// Live feed chat message — DM Sans Regular 13 / 17px line.
+  static const double liveChatMessageFontSize = 13;
+  static const double liveChatMessageLineHeight = 17;
 
   /// Reel author avatar on feed overlay.
   static const double feedReelAvatarRadius = 18;
@@ -94,6 +182,30 @@ abstract final class AppSizes {
     return screenHeight *
         (feedBottomNavScrimDesignHeight / feedBottomNavScrimDesignArtboardHeight);
   }
+
+  /// Live feed Figma artboard (Frame 2147224967 — 402×932).
+  static const double liveFeedDesignArtboardWidth = 402;
+  static const double liveFeedDesignArtboardHeight = 932;
+
+  /// Horizontal scale vs Figma width — clamped so SE / Pro Max stay usable.
+  static double liveFeedWidthScale(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width <= 0) return 1;
+    return (width / liveFeedDesignArtboardWidth).clamp(0.88, 1.12);
+  }
+
+  /// Vertical scale vs Figma height.
+  static double liveFeedHeightScale(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    if (height <= 0) return 1;
+    return (height / liveFeedDesignArtboardHeight).clamp(0.88, 1.12);
+  }
+
+  static double liveFeedScaleW(BuildContext context, double designPx) =>
+      designPx * liveFeedWidthScale(context);
+
+  static double liveFeedScaleH(BuildContext context, double designPx) =>
+      designPx * liveFeedHeightScale(context);
 
   // — Bottom nav —
   /// Figma tab icon slot — BottomNavBar SVGs use a 24×24 viewBox.

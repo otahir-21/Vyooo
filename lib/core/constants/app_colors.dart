@@ -56,6 +56,9 @@ class AppColors {
 
   /// Bottom nav chrome behind the floating pill (Figma dark strip).
   static const Color feedBottomChrome = Color(0xFF0C0C0C);
+
+  /// Home reel progress bar track (remaining duration, dark strip).
+  static const Color feedReelProgressTrack = Color(0xFF4A4A4A);
   static const Color brandPurple = Color(0xFF490038);
   static const Color brandDeepPurple = Color(0xFF21002B);
   static const Color brandNearBlack = Color(0xFF07010F);
@@ -85,6 +88,8 @@ class AppColors {
   static const Color liveCommentInputGlassFill = Color(0x1AFFFFFF);
   /// Live comment typed + placeholder text — Figma #EEEEEE.
   static const Color liveCommentInputText = Color(0xFFEEEEEE);
+  /// Live feed host caption — Figma #F0F0F0.
+  static const Color liveFeedHostCaption = Color(0xFFF0F0F0);
   static const Color chatInputHint = Color(0xFFAEAEB2);
   static const Color chatDivider = Color(0xFFE5E5EA);
   static const Color chatVerified = Color(0xFF34C759);

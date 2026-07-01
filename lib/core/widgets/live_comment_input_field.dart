@@ -7,18 +7,23 @@ import '../theme/app_padding.dart';
 import '../theme/app_sizes.dart';
 import '../theme/app_typography.dart';
 
-/// Live stream comment field — Figma: 224×32, rx 8, white 10% + 5px blur, #EEEEEE text.
+/// Live stream comment field — Figma: 224×32, rx 8, white 10% + 5px blur,
+/// placeholder `Comment..` — DM Sans 400 12/15 @ #EEEEEE.
 class LiveCommentInputField extends StatelessWidget {
   const LiveCommentInputField({
     super.key,
     required this.controller,
     this.enabled = true,
     this.onSubmitted,
+    this.width,
   });
 
   final TextEditingController controller;
   final bool enabled;
   final ValueChanged<String>? onSubmitted;
+
+  /// When set, fixes width (Figma 224). Otherwise stretches to parent.
+  final double? width;
 
   static final BorderRadius _radius = BorderRadius.circular(
     AppSizes.liveCommentInputRadius,
@@ -38,8 +43,11 @@ class LiveCommentInputField extends StatelessWidget {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildField(BuildContext context) {
+    final fieldHeight = AppSizes.liveFeedScaleH(
+      context,
+      AppSizes.liveCommentInputHeight,
+    );
     return ClipRRect(
       borderRadius: _radius,
       child: BackdropFilter(
@@ -50,7 +58,7 @@ class LiveCommentInputField extends StatelessWidget {
             borderRadius: _radius,
           ),
           child: SizedBox(
-            height: AppSizes.liveCommentInputHeight,
+            height: fieldHeight,
             child: TextField(
               controller: controller,
               enabled: enabled,
@@ -64,5 +72,15 @@ class LiveCommentInputField extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final field = _buildField(context);
+    final resolvedWidth = width;
+    if (resolvedWidth != null) {
+      return SizedBox(width: resolvedWidth, child: field);
+    }
+    return field;
   }
 }

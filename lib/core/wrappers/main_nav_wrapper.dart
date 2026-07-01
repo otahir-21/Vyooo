@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
+import '../navigation/home_feed_chrome_controller.dart';
 import '../services/deep_link_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
@@ -9,7 +10,7 @@ import '../widgets/app_bottom_navigation.dart';
 import '../../screens/home/home_reels_screen.dart';
 import '../navigation/search_tab_launcher.dart';
 import '../../screens/search/search_screen.dart';
-import '../../screens/upload/broadcast_tab_host.dart';
+import '../../screens/broadcast/broadcast_tab_host.dart';
 import '../../screens/upload/upload_screen.dart';
 import '../../features/chat/screens/chat_inbox_screen.dart';
 import '../../features/chat/services/chat_service.dart';
@@ -54,6 +55,8 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
   StreamSubscription<String>? _reelDeepLinkSub;
   StreamSubscription<String>? _profileDeepLinkSub;
   late final SearchTabLaunchCallback _searchTabLaunchHandler;
+  final HomeFeedChromeController _homeFeedChrome = HomeFeedChromeController();
+  final HomeFeedChromeController _broadcastFeedChrome = HomeFeedChromeController();
 
   void _onTabNotifierChanged() {
     final v = MainNavWrapper.tabNotifier.value;
@@ -130,6 +133,8 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
     _profileDeepLinkSub?.cancel();
     PresenceService.instance.stop();
     ChatNotificationService.instance.stop();
+    _homeFeedChrome.dispose();
+    _broadcastFeedChrome.dispose();
     super.dispose();
   }
 
@@ -215,10 +220,12 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
         refreshToken: _feedRefreshToken,
         deepLinkReelId: _deepLinkedReelId,
         deepLinkNonce: _deepLinkNonce,
+        chromeController: _homeFeedChrome,
       ),
       BroadcastTabHost(
         isActive: _currentIndex == 1,
         onRequestHome: () => _onNavTap(0),
+        chromeController: _broadcastFeedChrome,
       ),
       const Placeholder(), // Plus opens Upload or Membership via push; no tab content.
       const ChatInboxScreen(),
@@ -251,13 +258,47 @@ class _MainNavWrapperState extends State<MainNavWrapper> {
                           : _userService.userStream(uid),
                       builder: (context, snapshot) {
                         final profileImageUrl = snapshot.data?.profileImage;
-                        return AppBottomNavigation(
-                          currentIndex: _currentIndex,
-                          onTap: _onNavTap,
-                          profileImageUrl: profileImageUrl,
-                          unreadNotificationCount: unreadCount,
-                          unreadChatCount: chatUnread,
-                          useFeedChrome: _currentIndex == 0,
+                        return ValueListenableBuilder<double?>(
+                          valueListenable: _homeFeedChrome.progress,
+                          builder: (context, homeProgress, child) {
+                            return ValueListenableBuilder<double?>(
+                              valueListenable: _broadcastFeedChrome.progress,
+                              builder: (context, liveProgress, child) {
+                                final showReelProgress =
+                                    _currentIndex == 0 && homeProgress != null;
+                                final showLiveProgress =
+                                    _currentIndex == 1 && liveProgress != null;
+                                return AppBottomNavigation(
+                                  currentIndex: _currentIndex,
+                                  onTap: _onNavTap,
+                                  profileImageUrl: profileImageUrl,
+                                  unreadNotificationCount: unreadCount,
+                                  unreadChatCount: chatUnread,
+                                  useFeedChrome:
+                                      _currentIndex == 0 || _currentIndex == 1,
+                                  feedReelProgress: showReelProgress
+                                      ? _homeFeedChrome.progress
+                                      : null,
+                                  feedLiveProgress: showLiveProgress
+                                      ? _broadcastFeedChrome.progress
+                                      : null,
+                                  onFeedReelSeekUpdate: (fraction) {
+                                    _homeFeedChrome.progress.value = fraction;
+                                    _homeFeedChrome.seekFraction.value =
+                                        fraction;
+                                  },
+                                  onFeedLiveSeekUpdate: (fraction) {
+                                    _broadcastFeedChrome.progress.value =
+                                        fraction;
+                                    _broadcastFeedChrome.seekFraction.value =
+                                        fraction;
+                                  },
+                                  squareChromeBottomCorners:
+                                      _currentIndex == 1,
+                                );
+                              },
+                            );
+                          },
                         );
                       },
                     );

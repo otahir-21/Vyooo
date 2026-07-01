@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/live_chat_message_model.dart';
 import '../models/live_stream_model.dart';
+import 'auth_service.dart';
 import 'user_service.dart';
 
 /// Firestore operations for live streams.
@@ -16,6 +17,7 @@ class LiveStreamService {
 
   static const String _streamsCol = 'streams';
   static const String _messagesCol = 'messages';
+  static const String _likesCol = 'likes';
 
   // ── Stream CRUD ─────────────────────────────────────────────────────────────
 
@@ -209,13 +211,77 @@ class LiveStreamService {
 
   // ── Likes ───────────────────────────────────────────────────────────────────
 
-  Future<void> addLike(String streamId) async {
-    await _db.collection(_streamsCol).doc(streamId).update({
-      'likeCount': FieldValue.increment(1),
+  /// Whether [userId] has liked [streamId] (real-time).
+  Stream<bool> userLikedStream(String streamId, String userId) {
+    if (streamId.isEmpty || userId.isEmpty) {
+      return Stream.value(false);
+    }
+    return _db
+        .collection(_streamsCol)
+        .doc(streamId)
+        .collection(_likesCol)
+        .doc(userId)
+        .snapshots()
+        .map((snap) => snap.exists);
+  }
+
+  /// Idempotent like toggle — one like per user per stream.
+  Future<bool> toggleLike({
+    required String streamId,
+    required String userId,
+    required bool wantLiked,
+  }) async {
+    if (streamId.isEmpty || userId.isEmpty) return !wantLiked;
+
+    final likeRef = _db
+        .collection(_streamsCol)
+        .doc(streamId)
+        .collection(_likesCol)
+        .doc(userId);
+    final streamRef = _db.collection(_streamsCol).doc(streamId);
+
+    return _db.runTransaction<bool>((tx) async {
+      final likeSnap = await tx.get(likeRef);
+      final isLiked = likeSnap.exists;
+      if (wantLiked == isLiked) return isLiked;
+
+      if (wantLiked) {
+        tx.set(likeRef, {
+          'userId': userId,
+          'likedAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(streamRef, {'likeCount': FieldValue.increment(1)});
+      } else {
+        tx.delete(likeRef);
+        tx.update(streamRef, {'likeCount': FieldValue.increment(-1)});
+      }
+      return wantLiked;
     });
   }
 
   // ── Chat ────────────────────────────────────────────────────────────────────
+
+  /// Username + profile image for live chat (Firestore profile, Auth fallback).
+  Future<({String username, String? profileImage})> resolveChatSenderProfile(
+    String userId,
+  ) async {
+    final auth = AuthService().currentUser;
+    var username =
+        auth?.displayName ?? auth?.email?.split('@').first ?? 'Viewer';
+    var profileImage = auth?.photoURL;
+
+    try {
+      final user = await UserService().getUser(userId);
+      if (user != null) {
+        final resolvedUsername = (user.username ?? '').trim();
+        if (resolvedUsername.isNotEmpty) username = resolvedUsername;
+        final image = (user.profileImage ?? '').trim();
+        if (image.isNotEmpty) profileImage = image;
+      }
+    } catch (_) {}
+
+    return (username: username, profileImage: profileImage);
+  }
 
   /// Sends a chat message. Capped to last 200 per stream (enforced by Security Rules).
   Future<void> sendMessage({

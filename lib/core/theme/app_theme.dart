@@ -289,6 +289,12 @@ class White70 {
   static const Color value = Color(0xB3FFFFFF);
 }
 
+/// Figma reel music line (#FFFFFF @ 80%).
+class White80 {
+  White80._();
+  static const Color value = Color(0xCCFFFFFF);
+}
+
 class White24 {
   White24._();
   static const Color value = Color(0x3DFFFFFF);
@@ -317,6 +323,12 @@ class White60 {
 class White15 {
   White15._();
   static const Color value = Color(0x26FFFFFF);
+}
+
+/// Figma feed tab pill fill / stroke (#FFFFFF @ 20%).
+class White20 {
+  White20._();
+  static const Color value = Color(0x33FFFFFF);
 }
 
 /// Figma feed notification circle fill (#FFFFFF @ 30%).

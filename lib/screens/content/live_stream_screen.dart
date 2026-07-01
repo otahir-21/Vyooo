@@ -41,7 +41,10 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   LiveStreamModel? _liveDoc;
   StreamSubscription<LiveStreamModel?>? _streamSub;
   StreamSubscription<List<LiveChatMessageModel>>? _chatSub;
+  StreamSubscription<bool>? _likeSub;
   List<LiveChatMessageModel> _chatMessages = [];
+  bool _isLiked = false;
+  bool _likeInFlight = false;
 
   // ── UI ────────────────────────────────────────────────────────────────────────
   final _chatCtrl = TextEditingController();
@@ -61,6 +64,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   void dispose() {
     _streamSub?.cancel();
     _chatSub?.cancel();
+    _likeSub?.cancel();
     _chatCtrl.dispose();
     _chatScrollCtrl.dispose();
     _toastTimer?.cancel();
@@ -105,12 +109,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         // Send join message so the creator sees who joined
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          final name = user.displayName ?? user.email?.split('@').first ?? 'Viewer';
+          final profile =
+              await _liveService.resolveChatSenderProfile(user.uid);
           await _liveService.sendMessage(
             streamId: widget.stream.id,
             userId: user.uid,
-            username: name,
-            message: '$name joined the stream 👋',
+            username: profile.username,
+            profileImage: profile.profileImage,
+            message: '${profile.username} joined the stream 👋',
             type: ChatMessageType.join,
           ).catchError((_) {});
         }
@@ -208,6 +214,14 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
         }
       });
     });
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _likeSub = _liveService.userLikedStream(widget.stream.id, uid).listen((liked) {
+        if (!mounted) return;
+        setState(() => _isLiked = liked);
+      });
+    }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────────
@@ -219,10 +233,12 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     if (user == null) return;
     _chatCtrl.clear();
     try {
+      final profile = await _liveService.resolveChatSenderProfile(user.uid);
       await _liveService.sendMessage(
         streamId: widget.stream.id,
         userId: user.uid,
-        username: user.displayName ?? user.email?.split('@').first ?? 'Viewer',
+        username: profile.username,
+        profileImage: profile.profileImage,
         message: text,
       );
     } catch (_) {
@@ -231,9 +247,31 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
   }
 
   Future<void> _sendLike() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _showToast('Sign in to like');
+      return;
+    }
+    if (_likeInFlight) return;
+
+    final wantLiked = !_isLiked;
+    _likeInFlight = true;
+    setState(() => _isLiked = wantLiked);
+
     try {
-      await _liveService.addLike(widget.stream.id);
-    } catch (_) {}
+      final actual = await _liveService.toggleLike(
+        streamId: widget.stream.id,
+        userId: uid,
+        wantLiked: wantLiked,
+      );
+      if (!mounted) return;
+      if (actual != wantLiked) setState(() => _isLiked = actual);
+    } catch (_) {
+      if (mounted) setState(() => _isLiked = !wantLiked);
+      _showToast('Could not update like');
+    } finally {
+      _likeInFlight = false;
+    }
   }
 
   Future<void> _shareStream(LiveStreamModel doc) async {
@@ -543,7 +581,13 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
           onTap: _sendLike,
           child: Row(
             children: [
-              Icon(Icons.favorite_rounded, color: Colors.white.withValues(alpha: 0.9), size: 20),
+              Icon(
+                _isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: _isLiked
+                    ? AppColors.feedLikeActive
+                    : Colors.white.withValues(alpha: 0.9),
+                size: 20,
+              ),
               const SizedBox(width: 4),
               Text(_formatCount(doc.likeCount), style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
             ],

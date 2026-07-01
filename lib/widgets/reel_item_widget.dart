@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -38,6 +39,9 @@ class ReelItemWidget extends StatefulWidget {
     this.onVideoCompleted,
     this.onVideoPlaybackStarted,
     this.onDoubleTap,
+    this.showEmbeddedProgressBar = true,
+    this.onPlaybackProgress,
+    this.seekFractionListenable,
   });
 
   final String videoUrl;
@@ -51,6 +55,15 @@ class ReelItemWidget extends StatefulWidget {
   /// feed distinguish a playing video from one stuck loading/retrying.
   final VoidCallback? onVideoPlaybackStarted;
   final VoidCallback? onDoubleTap;
+
+  /// When false, the parent renders [FeedReelProgressBar] and drives seeking.
+  final bool showEmbeddedProgressBar;
+
+  /// Normalized position (0–1) while the reel is playing.
+  final ValueChanged<double>? onPlaybackProgress;
+
+  /// When set, seeks the visible reel to the given fraction.
+  final ValueListenable<double?>? seekFractionListenable;
 
   @override
   State<ReelItemWidget> createState() => _ReelItemWidgetState();
@@ -89,6 +102,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   bool _isTickerActive = true;
   bool _isRouteObserverSubscribed = false;
   bool _playStateRebuildScheduled = false;
+  VoidCallback? _seekListener;
 
   @override
   bool get wantKeepAlive => true;
@@ -111,6 +125,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
     WidgetsBinding.instance.addObserver(this);
     _feedAudioListener = _onFeedAudioChanged;
     _feedAudio.isMuted.addListener(_feedAudioListener!);
+    _attachSeekListener(widget.seekFractionListenable);
     if (_shouldPlay && !_uses360Player) {
       _initializePlayer();
     }
@@ -136,6 +151,10 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
   @override
   void didUpdateWidget(ReelItemWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.seekFractionListenable != widget.seekFractionListenable) {
+      _detachSeekListener(oldWidget.seekFractionListenable);
+      _attachSeekListener(widget.seekFractionListenable);
+    }
     if (oldWidget.videoUrl != widget.videoUrl ||
         oldWidget.video360.use360Player != widget.video360.use360Player) {
       _hasNotifiedCompletion = false;
@@ -217,6 +236,7 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       _feedAudio.isMuted.removeListener(_feedAudioListener!);
       _feedAudioListener = null;
     }
+    _detachSeekListener(widget.seekFractionListenable);
     _disposePlayer();
     super.dispose();
   }
@@ -398,6 +418,41 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
         widget.onVideoCompleted!();
       }
     }
+    _reportPlaybackProgress(ctrl);
+  }
+
+  void _reportPlaybackProgress(VideoPlayerController ctrl) {
+    final onProgress = widget.onPlaybackProgress;
+    if (onProgress == null) return;
+    final duration = ctrl.value.duration;
+    if (duration <= Duration.zero) return;
+    final fraction =
+        (ctrl.value.position.inMilliseconds / duration.inMilliseconds)
+            .clamp(0.0, 1.0);
+    onProgress(fraction);
+  }
+
+  void _attachSeekListener(ValueListenable<double?>? listenable) {
+    if (listenable == null) return;
+    _seekListener = () => _onSeekFractionChanged(listenable);
+    listenable.addListener(_seekListener!);
+  }
+
+  void _detachSeekListener(ValueListenable<double?>? listenable) {
+    if (listenable == null || _seekListener == null) return;
+    listenable.removeListener(_seekListener!);
+    _seekListener = null;
+  }
+
+  void _onSeekFractionChanged(ValueListenable<double?> listenable) {
+    if (!widget.isVisible) return;
+    final fraction = listenable.value;
+    if (fraction == null) return;
+    final ctrl = _controller;
+    if (ctrl == null || !ctrl.value.isInitialized) return;
+    final duration = ctrl.value.duration;
+    if (duration <= Duration.zero) return;
+    ctrl.seekTo(duration * fraction.clamp(0.0, 1.0));
   }
 
   void _schedulePlayStateRebuild() {
@@ -608,22 +663,22 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
                 ),
               ),
             ),
-            // Progress Bar
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: VideoProgressIndicator(
-                _controller!,
-                allowScrubbing: true,
-                colors: const VideoProgressColors(
-                  playedColor: Color(0xFFEF4444),
-                  bufferedColor: Colors.white24,
-                  backgroundColor: Colors.transparent,
+            if (widget.showEmbeddedProgressBar)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: VideoProgressIndicator(
+                  _controller!,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: Color(0xFFEF4444),
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.transparent,
+                  ),
+                  padding: EdgeInsets.zero,
                 ),
-                padding: EdgeInsets.zero,
               ),
-            ),
             // ── Play/Pause & Mute Overlay ─────────────────────────────────────
             Center(
               child: AnimatedOpacity(

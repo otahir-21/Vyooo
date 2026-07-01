@@ -16,8 +16,8 @@ abstract final class AppRadius {
   static const double button = 30;
   static const double card = 8;
 
-  /// Home feed nav chips — moderate rounded rect (Figma; not full stadium).
-  static const double feedTab = 12;
+  /// Home feed nav chips — rounded rect (Figma rx 9 on 29px height).
+  static const double feedTab = 9;
 
   /// Reel overlay "+ Follow" pill — stadium cap (Figma rx 12 on 24px height).
   static const double feedReelFollowButton = 12;

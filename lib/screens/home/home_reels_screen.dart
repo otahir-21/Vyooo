@@ -20,6 +20,7 @@ import '../../core/utils/reel_engagement.dart';
 import '../../core/widgets/post_media_carousel.dart';
 import '../../core/widgets/double_tap_like_overlay.dart';
 import '../../core/models/story_model.dart';
+import '../../core/navigation/home_feed_chrome_controller.dart';
 import '../../core/navigation/app_route_observer.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/feed_offline_video_cache.dart';
@@ -104,6 +105,7 @@ class HomeReelsScreen extends StatefulWidget {
     this.refreshToken = 0,
     this.deepLinkReelId,
     this.deepLinkNonce = 0,
+    this.chromeController,
   });
 
   /// Whether the Home tab is the currently visible bottom-nav tab.
@@ -114,6 +116,9 @@ class HomeReelsScreen extends StatefulWidget {
   final int refreshToken;
   final String? deepLinkReelId;
   final int deepLinkNonce;
+
+  /// Drives the reel progress bar rendered in [AppBottomNavigation] chrome.
+  final HomeFeedChromeController? chromeController;
 
   @override
   State<HomeReelsScreen> createState() => _HomeReelsScreenState();
@@ -216,6 +221,60 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   static const Duration _videoStuckSkipTimeout = Duration(seconds: 20);
   int _activePointerCount = 0;
 
+  HomeFeedChromeController? get _chrome => widget.chromeController;
+
+  double _feedNavHeight(
+    BuildContext context, {
+    required bool includeReelProgressBand,
+  }) =>
+      AppBottomNavigation.totalHeightFor(
+        context,
+        feedChrome: true,
+        includeReelProgressBand: includeReelProgressBand,
+      );
+
+  double _feedShellBottomInset(BuildContext context) =>
+      _feedNavHeight(
+        context,
+        includeReelProgressBand: _showHomeReelProgressBar(),
+      );
+
+  /// Figma [bottom-content] — sits just above feed nav chrome.
+  double _feedOverlayBottom(BuildContext context) {
+    return AppBottomNavigation.totalHeightFor(
+          context,
+          feedChrome: true,
+          includeReelProgressBand: _showHomeReelProgressBar(),
+        ) +
+        AppSpacing.feedReelBottomContentNavGap;
+  }
+
+  /// Right action column — anchored to feed chrome, independent of caption overlay.
+  double _feedInteractionBottom(BuildContext context) =>
+      _feedShellBottomInset(context) +
+      AppSpacing.sm +
+      AppSpacing.reelActionColumnNavGap;
+
+  bool _showHomeReelProgressBar() {
+    if (!widget.isActive) return false;
+    if (currentTab == HomeTab.vr) return false;
+    final reel = _currentFeedReel();
+    if (reel == null) return false;
+    if (ReelMediaItem.listFromPost(reel).length > 1) return false;
+    return _currentItemMediaType() == 'video';
+  }
+
+  void _syncChromeProgressVisibility({double resetProgress = 0}) {
+    final chrome = _chrome;
+    if (chrome == null) return;
+    if (_showHomeReelProgressBar()) {
+      chrome.progress.value = resetProgress;
+      return;
+    }
+    chrome.progress.value = null;
+    chrome.seekFraction.value = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -235,6 +294,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     });
     _loadAutoScrollPref();
     unawaited(_bootstrapFeed());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncChromeProgressVisibility();
+    });
   }
 
   Future<void> _bootstrapFeed() async {
@@ -326,6 +388,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     }
     if (widget.deepLinkNonce != old.deepLinkNonce) {
       _handleIncomingDeepLink();
+    }
+    if (widget.isActive != old.isActive) {
+      _syncChromeProgressVisibility();
     }
   }
 
@@ -800,6 +865,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       if (viewId.isEmpty) return;
       _reelsController.incrementView(reelId: viewId);
     }
+    _syncChromeProgressVisibility();
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
     _videoStartedForCurrentItem = false;
@@ -1289,6 +1355,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     _cancelAutoScrollTimer();
     _videoCompletedForCurrentItem = false;
     _videoStartedForCurrentItem = false;
+    _syncChromeProgressVisibility();
     setState(() {
       currentTab = tab;
       _currentIndex = 0;
@@ -1335,8 +1402,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
         lerpDouble(followingStoriesTop, storiesCollapsedTop, collapseT) ??
         followingStoriesTop;
 
-    final feedChromeBottom = AppBottomNavigation.totalHeightFor(context);
-    final feedBottomInset = feedChromeBottom + AppSpacing.feedPostNavGap;
+    final feedBottomInset = _feedShellBottomInset(context);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1616,6 +1682,17 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                   ? _onVideoPlaybackStartedForAutoScroll
                   : null,
               onDoubleTap: () => _onDoubleTapLike(feedIndex),
+              showEmbeddedProgressBar: false,
+              onPlaybackProgress: index == _currentIndex
+                  ? (progress) {
+                      final chrome = _chrome;
+                      if (chrome == null || !_showHomeReelProgressBar()) return;
+                      chrome.progress.value = progress;
+                    }
+                  : null,
+              seekFractionListenable: index == _currentIndex
+                  ? _chrome?.seekFraction
+                  : null,
             ),
           );
         },
@@ -1895,9 +1972,7 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final isLiked = _likedReels[engagementId] ?? false;
     final isFavorite = _favoriteReels[engagementId] ?? false;
     final privacy = ReelCountPrivacy.fromMap(reel);
-    final interactionBottom =
-        AppBottomNavigation.totalHeightFor(context) +
-        AppSpacing.reelActionColumnNavGap;
+    final interactionBottom = _feedInteractionBottom(context);
     const feedActionStyle = AppTypography.feedReelMetric;
     const feedActionGap = AppSpacing.feedInteractionButtonGap;
 
@@ -2124,18 +2199,19 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final showFollow = authorId.isNotEmpty && authorId != me;
     final isFollowing = showFollow && _followingIds.contains(authorId);
     final followBusy = _followBusyAuthorId == authorId;
-    final overlayBottom =
-        AppBottomNavigation.totalHeightFor(context) + AppSpacing.xs;
+    final overlayBottom = _feedOverlayBottom(context);
 
     return Positioned(
-      left: AppSpacing.md,
-      right: 88,
+      left: AppSpacing.feedReelOverlayLeft,
+      right: AppSpacing.feedReelOverlayRight,
       bottom: overlayBottom,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               GestureDetector(
@@ -2256,14 +2332,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
           ),
           if (ReportStatusThresholds.severityFor(_asInt(reel['reportCount'])) !=
               ReportSeverity.none) ...[
-            SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.feedReelBottomContentGap),
             ReportStatusBar.fromReel(reel),
           ],
-          SizedBox(height: AppSpacing.sm),
-          _buildReelCaption(reel),
+          ..._buildReelCaptionBlocks(reel),
+          const SizedBox(height: AppSpacing.feedReelBottomContentGap),
           _buildReelMusicLine(reel),
-          SizedBox(height: AppSpacing.sm),
         ],
+        ),
       ),
     );
   }
@@ -2272,26 +2348,23 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     final music = _reelMusicLabel(reel);
     if (music.isEmpty) return const SizedBox.shrink();
 
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.music_note_rounded,
-            color: AppTheme.primary,
-            size: AppTypography.feedReelMusicSize,
+    return Row(
+      children: [
+        const Icon(
+          Icons.music_note_rounded,
+          color: White80.value,
+          size: AppTypography.feedReelMusicSize,
+        ),
+        SizedBox(width: AppSpacing.reelMusicIconGap),
+        Expanded(
+          child: Text(
+            music,
+            style: AppTypography.feedReelMusic,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(width: AppSpacing.reelMusicIconGap),
-          Expanded(
-            child: Text(
-              music,
-              style: AppTypography.feedReelMusic,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -2305,40 +2378,78 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
     return 'Original Sound - $handle';
   }
 
-  Widget _buildReelCaption(Map<String, dynamic> reel) {
-    final description = _asString(reel['description']);
-    final tagsList = reel['tags'] as List? ?? [];
+  List<Widget> _buildReelCaptionBlocks(Map<String, dynamic> reel) {
+    final description = _reelDescriptionText(reel);
+    final hashtags = _reelHashtagText(reel);
     final locationMap = reel['location'] as Map<String, dynamic>?;
     final locationName = (locationMap?['name'] as String?)?.trim() ?? '';
     final locationAddress = (locationMap?['address'] as String?)?.trim() ?? '';
 
-    if (description.isEmpty && tagsList.isEmpty) {
-      // Legacy reels without structured fields — skip when caption is only the
-      // stored upload title (title is not shown on the feed).
-      final legacyCaption = _asString(reel['title']).isEmpty
-          ? _asString(reel['caption'])
-          : '';
-      return _CaptionWithSeeMore(
-        text: legacyCaption,
-        locationName: locationName,
-        locationAddress: locationAddress,
-      );
+    if (description.isEmpty && hashtags.isEmpty) {
+      return const [];
     }
 
-    final buffer = StringBuffer();
+    final blocks = <Widget>[];
     if (description.isNotEmpty) {
-      buffer.write(description);
+      blocks.addAll([
+        const SizedBox(height: AppSpacing.feedReelBottomContentGap),
+        _CaptionWithSeeMore(
+          text: description,
+          locationName: locationName,
+          locationAddress: locationAddress,
+        ),
+      ]);
     }
-    if (tagsList.isNotEmpty) {
-      if (buffer.isNotEmpty) buffer.write('\n');
-      buffer.write(tagsList.map((t) => '#${t.toString().trim()}').join(' '));
+    if (hashtags.isNotEmpty) {
+      blocks.addAll([
+        const SizedBox(height: AppSpacing.feedReelBottomContentGap),
+        CaptionWithHashtags(
+          text: hashtags,
+          style: AppTypography.feedReelHashtag,
+          hashtagStyle: AppTypography.feedReelHashtag,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ]);
     }
+    return blocks;
+  }
 
-    return _CaptionWithSeeMore(
-      text: buffer.toString(),
-      locationName: locationName,
-      locationAddress: locationAddress,
-    );
+  /// Caption line for the feed overlay — description, then title, then legacy caption.
+  String _reelDescriptionText(Map<String, dynamic> reel) {
+    final description = _asString(reel['description']);
+    if (description.isNotEmpty) return description;
+
+    final title = _asString(reel['title']);
+    if (title.isNotEmpty) return title;
+
+    final caption = _asString(reel['caption']);
+    if (caption.isEmpty) return '';
+
+    final tagsList = reel['tags'] as List? ?? [];
+    if (tagsList.isEmpty) return caption;
+
+    // Upload stores `caption` as "title\\n#tags" while `tags` is also structured.
+    final firstLine = caption.split('\n').first.trim();
+    if (firstLine.isNotEmpty && !firstLine.startsWith('#')) {
+      return firstLine;
+    }
+    return '';
+  }
+
+  String _reelHashtagText(Map<String, dynamic> reel) {
+    final tagsList = reel['tags'] as List? ?? [];
+    if (tagsList.isNotEmpty) {
+      return tagsList.map((t) => '#${t.toString().trim()}').join(' ');
+    }
+    // Legacy caption lines: "title\\n#tag1 #tag2" without structured tags[].
+    final caption = _asString(reel['caption']);
+    if (caption.isEmpty) return '';
+    for (final line in caption.split('\n').skip(1)) {
+      final trimmed = line.trim();
+      if (trimmed.startsWith('#')) return trimmed;
+    }
+    return '';
   }
 
   // bool _isVideoPlaying() {

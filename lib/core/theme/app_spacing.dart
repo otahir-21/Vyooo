@@ -29,14 +29,38 @@ abstract final class AppSpacing {
   /// Story row item spacing (12 = 3×4pt)
   static const double storyItem = 12;
 
+  /// Home feed tab pills — gap between chips (Figma 12px).
+  static const double feedTabGap = storyItem;
+
+  /// Home feed tab pills — tighter gap on narrow screens.
+  static const double feedTabGapCompact = sm;
+
   /// Reel music row — icon to label (Figma 6px).
   static const double reelMusicIconGap = 6;
 
-  /// Gap between reel post bottom edge and feed nav chrome (shows bottom radius).
+  /// Gap between rounded reel bottom and progress bar inside feed chrome.
   static const double feedPostNavGap = sm;
+
+  /// Live feed overlay — chat block → comment bar (Figma Overlay effect Top, gap 14).
+  static const double liveFeedOverlayChatToCommentGap = 14;
+
+  /// Live feed overlay — comment bar → host caption row (Figma Frame 2147224967, gap 10).
+  static const double liveFeedOverlayCommentToCaptionGap = 10;
 
   /// Reel feed — right action column inset above bottom nav.
   static const double reelActionColumnNavGap = sm + md;
+
+  /// Home reel bottom overlay — horizontal inset from screen left (Figma 16px).
+  static const double feedReelOverlayLeft = md;
+
+  /// Home reel bottom overlay — inset from screen right (Figma 66px).
+  static const double feedReelOverlayRight = 66;
+
+  /// Home reel [bottom-content] — vertical gap between profile, caption, tags, music (Figma 10px).
+  static const double feedReelBottomContentGap = 10;
+
+  /// Home reel [bottom-content] stack → feed nav chrome (above pill top).
+  static const double feedReelBottomContentNavGap = storyItem;
 
   /// Nudge Following status chevron down to align with tab pill text (Figma).
   static const double followingStoriesToggleDown = xs;

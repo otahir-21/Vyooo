@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_padding.dart';
@@ -125,9 +127,15 @@ class AppFeedTabSelector extends StatelessWidget {
   final void Function(int)? onTabSelected;
   final Widget? trailing;
 
-  static double _estimateTabsWidth(List<String> labels, int selectedIndex) {
+  static double _estimateTabsWidth({
+    required List<String> labels,
+    required int selectedIndex,
+    required EdgeInsets chipPadding,
+    required double gap,
+    required TextScaler textScaler,
+  }) {
     var total = 0.0;
-    final chipPadding = AppPadding.feedTabChip.horizontal * 2;
+    final chipPaddingWidth = chipPadding.horizontal;
     for (var i = 0; i < labels.length; i++) {
       final isSelected = selectedIndex == i;
       final painter = TextPainter(
@@ -138,50 +146,106 @@ class AppFeedTabSelector extends StatelessWidget {
               : AppTypography.feedTabLabel,
         ),
         textDirection: TextDirection.ltr,
+        textScaler: textScaler,
         maxLines: 1,
       )..layout();
-      total += painter.width + chipPadding;
+      total += painter.width + chipPaddingWidth;
       if (i < labels.length - 1) {
-        total += AppSpacing.xs;
+        total += gap;
       }
     }
     return total;
   }
 
-  Widget _buildTab(int index) {
-    final isSelected = selectedIndex == index;
-    return GestureDetector(
-      onTap: () => onTabSelected?.call(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        height: AppSizes.feedTabChipHeight,
-        padding: AppPadding.feedTabChip,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primary : White15.value,
-          borderRadius: AppRadius.feedTabRadius,
-          border: isSelected
-              ? null
-              : Border.all(color: White24.value, width: 1),
-        ),
-        child: Text(
-          labels[index],
-          maxLines: 1,
-          style: isSelected
-              ? AppTypography.feedTabLabelSelected
-              : AppTypography.feedTabLabel,
-        ),
-      ),
+  static _FeedTabLayout _resolveLayout({
+    required double maxWidth,
+    required List<String> labels,
+    required int selectedIndex,
+    required TextScaler textScaler,
+    required bool hasTrailing,
+  }) {
+    var chipPadding = AppPadding.feedTabChip;
+    var gap = AppSpacing.feedTabGap;
+
+    double contentWidth() {
+      final trailingExtra = hasTrailing
+          ? AppSizes.followingStoriesToggleWidth + gap
+          : 0.0;
+      return _estimateTabsWidth(
+            labels: labels,
+            selectedIndex: selectedIndex,
+            chipPadding: chipPadding,
+            gap: gap,
+            textScaler: textScaler,
+          ) +
+          trailingExtra;
+    }
+
+    if (contentWidth() > maxWidth) {
+      chipPadding = AppPadding.feedTabChipCompact;
+      gap = AppSpacing.feedTabGapCompact;
+    }
+
+    final needsScaleDown = contentWidth() > maxWidth;
+
+    return _FeedTabLayout(
+      chipPadding: chipPadding,
+      gap: gap,
+      needsScaleDown: needsScaleDown,
     );
   }
 
-  List<Widget> _tabChildren({required bool compactGaps}) {
+  Widget _buildTab(int index, {required EdgeInsets chipPadding}) {
+    final isSelected = selectedIndex == index;
+    final decoration = BoxDecoration(
+      color: isSelected ? AppTheme.primary : White20.value,
+      borderRadius: AppRadius.feedTabRadius,
+      border: Border.all(color: White20.value, width: 1),
+    );
+
+    final chip = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      height: AppSizes.feedTabChipHeight,
+      padding: chipPadding,
+      alignment: Alignment.center,
+      decoration: decoration,
+      child: Text(
+        labels[index],
+        maxLines: 1,
+        softWrap: false,
+        style: isSelected
+            ? AppTypography.feedTabLabelSelected
+            : AppTypography.feedTabLabel,
+      ),
+    );
+
+    return GestureDetector(
+      onTap: () => onTabSelected?.call(index),
+      behavior: HitTestBehavior.opaque,
+      child: isSelected
+          ? chip
+          : ClipRRect(
+              borderRadius: AppRadius.feedTabRadius,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: AppSizes.feedTabBlurSigma,
+                  sigmaY: AppSizes.feedTabBlurSigma,
+                ),
+                child: chip,
+              ),
+            ),
+    );
+  }
+
+  List<Widget> _tabChildren({
+    required EdgeInsets chipPadding,
+    required double gap,
+  }) {
     return List.generate(labels.length, (index) {
-      final tab = _buildTab(index);
-      if (!compactGaps || index == 0) return tab;
+      final tab = _buildTab(index, chipPadding: chipPadding);
+      if (index == 0) return tab;
       return Padding(
-        padding: const EdgeInsets.only(left: AppSpacing.xs),
+        padding: EdgeInsets.only(left: gap),
         child: tab,
       );
     });
@@ -192,36 +256,54 @@ class AppFeedTabSelector extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        final trailingExtra = trailing == null
-            ? 0.0
-            : AppSizes.followingStoriesToggleWidth + AppSpacing.xs;
-        final tabsWidth = _estimateTabsWidth(labels, selectedIndex);
-        final needsScroll = tabsWidth + trailingExtra > maxWidth;
+        final textScaler = MediaQuery.textScalerOf(context);
+        final layout = _resolveLayout(
+          maxWidth: maxWidth,
+          labels: labels,
+          selectedIndex: selectedIndex,
+          textScaler: textScaler,
+          hasTrailing: trailing != null,
+        );
 
-        if (trailing != null || needsScroll) {
-          final rowChildren = <Widget>[
-            ..._tabChildren(compactGaps: true),
-            if (trailing != null) ...[
-              const SizedBox(width: AppSpacing.xs),
-              trailing!,
-            ],
-          ];
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: rowChildren,
-            ),
+        final rowChildren = <Widget>[
+          ..._tabChildren(
+            chipPadding: layout.chipPadding,
+            gap: layout.gap,
+          ),
+          if (trailing != null) ...[
+            SizedBox(width: layout.gap),
+            trailing!,
+          ],
+        ];
+
+        Widget row = Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: rowChildren,
+        );
+
+        if (layout.needsScaleDown) {
+          row = FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: row,
           );
         }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: _tabChildren(compactGaps: false),
-        );
+        return row;
       },
     );
   }
+}
+
+class _FeedTabLayout {
+  const _FeedTabLayout({
+    required this.chipPadding,
+    required this.gap,
+    required this.needsScaleDown,
+  });
+
+  final EdgeInsets chipPadding;
+  final double gap;
+  final bool needsScaleDown;
 }
