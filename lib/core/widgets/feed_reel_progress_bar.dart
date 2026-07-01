@@ -4,27 +4,15 @@ import '../constants/app_colors.dart';
 import '../theme/app_gradients.dart';
 import '../theme/app_sizes.dart';
 
-/// Home reel progress — full-bleed bar, pink gradient fill left → right on dark track.
+/// Home reel progress — Figma 402×3 full-bleed bar (display only; parent handles scrub).
 class FeedReelProgressBar extends StatelessWidget {
   const FeedReelProgressBar({
     super.key,
     required this.progress,
-    this.onSeekStart,
-    this.onSeekUpdate,
-    this.onSeekEnd,
   });
 
   /// Normalized playback position (0 = start, 1 = end).
   final double progress;
-
-  final VoidCallback? onSeekStart;
-  final ValueChanged<double>? onSeekUpdate;
-  final VoidCallback? onSeekEnd;
-
-  void _handleSeek(double localX, double width) {
-    if (width <= 0) return;
-    onSeekUpdate?.call((localX / width).clamp(0.0, 1.0));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,48 +23,28 @@ class FeedReelProgressBar extends StatelessWidget {
         final width = constraints.maxWidth;
         final fillWidth = width * clamped;
 
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: (_) => onSeekStart?.call(),
-          onHorizontalDragUpdate: (details) {
-            _handleSeek(details.localPosition.dx, width);
-          },
-          onHorizontalDragEnd: (_) => onSeekEnd?.call(),
-          onTapDown: (details) {
-            onSeekStart?.call();
-            _handleSeek(details.localPosition.dx, width);
-            onSeekEnd?.call();
-          },
-          child: SizedBox(
-            height: AppSizes.liveFeedStreamProgressHitHeight,
-            width: double.infinity,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  AppSizes.liveFeedStreamProgressRadius,
-                ),
-                child: SizedBox(
-                  height: AppSizes.liveFeedStreamProgressHeight,
-                  width: double.infinity,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      const ColoredBox(color: AppColors.feedReelProgressTrack),
-                      if (fillWidth > 0)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            width: fillWidth,
-                            decoration: const BoxDecoration(
-                              gradient: AppGradients.liveFeedStreamProgressFill,
-                            ),
-                          ),
-                        ),
-                    ],
+        return SizedBox(
+          height: AppSizes.liveFeedStreamProgressHeight,
+          width: double.infinity,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+              AppSizes.liveFeedStreamProgressRadius,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const ColoredBox(color: AppColors.feedReelProgressTrack),
+                if (fillWidth > 0)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: fillWidth,
+                      decoration: const BoxDecoration(
+                        gradient: AppGradients.liveFeedStreamProgressFill,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
           ),
         );

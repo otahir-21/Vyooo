@@ -36,6 +36,8 @@ class ChatTile extends StatelessWidget {
     final hasAvatar = summary.avatarUrl.trim().isNotEmpty;
     final hasUnread = summary.unreadCount > 0;
     final time = _timeLabel;
+    final avatarSize =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatInboxAvatar);
 
     return InkWell(
       onTap: onTap,
@@ -48,7 +50,7 @@ class ChatTile extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              radius: AppSizes.chatInboxAvatar / 2,
+              radius: avatarSize / 2,
               backgroundColor: AppColors.chatSearchFill,
               backgroundImage: hasAvatar
                   ? CachedNetworkImageProvider(summary.avatarUrl)
@@ -58,7 +60,10 @@ class ChatTile extends StatelessWidget {
                   : Icon(
                       summary.type == 'group' ? Icons.group : Icons.person,
                       color: AppColors.chatTextSecondary,
-                      size: 22,
+                      size: AppSizes.chatInboxScaleW(
+                        context,
+                        AppSizes.chatInboxAvatarIcon,
+                      ),
                     ),
             ),
             SizedBox(width: AppSpacing.md - AppSpacing.xs),

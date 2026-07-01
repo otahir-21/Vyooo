@@ -9,7 +9,6 @@ import '../../../core/models/app_user_model.dart';
 import '../../../core/services/user_service.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_padding.dart';
-import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
@@ -45,17 +44,17 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
     _currentUid = FirebaseAuth.instance.currentUser?.uid;
     _controller = ChatController(uid: _currentUid ?? '');
     _controller.addListener(_onControllerChange);
-    _loadHeaderName();
+    _loadCurrentUser();
   }
 
-  Future<void> _loadHeaderName() async {
+  Future<void> _loadCurrentUser() async {
     if (_currentUid == null) return;
     final user = await _userService.getUser(_currentUid!);
     if (!mounted || user == null) return;
-    _currentUser = user;
     final username = (user.username ?? '').trim();
     final displayName = (user.displayName ?? '').trim();
     setState(() {
+      _currentUser = user;
       _headerName = username.isNotEmpty
           ? username
           : (displayName.isNotEmpty ? displayName : 'Messages');
@@ -182,6 +181,11 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
                   },
                 ),
                 _buildMessagesSectionHeader(),
+                const Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  color: AppColors.chatDivider,
+                ),
                 Expanded(child: _buildInboxList()),
               ],
             ),
@@ -241,30 +245,24 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
   }
 
   Widget _buildSearchBar() {
+    final sectionGap =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatInboxSectionGap);
+    final searchHeight =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatSearchHeight);
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppPadding.screenHorizontal.left,
         AppSpacing.xs,
         AppPadding.screenHorizontal.right,
-        AppSpacing.xs,
+        sectionGap,
       ),
-      child: Container(
-        height: AppSizes.chatSearchHeight,
-        decoration: BoxDecoration(
-          color: AppColors.chatSearchFill,
-          borderRadius: BorderRadius.circular(AppSizes.chatSearchHeight / 2),
-        ),
-        child: Row(
-          children: [
-            SizedBox(width: AppSpacing.md - AppSpacing.xs),
-            const Icon(
-              Icons.search,
-              color: AppColors.chatTextSecondary,
-              size: 18,
-            ),
-            SizedBox(width: AppSpacing.sm),
-            Text('Search', style: AppTypography.chatTilePreview),
-          ],
+      child: SizedBox(
+        width: double.infinity,
+        height: searchHeight,
+        child: SvgPicture.asset(
+          ChatAssets.searchBar,
+          fit: BoxFit.fill,
         ),
       ),
     );
@@ -272,16 +270,32 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
 
   Widget _buildMessagesSectionHeader() {
     final requestCount = _requestSummaries.length;
+    final requestCountFontSize =
+        AppSizes.chatInboxScaleW(context, 14);
+    final requestCountLineHeight =
+        AppSizes.chatInboxScaleW(context, 17);
+
     return Padding(
       padding: EdgeInsets.fromLTRB(
         AppPadding.screenHorizontal.left,
-        AppSpacing.xs,
+        0,
         AppPadding.screenHorizontal.right,
-        AppSpacing.xs,
+        AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text('Messages', style: AppTypography.chatSectionHeader),
+          SvgPicture.asset(
+            ChatAssets.messagesTitle,
+            width: AppSizes.chatInboxScaleW(
+              context,
+              AppSizes.chatMessagesTitleWidth,
+            ),
+            height: AppSizes.chatInboxScaleH(
+              context,
+              AppSizes.chatMessagesTitleHeight,
+            ),
+          ),
           const Spacer(),
           GestureDetector(
             onTap: () {
@@ -292,14 +306,34 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
                 ),
               );
             },
-            child: Text(
-              requestCount > 0
-                  ? 'Requests ($requestCount)'
-                  : 'Requests',
-              style: AppTypography.chatTilePreview.copyWith(
-                color: AppColors.brandDeepMagenta,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SvgPicture.asset(
+                  ChatAssets.requestsTitle,
+                  width: AppSizes.chatInboxScaleW(
+                    context,
+                    AppSizes.chatRequestsTitleWidth,
+                  ),
+                  height: AppSizes.chatInboxScaleH(
+                    context,
+                    AppSizes.chatRequestsTitleHeight,
+                  ),
+                ),
+                if (requestCount > 0) ...[
+                  SizedBox(width: AppSpacing.xs - 1),
+                  Text(
+                    '($requestCount)',
+                    style: AppTypography.chatTilePreview.copyWith(
+                      color: AppColors.chatRequestsTitle,
+                      fontWeight: FontWeight.w500,
+                      fontSize: requestCountFontSize,
+                      height: requestCountLineHeight / requestCountFontSize,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],
@@ -407,36 +441,56 @@ class _ChatNotesRow extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: 94,
-      child: ListView.builder(
+    final sectionGap =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatInboxSectionGap);
+    final rowHeight =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatNotesRowHeight);
+    final itemGap =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteItemGap);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: sectionGap),
+      child: SizedBox(
+        height: rowHeight,
+        child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.fromLTRB(
-          AppSpacing.sm + AppSpacing.xs,
-          AppSpacing.xs,
-          AppSpacing.sm + AppSpacing.xs,
+          AppPadding.screenHorizontal.left,
+          0,
+          AppPadding.screenHorizontal.right,
           0,
         ),
         itemCount: noteUsers.length + 1,
         itemBuilder: (context, index) {
-          if (index == 0) {
-            return _ChatNoteItem(
-              name: currentUser?.displayName ?? 'Your note',
-              avatarUrl: currentUser?.photoURL,
-              noteText: 'Note...',
-              isCurrentUser: true,
-              onTap: () => onTapNote(null),
-            );
-          }
-          final user = noteUsers[index - 1];
-          return _ChatNoteItem(
-            name: user.name,
-            avatarUrl: user.avatarUrl.isNotEmpty ? user.avatarUrl : null,
-            noteText: null,
-            isCurrentUser: false,
-            onTap: () => onTapNote(user.summary),
+          final isLast = index == noteUsers.length;
+          final item = index == 0
+              ? _ChatNoteItem(
+                  rowHeight: rowHeight,
+                  name: currentUser?.displayName ?? 'Your note',
+                  avatarUrl: currentUser?.photoURL,
+                  noteText: 'Note..',
+                  isCurrentUser: true,
+                  onTap: () => onTapNote(null),
+                )
+              : _ChatNoteItem(
+                  rowHeight: rowHeight,
+                  name: noteUsers[index - 1].name,
+                  avatarUrl: noteUsers[index - 1].avatarUrl.isNotEmpty
+                      ? noteUsers[index - 1].avatarUrl
+                      : null,
+                  noteText: null,
+                  isCurrentUser: false,
+                  onTap: () => onTapNote(noteUsers[index - 1].summary),
+                );
+
+          return Padding(
+            padding: EdgeInsets.only(
+              right: isLast ? 0 : itemGap,
+            ),
+            child: item,
           );
         },
+      ),
       ),
     );
   }
@@ -455,6 +509,7 @@ class _NoteUser {
 
 class _ChatNoteItem extends StatelessWidget {
   const _ChatNoteItem({
+    required this.rowHeight,
     required this.name,
     required this.avatarUrl,
     required this.noteText,
@@ -462,6 +517,7 @@ class _ChatNoteItem extends StatelessWidget {
     required this.onTap,
   });
 
+  final double rowHeight;
   final String name;
   final String? avatarUrl;
   final String? noteText;
@@ -470,42 +526,83 @@ class _ChatNoteItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final itemWidth =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteItemWidth);
+    final labelSlotHeight = AppSizes.chatInboxScaleH(
+      context,
+      AppSizes.chatNoteNameLabelHeight,
+    );
+    final labelGap =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatNoteLabelGap);
+    final bubbleWidth =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteBubbleWidth);
+    final bubbleLift =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatNoteBubbleLift);
+    final yourNoteLabelHeight = AppSizes.chatInboxScaleH(
+      context,
+      AppSizes.chatNoteYourNoteLabelHeight,
+    );
+    final nameWidth =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteNameWidth);
+    final nameFontSize = AppSizes.chatInboxScaleW(context, 16);
+    final nameLineHeight = AppSizes.chatInboxScaleH(context, 17);
+
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 68,
+        width: itemWidth,
+        height: rowHeight,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 64,
-              width: 68,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    bottom: 0,
-                    left: AppSpacing.sm - AppSpacing.xs,
-                    right: AppSpacing.sm - AppSpacing.xs,
-                    child: _buildAvatar(),
-                  ),
-                  if (noteText != null)
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: _NoteBubble(text: noteText!),
-                    ),
-                ],
+            Expanded(
+              child: SizedBox(
+                width: itemWidth,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    _buildAvatar(context),
+                    if (noteText != null)
+                      Positioned(
+                        top: -bubbleLift,
+                        left: (itemWidth - bubbleWidth) / 2,
+                        child: _NoteBubble(text: noteText!),
+                      ),
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: AppSpacing.xs - 1),
-            Text(
-              _displayName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: AppTypography.chatTilePreview.copyWith(fontSize: 10),
+            SizedBox(height: labelGap),
+            SizedBox(
+              height: labelSlotHeight,
+              width: itemWidth,
+              child: ClipRect(
+                child: isCurrentUser
+                    ? Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SvgPicture.asset(
+                          ChatAssets.yourNoteLabel,
+                          width: itemWidth,
+                          height: yourNoteLabelHeight,
+                        ),
+                      )
+                    : Align(
+                        alignment: Alignment.bottomCenter,
+                        child: SizedBox(
+                          width: nameWidth,
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.chatNoteNameLabel.copyWith(
+                              fontSize: nameFontSize,
+                              height: nameLineHeight / nameFontSize,
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
             ),
           ],
         ),
@@ -513,34 +610,33 @@ class _ChatNoteItem extends StatelessWidget {
     );
   }
 
-  String get _displayName {
-    if (isCurrentUser) return 'Your note';
-    if (name.length > 9) return '${name.substring(0, 8)}…';
-    return name;
-  }
-
-  Widget _buildAvatar() {
+  Widget _buildAvatar(BuildContext context) {
     final hasImage = avatarUrl != null && avatarUrl!.trim().isNotEmpty;
+    final avatarSize =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteAvatar);
+    final avatarIcon =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteAvatarIcon);
+
     return Container(
-      width: AppSizes.chatNoteAvatar,
-      height: AppSizes.chatNoteAvatar,
+      width: avatarSize,
+      height: avatarSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.chatSearchFill,
         border: Border.all(color: AppColors.chatDivider, width: 1),
       ),
       child: CircleAvatar(
-        radius: AppSizes.chatNoteAvatar / 2,
+        radius: avatarSize / 2,
         backgroundColor: AppColors.chatSearchFill,
         backgroundImage: hasImage
             ? CachedNetworkImageProvider(avatarUrl!)
             : null,
         child: hasImage
             ? null
-            : const Icon(
+            : Icon(
                 Icons.person,
                 color: AppColors.chatTextSecondary,
-                size: 22,
+                size: avatarIcon,
               ),
       ),
     );
@@ -554,34 +650,52 @@ class _NoteBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm - AppSpacing.xs,
-          vertical: AppSpacing.xs - 1,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.chatNoteBubbleFill,
-          borderRadius: AppRadius.inputRadius,
-          border: Border.all(color: AppColors.chatNoteBubbleBorder, width: 0.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
+    final bubbleWidth =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatNoteBubbleWidth);
+    final bubbleHeight =
+        AppSizes.chatInboxScaleH(context, AppSizes.chatNoteBubbleHeight);
+    final bubbleBodyHeight = AppSizes.chatInboxScaleH(
+      context,
+      AppSizes.chatNoteBubbleBodyHeight,
+    );
+    final bubbleFontSize = AppSizes.chatInboxScaleW(context, 14);
+    final horizontalPadding =
+        AppSizes.chatInboxScaleW(context, AppSpacing.sm);
+
+    return SizedBox(
+      width: bubbleWidth,
+      height: bubbleHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: SvgPicture.asset(
+              ChatAssets.noteBubble,
+              fit: BoxFit.fill,
             ),
-          ],
-        ),
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppTypography.chatTilePreview.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-            color: AppColors.chatTextPrimary,
           ),
-        ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: bubbleBodyHeight,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: AppTypography.chatNoteBubbleText.copyWith(
+                    fontSize: bubbleFontSize,
+                    height: 1.0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

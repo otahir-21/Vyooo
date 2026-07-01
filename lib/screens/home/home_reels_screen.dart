@@ -1416,10 +1416,21 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                 child: _buildVrContent(),
               )
             else
-              Positioned.fill(
-                top: 0,
-                bottom: feedBottomInset,
-                child: _buildFeedClipArea(),
+              Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: feedBottomInset,
+                    child: const ColoredBox(color: AppColors.feedBottomChrome),
+                  ),
+                  Positioned.fill(
+                    top: 0,
+                    bottom: feedBottomInset,
+                    child: _buildFeedClipArea(),
+                  ),
+                ],
               ),
             _buildHeader(isFollowing: isFollowing, collapseT: collapseT),
             if (isFollowing)

@@ -38,8 +38,11 @@ abstract final class AppSpacing {
   /// Reel music row — icon to label (Figma 6px).
   static const double reelMusicIconGap = 6;
 
-  /// Gap between rounded reel bottom and progress bar inside feed chrome.
+  /// Gap between rounded reel bottom and progress bar inside feed chrome (Figma 8px).
   static const double feedPostNavGap = sm;
+
+  /// Tighter inset above the 3px progress bar (nudges bar toward video).
+  static const double feedReelProgressTopGap = 2;
 
   /// Live feed overlay — chat block → comment bar (Figma Overlay effect Top, gap 14).
   static const double liveFeedOverlayChatToCommentGap = 14;

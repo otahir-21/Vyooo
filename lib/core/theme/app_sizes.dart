@@ -116,7 +116,7 @@ abstract final class AppSizes {
   /// Inset above clip bottom so the 3px bar sits inside the rounded feed area.
   static const double liveFeedProgressClipBottomInset = 8;
 
-  /// Gap between live progress bar and bottom navigation.
+  /// Gap between progress bar and bottom navigation pill (Figma 8px).
   static const double liveFeedProgressToBottomNavGap = 8;
 
   /// Live stream comment field corner radius (Figma rx=8).
@@ -215,7 +215,7 @@ abstract final class AppSizes {
   static const double bottomNavIcon = bottomNavIconSlot;
 
   /// Profile tab — avatar / placeholder larger than other tab icons.
-  static const double bottomNavProfileIcon = 45;
+  static const double bottomNavProfileIcon = 50;
   static const double bottomNavTapTarget = 45;
   static const double bottomNavBarHeight = 60;
 
@@ -272,13 +272,57 @@ abstract final class AppSizes {
   static const double onboardingDobPickerFadeHeight = 72;
 
   // — Chat (Figma inbox / thread) —
-  static const double chatInboxAvatar = 48;
+  static const double chatInboxAvatar = 66;
+  static const double chatInboxAvatarIcon = 30;
   static const double chatThreadBubbleAvatar = 24;
-  static const double chatNoteAvatar = 50;
+  static const double chatNoteAvatar = 64;
+  static const double chatNoteAvatarIcon = 26;
+  static const double chatNoteItemWidth = 64;
+  static const double chatNoteBubbleWidth = 66;
+  static const double chatNoteBubbleHeight = 38;
+  /// Lifts the note bubble above the avatar — clears profile overlap.
+  static const double chatNoteBubbleLift = 12;
+  /// Rounded bubble body above the tail — matches note_bubble.svg geometry.
+  static const double chatNoteBubbleBodyHeight = 33;
+  static const double chatNoteItemStackHeight = 90;
+  static const double chatNoteItemGap = 4;
+  static const double chatNoteLabelGap = 2;
+  static const double chatNoteYourNoteLabelHeight = 9;
+  static const double chatNoteNameLabelHeight = 17;
+  static const double chatNotesRowHeight =
+      chatNoteItemStackHeight + chatNoteLabelGap + chatNoteNameLabelHeight;
+  static const double chatNoteNameWidth = 61;
+  static const double chatMessagesTitleWidth = 101;
+  static const double chatMessagesTitleHeight = 14;
+  static const double chatRequestsTitleWidth = 119;
+  static const double chatRequestsTitleHeight = 14;
   static const double chatAppBarAvatar = 34;
-  static const double chatSearchHeight = 36;
+  static const double chatSearchHeight = 34;
+  static const double chatInboxSectionGap = 20;
   static const double chatComposeButton = 34;
   static const double chatMessageInputHeight = 44;
   static const double chatInputCameraButton = 32;
   static const double chatInputActionIcon = 22;
+
+  /// Chat inbox Figma artboard (402×932).
+  static const double chatInboxDesignArtboardWidth = 402;
+  static const double chatInboxDesignArtboardHeight = 932;
+
+  static double chatInboxWidthScale(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width <= 0) return 1;
+    return (width / chatInboxDesignArtboardWidth).clamp(0.88, 1.12);
+  }
+
+  static double chatInboxHeightScale(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height;
+    if (height <= 0) return 1;
+    return (height / chatInboxDesignArtboardHeight).clamp(0.88, 1.12);
+  }
+
+  static double chatInboxScaleW(BuildContext context, double designPx) =>
+      designPx * chatInboxWidthScale(context);
+
+  static double chatInboxScaleH(BuildContext context, double designPx) =>
+      designPx * chatInboxHeightScale(context);
 }

@@ -57,8 +57,8 @@ class AppColors {
   /// Bottom nav chrome behind the floating pill (Figma dark strip).
   static const Color feedBottomChrome = Color(0xFF0C0C0C);
 
-  /// Home reel progress bar track (remaining duration, dark strip).
-  static const Color feedReelProgressTrack = Color(0xFF4A4A4A);
+  /// Home reel progress bar track (Figma remaining segment on dark chrome).
+  static const Color feedReelProgressTrack = Color(0xFF333333);
   static const Color brandPurple = Color(0xFF490038);
   static const Color brandDeepPurple = Color(0xFF21002B);
   static const Color brandNearBlack = Color(0xFF07010F);
@@ -95,6 +95,12 @@ class AppColors {
   static const Color chatVerified = Color(0xFF34C759);
   static const Color chatNoteBubbleFill = Color(0xFFFFFFFF);
   static const Color chatNoteBubbleBorder = Color(0xFFE5E5EA);
+  /// Inbox note bubble placeholder — Figma #B3B3B3.
+  static const Color chatNoteBubbleText = Color(0xFFB3B3B3);
+  /// Inbox notes row name label — Figma #333.
+  static const Color chatNoteNameText = Color(0xFF333333);
+  /// Inbox section Requests title — Figma #AA0055.
+  static const Color chatRequestsTitle = Color(0xFFAA0055);
   static const Color chatAppBarActionIcon = Color(0xFF808080);
 
   /// Instagram gradient (share action)

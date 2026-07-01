@@ -51,6 +51,13 @@ abstract final class ChatReactionEmojis {
 }
 
 abstract final class ChatAssets {
+  static const String searchBar = 'assets/vyooO_icons/Chat/search_bar.svg';
+  static const String yourNoteLabel = 'assets/vyooO_icons/Chat/your_note.svg';
+  static const String noteBubble = 'assets/vyooO_icons/Chat/note_bubble.svg';
+  static const String messagesTitle =
+      'assets/vyooO_icons/Chat/messages_title.svg';
+  static const String requestsTitle =
+      'assets/vyooO_icons/Chat/requests_title.svg';
   static const String newChatIcon = 'assets/vyooO_icons/Chat/new_chat.svg';
   static const String inputGalleryIcon =
       'assets/vyooO_icons/Chat/input_gallery.svg';

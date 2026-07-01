@@ -115,8 +115,8 @@ class AppBottomNavigation extends StatelessWidget {
     if (!isSelected) return avatar;
 
     return Container(
-      width: _selectedPillSize,
-      height: _selectedPillSize,
+      width: AppSizes.bottomNavProfileIcon,
+      height: AppSizes.bottomNavProfileIcon,
       decoration: const BoxDecoration(
         color: _selectedPillFill,
         shape: BoxShape.circle,
@@ -130,24 +130,28 @@ class AppBottomNavigation extends StatelessWidget {
     required VoidCallback onPressed,
     required Widget child,
     required bool isSelected,
+    double? tapTargetSize,
+    double? selectedPillSize,
   }) {
+    final targetSize = tapTargetSize ?? _tapTargetSize;
+    final pillSize = selectedPillSize ?? _selectedPillSize;
     return SizedBox(
-      width: _tapTargetSize,
-      height: _tapTargetSize,
+      width: targetSize,
+      height: targetSize,
       child: Material(
         color: Colors.transparent,
         child: InkResponse(
           onTap: onPressed,
           containedInkWell: true,
           highlightShape: BoxShape.circle,
-          radius: _tapTargetSize / 2,
+          radius: targetSize / 2,
           splashColor: _splashColor,
           highlightColor: _splashColor.withValues(alpha: 0.5),
           child: Center(
             child: isSelected
                 ? Container(
-                    width: _selectedPillSize,
-                    height: _selectedPillSize,
+                    width: pillSize,
+                    height: pillSize,
                     decoration: const BoxDecoration(
                       color: _selectedPillFill,
                       shape: BoxShape.circle,
@@ -206,21 +210,22 @@ class AppBottomNavigation extends StatelessWidget {
   /// Horizontal margin for the floating pill bar inside the chrome.
   static const double _horizontalMargin = 20;
 
-  /// Space above the white pill inside the dark chrome strip.
-  static const double _chromeTopPadding = AppSpacing.sm;
+  /// Space above the white pill inside the dark chrome strip (matches progress top gap).
+  static const double _chromeTopPadding = AppSpacing.feedPostNavGap;
 
   /// iOS-only: fraction of the home-indicator inset below the bar (0.5 = floating pill look).
   static const double _iosSafeAreaBottomFactor = 0.5;
 
-  /// Home reel progress band inside feed chrome (gap → bar → gap).
+  /// Home reel progress band inside feed chrome (gap → 3px bar → gap).
   static double feedReelProgressBandHeight() =>
-      AppSpacing.feedPostNavGap +
-      AppSizes.liveFeedStreamProgressHitHeight +
+      AppSpacing.feedReelProgressTopGap +
+      AppSizes.liveFeedStreamProgressHeight +
       AppSizes.liveFeedProgressToBottomNavGap;
 
-  /// Broadcast live progress band — progress flush to chrome top (Figma).
+  /// Broadcast live progress band — top gap → 3px bar → gap → nav.
   static double feedLiveProgressBandHeight() =>
-      AppSizes.liveFeedStreamProgressHitHeight +
+      AppSpacing.feedReelProgressTopGap +
+      AppSizes.liveFeedStreamProgressHeight +
       AppSizes.liveFeedProgressToBottomNavGap;
 
   /// Bottom nav height for overlay positioning.
@@ -297,6 +302,8 @@ class AppBottomNavigation extends StatelessWidget {
           _buildNavTap(
             onPressed: () => onTap(4),
             isSelected: currentIndex == 4,
+            tapTargetSize: AppSizes.bottomNavProfileIcon,
+            selectedPillSize: AppSizes.bottomNavProfileIcon,
             child: _buildProfileIcon(currentIndex == 4),
           ),
         ],
@@ -322,17 +329,43 @@ class AppBottomNavigation extends StatelessWidget {
   Widget _buildChromeProgressBar({
     required double progress,
     required bool isLive,
-    ValueChanged<double>? onSeekUpdate,
   }) {
     if (isLive) {
-      return LiveFeedStreamProgressBar(
-        progress: progress,
-        onSeekUpdate: onSeekUpdate,
-      );
+      return LiveFeedStreamProgressBar(progress: progress);
     }
-    return FeedReelProgressBar(
-      progress: progress,
-      onSeekUpdate: onSeekUpdate,
+    return FeedReelProgressBar(progress: progress);
+  }
+
+  Widget _buildProgressScrubBand({
+    required Widget progressBar,
+    ValueChanged<double>? onSeekUpdate,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+
+        void handleSeek(double localX) {
+          if (width <= 0) return;
+          onSeekUpdate?.call((localX / width).clamp(0.0, 1.0));
+        }
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragUpdate: (details) {
+            handleSeek(details.localPosition.dx);
+          },
+          onTapDown: (details) => handleSeek(details.localPosition.dx),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: AppSpacing.feedReelProgressTopGap),
+              progressBar,
+              const SizedBox(height: AppSizes.liveFeedProgressToBottomNavGap),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -377,15 +410,15 @@ class AppBottomNavigation extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (reelProgressListenable != null)
-                    const SizedBox(height: AppSpacing.feedPostNavGap),
-                  if (reelProgressListenable != null)
                     ValueListenableBuilder<double?>(
                       valueListenable: reelProgressListenable,
                       builder: (context, progress, _) {
-                        return _buildChromeProgressBar(
-                          progress: progress ?? 0,
-                          isLive: false,
+                        return _buildProgressScrubBand(
                           onSeekUpdate: onFeedReelSeekUpdate,
+                          progressBar: _buildChromeProgressBar(
+                            progress: progress ?? 0,
+                            isLive: false,
+                          ),
                         );
                       },
                     )
@@ -393,14 +426,15 @@ class AppBottomNavigation extends StatelessWidget {
                     ValueListenableBuilder<double?>(
                       valueListenable: liveProgressListenable,
                       builder: (context, progress, _) {
-                        return _buildChromeProgressBar(
-                          progress: progress ?? 1,
-                          isLive: true,
+                        return _buildProgressScrubBand(
                           onSeekUpdate: onFeedLiveSeekUpdate,
+                          progressBar: _buildChromeProgressBar(
+                            progress: progress ?? 1,
+                            isLive: true,
+                          ),
                         );
                       },
                     ),
-                  const SizedBox(height: AppSizes.liveFeedProgressToBottomNavGap),
                   Padding(
                     padding: EdgeInsets.fromLTRB(
                       _horizontalMargin,

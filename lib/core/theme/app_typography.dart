@@ -697,6 +697,24 @@ abstract final class AppTypography {
     color: AppColors.chatTextSecondary,
   );
 
+  /// Inbox notes row bubble placeholder — Figma 14 / 400 / #B3B3B3.
+  static const TextStyle chatNoteBubbleText = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 14,
+    height: 1.0,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatNoteBubbleText,
+  );
+
+  /// Inbox notes row name under avatar — Figma 16 / 400 / 17lh / #333.
+  static const TextStyle chatNoteNameLabel = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 16,
+    height: 17 / 16,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatNoteNameText,
+  );
+
   static const TextStyle chatBubbleText = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: 14,
