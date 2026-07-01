@@ -2208,25 +2208,43 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
                       GestureDetector(
                         onTap: followBusy ? null : () => _onFollowAuthor(reel),
                         child: Container(
+                          height: AppSizes.feedReelFollowButtonHeight,
                           padding: AppPadding.feedReelFollowChip,
                           decoration: BoxDecoration(
                             color: isFollowing
                                 ? White24.value
                                 : AppColors.feedFollowButton,
-                            borderRadius: AppRadius.pillRadius,
+                            borderRadius: AppRadius.feedReelFollowButtonRadius,
                           ),
                           child: followBusy
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 )
-                              : Text(
-                                  isFollowing ? 'Following' : '+ Follow',
-                                  style: AppTypography.feedReelFollowChip,
+                              : Center(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (!isFollowing) ...[
+                                        Icon(
+                                          Icons.add,
+                                          size: AppSizes.feedReelFollowPlusIcon,
+                                          color: AppTheme.primary,
+                                        ),
+                                        SizedBox(width: AppSpacing.xs),
+                                      ],
+                                      Text(
+                                        isFollowing ? 'Following' : 'Follow',
+                                        style: AppTypography.feedReelFollowChip,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                         ),
                       ),

@@ -166,8 +166,10 @@ abstract final class ProfileFigmaTokens {
   static const double profileSideRailIconSize = 22;
   static const double profileSideAccentWidth = 8;
 
-  /// Collapsed drawer handle — narrow plum pill peeking from the left edge.
-  static const double profileSideRailHandleWidth = 14;
+  /// Collapsed drawer handle — narrow plum tab peeking from the left edge (Figma 9×180).
+  static const double profileSideRailHandleWidth = 9;
+  /// Right-edge corner radius on the collapsed handle (Figma ~11.02).
+  static const double profileSideRailHandleCornerRadius = 11.0204;
   static const Duration profileSideDrawerAnimation = Duration(milliseconds: 260);
 
   /// Compact other-user profile top bar.

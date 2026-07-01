@@ -14,6 +14,7 @@ import '../theme/app_spacing.dart';
 import '../utils/stream_playback_urls.dart';
 import '../utils/video_upload_policy.dart';
 import 'double_tap_like_overlay.dart';
+import 'feed_reel_playback_control_pill.dart';
 
 /// Immersive 360° video via native spherical player ([Video360View]).
 ///
@@ -502,36 +503,12 @@ class _Vyooo360VideoPlayerState extends State<Vyooo360VideoPlayer>
     final isPlaying = _useFlatFallback
         ? (_flatController?.value.isPlaying ?? false)
         : _nativeIsPlaying;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () => unawaited(_togglePlayPause()),
-            child: Icon(
-              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          if (_useFlatFallback) ...[
-            const SizedBox(width: 16),
-            GestureDetector(
-              onTap: _toggleMute,
-              child: Icon(
-                _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-            ),
-          ],
-        ],
-      ),
+    return FeedReelPlaybackControlPill(
+      isPlaying: isPlaying,
+      isMuted: _isMuted,
+      onPlayPause: () => unawaited(_togglePlayPause()),
+      onMute: _toggleMute,
+      showMute: _useFlatFallback,
     );
   }
 

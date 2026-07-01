@@ -10,6 +10,7 @@ import '../core/services/reel_preload_service.dart';
 import '../core/utils/stream_playback_urls.dart';
 import '../core/theme/app_spacing.dart';
 import '../core/widgets/double_tap_like_overlay.dart';
+import '../core/widgets/feed_reel_playback_control_pill.dart';
 import '../core/models/video_360_metadata.dart';
 import '../core/widgets/vyooo_360_video_player.dart';
 
@@ -631,7 +632,12 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
                     ? 1.0
                     : 0.0,
                 duration: const Duration(milliseconds: 200),
-                child: _buildControlPill(),
+                child: FeedReelPlaybackControlPill(
+                  isPlaying: _controller?.value.isPlaying ?? false,
+                  isMuted: _isMuted,
+                  onPlayPause: _togglePlayPause,
+                  onMute: _toggleMute,
+                ),
               ),
             ),
           ],
@@ -657,52 +663,5 @@ class _ReelItemWidgetState extends State<ReelItemWidget>
       );
     }
     return const ColoredBox(color: Colors.black);
-  }
-
-  Widget _buildControlPill() {
-    final isPlaying = _controller?.value.isPlaying ?? false;
-    return GestureDetector(
-      onTap: () {}, // Swallow taps to prevent background video toggle
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.6),
-          borderRadius: BorderRadius.circular(40),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: _togglePlayPause,
-                behavior: HitTestBehavior.opaque,
-                child: Icon(
-                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              const VerticalDivider(
-                color: Colors.white24,
-                thickness: 1,
-                width: 1,
-              ),
-              const SizedBox(width: 16),
-              GestureDetector(
-                onTap: _toggleMute,
-                behavior: HitTestBehavior.opaque,
-                child: Icon(
-                  _isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

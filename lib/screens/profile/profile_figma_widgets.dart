@@ -977,7 +977,6 @@ class _ProfileSideDrawerState extends State<ProfileSideDrawer>
     final iconSize = ProfileFigmaTokens.profileSideRailIconSize;
     final railHeight = ProfileFigmaTokens.profileSideRailHeight;
     final iconSlotHeight = (railHeight - 24) / 4;
-    final handleWidth = ProfileFigmaTokens.profileSideRailHandleWidth;
 
     return AnimatedBuilder(
       animation: _controller,
@@ -986,7 +985,11 @@ class _ProfileSideDrawerState extends State<ProfileSideDrawer>
         final outerWidth =
             _collapsedWidth + (_expandedWidth - _collapsedWidth) * t;
         final iconOpacity = t.clamp(0.0, 1.0);
-        final panelRadius = Radius.circular(ProfileFigmaTokens.profileSideRailRadius);
+        final handleCornerRadius =
+            ProfileFigmaTokens.profileSideRailHandleCornerRadius;
+        final expandedRadius = ProfileFigmaTokens.profileSideRailRadius;
+        final rightRadius =
+            handleCornerRadius + (expandedRadius - handleCornerRadius) * t;
 
         return GestureDetector(
           onHorizontalDragStart: _onDragStart,
@@ -1007,10 +1010,8 @@ class _ProfileSideDrawerState extends State<ProfileSideDrawer>
                   child: Material(
                     color: ProfileFigmaTokens.sideDrawerFill,
                     borderRadius: BorderRadius.horizontal(
-                      left: t < 0.08
-                          ? Radius.circular(handleWidth / 2)
-                          : Radius.zero,
-                      right: panelRadius,
+                      left: Radius.zero,
+                      right: Radius.circular(rightRadius),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Opacity(

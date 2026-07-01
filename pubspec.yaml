@@ -120,6 +120,7 @@ flutter:
     - assets/vyooO_icons/auth/
     - assets/vyooO_icons/Home/
     - assets/vyooO_icons/Home/interactions/
+    - assets/vyooO_icons/Home/playback_controls/
     - assets/vyooO_icons/Home/nav_bar_icons/
     - assets/vyooO_icons/Home/other_opts_flow/
     - assets/vyooO_icons/Home/ios_default_icons/

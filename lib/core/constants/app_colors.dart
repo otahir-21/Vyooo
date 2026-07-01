@@ -47,6 +47,10 @@ class AppColors {
   static const Color feedLikeActive = Color(0xFFE31055);
   /// Frosted reel action circle fill (Figma #FFFFFF @ ~10%).
   static const Color feedInteractionCircleFill = Color(0x1AFFFFFF);
+  /// Reel playback pill glass fill (Figma #242323 @ 70%).
+  static const Color feedReelPlaybackControlFill = Color(0xB3242323);
+  /// Reel playback pill center divider (Figma #8D8C8C).
+  static const Color feedReelPlaybackControlDivider = Color(0xFF8D8C8C);
   /// Reel caption hashtags (Figma #FFB3CC).
   static const Color feedReelHashtag = Color(0xFFFFB3CC);
 

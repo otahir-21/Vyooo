@@ -21,4 +21,13 @@ abstract final class FeedInteractionAssets {
   static const String interactionStarActive = '$_interactions/star_active.svg';
   static const String interactionShare = '$_interactions/share.svg';
   static const String interactionMore = '$_interactions/more.svg';
+
+  /// Reel playback overlay pill (`playback_controls/*.svg`).
+  static const String _playbackControls = '$_home/playback_controls';
+  static const String playbackPause = '$_playbackControls/pause.svg';
+  static const String playbackDivider = '$_playbackControls/divider.svg';
+  static const String playbackPlay = '$_playbackControls/play.svg';
+  static const String playbackSpeaker = '$_playbackControls/speaker.svg';
+  static const String playbackSpeakerMuted =
+      '$_playbackControls/speaker_muted.svg';
 }

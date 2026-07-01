@@ -42,6 +42,15 @@ abstract final class AppSizes {
   /// Reel like heart icon inside the frosted circle.
   static const double feedLikeIcon = 42;
 
+  /// Reel playback control pill — pause + speaker (Figma 114×50).
+  static const double feedReelPlaybackControlPillWidth = 114;
+  static const double feedReelPlaybackControlPillHeight = 50;
+  static const double feedReelPlaybackControlDividerWidth = 2;
+  static const double feedReelPlaybackControlDividerHeight = 25;
+  static const double feedReelPlaybackControlIconSize = 24;
+  static const double feedReelPlaybackControlPlayIconWidth = 14;
+  static const double feedReelPlaybackControlBlurSigma = 2.63;
+
   /// Live stream comment field height (Figma 32).
   static const double liveCommentInputHeight = 32;
 
@@ -54,6 +63,12 @@ abstract final class AppSizes {
 
   /// Reel author avatar on feed overlay.
   static const double feedReelAvatarRadius = 18;
+
+  /// Reel overlay "+ Follow" pill (Figma 71×24).
+  static const double feedReelFollowButtonHeight = 24;
+
+  /// Plus glyph inside reel follow pill (Figma ~6px).
+  static const double feedReelFollowPlusIcon = 10;
 
   /// Following tab — story avatar diameter (Figma).
   static const double followingStoryAvatarSize = 68;

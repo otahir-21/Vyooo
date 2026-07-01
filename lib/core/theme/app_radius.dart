@@ -19,6 +19,12 @@ abstract final class AppRadius {
   /// Home feed nav chips — moderate rounded rect (Figma; not full stadium).
   static const double feedTab = 12;
 
+  /// Reel overlay "+ Follow" pill — stadium cap (Figma rx 12 on 24px height).
+  static const double feedReelFollowButton = 12;
+
+  /// Reel playback control pill — pause + speaker (Figma rx 25 on 50px height).
+  static const double feedReelPlaybackControlPill = 25;
+
   /// Bottom nav outer chrome — bottom corners only (Figma).
   static const double feedBottomChrome = 24;
 
@@ -34,6 +40,10 @@ abstract final class AppRadius {
   static BorderRadius get pillRadius => BorderRadius.circular(pill);
   static BorderRadius get buttonRadius => BorderRadius.circular(button);
   static BorderRadius get feedTabRadius => BorderRadius.circular(feedTab);
+  static BorderRadius get feedReelFollowButtonRadius =>
+      BorderRadius.circular(feedReelFollowButton);
+  static BorderRadius get feedReelPlaybackControlPillRadius =>
+      BorderRadius.circular(feedReelPlaybackControlPill);
   static BorderRadius get authOtpBoxRadius =>
       BorderRadius.circular(authOtpBox);
 }

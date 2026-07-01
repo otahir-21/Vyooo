@@ -586,12 +586,12 @@ abstract final class AppTypography {
     color: AppTheme.primary,
   );
 
-  /// "+ Follow" chip on reel overlay — DM Sans Bold 12.
+  /// "+ Follow" chip on reel overlay — DM Sans Regular 12, white.
   static const TextStyle feedReelFollowChip = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: feedReelFollowChipSize,
     height: 1.0,
-    fontWeight: FontWeight.w700,
+    fontWeight: FontWeight.w400,
     color: AppTheme.primary,
   );
 
