@@ -2306,28 +2306,27 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
   }
 
   Widget _buildReelCaption(Map<String, dynamic> reel) {
-    final title = _asString(reel['title']);
     final description = _asString(reel['description']);
     final tagsList = reel['tags'] as List? ?? [];
     final locationMap = reel['location'] as Map<String, dynamic>?;
     final locationName = (locationMap?['name'] as String?)?.trim() ?? '';
     final locationAddress = (locationMap?['address'] as String?)?.trim() ?? '';
 
-    if (title.isEmpty && description.isEmpty && tagsList.isEmpty) {
-      // Fallback for old reels that only have the 'caption' field
+    if (description.isEmpty && tagsList.isEmpty) {
+      // Legacy reels without structured fields — skip when caption is only the
+      // stored upload title (title is not shown on the feed).
+      final legacyCaption = _asString(reel['title']).isEmpty
+          ? _asString(reel['caption'])
+          : '';
       return _CaptionWithSeeMore(
-        text: _asString(reel['caption']),
+        text: legacyCaption,
         locationName: locationName,
         locationAddress: locationAddress,
       );
     }
 
     final buffer = StringBuffer();
-    if (title.isNotEmpty) {
-      buffer.write(title);
-    }
     if (description.isNotEmpty) {
-      if (buffer.isNotEmpty) buffer.write('\n');
       buffer.write(description);
     }
     if (tagsList.isNotEmpty) {
@@ -2335,9 +2334,6 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       buffer.write(tagsList.map((t) => '#${t.toString().trim()}').join(' '));
     }
 
-    // If description was added, we might want to distinguish the title.
-    // However, CaptionWithHashtags takes a single string.
-    // For now, let's just ensure it's all passed.
     return _CaptionWithSeeMore(
       text: buffer.toString(),
       locationName: locationName,

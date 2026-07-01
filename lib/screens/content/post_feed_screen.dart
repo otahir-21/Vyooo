@@ -845,24 +845,20 @@ class _PostCard extends StatelessWidget {
     final oldCaption = _asString(post['caption']).trim();
 
     final buffer = StringBuffer();
-    if (title.isNotEmpty) {
-      buffer.write(title);
-    } else if (oldCaption.isNotEmpty && description.isEmpty && tagsList.isEmpty) {
-      // Fallback for old content
-      buffer.write(oldCaption);
-    }
-
     if (description.isNotEmpty) {
-      if (buffer.isNotEmpty) buffer.write('\n');
       buffer.write(description);
     }
-
     if (tagsList.isNotEmpty) {
       if (buffer.isNotEmpty) buffer.write('\n');
       buffer.write(tagsList.map((t) => '#${t.toString().trim()}').join(' '));
     }
 
-    final fullText = buffer.toString();
+    var fullText = buffer.toString();
+    if (fullText.isEmpty) {
+      // Legacy reels without structured fields — skip when caption is only the
+      // stored upload title (title is not shown on the feed).
+      fullText = title.isEmpty ? oldCaption : '';
+    }
 
     final locationMap = post['location'] as Map<String, dynamic>?;
     final locationName = (locationMap?['name'] as String?)?.trim() ?? '';

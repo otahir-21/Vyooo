@@ -224,6 +224,11 @@ class ReelsController {
           'userId': data['userId'] as String? ?? '',
           'videoUrl': data['videoUrl'] as String? ?? '',
           'caption': data['caption'] as String? ?? '',
+          'title': data['title'] as String? ?? '',
+          'description': data['description'] as String? ?? '',
+          'tags': data['tags'] is List
+              ? (data['tags'] as List).map((e) => e.toString()).toList()
+              : const <String>[],
           'thumbnailUrl': data['thumbnailUrl'] as String? ?? '',
           'imageUrl': data['imageUrl'] as String? ?? '',
           'mediaType': data['mediaType'] as String? ?? '',
