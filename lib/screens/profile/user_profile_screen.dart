@@ -170,6 +170,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   };
   int _selectedTabIndex = 0;
   bool _highlightsExpanded = false;
+  bool _highlightsAutoExpanded = false;
   late bool _isFollowing;
   late bool _isSubscribed;
   bool _followActionBusy = false;
@@ -244,6 +245,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       _activeStoriesStreamUid = null;
       _activeStoriesStream = null;
       _highlightsExpanded = false;
+      _highlightsAutoExpanded = false;
       final nextUid = widget.payload.targetUserId?.trim() ?? '';
       if (nextUid.isNotEmpty) {
         ProfileCachedPostsGrid.invalidateCacheFor(nextUid);
@@ -649,9 +651,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   }
 
   Widget _buildOtherUserHighlightsArea(UserProfilePayload p) {
-    if (!_canViewTheirHighlights(p)) return const SizedBox(height: 8);
+    if (!_canViewTheirHighlights(p)) return const SizedBox.shrink();
     final uid = (p.targetUserId ?? '').trim();
-    if (uid.isEmpty) return const SizedBox(height: 8);
+    if (uid.isEmpty) return const SizedBox.shrink();
 
     return StreamBuilder<List<StoryHighlightModel>>(
       stream: _otherUserHighlightsStream(uid),
@@ -661,20 +663,27 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             'UserProfileScreen highlights stream',
             error: snap.error,
           );
-          return const SizedBox(height: 8);
+          return const SizedBox.shrink();
         }
         final highlights = snap.data ?? const <StoryHighlightModel>[];
         final loading =
             snap.connectionState == ConnectionState.waiting && !snap.hasData;
-        if (!loading && highlights.isEmpty) return const SizedBox(height: 8);
+        if (!loading && highlights.isEmpty) return const SizedBox.shrink();
+
+        if (highlights.isNotEmpty && !_highlightsAutoExpanded) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _highlightsAutoExpanded) return;
+            setState(() {
+              _highlightsExpanded = true;
+              _highlightsAutoExpanded = true;
+            });
+          });
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!_highlightsExpanded) ...[
-              const SizedBox(
-                height: ProfileFigmaTokens.highlightsToggleTopGap,
-              ),
               ProfileTabUnderFirstTab(
                 tabCount: _tabs.length,
                 showBookmarkAccessory: true,
@@ -1571,10 +1580,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         child: ProfileCachedPostsGrid(
           key: ValueKey('user-profile-posts-$targetUid'),
           userId: targetUid,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
-          ),
+          padding: ProfileFigmaTokens.profileGridPadding,
           thumbnailFor: ProfileReelGridNavigation.thumbnailFromReel,
           onItemTap: (context, posts, index) =>
               ProfileReelGridNavigation.openPostFeed(
