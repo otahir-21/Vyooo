@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_fonts.dart';
 import '../theme/app_padding.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_sizes.dart';
@@ -52,7 +53,7 @@ class AppFeedLogoBar extends StatelessWidget {
 
 /// Common header for feed screens: VyooO logo + actions on top,
 /// full-width tab pills on the row below (Figma home feed).
-/// Tab text: unselected DM Sans Regular 16 white; selected Bold 16 black.
+/// Tab text: unselected DM Sans Regular 15 white; selected Bold 15 black.
 class AppFeedHeader extends StatelessWidget {
   const AppFeedHeader({
     super.key,
@@ -127,6 +128,22 @@ class AppFeedTabSelector extends StatelessWidget {
   final void Function(int)? onTabSelected;
   final Widget? trailing;
 
+  static const TextHeightBehavior _tabTextHeightBehavior = TextHeightBehavior(
+    applyHeightToFirstAscent: false,
+    applyHeightToLastDescent: false,
+  );
+
+  static StrutStyle _tabStrutStyle({required bool isSelected}) {
+    return StrutStyle(
+      fontFamily: AppFonts.body,
+      fontSize: AppTypography.feedTabLabelSize,
+      height: AppTypography.feedTabLabelLineHeight /
+          AppTypography.feedTabLabelSize,
+      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+      leadingDistribution: TextLeadingDistribution.even,
+    );
+  }
+
   static double _estimateTabsWidth({
     required List<String> labels,
     required int selectedIndex,
@@ -147,6 +164,8 @@ class AppFeedTabSelector extends StatelessWidget {
         ),
         textDirection: TextDirection.ltr,
         textScaler: textScaler,
+        strutStyle: _tabStrutStyle(isSelected: isSelected),
+        textHeightBehavior: _tabTextHeightBehavior,
         maxLines: 1,
       )..layout();
       total += painter.width + chipPaddingWidth;
@@ -186,12 +205,27 @@ class AppFeedTabSelector extends StatelessWidget {
       gap = AppSpacing.feedTabGapCompact;
     }
 
-    final needsScaleDown = contentWidth() > maxWidth;
+    final needsScroll = contentWidth() > maxWidth;
 
     return _FeedTabLayout(
       chipPadding: chipPadding,
       gap: gap,
-      needsScaleDown: needsScaleDown,
+      needsScroll: needsScroll,
+    );
+  }
+
+  Widget _buildTabLabel(int index) {
+    final isSelected = selectedIndex == index;
+    return Text(
+      labels[index],
+      maxLines: 1,
+      softWrap: false,
+      textAlign: TextAlign.center,
+      strutStyle: _tabStrutStyle(isSelected: isSelected),
+      textHeightBehavior: _tabTextHeightBehavior,
+      style: isSelected
+          ? AppTypography.feedTabLabelSelected
+          : AppTypography.feedTabLabel,
     );
   }
 
@@ -209,14 +243,7 @@ class AppFeedTabSelector extends StatelessWidget {
       padding: chipPadding,
       alignment: Alignment.center,
       decoration: decoration,
-      child: Text(
-        labels[index],
-        maxLines: 1,
-        softWrap: false,
-        style: isSelected
-            ? AppTypography.feedTabLabelSelected
-            : AppTypography.feedTabLabel,
-      ),
+      child: _buildTabLabel(index),
     );
 
     return GestureDetector(
@@ -277,15 +304,16 @@ class AppFeedTabSelector extends StatelessWidget {
         ];
 
         Widget row = Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: rowChildren,
         );
 
-        if (layout.needsScaleDown) {
-          row = FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+        if (trailing != null || layout.needsScroll) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(),
             child: row,
           );
         }
@@ -300,10 +328,10 @@ class _FeedTabLayout {
   const _FeedTabLayout({
     required this.chipPadding,
     required this.gap,
-    required this.needsScaleDown,
+    required this.needsScroll,
   });
 
   final EdgeInsets chipPadding;
   final double gap;
-  final bool needsScaleDown;
+  final bool needsScroll;
 }

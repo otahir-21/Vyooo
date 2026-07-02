@@ -264,10 +264,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     try {
       switch (action) {
         case MediaAction.galleryPhoto:
-          file = await _mediaService.pickImageFromGallery();
+          file = await _mediaService.pickImageFromGallery(context: context);
           type = ChatMessageTypes.image;
         case MediaAction.galleryVideo:
-          file = await _mediaService.pickVideoFromGallery();
+          file = await _mediaService.pickVideoFromGallery(context: context);
           type = ChatMessageTypes.video;
         case MediaAction.cameraPhoto:
           file = await _mediaService.captureImageFromCamera();
@@ -276,11 +276,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           file = await _mediaService.captureVideoFromCamera();
           type = ChatMessageTypes.video;
         case MediaAction.viewOncePhoto:
-          file = await _mediaService.pickImageFromGallery();
+          file = await _mediaService.pickImageFromGallery(context: context);
           type = ChatMessageTypes.image;
           isViewOnce = true;
         case MediaAction.viewOnceVideo:
-          file = await _mediaService.pickVideoFromGallery();
+          file = await _mediaService.pickVideoFromGallery(context: context);
           type = ChatMessageTypes.video;
           isViewOnce = true;
       }

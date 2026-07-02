@@ -37,13 +37,13 @@ class AppPadding {
   static const feedTabRowHorizontal =
       EdgeInsets.only(left: 12, right: 8);
 
-  /// Home feed tab chips — inner pill padding (Figma ~11h × 6.5v in 29px chip).
+  /// Home feed tab chips — 33px pill; extra bottom inset for descenders.
   static const feedTabChip =
-      EdgeInsets.symmetric(horizontal: 11, vertical: 6.5);
+      EdgeInsets.fromLTRB(11, 4, 11, 6);
 
   /// Home feed tab chips — compact horizontal inset on narrow screens.
   static const feedTabChipCompact =
-      EdgeInsets.symmetric(horizontal: 8, vertical: 6.5);
+      EdgeInsets.fromLTRB(8, 4, 8, 6);
 
   /// Reel overlay "+ Follow" chip (Figma 71×24, 12 horizontal inset).
   static const feedReelFollowChip =

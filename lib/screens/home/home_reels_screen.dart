@@ -390,7 +390,9 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       _handleIncomingDeepLink();
     }
     if (widget.isActive != old.isActive) {
-      _syncChromeProgressVisibility();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncChromeProgressVisibility();
+      });
     }
   }
 
@@ -2347,8 +2349,10 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
             ReportStatusBar.fromReel(reel),
           ],
           ..._buildReelCaptionBlocks(reel),
-          const SizedBox(height: AppSpacing.feedReelBottomContentGap),
-          _buildReelMusicLine(reel),
+          if (_reelMusicLabel(reel).isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.feedReelBottomContentGap),
+            _buildReelMusicLine(reel),
+          ],
         ],
         ),
       ),
@@ -2363,14 +2367,14 @@ class _HomeReelsScreenState extends State<HomeReelsScreen>
       children: [
         const Icon(
           Icons.music_note_rounded,
-          color: White80.value,
-          size: AppTypography.feedReelMusicSize,
+          color: AppColors.feedReelNoteText,
+          size: AppTypography.feedReelNoteSize,
         ),
         SizedBox(width: AppSpacing.reelMusicIconGap),
         Expanded(
           child: Text(
             music,
-            style: AppTypography.feedReelMusic,
+            style: AppTypography.feedReelNote,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

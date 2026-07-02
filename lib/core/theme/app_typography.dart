@@ -431,23 +431,24 @@ abstract final class AppTypography {
     fontWeight: FontWeight.w400,
   );
 
-  /// Home feed tab labels (Figma Nav Bar) — both states use 16px / 100% line height.
-  static const double feedTabLabelSize = 16;
+  /// Home feed tab labels — DM Sans 15px, line-height normal (~20px).
+  static const double feedTabLabelSize = 15;
+  static const double feedTabLabelLineHeight = AppSizes.feedTabLabelLineHeight;
 
-  /// Home feed tab — unselected (Figma: DM Sans Regular 16, white).
+  /// Home feed tab — unselected (Figma: DM Sans Regular 15, white).
   static const TextStyle feedTabLabel = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: feedTabLabelSize,
-    height: 1.0,
+    height: feedTabLabelLineHeight / feedTabLabelSize,
     fontWeight: FontWeight.w400,
     color: AppTheme.primary,
   );
 
-  /// Home feed tab — selected on white pill (Figma: DM Sans Bold 16, black).
+  /// Home feed tab — selected on white pill (Figma: DM Sans Bold 15, black).
   static const TextStyle feedTabLabelSelected = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: feedTabLabelSize,
-    height: 1.0,
+    height: feedTabLabelLineHeight / feedTabLabelSize,
     fontWeight: FontWeight.w700,
     color: AppTheme.buttonTextColor,
   );
@@ -456,11 +457,13 @@ abstract final class AppTypography {
   static const double feedReelUsernameSize = 16;
   static const double feedReelDisplayNameSize = 20;
   static const double feedReelHandleSize = 14;
-  static const double feedReelCaptionSize = 16;
+  /// Reel caption / title ("name" layer) — DM Sans Regular 12.
+  static const double feedReelNameSize = 12;
   static const double feedReelHashtagSize = 14;
   static const double feedReelMetricSize = 10;
   static const double feedReelActionLabelSize = 10;
-  static const double feedReelMusicSize = 12;
+  /// Reel music row ("note" layer) — DM Sans Regular 12.
+  static const double feedReelNoteSize = 12;
   static const double feedReelFollowChipSize = 12;
 
   /// @username on reel overlay — DM Sans Bold 16, white.
@@ -488,14 +491,17 @@ abstract final class AppTypography {
     color: White70.value,
   );
 
-  /// Reel caption body — DM Sans Regular 16 @ 100% line height.
-  static const TextStyle feedReelCaption = TextStyle(
+  /// Reel caption / title ("name" layer) — DM Sans Regular 12, white.
+  static const TextStyle feedReelName = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: feedReelCaptionSize,
+    fontSize: feedReelNameSize,
     fontWeight: FontWeight.w400,
     height: 1.0,
     color: AppTheme.primary,
   );
+
+  /// Alias for caption blocks — same as [feedReelName].
+  static const TextStyle feedReelCaption = feedReelName;
 
   /// Hashtags in reel caption — DM Sans Medium 14 @ #FFB3CC.
   static const TextStyle feedReelHashtag = TextStyle(
@@ -506,10 +512,10 @@ abstract final class AppTypography {
     color: AppColors.feedReelHashtag,
   );
 
-  /// "See more" on collapsed caption — DM Sans Regular 16 @ 90% white.
+  /// "See more" on collapsed caption — DM Sans Regular 12 @ 90% white.
   static const TextStyle feedReelCaptionSeeMore = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: feedReelCaptionSize,
+    fontSize: feedReelNameSize,
     fontWeight: FontWeight.w400,
     height: 1.0,
     color: smallBodyColor,
@@ -638,14 +644,17 @@ abstract final class AppTypography {
     color: AppTheme.primary,
   );
 
-  /// Music line under reel caption — DM Sans Regular 12 @ 80% white (Figma).
-  static const TextStyle feedReelMusic = TextStyle(
+  /// Music row ("note" layer) — DM Sans Regular 12 @ #808080.
+  static const TextStyle feedReelNote = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: feedReelMusicSize,
+    fontSize: feedReelNoteSize,
     height: 1.0,
     fontWeight: FontWeight.w400,
-    color: White80.value,
+    color: AppColors.feedReelNoteText,
   );
+
+  /// Alias for music line widgets.
+  static const TextStyle feedReelMusic = feedReelNote;
 
   /// Expanded location label on reel caption.
   static const TextStyle feedReelLocation = TextStyle(

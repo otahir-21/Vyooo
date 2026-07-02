@@ -19,8 +19,11 @@ abstract final class AppSizes {
   /// Settings / account inner app bar — compact wordmark on the right.
   static const double settingsInnerLogoHeight = 20;
 
-  /// Nav tab chip height (Figma 29px).
-  static const double feedTabChipHeight = 29;
+  /// Nav tab chip height — room for DM Sans 15px descenders (g, y).
+  static const double feedTabChipHeight = 33;
+
+  /// DM Sans 15px tab label line height.
+  static const double feedTabLabelLineHeight = 21;
 
   /// Frosted feed tab backdrop blur (Figma ~50px backdrop-filter).
   static const double feedTabBlurSigma = 25;

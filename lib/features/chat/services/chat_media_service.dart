@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../widgets/chat_gallery_picker_screen.dart';
 
 const int _maxImageBytes = 10 * 1024 * 1024;
 const int _maxVideoBytes = 100 * 1024 * 1024;
@@ -36,19 +39,37 @@ class ChatMediaService {
 
   final ImagePicker _picker = ImagePicker();
 
-  Future<XFile?> pickImageFromGallery() async {
-    return _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-      maxWidth: 1920,
-      maxHeight: 1920,
+  Future<XFile?> pickImageFromGallery({BuildContext? context}) async {
+    if (context != null && context.mounted) {
+      final file = await ChatGalleryPickerScreen.open(
+        context,
+        pickType: ChatGalleryPickType.image,
+      );
+      return file == null ? null : XFile(file.path);
+    }
+    return _pickImageWithRecovery(
+      () => _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      ),
     );
   }
 
-  Future<XFile?> pickVideoFromGallery() async {
-    return _picker.pickVideo(
-      source: ImageSource.gallery,
-      maxDuration: const Duration(minutes: 10),
+  Future<XFile?> pickVideoFromGallery({BuildContext? context}) async {
+    if (context != null && context.mounted) {
+      final file = await ChatGalleryPickerScreen.open(
+        context,
+        pickType: ChatGalleryPickType.video,
+      );
+      return file == null ? null : XFile(file.path);
+    }
+    return _pickImageWithRecovery(
+      () => _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 10),
+      ),
     );
   }
 
@@ -62,10 +83,27 @@ class ChatMediaService {
   }
 
   Future<XFile?> captureVideoFromCamera() async {
-    return _picker.pickVideo(
-      source: ImageSource.camera,
-      maxDuration: const Duration(minutes: 5),
+    return _pickImageWithRecovery(
+      () => _picker.pickVideo(
+        source: ImageSource.camera,
+        maxDuration: const Duration(minutes: 5),
+      ),
     );
+  }
+
+  Future<XFile?> _pickImageWithRecovery(
+    Future<XFile?> Function() pick,
+  ) async {
+    final picked = await pick();
+    if (picked != null) return picked;
+    final lost = await _picker.retrieveLostData();
+    if (lost.isEmpty) return null;
+    if (lost.exception != null) {
+      throw StateError(lost.exception!.code);
+    }
+    final files = lost.files;
+    if (files == null || files.isEmpty) return null;
+    return files.first;
   }
 
   Future<ChatMediaUploadResult> uploadImageMessage({

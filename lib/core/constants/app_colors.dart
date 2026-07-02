@@ -36,6 +36,9 @@ class AppColors {
   /// Profile tab bookmark / star icon default (Figma #808080).
   static const Color profileTabAccessoryIcon = Color(0xFF808080);
 
+  /// Reel music row ("note" layer) — DM Sans Regular 12 @ #808080.
+  static const Color feedReelNoteText = profileTabAccessoryIcon;
+
   /// Profile side drawer — wallet / chat / revenue icons (Figma #EC709C @ 70%).
   static const Color profileDrawerSecondaryIcon = Color(0xB3EC709C);
 
