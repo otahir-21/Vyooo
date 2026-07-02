@@ -59,6 +59,12 @@ abstract final class ChatAssets {
   static const String requestsTitle =
       'assets/vyooO_icons/Chat/requests_title.svg';
   static const String newChatIcon = 'assets/vyooO_icons/Chat/new_chat.svg';
+  static const String chatUnreadDot =
+      'assets/vyooO_icons/Chat/chat_unread_dot.svg';
+  static const String chatTileCamera =
+      'assets/vyooO_icons/Chat/chat_tile_camera.svg';
+  static const String chatForwardButton =
+      'assets/vyooO_icons/Chat/chat_forward_button.svg';
   static const String inputGalleryIcon =
       'assets/vyooO_icons/Chat/input_gallery.svg';
   static const String inputStickerIcon =

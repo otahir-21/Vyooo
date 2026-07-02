@@ -36,7 +36,6 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
   final UserService _userService = UserService();
   String? _currentUid;
   AppUserModel? _currentUser;
-  String _headerName = 'Messages';
 
   @override
   void initState() {
@@ -51,13 +50,8 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
     if (_currentUid == null) return;
     final user = await _userService.getUser(_currentUid!);
     if (!mounted || user == null) return;
-    final username = (user.username ?? '').trim();
-    final displayName = (user.displayName ?? '').trim();
     setState(() {
       _currentUser = user;
-      _headerName = username.isNotEmpty
-          ? username
-          : (displayName.isNotEmpty ? displayName : 'Messages');
     });
   }
 
@@ -213,7 +207,7 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
                 horizontal: AppSizes.chatComposeButton,
               ),
               child: Text(
-                _headerName,
+                'Messages',
                 style: AppTypography.chatInboxTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -285,17 +279,7 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          SvgPicture.asset(
-            ChatAssets.messagesTitle,
-            width: AppSizes.chatInboxScaleW(
-              context,
-              AppSizes.chatMessagesTitleWidth,
-            ),
-            height: AppSizes.chatInboxScaleH(
-              context,
-              AppSizes.chatMessagesTitleHeight,
-            ),
-          ),
+          Text('Messages', style: AppTypography.chatSectionHeader),
           const Spacer(),
           GestureDetector(
             onTap: () {
@@ -310,15 +294,10 @@ class _ChatInboxScreenState extends State<ChatInboxScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                SvgPicture.asset(
-                  ChatAssets.requestsTitle,
-                  width: AppSizes.chatInboxScaleW(
-                    context,
-                    AppSizes.chatRequestsTitleWidth,
-                  ),
-                  height: AppSizes.chatInboxScaleH(
-                    context,
-                    AppSizes.chatRequestsTitleHeight,
+                Text(
+                  'Requests',
+                  style: AppTypography.chatSectionHeader.copyWith(
+                    color: AppColors.chatRequestsTitle,
                   ),
                 ),
                 if (requestCount > 0) ...[

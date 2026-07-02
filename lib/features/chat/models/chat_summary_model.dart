@@ -16,6 +16,7 @@ class ChatSummaryModel {
     this.archived = false,
     this.clearedAt,
     this.requestStatus,
+    this.isVerified = false,
   });
 
   final String chatId;
@@ -32,6 +33,7 @@ class ChatSummaryModel {
   final bool archived;
   final Timestamp? clearedAt;
   final String? requestStatus;
+  final bool isVerified;
 
   factory ChatSummaryModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,
@@ -59,6 +61,7 @@ class ChatSummaryModel {
       archived: json['archived'] as bool? ?? false,
       clearedAt: json['clearedAt'] as Timestamp?,
       requestStatus: json['requestStatus'] as String?,
+      isVerified: json['isVerified'] as bool? ?? false,
     );
   }
 
@@ -78,6 +81,7 @@ class ChatSummaryModel {
       'archived': archived,
       if (clearedAt != null) 'clearedAt': clearedAt,
       if (requestStatus != null) 'requestStatus': requestStatus,
+      'isVerified': isVerified,
     };
   }
 
@@ -96,6 +100,7 @@ class ChatSummaryModel {
     bool? archived,
     Timestamp? clearedAt,
     String? requestStatus,
+    bool? isVerified,
   }) {
     return ChatSummaryModel(
       chatId: chatId ?? this.chatId,
@@ -112,6 +117,7 @@ class ChatSummaryModel {
       archived: archived ?? this.archived,
       clearedAt: clearedAt ?? this.clearedAt,
       requestStatus: requestStatus ?? this.requestStatus,
+      isVerified: isVerified ?? this.isVerified,
     );
   }
 

@@ -46,4 +46,17 @@ abstract final class AppRadius {
       BorderRadius.circular(feedReelPlaybackControlPill);
   static BorderRadius get authOtpBoxRadius =>
       BorderRadius.circular(authOtpBox);
+
+  /// Outgoing chat bubble — Figma sent bubble (133×41, fill #660033).
+  static const double chatOutgoingBubbleRadiusTopLeft = 20.4103;
+  static const double chatOutgoingBubbleRadiusTopRight = 22.5846;
+  static const double chatOutgoingBubbleRadiusBottomRight = 11.2923;
+  static const double chatOutgoingBubbleRadiusBottomLeft = 20.4103;
+
+  static BorderRadius get chatOutgoingBubbleRadius => const BorderRadius.only(
+        topLeft: Radius.circular(chatOutgoingBubbleRadiusTopLeft),
+        topRight: Radius.circular(chatOutgoingBubbleRadiusTopRight),
+        bottomRight: Radius.circular(chatOutgoingBubbleRadiusBottomRight),
+        bottomLeft: Radius.circular(chatOutgoingBubbleRadiusBottomLeft),
+      );
 }

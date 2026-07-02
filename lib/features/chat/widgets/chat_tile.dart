@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_padding.dart';
@@ -7,6 +8,7 @@ import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../models/chat_summary_model.dart';
+import '../utils/chat_constants.dart';
 import '../utils/chat_helpers.dart';
 
 class ChatTile extends StatelessWidget {
@@ -19,8 +21,10 @@ class ChatTile extends StatelessWidget {
   final ChatSummaryModel summary;
   final VoidCallback onTap;
 
+  bool get _hasMultipleUnread => summary.unreadCount > 1;
+
   String get _previewBody {
-    if (summary.unreadCount > 1) {
+    if (_hasMultipleUnread) {
       return '${summary.unreadCount}+ new messages';
     }
     if (summary.lastMessage.isNotEmpty) {
@@ -38,6 +42,12 @@ class ChatTile extends StatelessWidget {
     final time = _timeLabel;
     final avatarSize =
         AppSizes.chatInboxScaleW(context, AppSizes.chatInboxAvatar);
+    final unreadDotSize =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatTileUnreadDot);
+    final cameraSize =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatTileCamera);
+    final verifiedBadgeSize =
+        AppSizes.chatInboxScaleW(context, AppSizes.chatTileVerifiedBadge);
 
     return InkWell(
       onTap: onTap,
@@ -71,13 +81,28 @@ class ChatTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    summary.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.chatTileName.copyWith(
-                      fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w600,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          summary.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.chatTileName.copyWith(
+                            fontWeight:
+                                hasUnread ? FontWeight.w700 : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (summary.isVerified) ...[
+                        SizedBox(width: AppSpacing.xs - 1),
+                        Icon(
+                          Icons.verified,
+                          color: AppColors.chatVerified,
+                          size: verifiedBadgeSize,
+                        ),
+                      ],
+                    ],
                   ),
                   SizedBox(height: AppSpacing.xs - 2),
                   Row(
@@ -90,22 +115,25 @@ class ChatTile extends StatelessWidget {
                             children: [
                               TextSpan(
                                 text: _previewBody,
-                                style: AppTypography.chatTilePreview.copyWith(
-                                  fontWeight: hasUnread
-                                      ? FontWeight.w700
-                                      : FontWeight.w400,
-                                  color: hasUnread
-                                      ? AppColors.chatTextPrimary
-                                      : AppColors.chatTextSecondary,
-                                ),
+                                style: hasUnread && _hasMultipleUnread
+                                    ? AppTypography.chatTilePreviewUnread
+                                    : AppTypography.chatTilePreview.copyWith(
+                                        fontWeight: hasUnread
+                                            ? FontWeight.w700
+                                            : FontWeight.w400,
+                                        color: hasUnread
+                                            ? AppColors.chatTextPrimary
+                                            : AppColors.chatTextSecondary,
+                                      ),
                               ),
                               if (time.isNotEmpty) ...[
                                 TextSpan(
-                                  text: ' · $time',
-                                  style: AppTypography.chatTilePreview.copyWith(
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.chatTextSecondary,
-                                  ),
+                                  text: ' · ',
+                                  style: AppTypography.chatTileTime,
+                                ),
+                                TextSpan(
+                                  text: time,
+                                  style: AppTypography.chatTileTime,
                                 ),
                               ],
                             ],
@@ -114,22 +142,18 @@ class ChatTile extends StatelessWidget {
                       ),
                       if (hasUnread) ...[
                         SizedBox(width: AppSpacing.sm),
-                        Container(
-                          width: AppSpacing.sm,
-                          height: AppSpacing.sm,
-                          decoration: const BoxDecoration(
-                            color: AppColors.brandDeepMagenta,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ] else ...[
-                        SizedBox(width: AppSpacing.sm),
-                        const Icon(
-                          Icons.camera_alt_outlined,
-                          color: AppColors.chatTextSecondary,
-                          size: 18,
+                        SvgPicture.asset(
+                          ChatAssets.chatUnreadDot,
+                          width: unreadDotSize,
+                          height: unreadDotSize,
                         ),
                       ],
+                      SizedBox(width: AppSpacing.sm),
+                      SvgPicture.asset(
+                        ChatAssets.chatTileCamera,
+                        width: cameraSize,
+                        height: cameraSize,
+                      ),
                     ],
                   ),
                 ],

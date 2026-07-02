@@ -76,12 +76,13 @@ class ChatService {
     Timestamp? clearedAt,
   }) {
     if (chatId.isEmpty || uid.isEmpty) return Stream.value([]);
+    // Fetch the newest page first, then reverse for chronological display.
     return _messagesCol(chatId)
-        .orderBy('createdAt', descending: false)
+        .orderBy('createdAt', descending: true)
         .limit(ChatLimits.initialMessagePageSize)
         .snapshots()
         .map((snap) {
-          return snap.docs
+          final messages = snap.docs
               .map((d) => MessageModel.fromFirestore(d, chatId))
               .where(
                 (m) => !m.deletedForEveryone && !m.deletedFor.contains(uid),
@@ -92,6 +93,7 @@ class ChatService {
                 return m.createdAt!.compareTo(clearedAt) > 0;
               })
               .toList();
+          return messages.reversed.toList();
         });
   }
 

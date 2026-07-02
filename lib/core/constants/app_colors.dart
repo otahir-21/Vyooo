@@ -81,16 +81,20 @@ class AppColors {
   static const Color chatSearchFill = Color(0xFFF2F2F7);
   static const Color chatTextPrimary = Color(0xFF1C1C1E);
   static const Color chatTextSecondary = Color(0xFF8E8E93);
-  static const Color chatIncomingBubble = Color(0xFFF2F2F7);
-  static const Color chatOutgoingBubble = authBrandBurgundy;
-  static const Color chatInputBar = Color(0xFF2C2C2E);
+  static const Color chatIncomingBubble = Color(0xFFE6E6E6);
+  static const Color chatOutgoingBubble = Color(0xFF660033);
+  /// Sent text bubble body — Figma #CCC on burgundy bubble.
+  static const Color chatSentBubbleText = Color(0xFFCCCCCC);
+  /// Incoming text bubble body — Figma black on #E6E6E6.
+  static const Color chatIncomingBubbleText = Color(0xFF000000);
+  static const Color chatInputBar = Color(0xFF4D4D4D);
   /// Live comment glass field — Figma white @ 10% on blurred backdrop.
   static const Color liveCommentInputGlassFill = Color(0x1AFFFFFF);
   /// Live comment typed + placeholder text — Figma #EEEEEE.
   static const Color liveCommentInputText = Color(0xFFEEEEEE);
   /// Live feed host caption — Figma #F0F0F0.
   static const Color liveFeedHostCaption = Color(0xFFF0F0F0);
-  static const Color chatInputHint = Color(0xFFAEAEB2);
+  static const Color chatInputHint = Color(0xFF999999);
   static const Color chatDivider = Color(0xFFE5E5EA);
   static const Color chatVerified = Color(0xFF34C759);
   static const Color chatNoteBubbleFill = Color(0xFFFFFFFF);
@@ -101,7 +105,17 @@ class AppColors {
   static const Color chatNoteNameText = Color(0xFF333333);
   /// Inbox section Requests title — Figma #AA0055.
   static const Color chatRequestsTitle = Color(0xFFAA0055);
+  /// Inbox chat tile unread dot — Figma #EE116C.
+  static const Color chatUnreadDot = Color(0xFFEE116C);
+  /// Chat thread header display name — Figma 14 / #333.
+  static const Color chatThreadHeaderName = Color(0xFF333333);
+  /// Chat thread header @username — Figma 12 / #7F7F7F.
+  static const Color chatThreadHeaderUsername = Color(0xFF7F7F7F);
+  /// Chat thread date pill label — Figma 14 / #999.
+  static const Color chatThreadDateLabel = Color(0xFF999999);
   static const Color chatAppBarActionIcon = Color(0xFF808080);
+  /// Call log bubble subtitle — Figma #666.
+  static const Color chatCallBubbleSubtitle = Color(0xFF666666);
 
   /// Instagram gradient (share action)
   static const List<Color> instagramGradient = [

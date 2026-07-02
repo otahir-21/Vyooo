@@ -72,7 +72,6 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     final avatar = _avatarUrl;
-    final hasAvatar = avatar != null && avatar.trim().isNotEmpty;
 
     return Container(
       decoration: const BoxDecoration(
@@ -106,19 +105,9 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: AppSizes.chatAppBarAvatar / 2,
-                        backgroundColor: AppColors.chatSearchFill,
-                        backgroundImage: hasAvatar
-                            ? CachedNetworkImageProvider(avatar)
-                            : null,
-                        child: hasAvatar
-                            ? null
-                            : Icon(
-                                _isGroup ? Icons.group : Icons.person,
-                                color: AppColors.chatTextSecondary,
-                                size: 15,
-                              ),
+                      _ChatHeaderAvatar(
+                        imageUrl: avatar,
+                        isGroup: _isGroup,
                       ),
                       SizedBox(width: AppSpacing.sm + AppSpacing.xs - 2),
                       Flexible(
@@ -155,7 +144,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                                 style: AppTypography.chatAppBarUsername.copyWith(
                                   color: presenceText == 'Active now'
                                       ? AppColors.chatVerified
-                                      : AppColors.chatTextSecondary,
+                                      : AppColors.chatThreadHeaderUsername,
                                 ),
                               ),
                           ],
@@ -183,6 +172,49 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatHeaderAvatar extends StatelessWidget {
+  const _ChatHeaderAvatar({
+    required this.imageUrl,
+    required this.isGroup,
+  });
+
+  final String? imageUrl;
+  final bool isGroup;
+
+  @override
+  Widget build(BuildContext context) {
+    final maskSize = AppSizes.chatThreadHeaderAvatar;
+    final hasAvatar = imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+    return ClipOval(
+      child: SizedBox(
+        width: maskSize,
+        height: maskSize,
+        child: hasAvatar
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                errorWidget: (_, _, _) => _placeholder(isGroup),
+              )
+            : _placeholder(isGroup),
+      ),
+    );
+  }
+
+  Widget _placeholder(bool isGroup) {
+    return ColoredBox(
+      color: AppColors.chatSearchFill,
+      child: Center(
+        child: Icon(
+          isGroup ? Icons.group : Icons.person,
+          color: AppColors.chatTextSecondary,
+          size: 18,
         ),
       ),
     );

@@ -274,7 +274,18 @@ abstract final class AppSizes {
   // — Chat (Figma inbox / thread) —
   static const double chatInboxAvatar = 66;
   static const double chatInboxAvatarIcon = 30;
-  static const double chatThreadBubbleAvatar = 24;
+  static const double chatThreadBubbleAvatar = 31;
+  static const double chatThreadBubbleAvatarSourceWidth = 30.998;
+  static const double chatThreadBubbleAvatarSourceHeight = 37.171;
+  static const double chatIncomingBubbleMinHeight = 40.82;
+  static const double chatOutgoingBubbleMinHeight = 40.82;
+  static const double chatCallBubbleHeight = 66;
+  static const double chatCallBubbleRadius = 24;
+  static const double chatCallBubbleIcon = 43;
+  static const double chatForwardButton = 40;
+  /// Chat thread photo/video frame — Figma 185×370 (aspect 1:2).
+  static const double chatMediaMessageWidth = 185;
+  static const double chatMediaMessageHeight = 370;
   static const double chatNoteAvatar = 64;
   static const double chatNoteAvatarIcon = 26;
   static const double chatNoteItemWidth = 64;
@@ -296,12 +307,18 @@ abstract final class AppSizes {
   static const double chatMessagesTitleHeight = 14;
   static const double chatRequestsTitleWidth = 119;
   static const double chatRequestsTitleHeight = 14;
-  static const double chatAppBarAvatar = 34;
+  static const double chatTileUnreadDot = 8;
+  static const double chatTileCamera = 24;
+  static const double chatTileVerifiedBadge = 14;
+  /// Chat thread header profile — Figma mask 41.33 circle (image 41.176×49.375).
+  static const double chatThreadHeaderAvatar = 41.33;
+  static const double chatThreadHeaderAvatarSourceWidth = 41.176;
+  static const double chatThreadHeaderAvatarSourceHeight = 49.375;
   static const double chatSearchHeight = 34;
   static const double chatInboxSectionGap = 20;
   static const double chatComposeButton = 34;
-  static const double chatMessageInputHeight = 44;
-  static const double chatInputCameraButton = 32;
+  static const double chatMessageInputHeight = 64;
+  static const double chatInputCameraButton = 40;
   static const double chatInputActionIcon = 22;
 
   /// Chat inbox Figma artboard (402×932).

@@ -8,7 +8,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/app_padding.dart';
-import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../utils/chat_constants.dart';
@@ -597,11 +596,18 @@ class _MessageInputBarState extends State<MessageInputBar> {
       height: AppSizes.chatMessageInputHeight,
       decoration: BoxDecoration(
         color: AppColors.chatInputBar,
-        borderRadius: AppRadius.pillRadius,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 7.5,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       padding: EdgeInsets.only(
-        left: AppSpacing.sm - AppSpacing.xs,
-        right: AppSpacing.sm + AppSpacing.xs,
+        left: AppSpacing.sm,
+        right: AppSpacing.md - AppSpacing.xs,
       ),
       child: Row(
         children: [
@@ -622,8 +628,13 @@ class _MessageInputBarState extends State<MessageInputBar> {
                   fontSize: 15,
                 ),
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.symmetric(vertical: 10),
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
               ),
             ),
           ),
@@ -677,7 +688,7 @@ class _MessageInputBarState extends State<MessageInputBar> {
           color: widget.mediaLoading
               ? AppColors.chatTextSecondary
               : Colors.white,
-          size: 16,
+          size: 20,
         ),
       ),
     );

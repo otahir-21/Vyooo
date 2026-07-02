@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../models/message_model.dart';
 import 'message_reply_quote.dart';
 
@@ -110,12 +111,9 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
           color: widget.isSent
               ? AppColors.chatOutgoingBubble
               : AppColors.chatIncomingBubble,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(widget.isSent ? 18 : 4),
-            bottomRight: Radius.circular(widget.isSent ? 4 : 18),
-          ),
+          borderRadius: widget.isSent
+              ? AppRadius.chatOutgoingBubbleRadius
+              : AppRadius.pillRadius,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

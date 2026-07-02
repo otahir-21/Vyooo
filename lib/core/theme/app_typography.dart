@@ -697,6 +697,24 @@ abstract final class AppTypography {
     color: AppColors.chatTextSecondary,
   );
 
+  /// Inbox tile preview when unread — Figma 14 / 700 / black.
+  static const TextStyle chatTilePreviewUnread = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 14,
+    height: 1.0,
+    fontWeight: FontWeight.w700,
+    color: AppColors.chatTextPrimary,
+  );
+
+  /// Inbox tile relative time — Figma 11 / 400 / black.
+  static const TextStyle chatTileTime = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: 11,
+    height: 1.0,
+    fontWeight: FontWeight.w400,
+    color: AppColors.chatTextPrimary,
+  );
+
   /// Inbox notes row bubble placeholder — Figma 14 / 400 / #B3B3B3.
   static const TextStyle chatNoteBubbleText = TextStyle(
     fontFamily: AppFonts.body,
@@ -718,31 +736,51 @@ abstract final class AppTypography {
   static const TextStyle chatBubbleText = TextStyle(
     fontFamily: AppFonts.body,
     fontSize: 14,
-    height: 1.3,
+    height: 1.0,
     fontWeight: FontWeight.w400,
+  );
+
+  /// Incoming message bubble text — Figma DM Sans 16.938 / 500 / black / normal lh.
+  static const double chatIncomingBubbleTextSize = 16.938;
+
+  static const TextStyle chatIncomingBubbleText = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: chatIncomingBubbleTextSize,
+    height: 1.0,
+    fontWeight: FontWeight.w500,
+    color: AppColors.chatIncomingBubbleText,
+  );
+
+  /// Sent message bubble text — Figma DM Sans 16.938 / 500 / #CCC / normal lh.
+  static const TextStyle chatSentBubbleText = TextStyle(
+    fontFamily: AppFonts.body,
+    fontSize: chatIncomingBubbleTextSize,
+    height: 1.0,
+    fontWeight: FontWeight.w500,
+    color: AppColors.chatSentBubbleText,
   );
 
   static const TextStyle chatDateSeparator = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 12,
-    height: 1.2,
+    fontSize: 14,
+    height: 1.0,
     fontWeight: FontWeight.w400,
-    color: AppColors.chatTextSecondary,
+    color: AppColors.chatThreadDateLabel,
   );
 
   static const TextStyle chatAppBarName = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 15,
-    height: 1.2,
+    fontSize: 14,
+    height: 1.0,
     fontWeight: FontWeight.w600,
-    color: AppColors.chatTextPrimary,
+    color: AppColors.chatThreadHeaderName,
   );
 
   static const TextStyle chatAppBarUsername = TextStyle(
     fontFamily: AppFonts.body,
-    fontSize: 11,
-    height: 1.2,
+    fontSize: 12,
+    height: 1.0,
     fontWeight: FontWeight.w400,
-    color: AppColors.chatTextSecondary,
+    color: AppColors.chatThreadHeaderUsername,
   );
 }

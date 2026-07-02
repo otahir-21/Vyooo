@@ -1,10 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_radius.dart';
 import '../../../core/theme/app_sizes.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
+import 'chat_bubble_avatar.dart';
 import 'message_reply_quote.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -36,24 +37,25 @@ class MessageBubble extends StatelessWidget {
     final bubble = Container(
       constraints: BoxConstraints(
         maxWidth: MediaQuery.of(context).size.width * 0.72,
+        minHeight: isSent
+            ? AppSizes.chatOutgoingBubbleMinHeight
+            : AppSizes.chatIncomingBubbleMinHeight,
       ),
       padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.md - AppSpacing.xs,
-        vertical: AppSpacing.sm,
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm + AppSpacing.xs - 2,
       ),
       decoration: BoxDecoration(
         color: isSent
             ? AppColors.chatOutgoingBubble
             : AppColors.chatIncomingBubble,
-        borderRadius: BorderRadius.only(
-          topLeft: const Radius.circular(18),
-          topRight: const Radius.circular(18),
-          bottomLeft: Radius.circular(isSent ? 18 : 4),
-          bottomRight: Radius.circular(isSent ? 4 : 18),
-        ),
+        borderRadius: isSent
+            ? AppRadius.chatOutgoingBubbleRadius
+            : AppRadius.pillRadius,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (senderName != null && !isSent)
             Padding(
@@ -75,44 +77,19 @@ class MessageBubble extends StatelessWidget {
             ),
           Text(
             isDeleted ? 'This message was deleted' : text,
-            style: AppTypography.chatBubbleText.copyWith(
-              color: isDeleted
-                  ? (isSent
-                      ? Colors.white.withValues(alpha: 0.6)
-                      : AppColors.chatTextSecondary)
-                  : (isSent ? Colors.white : AppColors.chatTextPrimary),
-              fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
-            ),
-          ),
-          SizedBox(height: AppSpacing.xs - 2),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (seenText != null) ...[
-                  Text(
-                    seenText!,
-                    style: AppTypography.chatDateSeparator.copyWith(
-                      fontSize: 10,
-                      color: isSent
-                          ? Colors.white.withValues(alpha: 0.65)
-                          : AppColors.chatTextSecondary,
-                    ),
+            style: isSent
+                ? AppTypography.chatSentBubbleText.copyWith(
+                    fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
+                    color: isDeleted
+                        ? AppColors.chatSentBubbleText.withValues(alpha: 0.6)
+                        : AppColors.chatSentBubbleText,
+                  )
+                : AppTypography.chatIncomingBubbleText.copyWith(
+                    color: isDeleted
+                        ? AppColors.chatTextSecondary
+                        : AppColors.chatIncomingBubbleText,
+                    fontStyle: isDeleted ? FontStyle.italic : FontStyle.normal,
                   ),
-                  SizedBox(width: AppSpacing.xs),
-                ],
-                Text(
-                  time,
-                  style: AppTypography.chatDateSeparator.copyWith(
-                    fontSize: 10,
-                    color: isSent
-                        ? Colors.white.withValues(alpha: 0.65)
-                        : AppColors.chatTextSecondary,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -135,6 +112,7 @@ class MessageBubble extends StatelessWidget {
 
     final hasAvatar =
         senderAvatarUrl != null && senderAvatarUrl!.trim().isNotEmpty;
+    final avatarSlot = AppSizes.chatThreadBubbleAvatar;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -147,14 +125,9 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (hasAvatar)
-            CircleAvatar(
-              radius: AppSizes.chatThreadBubbleAvatar / 2,
-              backgroundColor: AppColors.chatSearchFill,
-              backgroundImage:
-                  CachedNetworkImageProvider(senderAvatarUrl!),
-            )
+            ChatBubbleAvatar(imageUrl: senderAvatarUrl)
           else
-            SizedBox(width: AppSizes.chatThreadBubbleAvatar),
+            SizedBox(width: avatarSlot),
           SizedBox(width: AppSpacing.sm - AppSpacing.xs),
           Flexible(child: bubble),
         ],

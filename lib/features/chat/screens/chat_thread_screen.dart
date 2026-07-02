@@ -84,7 +84,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   String? _presenceText;
   StreamSubscription<Map<String, dynamic>?>? _presenceSub;
   StreamSubscription<List<CallSessionModel>>? _incomingCallSub;
-  late final Stream<List<MessageModel>> _messagesStream;
+  StreamSubscription<ChatModel?>? _chatSub;
+  late Stream<List<MessageModel>> _messagesStream;
 
   bool get _isGroup =>
       widget.chatType == ChatTypes.group ||
@@ -102,18 +103,36 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   @override
   void initState() {
     super.initState();
-    _messagesStream = _chatService.watchMessages(
-      widget.chatId,
-      widget.currentUser.uid,
-    );
+    _bindMessagesStream();
     ChatNotificationService.instance.setActiveChatId(widget.chatId);
     _chatService.markChatRead(
       uid: widget.currentUser.uid,
       chatId: widget.chatId,
     );
-    _loadChatModel();
+    _chatSub = _chatService.watchChat(widget.chatId).listen((chat) {
+      if (!mounted) return;
+      final prevClearedAt = _chatModel?.clearedAtBy[widget.currentUser.uid];
+      final nextClearedAt = chat?.clearedAtBy[widget.currentUser.uid];
+      final clearedAtChanged = prevClearedAt != nextClearedAt;
+      setState(() {
+        _chatModel = chat;
+        _isMuted = chat?.mutedBy.contains(widget.currentUser.uid) ?? false;
+      });
+      if (clearedAtChanged) {
+        _bindMessagesStream();
+        setState(() {});
+      }
+    });
     _startPresenceWatch();
     _startIncomingCallWatch();
+  }
+
+  void _bindMessagesStream() {
+    _messagesStream = _chatService.watchMessages(
+      widget.chatId,
+      widget.currentUser.uid,
+      clearedAt: _chatModel?.clearedAtBy[widget.currentUser.uid],
+    );
   }
 
   List<MessageModel> _visibleMessages(List<MessageModel> raw) {
@@ -125,15 +144,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           return m.createdAt!.compareTo(clearedAt) > 0;
         })
         .toList();
-  }
-
-  Future<void> _loadChatModel() async {
-    final chat = await _chatService.getChat(widget.chatId);
-    if (!mounted) return;
-    setState(() {
-      _chatModel = chat;
-      _isMuted = chat?.mutedBy.contains(widget.currentUser.uid) ?? false;
-    });
   }
 
   void _startPresenceWatch() {
@@ -172,6 +182,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     ChatNotificationService.instance.setActiveChatId(null);
     _presenceSub?.cancel();
     _incomingCallSub?.cancel();
+    _chatSub?.cancel();
     _typingService.clearTyping(
       chatId: widget.chatId,
       uid: widget.currentUser.uid,
@@ -492,7 +503,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               if (mounted) setState(() => _isMuted = !_isMuted);
             },
             onChatCleared: () {
-              _loadChatModel();
+              if (!mounted) return;
+              _bindMessagesStream();
+              setState(() {});
             },
           ),
         ),
@@ -750,6 +763,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       seenText: seenText,
       replyToSenderName: replyToSenderName,
       replyToPreview: replyToPreview,
+      senderAvatarUrl: _senderAvatarUrl(msg),
     );
     if (name == null) return media;
     return Align(
